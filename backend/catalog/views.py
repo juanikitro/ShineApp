@@ -122,6 +122,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
         today = timezone.localdate()
         work_orders = list(
             WorkOrder.objects.filter(service=service)
+            .filter(reservation__status__in=WorkOrder.operational_statuses())
             .select_related("customer", "vehicle")
             .prefetch_related("payments", "material_consumptions")
             .order_by("-received_at", "-created_at", "-id")

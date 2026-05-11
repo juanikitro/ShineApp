@@ -32,6 +32,10 @@ class WorkOrder(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
+    @classmethod
+    def operational_statuses(cls):
+        return [cls.Status.IN_PROGRESS, cls.Status.READY, cls.Status.DELIVERED]
+
     def __str__(self):
         return f"Orden #{self.id or '-'} - {self.customer}"
 

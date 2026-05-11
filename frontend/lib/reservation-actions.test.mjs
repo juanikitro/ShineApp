@@ -69,13 +69,13 @@ test('confirmed reservations keep only the icon-only cancel action', () => {
 	])
 })
 
-test('pending work keeps the operational step as primary and charge as secondary', () => {
+test('confirmed reservations expose the first work step as primary and charge as secondary', () => {
 	assert.deepEqual(
 		buildAgendaReservationActions({
 			balanceDue: 18000,
 			canCharge: true,
 			reservationStatus: 'confirmed',
-			workOrderStatus: 'pending',
+			workOrderStatus: 'confirmed',
 		}),
 		[
 			{
@@ -104,12 +104,41 @@ test('pending work keeps the operational step as primary and charge as secondary
 	)
 })
 
+test('pending reservations do not expose work progress actions yet', () => {
+	assert.deepEqual(
+		buildAgendaReservationActions({
+			balanceDue: 18000,
+			canCharge: true,
+			reservationStatus: 'pending',
+			workOrderStatus: 'pending',
+		}),
+		[
+			{
+				action: 'confirm',
+				kind: 'reservation',
+				label: 'Confirmar',
+				priority: 'high',
+				variant: 'filled',
+			},
+			{
+				action: 'cancel',
+				ariaLabel: 'Cancelar reserva',
+				icon: 'trash',
+				kind: 'reservation',
+				label: 'Cancelar',
+				priority: 'low',
+				variant: 'icon-danger',
+			},
+		],
+	)
+})
+
 test('ready work with debt prioritizes charge over delivery', () => {
 	assert.deepEqual(
 		buildAgendaReservationActions({
 			balanceDue: 5000,
 			canCharge: true,
-			reservationStatus: 'confirmed',
+			reservationStatus: 'ready',
 			workOrderStatus: 'ready',
 		}),
 		[
@@ -126,15 +155,6 @@ test('ready work with debt prioritizes charge over delivery', () => {
 				status: 'delivered',
 				variant: 'outline',
 			},
-			{
-				action: 'cancel',
-				ariaLabel: 'Cancelar reserva',
-				icon: 'trash',
-				kind: 'reservation',
-				label: 'Cancelar',
-				priority: 'low',
-				variant: 'icon-danger',
-			},
 		],
 	)
 })
@@ -145,7 +165,7 @@ test('charge action is hidden when balance due is zero', () => {
 			balanceDue: 0,
 			canCharge: true,
 			reservationStatus: 'confirmed',
-			workOrderStatus: 'pending',
+			workOrderStatus: 'confirmed',
 		}),
 		[
 			{

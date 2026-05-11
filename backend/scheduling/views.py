@@ -60,7 +60,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=["post"])
     def complete(self, request, pk=None):
         reservation = self.get_object()
-        reservation.status = Reservation.Status.COMPLETED
+        reservation.status = Reservation.Status.DELIVERED
         reservation.save(update_fields=["status", "updated_at"])
         ensure_reservation_work_order(reservation)
         return response.Response(self.get_serializer(reservation).data)

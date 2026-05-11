@@ -56,7 +56,7 @@ const actionPriorityOrder: Record<AgendaReservationActionPriority, number> = {
 function workOrderStatusAction(
 	status: unknown,
 ): WorkOrderStatusAgendaAction | null {
-	if (status === 'pending') {
+	if (status === 'confirmed') {
 		return {
 			kind: 'work-order-status',
 			label: 'Iniciar',
@@ -114,6 +114,13 @@ function asSecondaryStatusAction(
 function buildWorkOrderActions(
 	options: BuildAgendaReservationActionsOptions,
 ): AgendaReservationAction[] {
+	if (
+		options.reservationStatus === 'pending' ||
+		options.reservationStatus === 'canceled'
+	) {
+		return []
+	}
+
 	const statusAction = workOrderStatusAction(options.workOrderStatus)
 	const balanceDue = Number(options.balanceDue ?? 0)
 	const canCharge =

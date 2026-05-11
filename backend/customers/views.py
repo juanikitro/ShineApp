@@ -152,6 +152,7 @@ def build_customer_list_insights(queryset, include_economy=False):
     today = timezone.localdate()
     work_orders = list(
         WorkOrder.objects.filter(customer_id__in=customer_ids)
+        .filter(reservation__status__in=WorkOrder.operational_statuses())
         .select_related("service", "vehicle")
         .annotate(paid_total=Sum("payments__amount"))
         .order_by("customer_id", "-received_at", "-created_at", "-id")
@@ -280,6 +281,7 @@ class CustomerViewSet(ActiveQuerysetMixin, viewsets.ModelViewSet):
         today = timezone.localdate()
         work_orders = list(
             WorkOrder.objects.filter(customer=customer)
+            .filter(reservation__status__in=WorkOrder.operational_statuses())
             .select_related("service", "vehicle")
             .prefetch_related("payments", "material_consumptions__material")
             .order_by("-received_at", "-created_at", "-id")
@@ -507,7 +509,10 @@ class VehicleViewSet(ActiveQuerysetMixin, viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=["get"], permission_classes=[CanViewEconomy])
     def history(self, request, pk=None):
         vehicle = self.get_object()
-        work_orders = WorkOrder.objects.filter(vehicle=vehicle).order_by("-created_at")
+        work_orders = WorkOrder.objects.filter(
+            vehicle=vehicle,
+            reservation__status__in=WorkOrder.operational_statuses(),
+        ).order_by("-created_at")
         return response.Response(
             {
                 "vehicle": VehicleSerializer(vehicle).data,

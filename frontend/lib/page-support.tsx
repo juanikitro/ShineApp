@@ -823,15 +823,19 @@ function detailRequiresEconomy(kind: string) {
 const reservationLabels: Record<string, string> = {
 	pending: 'Pendiente',
 	confirmed: 'Confirmada',
+	in_progress: 'En proceso',
+	ready: 'Listo',
+	delivered: 'Entregada',
 	canceled: 'Cancelada',
-	completed: 'Completada',
 }
 
 const reservationAgendaClassNames: Record<string, string> = {
 	pending: 'agenda-operational-card--pending',
 	confirmed: 'agenda-operational-card--confirmed',
+	in_progress: 'agenda-operational-card--in-progress',
+	ready: 'agenda-operational-card--ready',
+	delivered: 'agenda-operational-card--completed',
 	canceled: 'agenda-operational-card--canceled',
-	completed: 'agenda-operational-card--completed',
 }
 
 const agendaPhaseLabels: Record<AgendaOperationalPhase, string> = {
@@ -842,9 +846,11 @@ const agendaPhaseLabels: Record<AgendaOperationalPhase, string> = {
 
 const orderLabels: Record<string, string> = {
 	pending: 'Pendiente',
+	confirmed: 'Confirmada',
 	in_progress: 'En proceso',
 	ready: 'Listo',
 	delivered: 'Entregado',
+	canceled: 'Cancelada',
 }
 
 const debtStatusLabels: Record<string, string> = {

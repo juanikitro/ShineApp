@@ -100,6 +100,10 @@ export function workStatusForReservation(
 	reservation: AnyRecord,
 	workOrders: AnyRecord[] | Record<string, AnyRecord>,
 ) {
+	const reservationStatus = String(reservation.status ?? '')
+	if (reservationStatus && !['pending', 'canceled'].includes(reservationStatus)) {
+		return reservationStatus
+	}
 	const workOrder = workOrderForReservation(reservation, workOrders)
 	return workOrder ? String(workOrder.status ?? 'pending') : null
 }
@@ -109,7 +113,7 @@ export function reservationCanMoveWorkStatus(
 	workOrders: AnyRecord[] | Record<string, AnyRecord>,
 ) {
 	return (
-		String(reservation.status ?? '') !== 'canceled' &&
+		!['pending', 'canceled'].includes(String(reservation.status ?? '')) &&
 		Boolean(workOrderForReservation(reservation, workOrders))
 	)
 }

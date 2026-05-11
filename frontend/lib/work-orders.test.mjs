@@ -65,19 +65,19 @@ test('filters reservations by global service bucket using reservation service da
 
 test('groups reservations by associated work order status in operational order', () => {
 	const reservations = [
-		{ id: 10, work_order: { id: 1, status: 'ready' } },
-		{ id: 11 },
-		{ id: 12 },
+		{ id: 10, status: 'ready', work_order: { id: 1, status: 'ready' } },
+		{ id: 11, status: 'confirmed' },
+		{ id: 12, status: 'in_progress' },
 	]
 	const workOrders = [
-		{ id: 2, reservation: 11, status: 'pending' },
+		{ id: 2, reservation: 11, status: 'confirmed' },
 		{ id: 3, reservation: 12, status: 'in_progress' },
 	]
 	const groups = groupReservationsByWorkOrderStatus(
 		reservations,
 		workOrders,
 		{
-			pending: 'Pendiente',
+			confirmed: 'Confirmada',
 			in_progress: 'En proceso',
 			ready: 'Listo',
 			delivered: 'Entregado',
@@ -91,7 +91,7 @@ test('groups reservations by associated work order status in operational order',
 			ids: group.reservations.map((item) => item.id),
 		})),
 		[
-			{ key: 'pending', label: 'Pendiente', ids: [11] },
+			{ key: 'confirmed', label: 'Confirmada', ids: [11] },
 			{ key: 'in_progress', label: 'En proceso', ids: [12] },
 			{ key: 'ready', label: 'Listo', ids: [10] },
 			{ key: 'delivered', label: 'Entregado', ids: [] },
@@ -179,17 +179,17 @@ test('resolves the work order for a reservation from embedded data or lookup', (
 
 test('groups only reservations with real active work orders by work status', () => {
 	const reservations = [
-		{ id: 30, status: 'confirmed', work_order: { id: 10, status: 'pending' } },
+		{ id: 30, status: 'confirmed', work_order: { id: 10, status: 'confirmed' } },
 		{ id: 31, status: 'canceled', work_order: { id: 11, status: 'ready' } },
-		{ id: 32, status: 'pending' },
-		{ id: 33, status: 'completed' },
+		{ id: 32, status: 'pending', work_order: { id: 13, status: 'pending' } },
+		{ id: 33, status: 'delivered' },
 	]
 	const workOrders = [{ id: 12, reservation: 33, status: 'delivered' }]
 	const groups = groupReservationsByWorkOrderStatus(
 		reservations,
 		workOrders,
 		{
-			pending: 'Pendiente',
+			confirmed: 'Confirmada',
 			ready: 'Listo',
 			delivered: 'Entregado',
 		},
@@ -201,12 +201,12 @@ test('groups only reservations with real active work orders by work status', () 
 			ids: group.reservations.map((item) => item.id),
 		})),
 		[
-			{ key: 'pending', ids: [30] },
+			{ key: 'confirmed', ids: [30] },
 			{ key: 'ready', ids: [] },
 			{ key: 'delivered', ids: [33] },
 		],
 	)
-	assert.equal(workStatusForReservation(reservations[0], workOrders), 'pending')
+	assert.equal(workStatusForReservation(reservations[0], workOrders), 'confirmed')
 	assert.equal(reservationCanMoveWorkStatus(reservations[0], workOrders), true)
 	assert.equal(reservationCanMoveWorkStatus(reservations[1], workOrders), false)
 	assert.equal(reservationCanMoveWorkStatus(reservations[2], workOrders), false)

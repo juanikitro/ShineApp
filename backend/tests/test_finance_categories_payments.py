@@ -12,7 +12,7 @@ from core.models import BusinessProfile
 from customers.models import Customer, Vehicle
 from finance.models import CashMovement
 from inventory.models import Material
-from workorders.models import WorkOrder
+from scheduling.models import Reservation
 
 
 @pytest.fixture
@@ -40,12 +40,17 @@ def work_order(db):
         base_price=Decimal("15000.00"),
         estimated_duration_minutes=90,
     )
-    return WorkOrder.objects.create(
+    reservation = Reservation.objects.create(
         customer=customer,
         vehicle=vehicle,
         service=service,
-        total_amount=Decimal("15000.00"),
+        day="2026-04-28",
+        status=Reservation.Status.CONFIRMED,
     )
+    order = reservation.work_order
+    order.total_amount = Decimal("15000.00")
+    order.save(update_fields=["total_amount"])
+    return order
 
 
 @pytest.mark.django_db

@@ -61,6 +61,7 @@ class ReservationSerializer(serializers.ModelSerializer):
     service_icon = serializers.CharField(source="service.icon", read_only=True)
     items = ReservationItemSerializer(many=True, required=False)
     work_order = serializers.SerializerMethodField()
+    status = serializers.CharField(required=False)
 
     class Meta:
         model = Reservation
@@ -140,6 +141,14 @@ class ReservationSerializer(serializers.ModelSerializer):
                 }
             )
         return payload
+
+    def validate_status(self, value):
+        if value == "completed":
+            return Reservation.Status.DELIVERED
+        allowed = [choice[0] for choice in Reservation.Status.choices]
+        if value not in allowed:
+            raise serializers.ValidationError("Estado invalido.")
+        return value
 
     def validate(self, attrs):
         attrs = self._with_preserved_exit_offset(attrs)
@@ -234,7 +243,7 @@ class ReservationSerializer(serializers.ModelSerializer):
         validated_data.setdefault("estimated_duration_minutes", self._duration_from_items(items_data))
         reservation = Reservation.objects.create(**validated_data)
         self._replace_items(reservation, items_data)
-        ensure_reservation_work_order(reservation)
+        self._ensure_work_order(reservation)
         return reservation
 
     @transaction.atomic
@@ -249,8 +258,12 @@ class ReservationSerializer(serializers.ModelSerializer):
             self._replace_items(reservation, items_data)
         elif legacy_service:
             self._replace_items(reservation, [{"service": legacy_service}])
-        ensure_reservation_work_order(reservation)
+        self._ensure_work_order(reservation)
         return reservation
+
+    def _ensure_work_order(self, reservation):
+        ensure_reservation_work_order(reservation)
+        reservation._state.fields_cache.pop("work_order", None)
 
     def _replace_items(self, reservation, items_data):
         reservation.items.all().delete()

@@ -47,7 +47,11 @@ class DashboardSummaryView(APIView):
             return Response(payload)
 
         payments = Payment.objects.filter(paid_at__date__gte=date_from, paid_at__date__lte=date_to)
-        work_orders = WorkOrder.objects.filter(created_at__date__gte=date_from, created_at__date__lte=date_to)
+        work_orders = WorkOrder.objects.filter(
+            created_at__date__gte=date_from,
+            created_at__date__lte=date_to,
+            reservation__status__in=WorkOrder.operational_statuses(),
+        )
         purchases = MaterialPurchase.objects.filter(purchased_at__gte=date_from, purchased_at__lte=date_to)
         consumptions = MaterialConsumption.objects.filter(consumed_at__gte=date_from, consumed_at__lte=date_to)
         stock_purchases = StockMovement.objects.filter(
@@ -64,7 +68,10 @@ class DashboardSummaryView(APIView):
         sales_total = payments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
         work_orders_count = work_orders.count()
         average_ticket = sales_total / work_orders_count if work_orders_count else Decimal("0.00")
-        by_status = {row["status"]: row["count"] for row in work_orders.values("status").annotate(count=Count("id"))}
+        by_status = {
+            row["reservation__status"]: row["count"]
+            for row in work_orders.values("reservation__status").annotate(count=Count("id"))
+        }
         today_movements = CashMovement.objects.filter(occurred_at__date=today)
         today_income = (
             today_movements.filter(movement_type=CashMovement.MovementType.INCOME).aggregate(total=Sum("amount"))["total"]

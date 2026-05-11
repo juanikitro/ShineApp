@@ -67,6 +67,36 @@ def response_payload(response):
     return response.data["results"] if isinstance(response.data, dict) and "results" in response.data else response.data
 
 
+def create_work_order(
+    customer,
+    vehicle,
+    service,
+    *,
+    status=Reservation.Status.CONFIRMED,
+    total_amount=None,
+    day=date(2026, 4, 28),
+    **order_fields,
+):
+    reservation = Reservation.objects.create(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        day=day,
+        status=status,
+    )
+    order = reservation.work_order
+    update_fields = []
+    if total_amount is not None:
+        order.total_amount = total_amount
+        update_fields.append("total_amount")
+    for field, value in order_fields.items():
+        setattr(order, field, value)
+        update_fields.append(field)
+    if update_fields:
+        order.save(update_fields=update_fields)
+    return order
+
+
 def pdf_text(pdf_content):
     document = fitz.open(stream=pdf_content, filetype="pdf")
     try:
@@ -590,7 +620,7 @@ def test_customer_list_returns_operational_insights_for_employer(api_client, bas
     last_visit = timezone.make_aware(
         datetime.combine(today - timedelta(days=8), time(9, 0))
     )
-    order = WorkOrder.objects.create(
+    order = create_work_order(
         customer=customer,
         vehicle=vehicle,
         service=service,
@@ -661,7 +691,7 @@ def test_customer_list_hides_economy_fields_for_employee(employee_client, base_d
     last_visit = timezone.make_aware(
         datetime.combine(today - timedelta(days=5), time(11, 0))
     )
-    order = WorkOrder.objects.create(
+    order = create_work_order(
         customer=customer,
         vehicle=vehicle,
         service=service,
@@ -737,7 +767,7 @@ def test_customer_list_marks_customer_without_visits_or_reservations_as_follow_u
 @pytest.mark.django_db
 def test_customer_history_summarizes_work_payments_and_material_cost(api_client, base_data):
     customer, vehicle, service = base_data
-    order = WorkOrder.objects.create(
+    order = create_work_order(
         customer=customer,
         vehicle=vehicle,
         service=service,
@@ -803,21 +833,21 @@ def test_customer_history_dashboard_returns_rankings_and_payments_history(api_cl
         brand="Toyota",
         model="Hilux",
     )
-    ford_order = WorkOrder.objects.create(
+    ford_order = create_work_order(
         customer=customer,
         vehicle=vehicle,
         service=service,
         status=WorkOrder.Status.DELIVERED,
         total_amount=Decimal("20000.00"),
     )
-    second_ford_order = WorkOrder.objects.create(
+    second_ford_order = create_work_order(
         customer=customer,
         vehicle=vehicle,
         service=service,
         status=WorkOrder.Status.READY,
         total_amount=Decimal("12000.00"),
     )
-    toyota_order = WorkOrder.objects.create(
+    toyota_order = create_work_order(
         customer=customer,
         vehicle=second_vehicle,
         service=ceramic,
@@ -925,7 +955,7 @@ def test_customer_history_dashboard_returns_operational_insights_quotes_and_upco
         base_price=Decimal("40000.00"),
         estimated_duration_minutes=240,
     )
-    first_order = WorkOrder.objects.create(
+    first_order = create_work_order(
         customer=customer,
         vehicle=vehicle,
         service=service,
@@ -933,7 +963,7 @@ def test_customer_history_dashboard_returns_operational_insights_quotes_and_upco
         total_amount=Decimal("15000.00"),
         received_at=older_visit,
     )
-    second_order = WorkOrder.objects.create(
+    second_order = create_work_order(
         customer=customer,
         vehicle=vehicle,
         service=service,
@@ -941,7 +971,7 @@ def test_customer_history_dashboard_returns_operational_insights_quotes_and_upco
         total_amount=Decimal("18000.00"),
         received_at=middle_visit,
     )
-    third_order = WorkOrder.objects.create(
+    third_order = create_work_order(
         customer=customer,
         vehicle=second_vehicle,
         service=polishing,
@@ -981,7 +1011,7 @@ def test_customer_history_dashboard_returns_operational_insights_quotes_and_upco
         service=polishing,
         day=today - timedelta(days=4),
         start_time=time(8, 0),
-        status=Reservation.Status.COMPLETED,
+        status=Reservation.Status.CONFIRMED,
     )
     latest_quote = Quote.objects.create(
         customer=customer,
@@ -1097,7 +1127,7 @@ def test_service_history_returns_operational_summary_and_separates_additional_us
     )
     used_first = timezone.make_aware(datetime.combine(timezone.localdate() - timedelta(days=7), time(9, 0)))
     used_last = timezone.make_aware(datetime.combine(timezone.localdate() - timedelta(days=2), time(11, 0)))
-    first_order = WorkOrder.objects.create(
+    first_order = create_work_order(
         customer=customer,
         vehicle=vehicle,
         service=service,
@@ -1105,7 +1135,7 @@ def test_service_history_returns_operational_summary_and_separates_additional_us
         total_amount=Decimal("15000.00"),
         received_at=used_first,
     )
-    second_order = WorkOrder.objects.create(
+    second_order = create_work_order(
         customer=second_customer,
         vehicle=second_vehicle,
         service=service,
@@ -1280,13 +1310,9 @@ def test_employee_operational_endpoints_do_not_expose_money_fields(employee_clie
         start_time=time(10, 0),
         status=Reservation.Status.CONFIRMED,
     )
-    order = WorkOrder.objects.create(
-        reservation=reservation,
-        customer=customer,
-        vehicle=vehicle,
-        service=service,
-        total_amount=Decimal("15000.00"),
-    )
+    order = reservation.work_order
+    order.total_amount = Decimal("15000.00")
+    order.save(update_fields=["total_amount"])
 
     service_response = employee_client.get(reverse("service-list"))
     work_order_response = employee_client.get(reverse("workorder-detail", args=[order.id]))
@@ -1354,7 +1380,7 @@ def test_work_order_can_be_created_from_reservation(api_client, base_data):
         format="json",
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 200
     assert response.data["customer"] == customer.id
     assert response.data["vehicle"] == vehicle.id
     assert response.data["service"] == service.id
@@ -1388,7 +1414,7 @@ def test_confirmed_reservation_auto_creates_embedded_work_order(api_client, base
     assert order.service == service
     assert order.total_amount == service.base_price
     assert response.data["work_order"]["id"] == order.id
-    assert response.data["work_order"]["status"] == WorkOrder.Status.PENDING
+    assert response.data["work_order"]["status"] == Reservation.Status.CONFIRMED
     assert Decimal(response.data["work_order"]["balance_due"]) == service.base_price
 
 
@@ -1463,7 +1489,7 @@ def test_confirm_action_rejects_canceled_reservation_when_day_is_full(api_client
     assert response.status_code == 400
     reservation.refresh_from_db()
     assert reservation.status == Reservation.Status.CANCELED
-    assert WorkOrder.objects.filter(reservation=reservation).count() == 0
+    assert WorkOrder.objects.filter(reservation=reservation).count() == 1
     assert "capacidad" in str(response.data).lower()
 
 
@@ -1603,7 +1629,7 @@ def test_daily_agenda_includes_reservations_across_entry_stay_and_exit_days(api_
 @pytest.mark.django_db
 def test_payment_creates_cash_income_and_updates_debt(api_client, base_data):
     customer, vehicle, service = base_data
-    order = WorkOrder.objects.create(
+    order = create_work_order(
         customer=customer,
         vehicle=vehicle,
         service=service,
@@ -1633,7 +1659,7 @@ def test_payment_creates_cash_income_and_updates_debt(api_client, base_data):
 @pytest.mark.django_db
 def test_material_purchase_and_consumption_adjust_stock_and_cost(api_client, base_data):
     customer, vehicle, service = base_data
-    order = WorkOrder.objects.create(customer=customer, vehicle=vehicle, service=service)
+    order = create_work_order(customer=customer, vehicle=vehicle, service=service)
     material = Material.objects.create(
         name="Shampoo neutro",
         unit="ml",
@@ -1759,7 +1785,7 @@ def test_material_purchase_update_and_delete_keep_stock_and_cash_in_sync(api_cli
 @pytest.mark.django_db
 def test_material_consumption_update_and_delete_keep_stock_in_sync(api_client, base_data):
     customer, vehicle, service = base_data
-    order = WorkOrder.objects.create(customer=customer, vehicle=vehicle, service=service)
+    order = create_work_order(customer=customer, vehicle=vehicle, service=service)
     material = Material.objects.create(
         name="Shampoo neutro",
         unit="ml",
@@ -1801,7 +1827,7 @@ def test_material_consumption_update_and_delete_keep_stock_in_sync(api_client, b
 @pytest.mark.django_db
 def test_material_list_exposes_usage_metrics_for_work_orders(api_client, base_data):
     customer, vehicle, service = base_data
-    order = WorkOrder.objects.create(customer=customer, vehicle=vehicle, service=service)
+    order = create_work_order(customer=customer, vehicle=vehicle, service=service)
     material = Material.objects.create(
         name="Shampoo neutro",
         unit="ml",
@@ -1836,8 +1862,8 @@ def test_material_list_exposes_usage_metrics_for_work_orders(api_client, base_da
 @pytest.mark.django_db
 def test_material_open_unit_can_be_used_across_jobs_before_stock_is_discounted(api_client, base_data):
     customer, vehicle, service = base_data
-    first_order = WorkOrder.objects.create(customer=customer, vehicle=vehicle, service=service)
-    second_order = WorkOrder.objects.create(customer=customer, vehicle=vehicle, service=service)
+    first_order = create_work_order(customer=customer, vehicle=vehicle, service=service)
+    second_order = create_work_order(customer=customer, vehicle=vehicle, service=service)
     material = Material.objects.create(
         name="Ceramico",
         unit="botella",
@@ -1923,8 +1949,8 @@ def test_material_open_unit_can_be_used_across_jobs_before_stock_is_discounted(a
 @pytest.mark.django_db
 def test_direct_material_consumption_keeps_discounting_stock_with_open_units(api_client, base_data):
     customer, vehicle, service = base_data
-    direct_order = WorkOrder.objects.create(customer=customer, vehicle=vehicle, service=service)
-    open_unit_order = WorkOrder.objects.create(customer=customer, vehicle=vehicle, service=service)
+    direct_order = create_work_order(customer=customer, vehicle=vehicle, service=service)
+    open_unit_order = create_work_order(customer=customer, vehicle=vehicle, service=service)
     material = Material.objects.create(
         name="Ceramico",
         unit="botella",
@@ -1972,7 +1998,7 @@ def test_direct_material_consumption_keeps_discounting_stock_with_open_units(api
 @pytest.mark.django_db
 def test_finished_open_unit_cannot_receive_more_consumption(api_client, base_data):
     customer, vehicle, service = base_data
-    order = WorkOrder.objects.create(customer=customer, vehicle=vehicle, service=service)
+    order = create_work_order(customer=customer, vehicle=vehicle, service=service)
     material = Material.objects.create(
         name="Ceramico",
         unit="botella",
@@ -2028,7 +2054,7 @@ def test_cash_daily_separates_cashflow_from_economic_totals(api_client, base_dat
     customer, vehicle, service = base_data
     cash_day = date(2026, 5, 9)
     paid_at = timezone.make_aware(datetime.combine(cash_day, time(10, 0)))
-    order = WorkOrder.objects.create(
+    order = create_work_order(
         customer=customer,
         vehicle=vehicle,
         service=service,
@@ -2144,7 +2170,7 @@ def test_closed_cash_day_blocks_every_cash_impact_path(api_client, base_data):
         total_expense=Decimal("0.00"),
         balance=Decimal("0.00"),
     )
-    order = WorkOrder.objects.create(
+    order = create_work_order(
         customer=customer,
         vehicle=vehicle,
         service=service,
@@ -2788,7 +2814,7 @@ def test_quote_to_reservation_requires_day_then_creates_reservation_with_items(a
 def test_dashboard_summary_exposes_operational_metrics(api_client, base_data):
     customer, vehicle, service = base_data
     metric_day = date(2026, 4, 10)
-    order = WorkOrder.objects.create(
+    order = create_work_order(
         customer=customer,
         vehicle=vehicle,
         service=service,
