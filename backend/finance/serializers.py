@@ -1,0 +1,237 @@
+from decimal import Decimal
+
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
+from django.utils import timezone
+from rest_framework import serializers
+
+from core.models import register_expense_classification, register_income_classification
+
+from .cash import (
+    cash_day,
+    cash_movement_cashflow_effect,
+    cash_movement_source_kind,
+    ensure_adjustment_target_closed,
+    ensure_cash_day_open,
+    request_user_from_context,
+    signed_amount_for,
+)
+from .models import CashClosure, CashMovement, Payment
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    work_order_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Payment
+        fields = [
+            "id",
+            "work_order",
+            "work_order_label",
+            "amount",
+            "payment_type",
+            "method",
+            "paid_at",
+            "notes",
+            "created_at",
+        ]
+        read_only_fields = ["id", "work_order_label", "created_at"]
+        extra_kwargs = {
+            "amount": {"required": False},
+        }
+
+    def get_work_order_label(self, obj):
+        return str(obj.work_order)
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("El importe debe ser mayor a cero.")
+        return value
+
+    def validate(self, attrs):
+        work_order = attrs.get("work_order") or getattr(self.instance, "work_order", None)
+        amount = attrs.get("amount", getattr(self.instance, "amount", None))
+        paid_at = attrs.get("paid_at", getattr(self.instance, "paid_at", timezone.now()))
+        if self.instance:
+            ensure_cash_day_open(cash_day(self.instance.paid_at), field="paid_at")
+        ensure_cash_day_open(cash_day(paid_at), field="paid_at")
+        if work_order and amount is None:
+            amount = work_order.balance_due
+            attrs["amount"] = amount
+        if amount is None:
+            raise serializers.ValidationError({"amount": "Este campo es requerido."})
+        if amount <= 0:
+            raise serializers.ValidationError({"amount": "El importe debe ser mayor a cero."})
+        if work_order and amount > work_order.balance_due:
+            raise serializers.ValidationError({"amount": "El pago no puede superar la deuda pendiente."})
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        payment = Payment.objects.create(**validated_data)
+        movement = CashMovement.objects.create(
+            movement_type=CashMovement.MovementType.INCOME,
+            category="Sena" if payment.payment_type == Payment.PaymentType.DEPOSIT else "Pago",
+            subcategory=payment.get_method_display(),
+            amount=payment.amount,
+            occurred_at=payment.paid_at,
+            description=f"Pago orden #{payment.work_order_id}",
+            payment=payment,
+            created_by=request_user_from_context(self.context),
+        )
+        register_income_classification(movement.category, movement.subcategory)
+        return payment
+
+
+class CashMovementSerializer(serializers.ModelSerializer):
+    debt = serializers.SerializerMethodField()
+    debt_concept = serializers.SerializerMethodField()
+    source_kind = serializers.SerializerMethodField()
+    source_label = serializers.SerializerMethodField()
+    signed_amount = serializers.SerializerMethodField()
+    cashflow_effect = serializers.SerializerMethodField()
+    economic_effect = serializers.SerializerMethodField()
+    created_by_username = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CashMovement
+        fields = [
+            "id",
+            "movement_type",
+            "category",
+            "subcategory",
+            "amount",
+            "occurred_at",
+            "description",
+            "payment",
+            "material_purchase",
+            "stock_movement",
+            "debt",
+            "debt_concept",
+            "adjusts_closed_day",
+            "source_kind",
+            "source_label",
+            "signed_amount",
+            "cashflow_effect",
+            "economic_effect",
+            "created_by",
+            "created_by_username",
+            "created_at",
+        ]
+        read_only_fields = [
+            "id",
+            "payment",
+            "material_purchase",
+            "stock_movement",
+            "debt",
+            "debt_concept",
+            "source_kind",
+            "source_label",
+            "signed_amount",
+            "cashflow_effect",
+            "economic_effect",
+            "created_by",
+            "created_by_username",
+            "created_at",
+        ]
+
+    def get_related_debt(self, obj):
+        try:
+            return obj.debt
+        except ObjectDoesNotExist:
+            return None
+
+    def get_debt(self, obj):
+        debt = self.get_related_debt(obj)
+        return debt.id if debt else None
+
+    def get_debt_concept(self, obj):
+        debt = self.get_related_debt(obj)
+        return debt.concept if debt else ""
+
+    def get_source_kind(self, obj):
+        return cash_movement_source_kind(obj)
+
+    def get_source_label(self, obj):
+        source_kind = cash_movement_source_kind(obj)
+        if source_kind == "payment":
+            return "Cobro de orden"
+        if source_kind == "material_purchase":
+            return "Compra de materiales"
+        if source_kind == "stock_purchase":
+            return "Compra de materiales"
+        if source_kind == "stock_sale":
+            return "Venta de materiales"
+        if source_kind == "debt_origin":
+            return "Deuda original"
+        if source_kind == "adjustment":
+            return f"Ajuste de cierre {obj.adjusts_closed_day.isoformat()}"
+        return "Movimiento manual"
+
+    def get_signed_amount(self, obj):
+        return signed_amount_for(obj.movement_type, obj.amount)
+
+    def get_cashflow_effect(self, obj):
+        return cash_movement_cashflow_effect(obj)
+
+    def get_economic_effect(self, obj):
+        return True
+
+    def get_created_by_username(self, obj):
+        return obj.created_by.username if obj.created_by_id else ""
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("El importe debe ser mayor a cero.")
+        return value
+
+    def validate(self, attrs):
+        occurred_at = attrs.get("occurred_at", getattr(self.instance, "occurred_at", timezone.now()))
+        adjusts_closed_day = attrs.get("adjusts_closed_day", getattr(self.instance, "adjusts_closed_day", None))
+        movement_type = attrs.get("movement_type", getattr(self.instance, "movement_type", ""))
+        subcategory = attrs.get("subcategory", getattr(self.instance, "subcategory", ""))
+        if movement_type == CashMovement.MovementType.EXPENSE and not str(subcategory or "").strip():
+            raise serializers.ValidationError({"subcategory": "La subcategoria es obligatoria para egresos."})
+        if self.instance:
+            ensure_cash_day_open(cash_day(self.instance.occurred_at), field="occurred_at")
+        ensure_cash_day_open(cash_day(occurred_at), field="occurred_at")
+        ensure_adjustment_target_closed(adjusts_closed_day)
+        return attrs
+
+    def create(self, validated_data):
+        movement = CashMovement.objects.create(
+            **validated_data,
+            created_by=request_user_from_context(self.context),
+        )
+        if movement.movement_type == CashMovement.MovementType.INCOME:
+            register_income_classification(movement.category, movement.subcategory)
+        if movement.movement_type == CashMovement.MovementType.EXPENSE:
+            register_expense_classification(movement.category, movement.subcategory)
+        return movement
+
+    def update(self, instance, validated_data):
+        movement = super().update(instance, validated_data)
+        if movement.movement_type == CashMovement.MovementType.INCOME:
+            register_income_classification(movement.category, movement.subcategory)
+        if movement.movement_type == CashMovement.MovementType.EXPENSE:
+            register_expense_classification(movement.category, movement.subcategory)
+        return movement
+
+
+class CashClosureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CashClosure
+        fields = [
+            "id",
+            "day",
+            "total_income",
+            "total_expense",
+            "balance",
+            "cashflow_income",
+            "cashflow_expense",
+            "cashflow_balance",
+            "closed_by",
+            "closed_at",
+            "notes",
+        ]
+        read_only_fields = ["id", "closed_by", "closed_at"]

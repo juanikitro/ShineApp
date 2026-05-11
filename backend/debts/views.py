@@ -1,0 +1,37 @@
+from django.db import transaction
+from rest_framework import serializers, viewsets
+
+from core.permissions import CanViewEconomy
+from finance.cash import cash_day, ensure_cash_day_open
+
+from .models import Debt, DebtPayment
+from .serializers import DebtPaymentSerializer, DebtSerializer
+
+
+class DebtViewSet(viewsets.ModelViewSet):
+    queryset = Debt.objects.select_related("cash_movement", "supplier").prefetch_related("payments").all()
+    serializer_class = DebtSerializer
+    permission_classes = [CanViewEconomy]
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        if instance.payments.exists():
+            raise serializers.ValidationError("No se puede eliminar una deuda con pagos registrados.")
+        movement = instance.cash_movement
+        if movement:
+            ensure_cash_day_open(cash_day(movement.occurred_at), field="origin_date")
+        instance.cash_movement = None
+        instance.save(update_fields=["cash_movement", "updated_at"])
+        instance.delete()
+        if movement:
+            movement.delete()
+
+
+class DebtPaymentViewSet(viewsets.ModelViewSet):
+    queryset = DebtPayment.objects.select_related("debt").all()
+    serializer_class = DebtPaymentSerializer
+    permission_classes = [CanViewEconomy]
+
+    def perform_destroy(self, instance):
+        ensure_cash_day_open(instance.paid_at, field="paid_at")
+        super().perform_destroy(instance)

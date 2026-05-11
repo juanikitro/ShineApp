@@ -1,0 +1,8 @@
+Django>=5.2,<5.3
+djangorestframework>=3.16,<3.17
+django-cors-headers>=4.7,<4.8
+psycopg2-binary>=2.9,<2.10
+reportlab>=4.2,<4.3
+PyMuPDF>=1.24,<1.25
+pytest>=8.3,<8.4
+pytest-django>=4.10,<4.11

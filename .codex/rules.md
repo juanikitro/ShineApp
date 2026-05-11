@@ -1,0 +1,10 @@
+- No inventes APIs, modelos, endpoints, permisos, settings ni dependencias. Si falta info, dejalo explicito.
+- Preserva comportamiento por defecto: si cambias logica o contratos, actualiza tests y callers.
+- Cambios minimos primero: preferi patches incrementales y evita refactors grandes fuera de alcance.
+- Valida con comandos reales del repo o explica exactamente que no pudiste validar.
+- Seguridad por defecto: valida inputs, respeta auth, no expongas secretos ni datos sensibles.
+- Performance consciente: evita consultas innecesarias, loops con I/O y cargas completas sin motivo.
+- Observabilidad: errores claros, logs utiles y sin PII.
+- Consistencia del repo: seguir convenciones existentes de Django, DRF y Next.js.
+- Codigo legible primero: nombres claros, funciones chicas, comentarios solo cuando agregan valor.
+- Entrega operativa: que cambiaste, por que, riesgos y como validar.

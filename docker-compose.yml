@@ -1,0 +1,59 @@
+name: shineapp
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-shineapp}
+      POSTGRES_USER: ${POSTGRES_USER:-shineapp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shineapp}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shineapp} -d ${POSTGRES_DB:-shineapp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-only-shineapp-secret}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      POSTGRES_DB: ${POSTGRES_DB:-shineapp}
+      POSTGRES_USER: ${POSTGRES_USER:-shineapp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shineapp}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DEFAULT_DAILY_CAPACITY: ${DEFAULT_DAILY_CAPACITY:-8}
+      BUSINESS_NAME: ${BUSINESS_NAME:-ShineApp}
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-no-reply@shineapp.local}
+    ports:
+      - "8000:8000"
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api}
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  media_data:
