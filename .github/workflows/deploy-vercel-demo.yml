@@ -16,9 +16,9 @@ permissions:
 env:
   PYTHON_VERSION: "3.12"
   NODE_VERSION: "22"
-  DJANGO_SETTINGS_MODULE: config.settings_production
   WEB_BASE_URL: https://shineapp-web.vercel.app
   API_BASE_URL: https://shineapp-api.vercel.app/api
+  NEXT_PUBLIC_API_URL: https://shineapp-api.vercel.app/api
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
@@ -76,6 +76,19 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Run backend checks
+        working-directory: backend
+        run: |
+          python -m pytest
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+
+      - name: Run frontend checks
+        working-directory: frontend
+        run: |
+          npm run test
+          npm run build
+
       - name: Install Vercel CLI
         run: |
           npm install --global vercel@latest
@@ -86,56 +99,23 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
         run: vercel pull --yes --environment=production --token "$VERCEL_TOKEN" --cwd backend
 
-      - name: Run backend production checks
-        working-directory: backend
-        env:
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
-        run: |
-          vercel env run -e production --token "$VERCEL_TOKEN" -- python manage.py check --deploy
-          vercel env run -e production --token "$VERCEL_TOKEN" -- python manage.py makemigrations --check --dry-run
-
-      - name: Build backend Vercel artifact
-        env:
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
-        run: vercel build --prod --token "$VERCEL_TOKEN" --cwd backend
-
       - name: Deploy backend to Vercel production
         id: deploy_backend
         env:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
         run: |
           set -euo pipefail
-          deployment_url="$(vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" --cwd backend)"
+          deployment_output="$(vercel deploy --prod --yes --token "$VERCEL_TOKEN" --cwd backend)"
+          printf '%s\n' "$deployment_output"
+          deployment_url="$(printf '%s\n' "$deployment_output" | tail -n 1)"
           echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
           echo "BACKEND_DEPLOYMENT_URL=$deployment_url" >> "$GITHUB_ENV"
           echo "Backend deployment: $deployment_url"
 
-      - name: Print Django migration plan
-        working-directory: backend
-        env:
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
-        run: vercel env run -e production --token "$VERCEL_TOKEN" -- python manage.py migrate --plan
-
-      - name: Run Django migrations
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-        working-directory: backend
-        env:
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
-        run: vercel env run -e production --token "$VERCEL_TOKEN" -- python manage.py migrate --noinput
-
-      - name: Pull frontend production env from Vercel
+      - name: Pull frontend project settings from Vercel
         env:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
         run: vercel pull --yes --environment=production --token "$VERCEL_TOKEN" --cwd frontend
-
-      - name: Run frontend tests
-        working-directory: frontend
-        run: npm run test
-
-      - name: Build frontend Vercel artifact
-        env:
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
-        run: vercel build --prod --token "$VERCEL_TOKEN" --cwd frontend
 
       - name: Deploy frontend to Vercel production
         id: deploy_frontend
@@ -143,7 +123,9 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
         run: |
           set -euo pipefail
-          deployment_url="$(vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" --cwd frontend)"
+          deployment_output="$(vercel deploy --prod --yes --token "$VERCEL_TOKEN" --cwd frontend)"
+          printf '%s\n' "$deployment_output"
+          deployment_url="$(printf '%s\n' "$deployment_output" | tail -n 1)"
           echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
           echo "FRONTEND_DEPLOYMENT_URL=$deployment_url" >> "$GITHUB_ENV"
           echo "Frontend deployment: $deployment_url"

@@ -125,10 +125,10 @@ The public demo is deployed. These manual steps remain before showing media-heav
   - `VERCEL_ORG_ID=team_SU2ZYRqjIjG8JhFn2pc1NVxi`
   - `VERCEL_FRONTEND_PROJECT_ID=prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ`
   - `VERCEL_BACKEND_PROJECT_ID=prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC`
-- Validate: run the workflow manually with `workflow_dispatch`; it should pass the initial secret check, pull production env from both Vercel projects, deploy both projects, run migrations, and pass smoke tests.
+- Validate: run the workflow manually with `workflow_dispatch`; it should pass the initial secret check, run local checks, deploy both Vercel projects, and pass smoke tests.
 - Risk if omitted: the deploy workflow fails before installing dependencies.
 
-Do not add `DATABASE_URL`, `DJANGO_SECRET_KEY`, Supabase S3 keys, or SMTP secrets to GitHub while `vercel pull` works. Those values belong in the Vercel API project production env and are loaded into the CI job only for checks and migrations.
+Do not add `DATABASE_URL`, `DJANGO_SECRET_KEY`, Supabase S3 keys, or SMTP secrets to GitHub. Those values belong in the Vercel API project production env and are consumed by Vercel during the cloud build/deploy.
 
 ## 12. Make GitHub Actions the only automatic production deploy path
 
@@ -139,13 +139,13 @@ Do not add `DATABASE_URL`, `DJANGO_SECRET_KEY`, Supabase S3 keys, or SMTP secret
 - Validate: push a harmless change to a test branch or inspect Vercel project settings before merging to `main`; production deploys should be created by the GitHub Actions CLI workflow, not an independent Vercel Git trigger.
 - Risk if omitted: duplicate deploys, race conditions, or code live before Supabase schema is migrated.
 
-## 13. Review migration risk before merging to `main`
+## 13. Review and run migrations before merging schema changes to `main`
 
 - What: check whether the PR contains schema or data migrations.
 - Where: PR review and `backend/*/migrations/`.
-- Why: CI prints `python backend/manage.py migrate --plan` and then applies `python backend/manage.py migrate --noinput` automatically on `main`.
+- Why: the GitHub Actions deploy keeps runtime secrets out of GitHub, so it does not run production migrations.
 - Value to copy: none.
-- Validate: migration plan is additive and compatible with both old and new deployed code.
-- Risk if omitted: destructive migrations, renames, large backfills, or unsafe non-null changes can break the public demo automatically.
+- Validate: run the migration plan and `migrate` from a trusted shell that has the Vercel/Supabase production env, then confirm `https://shineapp-api.vercel.app/api/health/` returns `database=ok`.
+- Risk if omitted: code deployed from `main` can expect tables or columns that were not created yet.
 
-Forward-compatible migrations are acceptable for auto-deploy. Destructive migrations need a manual rollout plan and should not be merged into `main` as a routine demo deploy.
+Forward-compatible migrations are acceptable for the demo release path only after the manual migration step is done. Destructive migrations need a manual rollout plan and should not be merged into `main` as a routine demo deploy.
