@@ -17,9 +17,10 @@ import {
 	serviceIconCustomEmojis,
 	serviceIconFromCustomEmojiId,
 } from '@/lib/service-icon-options'
+import { LoadingState } from './Empty'
 
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), {
-	loading: () => <div className="emoji-picker-loading">Cargando emojis...</div>,
+	loading: () => <LoadingState text="Cargando emojis..." />,
 	ssr: false,
 })
 

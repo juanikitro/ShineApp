@@ -16,6 +16,7 @@ import {
 	Building2,
 	CalendarDays,
 	Car,
+	CheckCircle2,
 	ChevronLeft,
 	ChevronRight,
 	ChevronsLeft,
@@ -24,9 +25,11 @@ import {
 	Eye,
 	FileText,
 	Hammer,
+	History,
 	Info,
 	LockKeyhole,
 	LogOut,
+	Menu,
 	Package,
 	Pencil,
 	Plus,
@@ -36,6 +39,7 @@ import {
 	Trash2,
 	Users,
 	Wrench,
+	X,
 } from 'lucide-react'
 import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
@@ -52,6 +56,17 @@ import {
 } from 'react'
 
 import { AnimatedLabelSwap } from '@/app/components/motion/AnimatedLabelSwap'
+import { AgendaBoardToolbar } from '@/app/components/agenda/AgendaBoardToolbar'
+import { AgendaReservationCard } from '@/app/components/agenda/AgendaReservationCard'
+import {
+	CustomerDashboardShell,
+	type CustomerDashboardMetric,
+	type CustomerDashboardProfileItem,
+} from '@/app/components/customers/CustomerDashboardShell'
+import {
+	CustomerListPanel,
+	type CustomerCardFilter,
+} from '@/app/components/customers/CustomerListPanel'
 import { AppBrand } from '@/app/components/layout/AppBrand'
 import { AppShell } from '@/app/components/layout/AppShell'
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
@@ -62,14 +77,18 @@ import {
 	type SidebarNavItem,
 } from '@/app/components/layout/SidebarNav'
 import { DetailModal } from '@/app/components/ui/DetailModal'
-import { Empty } from '@/app/components/ui/Empty'
+import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
 import { BirthdayFields } from '@/app/components/ui/BirthdayFields'
 import { Field } from '@/app/components/ui/Field'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { ModalFrame as Modal } from '@/app/components/ui/ModalFrame'
 import { Panel } from '@/app/components/ui/Panel'
-import { RecordCard } from '@/app/components/ui/RecordCard'
+import {
+	RecordCard,
+	RecordCardHeader,
+} from '@/app/components/ui/RecordCard'
 import { SearchSelect } from '@/app/components/ui/SearchSelect'
+import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
 import { ServiceIconPicker } from '@/app/components/ui/ServiceIconPicker'
 import { StatusPill } from '@/app/components/ui/StatusPill'
 import { cx } from '@/app/components/utils'
@@ -91,6 +110,14 @@ import {
 	renderPdfPreviewDataUrl,
 } from '@/lib/pdf-preview'
 import {
+	auditActorLabel,
+	auditChangeRows,
+	auditLogListOrEmpty,
+	type AuditLogFilters,
+	type AuditLogEntry,
+} from '@/lib/audit-log'
+import { joinDisplayParts } from '@/lib/display-text'
+import {
 	type AgendaCalendarSegment,
 	type AgendaOperationalPhase,
 	type AgendaOperationalRow,
@@ -107,8 +134,9 @@ import {
 import {
 	filterFreeQuotesByServiceBucket,
 	groupReservationsByEntryDate,
-	groupReservationsByWorkOrderStatus,
+	groupReservationsByWorkOrderStatusColumns,
 	reservationCanMoveWorkStatus,
+	workStatusColumnForStatus,
 	workStatusForReservation,
 	type WorkOrderViewMode,
 	workOrderForReservation,
@@ -235,6 +263,26 @@ const workViewModes: Array<{
 	{ value: 'status', label: 'Estado' },
 	{ value: 'entry-date', label: 'Fecha de ingreso' },
 ]
+const workStatusColumns = [
+	{
+		key: 'not_started',
+		label: 'Sin ingresar',
+		statuses: ['pending', 'confirmed'],
+		dropStatus: 'confirmed',
+	},
+	{
+		key: 'in_progress',
+		label: 'En proceso',
+		statuses: ['in_progress'],
+		dropStatus: 'in_progress',
+	},
+	{
+		key: 'finished',
+		label: 'Finalizados',
+		statuses: ['ready', 'delivered'],
+		dropStatus: 'ready',
+	},
+]
 const quoteStatusLabels: Record<string, string> = {
 	draft: 'Sin enviar',
 	sent: 'Enviado',
@@ -289,7 +337,13 @@ const userRoleLabels: Record<string, string> = {
 	empleador: 'Empleador',
 	empleado: 'Empleado',
 }
-type SettingsSection = 'business' | 'quotes' | 'cash' | 'agenda' | 'users'
+type SettingsSection =
+	| 'business'
+	| 'quotes'
+	| 'cash'
+	| 'agenda'
+	| 'users'
+	| 'history'
 
 const settingsSectionOptions: Array<{
 	value: SettingsSection
@@ -301,13 +355,47 @@ const settingsSectionOptions: Array<{
 	{ value: 'cash', label: 'Caja', icon: CreditCard },
 	{ value: 'agenda', label: 'Agenda', icon: CalendarDays },
 	{ value: 'users', label: 'Usuarios', icon: Users },
+	{ value: 'history', label: 'Historial', icon: History },
 ]
-type CustomerCardFilter =
-	| 'all'
-	| 'with_reservation'
-	| 'birthday_soon'
-	| 'no_upcoming'
-	| 'with_balance'
+const auditActionLabels: Record<string, string> = {
+	create: 'Creacion',
+	update: 'Edicion',
+	delete: 'Baja',
+	confirm: 'Confirmacion',
+	cancel: 'Cancelacion',
+	complete: 'Completado',
+	create_quote: 'Cotizacion creada',
+	create_reservation: 'Reserva creada',
+	mark_sent: 'Cotizacion enviada',
+	status: 'Cambio de estado',
+	close: 'Cierre',
+	consume: 'Consumo',
+	finish: 'Finalizacion',
+	update_profile: 'Perfil actualizado',
+}
+const auditModuleLabels: Record<string, string> = {
+	auth: 'Usuarios',
+	catalog: 'Servicios',
+	core: 'Configuracion',
+	customers: 'Clientes',
+	debts: 'Deudas',
+	finance: 'Caja',
+	inventory: 'Inventario',
+	notifications: 'Notificaciones',
+	quotes: 'Cotizaciones',
+	scheduling: 'Agenda',
+	settings: 'Configuracion',
+	workorders: 'Ordenes',
+}
+const publicRequestTypeLabels: Record<string, string> = {
+	booking: 'Turno',
+	quote: 'Cotizacion',
+}
+const publicRequestStatusLabels: Record<string, string> = {
+	pending: 'Pendiente',
+	converted: 'Convertida',
+	archived: 'Archivada',
+}
 type CashSummaryMode = 'cashflow' | 'economic'
 type CashFilterState = {
 	query: string
@@ -680,101 +768,6 @@ function customerListInsights(customer: AnyRecord) {
 	return customer?.list_insights ?? {}
 }
 
-function customerNextVisitText(
-	customer: AnyRecord,
-	showReservationTimes = true,
-) {
-	const insights = customerListInsights(customer)
-	if (!insights.has_upcoming_reservation || !insights.next_reservation) {
-		return 'Sin proxima visita'
-	}
-	return customerScheduleLabel(insights.next_reservation, showReservationTimes)
-}
-
-function customerContactText(customer: AnyRecord) {
-	return [customer.phone || 'Sin telefono', customer.email || 'Sin email'].join(
-		' - ',
-	)
-}
-
-function customerOperationalStateText(customer: AnyRecord) {
-	const insights = customerListInsights(customer)
-	if (customer?.has_birthday_alert) return 'Cumple pronto'
-	if (insights.has_upcoming_reservation) return 'Con reserva'
-	if (insights.needs_follow_up) return 'Seguimiento pendiente'
-	return 'Sin novedades'
-}
-
-function customerPrimaryPill(customer: AnyRecord, canViewEconomy: boolean) {
-	const insights = customerListInsights(customer)
-	if (customer?.has_birthday_alert) {
-		return { label: 'Cumple pronto', className: 'customer-pill--birthday' }
-	}
-	if (canViewEconomy && insights.has_balance_due) {
-		return { label: 'Con saldo', className: 'customer-pill--balance' }
-	}
-	if (insights.has_upcoming_reservation) {
-		return { label: 'Con reserva', className: 'customer-pill--reservation' }
-	}
-	if (insights.needs_follow_up) {
-		return {
-			label: 'Sin proxima visita',
-			className: 'customer-pill--follow-up',
-		}
-	}
-	return null
-}
-
-function customerContextChips(
-	customer: AnyRecord,
-	canViewEconomy: boolean,
-	showReservationTimes = true,
-) {
-	const insights = customerListInsights(customer)
-	const chips: Array<{ key: string; label: string; tone?: string }> = []
-	if (customer?.has_birthday_alert) {
-		chips.push({
-			key: 'birthday',
-			label: birthdayText(customer),
-			tone: 'alert',
-		})
-	}
-	if (insights.has_upcoming_reservation && insights.next_reservation) {
-		chips.push({
-			key: 'reservation',
-			label: `Reserva ${customerScheduleLabel(
-				insights.next_reservation,
-				showReservationTimes,
-			)}`,
-			tone: 'info',
-		})
-	} else {
-		chips.push({
-			key: 'follow-up',
-			label: 'Sin proxima visita',
-			tone: 'muted',
-		})
-	}
-	if (insights.last_service_name) {
-		chips.push({
-			key: 'service',
-			label: `Ultimo servicio: ${insights.last_service_name}`,
-			tone: 'muted',
-		})
-	}
-	const openQuotesCount = Number(insights.open_quotes_count ?? 0)
-	if (canViewEconomy && openQuotesCount > 0) {
-		chips.push({
-			key: 'quotes',
-			label: `${openQuotesCount} cotizacion${
-				openQuotesCount === 1 ? '' : 'es'
-			} abierta${openQuotesCount === 1 ? '' : 's'}`,
-			tone: 'muted',
-		})
-	}
-	return chips
-}
-
 function blankProfileForm(user?: AnyRecord | null) {
 	return {
 		email: String(user?.email ?? ''),
@@ -909,9 +902,12 @@ export default function Home() {
 	const [active, setActive] = useState<Section>('dashboard')
 	const [themeMode, setThemeMode] = useState<ThemeMode>('light')
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+	const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
 	const [settingsSection, setSettingsSection] =
 		useState<SettingsSection>('business')
 	const [loading, setLoading] = useState(false)
+	const [agendaLoadError, setAgendaLoadError] =
+		useState<ApiErrorNotice | null>(null)
 	const { toasts, showToast, dismissToast } = useNoticeToasts()
 	const [search, setSearch] = useState('')
 	const [customerCardFilter, setCustomerCardFilter] =
@@ -963,7 +959,16 @@ export default function Home() {
 	const [materialOpenUnits, setMaterialOpenUnits] = useState<AnyRecord[]>([])
 	const [tools, setTools] = useState<AnyRecord[]>([])
 	const [quotes, setQuotes] = useState<AnyRecord[]>([])
+	const [publicRequests, setPublicRequests] = useState<AnyRecord[]>([])
+	const [publicRequestSelections, setPublicRequestSelections] = useState<
+		Record<string, { customer?: string; vehicle?: string }>
+	>({})
 	const [employees, setEmployees] = useState<AnyRecord[]>([])
+	const [auditLogs, setAuditLogs] = useState<AnyRecord[]>([])
+	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>({})
+	const [expandedAuditLogId, setExpandedAuditLogId] = useState<string | null>(
+		null,
+	)
 	const [businessProfile, setBusinessProfile] = useState<AnyRecord | null>(null)
 	const [profileModalOpen, setProfileModalOpen] = useState(false)
 
@@ -1216,6 +1221,32 @@ export default function Home() {
 		}
 	}, [canViewEconomy, customerCardFilter])
 
+	useEffect(() => {
+		if (!sidebarMobileOpen) return
+
+		const previousOverflow = document.body.style.overflow
+		const closeOnDesktop = () => {
+			if (window.innerWidth > 980) {
+				setSidebarMobileOpen(false)
+			}
+		}
+		const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+			if (event.key === 'Escape') {
+				setSidebarMobileOpen(false)
+			}
+		}
+
+		document.body.style.overflow = 'hidden'
+		closeOnDesktop()
+		window.addEventListener('resize', closeOnDesktop)
+		window.addEventListener('keydown', handleKeyDown)
+		return () => {
+			document.body.style.overflow = previousOverflow
+			window.removeEventListener('resize', closeOnDesktop)
+			window.removeEventListener('keydown', handleKeyDown)
+		}
+	}, [sidebarMobileOpen])
+
 	function toggleThemeMode() {
 		setThemeMode((current) => {
 			const next = current === 'dark' ? 'light' : 'dark'
@@ -1323,6 +1354,15 @@ export default function Home() {
 						profile.use_reservation_times !== false,
 					show_stay_days_in_agenda:
 						profile.show_stay_days_in_agenda !== false,
+					public_landing_enabled:
+						profile.public_landing_enabled !== false,
+					public_landing_intro: String(
+						profile.public_landing_intro ?? '',
+					),
+					allow_public_booking_requests:
+						profile.allow_public_booking_requests !== false,
+					allow_public_quote_requests:
+						profile.allow_public_quote_requests !== false,
 					income_category_tree: normalizeIncomeCategoryTree(
 						profile.income_category_tree,
 					),
@@ -1585,6 +1625,16 @@ export default function Home() {
 		return grouped
 	}, [vehicles])
 
+	const customerVehicleCountById = useMemo(() => {
+		const grouped = new Map<string, number>()
+		vehicles.forEach((vehicle) => {
+			const customerId = String(vehicle.customer ?? '')
+			if (!customerId) return
+			grouped.set(customerId, (grouped.get(customerId) ?? 0) + 1)
+		})
+		return grouped
+	}, [vehicles])
+
 	const filteredCustomers = useMemo(() => {
 		const term = search.trim().toLowerCase()
 		return customers.filter((item) => {
@@ -1717,10 +1767,10 @@ export default function Home() {
 	)
 	const workStatusGroups = useMemo(
 		() =>
-			groupReservationsByWorkOrderStatus(
+			groupReservationsByWorkOrderStatusColumns(
 				visibleAgendaReservations,
 				workOrders,
-				orderLabels,
+				workStatusColumns,
 			),
 		[visibleAgendaReservations, workOrders],
 	)
@@ -1777,6 +1827,20 @@ export default function Home() {
 		workOrderByReservation,
 		showStayDaysInAgenda,
 	])
+	const agendaServiceBucketLabel =
+		agendaServiceBuckets.find((item) => item.value === agendaServiceBucket)
+			?.label ?? 'Agenda'
+	const agendaRangeSummary = `${agendaServiceBucketLabel}: ${
+		visibleAgendaReservations.length
+	} ${
+		visibleAgendaReservations.length === 1
+			? 'reserva visible'
+			: 'reservas visibles'
+	}, ${agendaBoardModel.segments.length} ${
+		agendaBoardModel.segments.length === 1
+			? 'movimiento en rango'
+			: 'movimientos en rango'
+	}.`
 	const weekDays = agendaBoardModel.days
 	const activeAgendaRow = useMemo(() => {
 		if (!activeAgendaReservationId) return null
@@ -1910,9 +1974,97 @@ export default function Home() {
 		}
 	}, [quoteForm.items, quoteForm.discount_rate, quoteForm.tax_rate])
 
+	const auditModuleOptions = useMemo(
+		() =>
+			Array.from(new Set(auditLogs.map((item) => String(item.module ?? ''))))
+				.filter(Boolean)
+				.sort((left, right) =>
+					auditModuleLabel(left).localeCompare(auditModuleLabel(right), 'es-AR'),
+				),
+		[auditLogs],
+	)
+	const auditActionOptions = useMemo(
+		() =>
+			Array.from(new Set(auditLogs.map((item) => String(item.action ?? ''))))
+				.filter(Boolean)
+				.sort((left, right) =>
+					auditActionLabel(left).localeCompare(auditActionLabel(right), 'es-AR'),
+				),
+		[auditLogs],
+	)
+	const auditActorOptions = useMemo(
+		() =>
+			Array.from(
+				new Set(
+					auditLogs.map((item) => String(item.actor_username ?? '')).filter(Boolean),
+				),
+			).sort((left, right) => left.localeCompare(right, 'es-AR')),
+		[auditLogs],
+	)
+	const auditFiltersActive = Object.values(auditFilters).some((value) =>
+		String(value ?? '').trim(),
+	)
+
+	function auditActionLabel(action: string) {
+		return auditActionLabels[action] ?? action
+	}
+
+	function auditModuleLabel(module: string) {
+		return auditModuleLabels[module] ?? module
+	}
+
+	function auditFieldLabel(field: string) {
+		return field.replaceAll('_', ' ')
+	}
+
+	function updateAuditFilter(key: keyof AuditLogFilters, value: string) {
+		setAuditFilters((current) => ({
+			...current,
+			[key]: value,
+		}))
+	}
+
+	async function refreshAuditLogs(filters: AuditLogFilters = auditFilters) {
+		if (!canViewEconomy) return
+		const logs = await auditLogListOrEmpty<AnyRecord>(apiList, filters)
+		setAuditLogs(logs)
+	}
+
+	async function applyAuditFilters(event: FormEvent) {
+		event.preventDefault()
+		if (!canViewEconomy) return
+		setLoading(true)
+		try {
+			await refreshAuditLogs(auditFilters)
+		} catch (err: any) {
+			setError(
+				formatApiError(err, {
+					fallbackTitle: 'No se pudo cargar el historial',
+					fallbackDescription:
+						'Revisa los filtros o actualiza nuevamente.',
+				}),
+			)
+		} finally {
+			setLoading(false)
+		}
+	}
+
+	async function clearAuditFilters() {
+		const emptyFilters: AuditLogFilters = {}
+		setAuditFilters(emptyFilters)
+		if (!canViewEconomy) return
+		setLoading(true)
+		try {
+			await refreshAuditLogs(emptyFilters)
+		} finally {
+			setLoading(false)
+		}
+	}
+
 	async function loadData() {
 		setLoading(true)
 		setError(null)
+		setAgendaLoadError(null)
 		try {
 			const [
 				dashboardData,
@@ -1933,8 +2085,10 @@ export default function Home() {
 				consumptionData,
 				toolData,
 				quoteData,
+				publicRequestData,
 				businessProfileData,
 				employeeData,
+				auditLogData,
 			] = await Promise.all([
 				apiFetch<AnyRecord>(
 					`/dashboard/summary/?from=${period.from}&to=${period.to}`,
@@ -1969,10 +2123,16 @@ export default function Home() {
 				canViewEconomy ? apiList<AnyRecord>('/tools/') : Promise.resolve([]),
 				canViewEconomy ? apiList<AnyRecord>('/quotes/') : Promise.resolve([]),
 				canViewEconomy
+					? apiList<AnyRecord>('/public-requests/')
+					: Promise.resolve([]),
+				canViewEconomy
 					? apiFetch<AnyRecord>('/settings/business-profile/')
 					: Promise.resolve(null),
 				canViewEconomy
 					? apiList<AnyRecord>('/auth/employees/')
+					: Promise.resolve([]),
+				canViewEconomy
+					? auditLogListOrEmpty<AnyRecord>(apiList, auditFilters)
 					: Promise.resolve([]),
 			])
 			setDashboard(dashboardData)
@@ -1993,16 +2153,18 @@ export default function Home() {
 			setConsumptions(consumptionData)
 			setTools(toolData)
 			setQuotes(quoteData)
+			setPublicRequests(publicRequestData)
 			syncBusinessProfile(businessProfileData)
 			setEmployees(employeeData)
+			setAuditLogs(auditLogData)
 		} catch (err: any) {
-			setError(
-				formatApiError(err, {
-					fallbackTitle: 'No se pudieron cargar los datos',
-					fallbackDescription:
-						'Actualiza nuevamente o revisa la conexion con el servidor.',
-				}),
-			)
+			const notice = formatApiError(err, {
+				fallbackTitle: 'No se pudieron cargar los datos',
+				fallbackDescription:
+					'Actualiza nuevamente o revisa la conexion con el servidor.',
+			})
+			setAgendaLoadError(notice)
+			setError(notice)
 		} finally {
 			setLoading(false)
 		}
@@ -2019,6 +2181,8 @@ export default function Home() {
 		if (!token) {
 			setCurrentUser(null)
 			syncBusinessProfile(null)
+			setAuditLogs([])
+			setPublicRequests([])
 			return
 		}
 		if (currentUser) return
@@ -2312,10 +2476,6 @@ export default function Home() {
 		return `Ingresa ${entryLabel} - Egresa ${exitLabel}`
 	}
 
-	function agendaPhaseBadgeClass(phase: AgendaOperationalPhase) {
-		return `agenda-phase-badge agenda-phase-badge--${phase}`
-	}
-
 	function renderWorkOrderSummary(
 		workOrder: AnyRecord,
 		options: { showDetailAction?: boolean } = {},
@@ -2386,16 +2546,6 @@ export default function Home() {
 					</span>
 				) : null}
 			</div>
-		)
-	}
-
-	function agendaActionButtonClass(action: AgendaReservationAction) {
-		return cx(
-			'agenda-action-button',
-			action.variant === 'filled' && 'agenda-action-button--filled',
-			action.variant === 'outline' && 'agenda-action-button--outline',
-			action.variant === 'icon-danger' &&
-				'agenda-action-button--icon-danger',
 		)
 	}
 
@@ -2476,7 +2626,9 @@ export default function Home() {
 				key={`work-reservation-${reservation.id}`}
 			>
 				<div className="agenda-card-stack">
-					{renderAgendaReservationCard(reservation, row.workOrder, row)}
+					{renderAgendaReservationCard(reservation, row.workOrder, row, {
+						statusMode: 'work-order',
+					})}
 				</div>
 			</MotionFlashSurface>
 		)
@@ -2504,6 +2656,7 @@ export default function Home() {
 		const workOrder = row.workOrder
 		const workOrderId = String(workOrder?.id ?? '')
 		const status = workStatusForReservation(reservation, workOrderByReservation)
+		const statusColumn = workStatusColumnForStatus(status, workStatusColumns)
 		const canDrag = reservationCanMoveWorkStatus(
 			reservation,
 			workOrderByReservation,
@@ -2513,6 +2666,7 @@ export default function Home() {
 			data: {
 				reservationId,
 				status,
+				statusGroup: statusColumn?.key,
 				workOrderId,
 			},
 			disabled:
@@ -2553,11 +2707,16 @@ export default function Home() {
 	function WorkStatusDroppableLane({
 		group,
 	}: {
-		group: { key: string; label: string; reservations: AnyRecord[] }
+		group: {
+			key: string
+			label: string
+			dropStatus?: string
+			reservations: AnyRecord[]
+		}
 	}) {
 		const { setNodeRef } = useDroppable({
 			id: `work-status:${group.key}`,
-			data: { status: group.key },
+			data: { status: group.dropStatus ?? group.key, statusGroup: group.key },
 		})
 
 		return (
@@ -2587,7 +2746,10 @@ export default function Home() {
 							/>
 						))
 					) : (
-						<Empty text="Sin reservas en este estado." />
+						<Empty
+							text={`Sin trabajos en ${group.label.toLowerCase()}.`}
+							hint="Cuando cambie el estado de una reserva, va a aparecer en esta columna."
+						/>
 					)}
 				</div>
 			</section>
@@ -2624,7 +2786,20 @@ export default function Home() {
 		if (!hasContent) {
 			return (
 				<section className="panel">
-					<Empty text="Sin reservas o cotizaciones libres para este filtro." />
+					<Empty
+						text="Sin reservas o cotizaciones para este filtro."
+						hint="Crea una reserva o cambia el tipo de servicio para ver trabajos por fecha de ingreso."
+						action={
+							<button
+								type="button"
+								className="primary"
+								onClick={() => openQuickReservation(selectedDay)}
+							>
+								<Plus size={16} />
+								Crear reserva
+							</button>
+						}
+					/>
 				</section>
 			)
 		}
@@ -2668,55 +2843,6 @@ export default function Home() {
 		)
 	}
 
-	function renderAgendaReservationActionBar(
-		reservation: AnyRecord,
-		workOrder: AnyRecord | null | undefined,
-		row: AgendaOperationalRow,
-	) {
-		const actions = buildAgendaReservationActions({
-			balanceDue: workOrder?.balance_due,
-			canCharge: Boolean(workOrder && canViewEconomy),
-			reservationStatus: reservation.status,
-			workOrderStatus: workOrder?.status,
-		})
-		if (!actions.length) return null
-
-		return (
-			<div className="record-actions agenda-record-actions">
-				{actions.map((action) => {
-					const isIconOnly = action.variant === 'icon-danger'
-					const label =
-						action.kind === 'reservation'
-							? action.ariaLabel ?? action.label
-							: action.label
-					return (
-						<button
-							aria-label={isIconOnly ? label : undefined}
-							className={agendaActionButtonClass(action)}
-							key={`${action.kind}:${action.label}`}
-							onClick={() =>
-								runAgendaReservationAction(
-									action,
-									reservation,
-									workOrder,
-									row,
-								)
-							}
-							title={isIconOnly ? label : undefined}
-							type="button"
-						>
-							{action.kind === 'reservation' &&
-							action.icon === 'trash' ? (
-								<Trash2 aria-hidden="true" size={16} />
-							) : null}
-							{isIconOnly ? null : action.label}
-						</button>
-					)
-				})}
-			</div>
-		)
-	}
-
 	function renderAgendaReservationCard(
 		reservation: AnyRecord,
 		workOrder: AnyRecord | null | undefined,
@@ -2724,71 +2850,60 @@ export default function Home() {
 		options: { statusMode?: 'reservation' | 'work-order' } = {},
 	) {
 		const showWork = reservationShowsWork(reservation, workOrder)
-		const showWorkStatus =
-			options.statusMode === 'work-order' && Boolean(workOrder)
 		const rangeLabel = reservationRangeLabel(reservation)
 		const serviceLines = reservationAgendaServices(reservation)
 		const vehicleModel = reservationVehicleModel(reservation)
 		const workOrderForDetail = workOrder
 			? { ...workOrder, _agenda_day: row.day }
 			: workOrder
+		const workStatusValue = String(
+			workStatusForReservation(reservation, workOrderByReservation) ??
+				reservation.status ??
+				'',
+		)
+		const reservationStatusValue = String(reservation.status ?? '')
+		const actions = buildAgendaReservationActions({
+			balanceDue: showWork ? workOrder?.balance_due : undefined,
+			canCharge: Boolean(showWork && workOrder && canViewEconomy),
+			reservationStatus: reservation.status,
+			workOrderStatus: showWork ? workOrder?.status : undefined,
+		})
+
 		return (
-			<div
-				className="agenda-entry-card agenda-entry-card--reservation"
-				{...detailRecordProps(
+			<AgendaReservationCard
+				actions={actions}
+				detailProps={detailRecordProps(
 					'Reserva',
 					showWork
 						? { ...reservation, work_order: workOrderForDetail }
 						: reservation,
 				)}
-			>
-				<div className="agenda-entry-head">
-					<div className="agenda-entry-copy">
-						<div className="agenda-entry-kicker">
-							{showWorkStatus ? (
-								<StatusPill
-									value={(workOrder as AnyRecord).status}
-									labels={orderLabels}
-								/>
-							) : (
-								<span className={agendaPhaseBadgeClass(row.phase)}>
-									{agendaPhaseLabels[row.phase]}
-								</span>
-							)}
-							<span className="agenda-entry-eyebrow">
-								{showWorkStatus
-									? 'Estado del trabajo'
-									: reservationLabels[reservation.status] ??
-										reservation.status}
-							</span>
-						</div>
-						<div className="record-title">
-							{reservationCustomerTitle(reservation)}
-						</div>
-						{serviceLines.length ? (
-							<div className="agenda-service-stack" aria-label="Servicios">
-								{serviceLines.map((service) => (
-									<span className="agenda-service-name" key={service.key}>
-										{service.name}
-									</span>
-								))}
-							</div>
-						) : null}
-						{vehicleModel ? (
-							<div className="agenda-vehicle-model">{vehicleModel}</div>
-						) : null}
-						{rangeLabel ? (
-							<div className="agenda-range-label">{rangeLabel}</div>
-						) : null}
-					</div>
-				</div>
-				{showWork ? renderAgendaWorkDebt(workOrder as AnyRecord) : null}
-				{renderAgendaReservationActionBar(
-					reservation,
-					showWork ? (workOrder as AnyRecord) : null,
-					row,
-				)}
-			</div>
+				phase={row.phase}
+				phaseLabel={agendaPhaseLabels[row.phase]}
+				rangeLabel={rangeLabel}
+				reservation={reservation}
+				reservationStatusLabel={
+					reservationLabels[reservationStatusValue] ?? reservationStatusValue
+				}
+				reservationStatusValue={reservationStatusValue}
+				serviceLines={serviceLines}
+				statusMode={options.statusMode}
+				title={reservationCustomerTitle(reservation)}
+				vehicleModel={vehicleModel}
+				workDebt={
+					showWork ? renderAgendaWorkDebt(workOrder as AnyRecord) : null
+				}
+				workStatusLabels={orderLabels}
+				workStatusValue={workStatusValue}
+				onAction={(action) =>
+					runAgendaReservationAction(
+						action,
+						reservation,
+						showWork ? (workOrder as AnyRecord) : null,
+						row,
+					)
+				}
+			/>
 		)
 	}
 
@@ -2882,11 +2997,13 @@ export default function Home() {
 	function AgendaDayHeader({
 		day,
 		column,
+		count,
 		hiddenDuringEnter = false,
 		interactive,
 	}: {
 		day: string
 		column: number
+		count: number
 		hiddenDuringEnter?: boolean
 		interactive: boolean
 	}) {
@@ -2919,6 +3036,9 @@ export default function Home() {
 								<strong className="day-row-today-badge">Hoy</strong>
 							) : null}
 						</span>
+						<span className="agenda-day-count">
+							{count === 1 ? '1 movimiento' : `${count} movimientos`}
+						</span>
 					</span>
 					<span className="agenda-day-add-button" aria-hidden="true">
 						<Plus size={14} />
@@ -2940,6 +3060,11 @@ export default function Home() {
 			options.statusMode === 'work-order' && Boolean(workOrder)
 		const serviceLines = reservationAgendaServices(reservation)
 		const vehicleModel = reservationVehicleModel(reservation)
+		const workStatusValue = String(
+			workStatusForReservation(reservation, workOrderByReservation) ??
+				reservation.status ??
+				'',
+		)
 		return (
 			<div
 				className={cx(
@@ -2975,7 +3100,7 @@ export default function Home() {
 							<StatusPill
 								value={
 									showWorkStatus
-										? (workOrder as AnyRecord).status
+										? workStatusValue
 										: reservation.status
 								}
 								labels={showWorkStatus ? orderLabels : reservationLabels}
@@ -3314,26 +3439,56 @@ export default function Home() {
 		return status === 'draft' || status === 'sent' ? status : null
 	}
 
-	function resolveWorkStatusDropStatus(value: any) {
+	function parseWorkStatusDropValue(value: any) {
 		if (value === null || value === undefined) return null
 		const raw = String(value)
-		const status = raw.startsWith('work-status:')
+		return raw.startsWith('work-status:')
 			? raw.replace('work-status:', '')
 			: raw
+	}
+
+	function resolveWorkStatusColumnKey(value: any) {
+		const status = parseWorkStatusDropValue(value)
+		if (!status) return null
+		if (workStatusColumns.some((column) => column.key === status)) {
+			return status
+		}
+		const column = workStatusColumnForStatus(status, workStatusColumns)
+		if (column) return column.key
 		return Object.prototype.hasOwnProperty.call(orderLabels, status)
 			? status
 			: null
 	}
 
 	function resolveWorkStatusDropTarget(over: any) {
-		return resolveWorkStatusDropStatus(over?.data?.current?.status ?? over?.id)
+		return resolveWorkStatusColumnKey(
+			over?.data?.current?.statusGroup ??
+				over?.data?.current?.status ??
+				over?.id,
+		)
+	}
+
+	function workStatusDropStatusForColumn(columnKey: string | null) {
+		if (!columnKey) return null
+		const column = workStatusColumns.find((item) => item.key === columnKey)
+		if (column) return column.dropStatus ?? column.statuses[0] ?? null
+		return Object.prototype.hasOwnProperty.call(orderLabels, columnKey)
+			? columnKey
+			: null
 	}
 
 	function updateReservationWorkOrder(
 		reservation: AnyRecord,
 		workOrder: AnyRecord,
 	) {
-		return { ...reservation, work_order: workOrder }
+		const status = String(workOrder?.status ?? reservation.status ?? '')
+		return {
+			...reservation,
+			...(status
+				? { status, status_label: orderLabels[status] ?? status }
+				: {}),
+			work_order: workOrder,
+		}
 	}
 
 	function upsertWorkOrderRecord(records: AnyRecord[], workOrder: AnyRecord) {
@@ -3464,10 +3619,13 @@ export default function Home() {
 		const canMoveStatus = activeReservation
 			? reservationCanMoveWorkStatus(activeReservation, workOrderByReservation)
 			: false
-		const originStatus = resolveWorkStatusDropStatus(
-			event.active.data.current?.status ?? workOrder?.status,
+		const originColumn = resolveWorkStatusColumnKey(
+			event.active.data.current?.statusGroup ??
+				event.active.data.current?.status ??
+				workOrder?.status,
 		)
-		const nextStatus = resolveWorkStatusDropTarget(event.over)
+		const targetColumn = resolveWorkStatusDropTarget(event.over)
+		const nextStatus = workStatusDropStatusForColumn(targetColumn)
 		const previousReservations = reservations
 		const previousWorkOrders = workOrders
 
@@ -3480,9 +3638,10 @@ export default function Home() {
 			!activeReservation ||
 			!canMoveStatus ||
 			!workOrderId ||
-			!originStatus ||
+			!originColumn ||
+			!targetColumn ||
 			!nextStatus ||
-			nextStatus === originStatus ||
+			targetColumn === originColumn ||
 			workStatusMovePendingId
 		) {
 			return
@@ -3690,6 +3849,27 @@ export default function Home() {
 		}
 	}
 
+	function closeSidebarMobileMenu() {
+		setSidebarMobileOpen(false)
+	}
+
+	function toggleSidebarMobileMenu() {
+		setSidebarCollapsed(false)
+		setSidebarMobileOpen((current) => !current)
+	}
+
+	function handleSectionChange(key: string) {
+		setActive(key as Section)
+		setSidebarMobileOpen(false)
+	}
+
+	const pendingPublicRequestsCount = publicRequests.filter(
+		(item) => item.status === 'pending',
+	).length
+	const businessSlug = String(currentUser?.business?.slug ?? '')
+	const publicLandingUrl = businessSlug
+		? `${typeof window !== 'undefined' ? window.location.origin : ''}/publica/${businessSlug}`
+		: ''
 	const title = sectionMeta[displayedActive]
 	const navItems: SidebarNavItem[] = (Object.keys(sectionMeta) as Section[])
 		.filter((key) => canViewEconomy || !sectionRequiresEmployer(key))
@@ -3697,6 +3877,10 @@ export default function Home() {
 			key,
 			label: sectionMeta[key].label,
 			icon: sectionMeta[key].icon,
+			badge:
+				key === 'notifications' && pendingPublicRequestsCount
+					? pendingPublicRequestsCount
+					: undefined,
 		}))
 	const customerVehicles = vehicles.filter(
 		(vehicle) =>
@@ -3711,7 +3895,7 @@ export default function Home() {
 	const customerOptions = customers.map((item) => ({
 		value: String(item.id),
 		label: item.name,
-		meta: [item.phone, item.email].filter(Boolean).join(' Â· '),
+		meta: joinDisplayParts([item.phone, item.email]),
 	}))
 	const customerFilterOptions = [
 		{ value: 'all', label: 'Todos' },
@@ -3740,7 +3924,10 @@ export default function Home() {
 		value: String(item.id),
 		label: serviceDisplayName(item),
 		meta: canViewEconomy
-			? `${serviceTypeLabels[item.service_type] ?? item.service_type} Â· ${money(item.base_price)}`
+			? joinDisplayParts([
+					serviceTypeLabels[item.service_type] ?? item.service_type,
+					money(item.base_price),
+				])
 			: serviceTypeLabels[item.service_type] ?? item.service_type,
 	}))
 	const reservationOptions = reservations
@@ -4247,7 +4434,7 @@ export default function Home() {
 	function renderCustomerHistory() {
 		if (!canViewEconomy) return null
 		if (customerHistoryLoading) {
-			return <div className="info-note">Cargando historial del cliente...</div>
+			return <LoadingState text="Cargando historial del cliente..." />
 		}
 		if (!customerHistory) {
 			return <div className="info-note">Historial economico no disponible.</div>
@@ -4362,10 +4549,18 @@ export default function Home() {
 			>
 				<div className="records compact-records">
 					{orders.length ? (
-						orders.map((order: AnyRecord) => (
-							<div
+						orders.map((order: AnyRecord) => {
+							const detailOrder =
+								workOrders.find((item) => String(item.id) === String(order.id)) ??
+								order
+							return (
+							<button
 								className="record compact"
 								key={`customer-sale-${order.id}`}
+								onClick={() =>
+									openDetailModal('Orden de trabajo', detailOrder)
+								}
+								type="button"
 							>
 								<div className="record-head">
 									<div>
@@ -4386,8 +4581,9 @@ export default function Home() {
 										</span>
 									</div>
 								</div>
-							</div>
-						))
+							</button>
+							)
+						})
 					) : (
 						<Empty text="Este cliente todavia no tiene ventas." />
 					)}
@@ -4479,18 +4675,27 @@ export default function Home() {
 		)
 	}
 
-	function renderCustomerUpcomingReservations(reservations: AnyRecord[]) {
+	function renderCustomerUpcomingReservations(reservationRows: AnyRecord[]) {
 		return (
 			<Panel
 				title="Agenda del cliente"
-				subtitle={`${reservations.length} reservas futuras visibles`}
+				subtitle={`${reservationRows.length} reservas futuras visibles`}
 			>
 				<div className="records compact-records">
-					{reservations.length ? (
-						reservations.map((reservation: AnyRecord) => (
-							<div
+					{reservationRows.length ? (
+						reservationRows.map((reservation: AnyRecord) => {
+							const detailReservation =
+								reservations.find(
+									(item) => String(item.id) === String(reservation.id),
+								) ?? reservation
+							return (
+							<button
 								className="record compact"
 								key={`customer-reservation-${reservation.id}`}
+								onClick={() =>
+									openDetailModal('Reserva', detailReservation)
+								}
+								type="button"
 							>
 								<div className="record-head">
 									<div>
@@ -4513,8 +4718,9 @@ export default function Home() {
 										/>
 									</div>
 								</div>
-							</div>
-						))
+							</button>
+							)
+						})
 					) : (
 						<Empty text="Este cliente no tiene reservas futuras." />
 					)}
@@ -4533,8 +4739,16 @@ export default function Home() {
 					{quotesRows.length ? (
 						quotesRows.map((quote: AnyRecord) => {
 							const quoteCode = quote.public_code ?? `#${quote.id}`
+							const detailQuote =
+								quotes.find((item) => String(item.id) === String(quote.id)) ??
+								quote
 							return (
-								<div className="record compact" key={`customer-quote-${quote.id}`}>
+								<button
+									className="record compact"
+									key={`customer-quote-${quote.id}`}
+									onClick={() => openDetailModal('Cotizacion', detailQuote)}
+									type="button"
+								>
 									<div className="record-head">
 										<div>
 											<div className="record-title">
@@ -4553,7 +4767,7 @@ export default function Home() {
 											<span className="status payment">{money(quote.total)}</span>
 										</div>
 									</div>
-								</div>
+								</button>
 							)
 						})
 					) : (
@@ -4605,13 +4819,67 @@ export default function Home() {
 		)
 	}
 
+	function renderCustomerVehicles(customerVehicles: AnyRecord[]) {
+		return (
+			<Panel
+				title="Vehiculos del cliente"
+				subtitle={`${customerVehicles.length} ${
+					customerVehicles.length === 1 ? 'vehiculo vinculado' : 'vehiculos vinculados'
+				}`}
+			>
+				<div className="records compact-records">
+					{customerVehicles.length ? (
+						customerVehicles.map((vehicle: AnyRecord) => {
+							const detailVehicle =
+								vehicles.find((item) => String(item.id) === String(vehicle.id)) ??
+								vehicle
+							const title =
+								vehicle.label ||
+								vehicle.license_plate ||
+								joinDisplayParts([vehicle.brand, vehicle.model]) ||
+								'Vehiculo sin identificar'
+							return (
+								<button
+									className="record compact"
+									key={`customer-vehicle-${vehicle.id ?? title}`}
+									onClick={() => openDetailModal('Vehiculo', detailVehicle)}
+									type="button"
+								>
+									<div className="record-head">
+										<div>
+											<div className="record-title">{title}</div>
+											<div className="record-sub">
+												{joinDisplayParts([
+													vehicle.brand,
+													vehicle.model,
+													vehicle.color,
+												]) || 'Sin detalle tecnico'}
+											</div>
+										</div>
+										<div className="record-actions">
+											<span className="status draft">
+												{vehicle.license_plate || 'Sin patente'}
+											</span>
+										</div>
+									</div>
+								</button>
+							)
+						})
+					) : (
+						<Empty text="Este cliente todavia no tiene vehiculos." />
+					)}
+				</div>
+			</Panel>
+		)
+	}
+
 	function renderCustomerDashboard() {
 		if (!customerDashboard || !canViewEconomy) return null
 		const hasDashboardHistory = Boolean(customerDashboardHistory)
 		const history = customerDashboardHistory ?? {}
 		const customer = history.customer ?? customerDashboard
 		const summary = history.summary ?? {}
-		const vehicles = history.vehicles ?? []
+		const customerVehicles = history.vehicles ?? []
 		const servicesRanking = history.services ?? []
 		const vehiclesRanking = history.vehicles_ranking ?? []
 		const brandsRanking = history.brands_ranking ?? []
@@ -4619,124 +4887,101 @@ export default function Home() {
 		const payments = history.payments_history ?? []
 		const upcomingReservations = history.upcoming_reservations ?? []
 		const recentQuotes = history.recent_quotes ?? []
+		const profileItems: CustomerDashboardProfileItem[] = [
+			{
+				key: 'phone',
+				label: 'Telefono',
+				value: customer.phone || 'Sin telefono',
+			},
+			{ key: 'email', label: 'Email', value: customer.email || 'Sin email' },
+			{
+				key: 'birthday',
+				label: 'Cumpleanos',
+				value: customer.birthday_label || 'Sin cumpleanos',
+			},
+			{
+				key: 'vehicles',
+				label: 'Vehiculos',
+				value: customerVehicles.length,
+			},
+		]
+		const dashboardMetrics: CustomerDashboardMetric[] = [
+			{
+				key: 'sales',
+				label: 'Ventas',
+				value: money(summary.sales_total ?? summary.billed_total),
+			},
+			{ key: 'paid', label: 'Cobrado', value: money(summary.paid_total) },
+			{
+				key: 'balance',
+				label: 'Saldo',
+				value: money(summary.balance_due_total),
+			},
+			{
+				key: 'materials',
+				label: 'Materiales',
+				value: money(summary.material_cost_total),
+			},
+			{ key: 'margin', label: 'Margen', value: money(summary.margin_total) },
+			{
+				key: 'orders',
+				label: 'Trabajos',
+				value: summary.work_orders_count ?? 0,
+			},
+		]
 		return (
-			<div className="grid customer-dashboard">
-				<Panel>
-					<div className="customer-dashboard-head">
-						<button
-							type="button"
-							className="ghost"
-							onClick={() => setCustomerDashboard(null)}
-						>
-							<ChevronLeft size={16} />
-							Clientes
-						</button>
-						<div>
-							<h2>{customer.name}</h2>
-							<p>Dashboard especifico del cliente</p>
-							{renderBirthdayBadge(customer)}
-						</div>
-						<button
-							type="button"
-							className="ghost"
-							onClick={() => openDetailModal('Cliente', customer)}
-						>
-							Editar cliente
-						</button>
-					</div>
-					<div className="customer-dashboard-profile">
-						<div>
-							<span>Telefono</span>
-							<strong>{customer.phone || 'Sin telefono'}</strong>
-						</div>
-						<div>
-							<span>Email</span>
-							<strong>{customer.email || 'Sin email'}</strong>
-						</div>
-						<div>
-							<span>Cumpleanos</span>
-							<strong>{customer.birthday_label || 'Sin cumpleanos'}</strong>
-						</div>
-						<div>
-							<span>Vehiculos</span>
-							<strong>{vehicles.length}</strong>
-						</div>
-					</div>
-				</Panel>
+			<CustomerDashboardShell
+				title={customer.name}
+				subtitle="Historial, vehiculos, agenda, deuda y pagos disponibles"
+				birthdayBadge={renderBirthdayBadge(customer)}
+				profileItems={profileItems}
+				metrics={dashboardMetrics}
+				isLoading={customerDashboardLoading}
+				hasHistory={hasDashboardHistory}
+				onBack={() => setCustomerDashboard(null)}
+				onEdit={() => openDetailModal('Cliente', customer)}
+			>
+				{renderCustomerOperationalSnapshot(
+					history,
+					upcomingReservations,
+					recentQuotes,
+				)}
 
-				{customerDashboardLoading ? (
-					<div className="info-note">Cargando dashboard del cliente...</div>
-				) : null}
+				<div className="grid two">
+					{renderCustomerVehicles(customerVehicles)}
+					{renderCustomerUpcomingReservations(upcomingReservations)}
+				</div>
 
-				{!customerDashboardLoading && !hasDashboardHistory ? (
-					<div className="info-note">
-						No se pudo cargar el historial economico del cliente. No se
-						muestran ventas ni rankings para evitar datos incompletos.
-					</div>
-				) : null}
+				<div className="grid three customer-dashboard-rankings">
+					{renderCustomerRankingPanel(
+						'Ranking de servicios',
+						servicesRanking,
+						'name',
+						'Sin servicios vendidos para este cliente.',
+					)}
+					{renderCustomerRankingPanel(
+						'Ranking de vehiculos',
+						vehiclesRanking,
+						'label',
+						'Sin vehiculos con trabajos.',
+					)}
+					{renderCustomerRankingPanel(
+						'Ranking de marcas',
+						brandsRanking,
+						'name',
+						'Sin marcas con trabajos.',
+					)}
+				</div>
 
-				{hasDashboardHistory ? (
-					<>
-						<div className="customer-dashboard-metrics">
-							<MetricCard
-								label="Ventas"
-								value={money(summary.sales_total ?? summary.billed_total)}
-							/>
-							<MetricCard label="Cobrado" value={money(summary.paid_total)} />
-							<MetricCard
-								label="Saldo"
-								value={money(summary.balance_due_total)}
-							/>
-							<MetricCard
-								label="Materiales"
-								value={money(summary.material_cost_total)}
-							/>
-							<MetricCard label="Margen" value={money(summary.margin_total)} />
-							<MetricCard
-								label="Trabajos"
-								value={summary.work_orders_count ?? 0}
-							/>
-						</div>
+				<div className="grid two">
+					{renderCustomerRecentQuotes(recentQuotes)}
+					{renderCustomerSalesHistory(orders)}
+				</div>
 
-						{renderCustomerOperationalSnapshot(
-							history,
-							upcomingReservations,
-							recentQuotes,
-						)}
-
-						<div className="grid three customer-dashboard-rankings">
-							{renderCustomerRankingPanel(
-								'Ranking de servicios',
-								servicesRanking,
-								'name',
-								'Sin servicios vendidos para este cliente.',
-							)}
-							{renderCustomerRankingPanel(
-								'Ranking de vehiculos',
-								vehiclesRanking,
-								'label',
-								'Sin vehiculos con trabajos.',
-							)}
-							{renderCustomerRankingPanel(
-								'Ranking de marcas',
-								brandsRanking,
-								'name',
-								'Sin marcas con trabajos.',
-							)}
-						</div>
-
-						<div className="grid two">
-							{renderCustomerUpcomingReservations(upcomingReservations)}
-							{renderCustomerRecentQuotes(recentQuotes)}
-						</div>
-
-						<div className="grid two">
-							{renderCustomerSalesHistory(orders)}
-							{renderCustomerPaymentHistory(payments)}
-						</div>
-					</>
-				) : null}
-			</div>
+				<div className="grid">
+					{renderCustomerPaymentHistory(payments)}
+				</div>
+			</CustomerDashboardShell>
 		)
 	}
 
@@ -5035,7 +5280,7 @@ export default function Home() {
 				</Panel>
 
 				{serviceDashboardLoading ? (
-					<div className="info-note">Cargando dashboard del servicio...</div>
+					<LoadingState text="Cargando dashboard del servicio..." />
 				) : null}
 
 				{!serviceDashboardLoading && !hasDashboardHistory ? (
@@ -5460,7 +5705,7 @@ export default function Home() {
 				</Panel>
 
 				{supplierDashboardLoading ? (
-					<div className="info-note">Cargando dashboard del proveedor...</div>
+					<LoadingState text="Cargando dashboard del proveedor..." />
 				) : null}
 
 				{!supplierDashboardLoading && !hasDashboardHistory ? (
@@ -6501,6 +6746,22 @@ export default function Home() {
 			String(currentBusinessForm.show_stay_days_in_agenda !== false),
 		)
 		payload.append(
+			'public_landing_enabled',
+			String(currentBusinessForm.public_landing_enabled !== false),
+		)
+		payload.append(
+			'public_landing_intro',
+			String(currentBusinessForm.public_landing_intro ?? ''),
+		)
+		payload.append(
+			'allow_public_booking_requests',
+			String(currentBusinessForm.allow_public_booking_requests !== false),
+		)
+		payload.append(
+			'allow_public_quote_requests',
+			String(currentBusinessForm.allow_public_quote_requests !== false),
+		)
+		payload.append(
 			'income_category_tree',
 			JSON.stringify(
 				normalizeIncomeCategoryTree(
@@ -6665,30 +6926,6 @@ export default function Home() {
 		setCustomerDashboard(customer)
 	}
 
-	function openCustomerDashboardFromEvent(event: any, customer: AnyRecord) {
-		const target = event.target as HTMLElement
-		if (target.closest(AGENDA_INTERACTIVE_SELECTOR)) return
-		openCustomerDashboard(customer)
-	}
-
-	function customerDashboardRecordProps(customer: AnyRecord) {
-		return {
-			role: 'button',
-			tabIndex: 0,
-			onClick: (event: any) => openCustomerDashboardFromEvent(event, customer),
-			onKeyDown: (event: any) => {
-				const target = event.target as HTMLElement
-				if (target.closest(AGENDA_INTERACTIVE_SELECTOR)) {
-					return
-				}
-				if (event.key === 'Enter' || event.key === ' ') {
-					event.preventDefault()
-					openCustomerDashboardFromEvent(event, customer)
-				}
-			},
-		}
-	}
-
 	function openServiceDashboard(service: AnyRecord) {
 		if (!canViewEconomy) {
 			openDetailModal('Servicio', service)
@@ -6697,33 +6934,23 @@ export default function Home() {
 		setServiceDashboard(service)
 	}
 
-	function openServiceDashboardFromEvent(event: any, service: AnyRecord) {
-		const target = event.target as HTMLElement
-		if (target.closest(AGENDA_INTERACTIVE_SELECTOR)) return
-		openServiceDashboard(service)
-	}
-
-	function serviceDashboardRecordProps(service: AnyRecord) {
-		return {
-			role: 'button',
-			tabIndex: 0,
-			onClick: (event: any) => openServiceDashboardFromEvent(event, service),
-			onKeyDown: (event: any) => {
-				const target = event.target as HTMLElement
-				if (target.closest(AGENDA_INTERACTIVE_SELECTOR)) {
-					return
-				}
-				if (event.key === 'Enter' || event.key === ' ') {
-					event.preventDefault()
-					openServiceDashboardFromEvent(event, service)
-				}
-			},
-		}
-	}
-
 	function openSupplierDashboard(supplier: AnyRecord) {
 		if (!canViewEconomy) return
 		setSupplierDashboard(supplier)
+	}
+
+	function interactiveRecordProps(onOpen: () => void) {
+		return {
+			role: 'button',
+			tabIndex: 0,
+			onClick: () => onOpen(),
+			onKeyDown: (event: any) => {
+				if (event.key === 'Enter' || event.key === ' ') {
+					event.preventDefault()
+					onOpen()
+				}
+			},
+		}
 	}
 
 	function openStockPurchaseForSupplier(supplier: AnyRecord) {
@@ -6745,30 +6972,6 @@ export default function Home() {
 			expense_subcategory: 'Compra de materiales',
 		})
 		setFormModal({ kind: 'debt' })
-	}
-
-	function openSupplierDashboardFromEvent(event: any, supplier: AnyRecord) {
-		const target = event.target as HTMLElement
-		if (target.closest(AGENDA_INTERACTIVE_SELECTOR)) return
-		openSupplierDashboard(supplier)
-	}
-
-	function supplierDashboardRecordProps(supplier: AnyRecord) {
-		return {
-			role: 'button',
-			tabIndex: 0,
-			onClick: (event: any) => openSupplierDashboardFromEvent(event, supplier),
-			onKeyDown: (event: any) => {
-				const target = event.target as HTMLElement
-				if (target.closest(AGENDA_INTERACTIVE_SELECTOR)) {
-					return
-				}
-				if (event.key === 'Enter' || event.key === ' ') {
-					event.preventDefault()
-					openSupplierDashboardFromEvent(event, supplier)
-				}
-			},
-		}
 	}
 
 	function detailRecordProps(title: string, data: AnyRecord) {
@@ -11899,6 +12102,279 @@ export default function Home() {
 		)
 	}
 
+	function publicRequestServicesText(item: AnyRecord) {
+		const names = (item.items ?? [])
+			.map((line: AnyRecord) => line.service_name || line.description)
+			.filter(Boolean)
+		return names.length ? names.join(', ') : 'Sin servicios'
+	}
+
+	function publicRequestVehicleText(item: AnyRecord) {
+		return (
+			joinDisplayParts([
+				item.vehicle_license_plate,
+				item.vehicle_brand,
+				item.vehicle_model,
+				item.vehicle_color,
+			]) || 'Sin vehiculo informado'
+		)
+	}
+
+	function publicRequestContactText(item: AnyRecord) {
+		return joinDisplayParts([item.customer_phone, item.customer_email])
+	}
+
+	function publicRequestSelection(item: AnyRecord) {
+		return publicRequestSelections[String(item.id)] ?? {}
+	}
+
+	function patchPublicRequestSelection(
+		item: AnyRecord,
+		patch: { customer?: string; vehicle?: string },
+	) {
+		const itemId = String(item.id)
+		setPublicRequestSelections((current) => ({
+			...current,
+			[itemId]: {
+				...current[itemId],
+				...patch,
+			},
+		}))
+	}
+
+	async function archivePublicRequest(item: AnyRecord) {
+		if (!canViewEconomy) return
+		await runAction(
+			() =>
+				apiFetch(`/public-requests/${item.id}/archive/`, {
+					method: 'POST',
+				}),
+			{
+				flashTarget: recordFlashKey('public-request', item.id),
+				successTitle: 'Solicitud archivada',
+			},
+		)
+	}
+
+	async function convertPublicRequest(item: AnyRecord) {
+		if (!canViewEconomy) return
+		const selection = publicRequestSelection(item)
+		const payload: AnyRecord = {}
+		if (selection.customer) {
+			payload.customer = Number(selection.customer)
+		}
+		if (selection.vehicle) {
+			payload.vehicle = Number(selection.vehicle)
+		}
+		const converted = await runAction(
+			() =>
+				apiFetch<AnyRecord>(`/public-requests/${item.id}/convert/`, {
+					method: 'POST',
+					body: JSON.stringify(payload),
+				}),
+			{
+				flashTarget: (result: AnyRecord) =>
+					result?.created_type === 'reservation'
+						? recordFlashKey('reservation', result.reservation?.id)
+						: recordFlashKey('quote', result.quote?.id),
+				successTitle: (result: AnyRecord) =>
+					result?.created_type === 'reservation'
+						? 'Reserva creada'
+						: 'Cotizacion creada',
+			},
+		)
+		if (!converted) return
+		setPublicRequestSelections((current) => {
+			const next = { ...current }
+			delete next[String(item.id)]
+			return next
+		})
+		setActive(converted.created_type === 'reservation' ? 'agenda' : 'quotes')
+	}
+
+	function renderPublicRequestCard(item: AnyRecord) {
+		const selection = publicRequestSelection(item)
+		const customerSuggestions = item.suggestions?.customers ?? []
+		const vehicleSuggestions = item.suggestions?.vehicles ?? []
+		const isPending = item.status === 'pending'
+		return (
+			<MotionFlashSurface
+				className={recordClass('public-request', item.id)}
+				key={item.id}
+			>
+				<RecordCard>
+					<RecordCardHeader
+						title={item.customer_name}
+						subtitle={
+							<>
+								{publicRequestTypeLabels[item.request_type] ?? item.request_type}{' '}
+								- {publicRequestServicesText(item)}
+							</>
+						}
+						actions={
+							<StatusPill
+								value={String(item.status ?? '')}
+								labels={publicRequestStatusLabels}
+							/>
+						}
+					>
+						<div className="record-sub">
+							{publicRequestContactText(item) || 'Sin contacto'} -{' '}
+							{publicRequestVehicleText(item)}
+						</div>
+						{item.preferred_day ? (
+							<div className="record-sub">
+								Preferencia: {formatDateLabel(item.preferred_day)}
+								{item.preferred_time ? ` ${item.preferred_time.slice(0, 5)}` : ''}
+							</div>
+						) : null}
+					</RecordCardHeader>
+					{item.message ? <p className="record-sub">{item.message}</p> : null}
+					{isPending ? (
+						<div className="public-request-resolution">
+							<Field label="Cliente">
+								<select
+									value={selection.customer ?? ''}
+									onChange={(event) =>
+										patchPublicRequestSelection(item, {
+											customer: event.target.value,
+										})
+									}
+								>
+									<option value="">Crear nuevo cliente</option>
+									{customerSuggestions.map((customer: AnyRecord) => (
+										<option key={customer.id} value={customer.id}>
+											{joinDisplayParts([
+												customer.label ?? customer.name,
+												customer.phone,
+												customer.email,
+											])}
+										</option>
+									))}
+								</select>
+							</Field>
+							<Field label="Vehiculo">
+								<select
+									value={selection.vehicle ?? ''}
+									onChange={(event) =>
+										patchPublicRequestSelection(item, {
+											vehicle: event.target.value,
+										})
+									}
+								>
+									<option value="">Crear nuevo vehiculo</option>
+									{vehicleSuggestions.map((vehicle: AnyRecord) => (
+										<option key={vehicle.id} value={vehicle.id}>
+											{joinDisplayParts([
+												vehicle.label,
+												vehicle.customer_name,
+											])}
+										</option>
+									))}
+								</select>
+							</Field>
+							<div className="record-actions">
+								<button
+									type="button"
+									className="primary"
+									onClick={() => convertPublicRequest(item)}
+								>
+									<CheckCircle2 size={16} />
+									Convertir
+								</button>
+								<button
+									type="button"
+									className="ghost"
+									onClick={() => archivePublicRequest(item)}
+								>
+									<Trash2 size={16} />
+									Archivar
+								</button>
+							</div>
+						</div>
+					) : (
+						<div className="record-sub">
+							{item.converted_reservation
+								? `Reserva #${item.converted_reservation}`
+								: item.converted_quote
+									? `Cotizacion #${item.converted_quote}`
+									: item.archived_at
+										? `Archivada ${formatDateTimeLabel(item.archived_at)}`
+										: 'Gestionada'}
+						</div>
+					)}
+				</RecordCard>
+			</MotionFlashSurface>
+		)
+	}
+
+	function renderAuditLogCard(item: AnyRecord) {
+		const itemId = String(item.id)
+		const expanded = expandedAuditLogId === itemId
+		const rows = auditChangeRows(item.changes ?? {})
+		const actorLabel = auditActorLabel(
+			item as AuditLogEntry,
+			currentUser?.id ?? null,
+		)
+		return (
+			<RecordCard className="audit-log-card" key={item.id}>
+				<RecordCardHeader
+					title={
+						<>
+							{auditActionLabel(String(item.action ?? ''))} -{' '}
+							{item.entity_label || item.entity_type || 'Registro'}
+						</>
+					}
+					subtitle={
+						<>
+							{auditModuleLabel(String(item.module ?? ''))} -{' '}
+							{String(item.entity_type ?? '')}
+							{item.entity_id ? ` #${item.entity_id}` : ''}
+						</>
+					}
+					actions={
+						<button
+							type="button"
+							className="ghost"
+							onClick={() =>
+								setExpandedAuditLogId(expanded ? null : itemId)
+							}
+						>
+							<Eye size={16} />
+							{expanded ? 'Ocultar' : 'Detalle'}
+						</button>
+					}
+				>
+					<div className="record-sub">
+						{formatDateTimeLabel(item.created_at)} - {actorLabel}
+					</div>
+				</RecordCardHeader>
+				{expanded ? (
+					<div className="audit-change-table">
+						<div className="audit-change-row audit-change-row--head">
+							<span>Campo</span>
+							<span>Antes</span>
+							<span>Despues</span>
+						</div>
+						{rows.length ? (
+							rows.map((row) => (
+								<div className="audit-change-row" key={row.field}>
+									<span>{auditFieldLabel(row.field)}</span>
+									<strong>{row.before}</strong>
+									<strong>{row.after}</strong>
+								</div>
+							))
+						) : (
+							<div className="record-sub audit-empty-change">
+								Accion registrada sin cambios campo por campo.
+							</div>
+						)}
+					</div>
+				) : null}
+			</RecordCard>
+		)
+	}
+
 	function renderProfileModal() {
 		if (!currentUser) return null
 		return (
@@ -12778,9 +13254,20 @@ export default function Home() {
 			</AnimatePresence>
 			<AppShell
 				theme={themeMode}
+				sidebarOverlay={
+					sidebarMobileOpen ? (
+						<button
+							type="button"
+							className="sidebar-backdrop"
+							aria-label="Cerrar menu lateral"
+							onClick={closeSidebarMobileMenu}
+						/>
+					) : null
+				}
 				sidebar={
 					<SidebarNav
 						collapsed={sidebarCollapsed}
+						mobileOpen={sidebarMobileOpen}
 						header={
 							<div className="sidebar-top-stack">
 								<AppBrand
@@ -12793,38 +13280,40 @@ export default function Home() {
 									type="button"
 									className="ghost sidebar-collapse-toggle"
 									aria-label={
-										sidebarCollapsed
-											? 'Expandir sidebar'
-											: 'Colapsar sidebar'
+										sidebarMobileOpen
+											? 'Cerrar menu lateral'
+											: sidebarCollapsed
+												? 'Expandir sidebar'
+												: 'Colapsar sidebar'
 									}
 									title={
-										sidebarCollapsed
-											? 'Expandir sidebar'
-											: 'Colapsar sidebar'
+										sidebarMobileOpen
+											? 'Cerrar menu lateral'
+											: sidebarCollapsed
+												? 'Expandir sidebar'
+												: 'Colapsar sidebar'
 									}
-									onClick={() =>
+									onClick={() => {
+										if (sidebarMobileOpen) {
+											closeSidebarMobileMenu()
+											return
+										}
 										setSidebarCollapsed((current) => !current)
-									}
+									}}
 								>
-									{sidebarCollapsed ? (
+									{sidebarMobileOpen ? (
+										<X size={16} />
+									) : sidebarCollapsed ? (
 										<ChevronsRight size={16} />
 									) : (
 										<ChevronsLeft size={16} />
 									)}
 								</button>
-								{!sidebarCollapsed ? (
-									<input
-										aria-label="Buscar"
-										className="sidebar-search-input"
-										placeholder="Buscar..."
-										type="text"
-									/>
-								) : null}
 							</div>
 						}
 						items={navItems}
 						active={active}
-						onChange={(key) => setActive(key as Section)}
+						onChange={handleSectionChange}
 						footer={
 							!sidebarCollapsed ? (
 								<div className="sidebar-footer-stack">
@@ -12889,32 +13378,38 @@ export default function Home() {
 						subtitle={title.subtitle}
 						titleAddon={
 							displayedActive === 'agenda' ? (
-								<div
-									className="mode-toggle agenda-type-toggle"
-									role="tablist"
-									aria-label="Tipo de servicio"
-								>
-									{agendaServiceBuckets.map((bucket) => (
-										<button
-											type="button"
-											key={bucket.value}
-											role="tab"
-											aria-selected={agendaServiceBucket === bucket.value}
-											className={
-												agendaServiceBucket === bucket.value
-													? 'selected'
-													: ''
-											}
-											onClick={() => setAgendaServiceBucket(bucket.value)}
-										>
-											{bucket.label}
-										</button>
-									))}
-								</div>
+								<SegmentedControl
+									ariaLabel="Tipo de servicio"
+									className="agenda-type-toggle"
+									options={agendaServiceBuckets}
+									selectionMode="tabs"
+									value={agendaServiceBucket}
+									onChange={(nextValue) =>
+										setAgendaServiceBucket(nextValue as AgendaServiceBucket)
+									}
+								/>
 							) : null
 						}
 						actions={
 							<div className="record-actions">
+								<button
+									type="button"
+									className="ghost shell-mobile-toggle"
+									aria-label={
+										sidebarMobileOpen
+											? 'Cerrar menu lateral'
+											: 'Abrir menu lateral'
+									}
+									title={
+										sidebarMobileOpen
+											? 'Cerrar menu lateral'
+											: 'Abrir menu lateral'
+									}
+									onClick={toggleSidebarMobileMenu}
+								>
+									{sidebarMobileOpen ? <X size={16} /> : <Menu size={16} />}
+									Menu
+								</button>
 								{displayedActive === 'agenda' ? (
 									<button
 										type="button"
@@ -13044,99 +13539,77 @@ export default function Home() {
 					</div>
 				) : null}
 
+				{displayedActive === 'notifications' ? (
+					<div className="grid">
+						<Panel
+							title="Solicitudes pendientes"
+							subtitle={`${pendingPublicRequestsCount} pendientes`}
+						>
+							<div className="records">
+								{publicRequests.filter((item) => item.status === 'pending').length ? (
+									publicRequests
+										.filter((item) => item.status === 'pending')
+										.map((item) => renderPublicRequestCard(item))
+								) : (
+									<Empty
+										text="Sin solicitudes pendientes"
+										hint="Las solicitudes publicas nuevas van a aparecer aca."
+									/>
+								)}
+							</div>
+						</Panel>
+						<Panel title="Gestionadas">
+							<div className="records">
+								{publicRequests.filter((item) => item.status !== 'pending').length ? (
+									publicRequests
+										.filter((item) => item.status !== 'pending')
+										.map((item) => renderPublicRequestCard(item))
+								) : (
+									<Empty text="Sin solicitudes gestionadas" />
+								)}
+							</div>
+						</Panel>
+					</div>
+				) : null}
+
 				{displayedActive === 'customers' ? (
 					<>
 						{customerDashboard && canViewEconomy ? (
 							renderCustomerDashboard()
 						) : (
 					<div className="grid">
-						<section className="panel">
-							<div className="panel-head">
-								<h2>Clientes</h2>
-								<button
-									type="button"
-									className="primary"
-									onClick={() => openFormModal('customer')}
-								>
-									<Plus size={16} />
-									Nuevo cliente
-								</button>
-							</div>
-							<div
-								className="toolbar toolbar-spaced"
-							>
-								<input
-									placeholder="Buscar por nombre, telefono, email, patente o modelo"
-									value={search}
-									onChange={(event) =>
-										setSearch(event.target.value)
-									}
-								/>
-							</div>
-							<div className="records">
-								{filteredCustomers.length ? (
-									filteredCustomers.map((item) => (
-										<MotionFlashSurface
-											className={recordClass('customer', item.id)}
-											key={item.id}
-											{...customerDashboardRecordProps(item)}
-										>
-											<div className="record-head">
-												<div>
-													<div className="record-title">
-														{serviceDisplayName(item)}
-													</div>
-													<div className="record-sub">
-														{item.phone ||
-															'Sin telefono'}{' '}
-														Â·{' '}
-														{item.email ||
-															'Sin email'}
-													</div>
-													{renderBirthdayBadge(item)}
-												</div>
-												<div className="record-actions">
-													<button
-														className="ghost"
-														type="button"
-														onClick={() =>
-															openDetailModal('Cliente', item)
-														}
-													>
-														Editar
-													</button>
-													<button
-														className="danger"
-														type="button"
-														onClick={() =>
-															runAction(() =>
-																apiFetch(
-																	`/customers/${item.id}/`,
-																	{
-																		method: 'DELETE',
-																	},
-																),
-																{
-																	successTitle:
-																		entityFeedbackTitle(
-																			'customer',
-																			'deleted',
-																		),
-																},
-															)
-														}
-													>
-														Baja
-													</button>
-												</div>
-											</div>
-										</MotionFlashSurface>
-									))
-								) : (
-									<Empty text="Sin clientes." />
-								)}
-							</div>
-						</section>
+						<CustomerListPanel
+							customers={filteredCustomers}
+							totalCustomers={customers.length}
+							search={search}
+							filter={customerCardFilter}
+							filterOptions={visibleCustomerFilterOptions}
+							canViewEconomy={canViewEconomy}
+							showReservationTimes={useReservationTimes}
+							vehicleCountByCustomerId={customerVehicleCountById}
+							getRecordClassName={(item) =>
+								recordClass('customer', item.id)
+							}
+							onSearchChange={setSearch}
+							onFilterChange={setCustomerCardFilter}
+							onCreate={() => openFormModal('customer')}
+							onOpenDashboard={openCustomerDashboard}
+							onEdit={(item) => openDetailModal('Cliente', item)}
+							onDelete={(item) =>
+								runAction(
+									() =>
+										apiFetch(`/customers/${item.id}/`, {
+											method: 'DELETE',
+										}),
+									{
+										successTitle: entityFeedbackTitle(
+											'customer',
+											'deleted',
+										),
+									},
+								)
+							}
+						/>
 						<section className="panel hidden-section">
 							<h2>Vehiculos</h2>
 							<div className="records">
@@ -13241,41 +13714,26 @@ export default function Home() {
 											<MotionFlashSurface
 												className={recordClass('supplier', item.id)}
 												key={`supplier-page-${item.id}`}
-												{...supplierDashboardRecordProps(item)}
 											>
-												<div className="record-head">
-													<div>
-														<div className="record-title">
-															{item.name}
-														</div>
-														<div className="record-sub">
-															{supplierProfileSubtitle(item) ||
-																[item.contact_name, item.phone, item.email]
-																	.filter(Boolean)
-																	.join(' - ') ||
-																'Sin datos de contacto'}
-														</div>
-														<div className="record-sub">
-															Comprado{' '}
-															{money(insights.total_purchased)} -{' '}
-															{insights.purchase_count ?? 0} compras
-															{insights.last_purchase_on
-																? ` - ultima ${formatDateLabel(insights.last_purchase_on)}`
-																: ''}
-															{insights.materials_count
-																? ` - ${insights.materials_count} materiales`
-																: ''}
-														</div>
-														<div className="record-sub">
-															{item.is_active === false
-																? 'Inactivo'
-																: 'Activo'}
-															{insights.pending_reception_count
-																? ` - ${insights.pending_reception_count} compras pendientes de recepcion`
-																: ' - sin recepcion pendiente'}
-														</div>
-													</div>
-													<div className="record-actions">
+												<RecordCardHeader
+													title={item.name}
+													subtitle={
+														supplierProfileSubtitle(item) ||
+														[item.contact_name, item.phone, item.email]
+															.filter(Boolean)
+															.join(' - ') ||
+														'Sin datos de contacto'
+													}
+													primaryAction={
+														canViewEconomy
+															? {
+																	ariaLabel: `Abrir proveedor ${item.name}`,
+																	onClick: () => openSupplierDashboard(item),
+															  }
+															: undefined
+													}
+													actions={
+														<>
 														<button
 															type="button"
 															className="primary"
@@ -13310,13 +13768,42 @@ export default function Home() {
 														>
 															Inactivar
 														</button>
+														</>
+													}
+												>
+													<div className="record-sub">
+														Comprado {money(insights.total_purchased)} -{' '}
+														{insights.purchase_count ?? 0} compras
+														{insights.last_purchase_on
+															? ` - ultima ${formatDateLabel(insights.last_purchase_on)}`
+															: ''}
+														{insights.materials_count
+															? ` - ${insights.materials_count} materiales`
+															: ''}
 													</div>
-												</div>
+													<div className="record-sub">
+														{item.is_active === false ? 'Inactivo' : 'Activo'}
+														{insights.pending_reception_count
+															? ` - ${insights.pending_reception_count} compras pendientes de recepcion`
+															: ' - sin recepcion pendiente'}
+													</div>
+												</RecordCardHeader>
 											</MotionFlashSurface>
 										)
 									})
 								) : (
-									<Empty text="Sin proveedores." />
+									<Empty
+										text={
+											search.trim()
+												? 'No hay proveedores para esta busqueda.'
+												: 'Sin proveedores.'
+										}
+										hint={
+											search.trim()
+												? 'Proba con otro nombre, contacto o CUIT.'
+												: 'Crea el primer proveedor para registrar compras.'
+										}
+									/>
 								)}
 							</div>
 						</section>
@@ -13402,7 +13889,18 @@ export default function Home() {
 										</MotionFlashSurface>
 									))
 								) : (
-									<Empty text="Sin vehiculos." />
+									<Empty
+										text={
+											search.trim()
+												? 'No hay vehiculos para esta busqueda.'
+												: 'Sin vehiculos.'
+										}
+										hint={
+											search.trim()
+												? 'Proba con otra patente, marca o cliente.'
+												: 'Crea el primer vehiculo para vincular reservas.'
+										}
+									/>
 								)}
 							</div>
 						</section>
@@ -13435,30 +13933,20 @@ export default function Home() {
 										<MotionFlashSurface
 											className={recordClass('service', item.id)}
 											key={item.id}
-											{...serviceDashboardRecordProps(item)}
 										>
-											<div className="record-head">
-												<div>
-													<div className="record-title">
-														{serviceDisplayName(item)}
-													</div>
-													<div className="record-sub">
-														{
-															serviceTypeLabels[
-																item
-																	.service_type
-															]
-														}{' '}
-														Â·{' '}
-														{money(item.base_price)}{' '}
-														Â·{' '}
-														{
-															item.estimated_duration_minutes
-														}{' '}
-														min
-													</div>
-												</div>
-												<div className="record-actions">
+											<RecordCardHeader
+												title={serviceDisplayName(item)}
+												subtitle={joinDisplayParts([
+													serviceTypeLabels[item.service_type],
+													money(item.base_price),
+													`${item.estimated_duration_minutes} min`,
+												])}
+												primaryAction={{
+													ariaLabel: `Abrir servicio ${serviceDisplayName(item)}`,
+													onClick: () => openServiceDashboard(item),
+												}}
+												actions={
+													<>
 													<button
 														type="button"
 														className="ghost"
@@ -13491,12 +13979,16 @@ export default function Home() {
 													>
 														Inactivar
 													</button>
-												</div>
-											</div>
+													</>
+												}
+											/>
 										</MotionFlashSurface>
 									))
 								) : (
-									<Empty text="Sin servicios." />
+									<Empty
+										text="Sin servicios."
+										hint="Crea el primer servicio para reservar o cotizar."
+									/>
 								)}
 							</div>
 						</section>
@@ -13506,90 +13998,78 @@ export default function Home() {
 
 				{displayedActive === 'agenda' ? (
 					<div className="work-view-strip">
-						<div
-							className="mode-toggle work-view-toggle"
-							role="tablist"
-							aria-label="Visualizacion de trabajos"
-						>
-							{workViewModes.map((mode) => (
-								<button
-									type="button"
-									key={mode.value}
-									role="tab"
-									aria-selected={workViewMode === mode.value}
-									className={workViewMode === mode.value ? 'selected' : ''}
-									onClick={() => setWorkViewMode(mode.value)}
-								>
-									{mode.label}
-								</button>
-							))}
+						<div className="work-view-copy">
+							<span className="agenda-toolbar-kicker">Agenda / Trabajos</span>
+							<strong>{agendaServiceBucketLabel}</strong>
+							<small>
+								{visibleAgendaReservations.length}{' '}
+								{visibleAgendaReservations.length === 1
+									? 'reserva visible'
+									: 'reservas visibles'}
+							</small>
 						</div>
+						<SegmentedControl
+							ariaLabel="Visualizacion de trabajos"
+							className="work-view-toggle"
+							options={workViewModes}
+							selectionMode="tabs"
+							value={workViewMode}
+							onChange={(nextValue) =>
+								setWorkViewMode(nextValue as WorkOrderViewMode)
+							}
+						/>
 					</div>
 				) : null}
 
 				{displayedActive === 'agenda' && workViewMode === 'agenda' ? (
 					<div className="grid agenda-layout">
 						<section className="panel agenda-panel">
-							<div className="agenda-toolbar">
-								<div>
-									<h2 className="week-title">
-										Agenda del {formatDayLabel(agendaStartDay)} al{' '}
-										{formatDayLabel(weekEndDay)}
-									</h2>
-								</div>
-								<div className="agenda-toolbar-tools">
-									<div
-										className="agenda-nav"
-										aria-label="Navegar agenda"
-									>
+							<AgendaBoardToolbar
+								endLabel={formatDayLabel(weekEndDay)}
+								rangeSummary={agendaRangeSummary}
+								startLabel={formatDayLabel(agendaStartDay)}
+								visibleDays={AGENDA_VISIBLE_DAYS}
+								onMove={moveAgenda}
+								onToday={goToToday}
+							/>
+							{agendaLoadError ? (
+								<ErrorState
+									text={agendaLoadError.title}
+									hint={agendaLoadError.description}
+									action={
+										<button type="button" className="ghost" onClick={loadData}>
+											<RefreshCw size={16} />
+											Actualizar
+										</button>
+									}
+								/>
+							) : null}
+							{loading &&
+							!agendaLoadError &&
+							!agendaBoardModel.segments.length ? (
+								<LoadingState
+									text="Cargando agenda..."
+									hint="Mantenemos el tablero listo mientras llegan las reservas."
+								/>
+							) : null}
+							{!loading &&
+							!agendaLoadError &&
+							!agendaBoardModel.segments.length ? (
+								<Empty
+									text="Sin reservas en este rango."
+									hint="Usa la columna del dia o el boton Crear para cargar la proxima reserva."
+									action={
 										<button
 											type="button"
-											className="ghost icon-button"
-											aria-label={`Retroceder ${AGENDA_VISIBLE_DAYS} dias`}
-											title={`Retroceder ${AGENDA_VISIBLE_DAYS} dias`}
-											onClick={() => moveAgenda(-AGENDA_VISIBLE_DAYS)}
+											className="primary"
+											onClick={() => openQuickReservation(selectedDay)}
 										>
-											<ChevronsLeft size={17} />
+											<Plus size={16} />
+											Crear reserva
 										</button>
-										<button
-											type="button"
-											className="ghost icon-button"
-											aria-label="Retroceder 1 dia"
-											title="Retroceder 1 dia"
-											onClick={() => moveAgenda(-1)}
-										>
-											<ChevronLeft size={17} />
-										</button>
-										<button
-											type="button"
-											className="ghost"
-											aria-label="Ir a hoy"
-											title="Ir a hoy"
-											onClick={goToToday}
-										>
-											Hoy
-										</button>
-										<button
-											type="button"
-											className="ghost icon-button"
-											aria-label="Adelantar 1 dia"
-											title="Adelantar 1 dia"
-											onClick={() => moveAgenda(1)}
-										>
-											<ChevronRight size={17} />
-										</button>
-										<button
-											type="button"
-											className="ghost icon-button"
-											aria-label={`Adelantar ${AGENDA_VISIBLE_DAYS} dias`}
-											title={`Adelantar ${AGENDA_VISIBLE_DAYS} dias`}
-											onClick={() => moveAgenda(AGENDA_VISIBLE_DAYS)}
-										>
-											<ChevronsRight size={17} />
-										</button>
-									</div>
-								</div>
-							</div>
+									}
+								/>
+							) : null}
 							<DndContext
 								sensors={agendaSensors}
 								collisionDetection={closestCenter}
@@ -13638,6 +14118,9 @@ export default function Home() {
 												{agendaBoardModel.days.map((day, index) => (
 													<AgendaDayHeader
 														column={index + 1}
+														count={
+															agendaBoardModel.rowsByDay[day]?.length ?? 0
+														}
 														day={day}
 														hiddenDuringEnter={shouldHideEnteringAgendaColumn(
 															index + 1,
@@ -13678,6 +14161,7 @@ export default function Home() {
 																			reservation,
 																			workOrder,
 																			segment.row,
+																			{ statusMode: 'work-order' },
 																	  )
 																	: null}
 																{!reservation && !workOrder ? (
@@ -13694,7 +14178,9 @@ export default function Home() {
 									</AnimatePresence>
 								</div>
 								<DragOverlay>
-									{renderAgendaDragOverlay(activeAgendaRow)}
+									{renderAgendaDragOverlay(activeAgendaRow, {
+										statusMode: 'work-order',
+									})}
 								</DragOverlay>
 							</DndContext>
 						</section>
@@ -13851,26 +14337,15 @@ export default function Home() {
 											Los filtros de abajo no alteran estos totales.
 										</p>
 									</div>
-									<div
-										className="mode-toggle cash-summary-toggle"
-										aria-label="Vista del resumen"
-									>
-										{cashSummaryModeOptions.map((option) => (
-											<button
-												type="button"
-												key={option.value}
-												className={
-													cashSummaryMode === option.value
-														? 'selected'
-														: ''
-												}
-												onClick={() => setCashSummaryMode(option.value)}
-												aria-pressed={cashSummaryMode === option.value}
-											>
-												{option.label}
-											</button>
-										))}
-									</div>
+									<SegmentedControl
+										ariaLabel="Vista del resumen"
+										className="cash-summary-toggle"
+										options={cashSummaryModeOptions}
+										value={cashSummaryMode}
+										onChange={(nextValue) =>
+											setCashSummaryMode(nextValue as CashSummaryMode)
+										}
+									/>
 								</div>
 								<div className="cash-summary-body">
 									{renderCashSummaryGroup('charges')}
@@ -14268,7 +14743,9 @@ export default function Home() {
 									<MotionFlashSurface
 										className={recordClass('supplier', item.id)}
 										key={`supplier-${item.id}`}
-										{...supplierDashboardRecordProps(item)}
+										{...interactiveRecordProps(() =>
+											openSupplierDashboard(item)
+										)}
 									>
 										<div className="record-head">
 											<div>
@@ -14490,13 +14967,17 @@ export default function Home() {
 										<div className="record-head">
 											<div>
 												<div className="record-title">
-													Compra Â·{' '}
-													{item.material_name}
+													{joinDisplayParts([
+														'Compra',
+														item.material_name,
+													])}
 												</div>
 												<div className="record-sub">
-													{item.quantity} Â·{' '}
-													{money(item.total_cost)} Â·{' '}
-													{item.purchased_at}
+													{joinDisplayParts([
+														item.quantity,
+														money(item.total_cost),
+														item.purchased_at,
+													])}
 												</div>
 												</div>
 											</div>
@@ -14514,8 +14995,10 @@ export default function Home() {
 										<div className="record-head">
 											<div>
 												<div className="record-title">
-													Consumo Â·{' '}
-													{item.material_name}
+													{joinDisplayParts([
+														'Consumo',
+														item.material_name,
+													])}
 												</div>
 												<div className="record-sub">
 													Trabajo asociado -{' '}
@@ -14712,29 +15195,16 @@ export default function Home() {
 
 				{displayedActive === 'settings' ? (
 					<div className="settings-workspace">
-						<div
-							className="mode-toggle settings-section-toggle"
-							role="tablist"
-							aria-label="Secciones de configuracion"
-						>
-							{settingsSectionOptions.map((option) => {
-								const Icon = option.icon
-								const selected = settingsSection === option.value
-								return (
-									<button
-										type="button"
-										key={option.value}
-										role="tab"
-										aria-selected={selected}
-										className={selected ? 'selected' : ''}
-										onClick={() => setSettingsSection(option.value)}
-									>
-										<Icon size={16} />
-										{option.label}
-									</button>
-								)
-							})}
-						</div>
+						<SegmentedControl
+							ariaLabel="Secciones de configuracion"
+							className="settings-section-toggle"
+							options={settingsSectionOptions}
+							selectionMode="tabs"
+							value={settingsSection}
+							onChange={(nextValue) =>
+								setSettingsSection(nextValue as SettingsSection)
+							}
+						/>
 						<div className="grid settings-grid">
 						{settingsSection === 'business' ? (
 							<section className="panel">
@@ -14878,6 +15348,65 @@ export default function Home() {
 										}
 									/>
 								</Field>
+								<div className="landing-config">
+									<Field label="URL publica">
+										<input
+											readOnly
+											value={publicLandingUrl}
+											placeholder="Disponible al iniciar sesion con negocio"
+										/>
+									</Field>
+									<label>
+										<input
+											type="checkbox"
+											checked={businessForm.public_landing_enabled !== false}
+											onChange={(event) =>
+												patchBusinessForm({
+													public_landing_enabled: event.target.checked,
+												})
+											}
+										/>
+										Landing publica activa
+									</label>
+									<div className="form-row">
+										<label>
+											<input
+												type="checkbox"
+												checked={businessForm.allow_public_booking_requests !== false}
+												onChange={(event) =>
+													patchBusinessForm({
+														allow_public_booking_requests: event.target.checked,
+													})
+												}
+											/>
+											Recibir pedidos de turno
+										</label>
+										<label>
+											<input
+												type="checkbox"
+												checked={businessForm.allow_public_quote_requests !== false}
+												onChange={(event) =>
+													patchBusinessForm({
+														allow_public_quote_requests: event.target.checked,
+													})
+												}
+											/>
+											Recibir pedidos de cotizacion
+										</label>
+									</div>
+									<Field label="Texto corto para la landing">
+										<textarea
+											maxLength={240}
+											rows={3}
+											value={businessForm.public_landing_intro}
+											onChange={(event) =>
+												patchBusinessForm({
+													public_landing_intro: event.target.value,
+												})
+											}
+										/>
+									</Field>
+								</div>
 								<button className="primary">
 									<Building2 size={16} />
 									Guardar datos del negocio
@@ -14992,27 +15521,24 @@ export default function Home() {
 							</div>
 							<div className="records compact-records settings-classification-list">
 								{cashClassificationPairs.map((item) => (
-									<div
-										className="record-card settings-classification-card"
+									<RecordCard
+										className="settings-classification-card"
 										key={`${item.movement_type}-${item.category}-${item.subcategory}`}
 									>
-										<div className="record-head">
-											<div>
-												<div className="record-title">
-													{item.subcategory}
-												</div>
-												<div className="record-sub">
-													<span
-														className={`cash-term ${item.movement_type}`}
-													>
+										<RecordCardHeader
+											title={item.subcategory}
+											subtitle={
+												<>
+													<span className={`cash-term ${item.movement_type}`}>
 														{item.movement_type === 'income'
 															? 'Ingreso'
 															: 'Egreso'}
 													</span>{' '}
 													- {item.category}
-												</div>
-											</div>
-											<div className="record-actions">
+												</>
+											}
+											actions={
+												<>
 												<button
 													type="button"
 													className="ghost"
@@ -15037,9 +15563,10 @@ export default function Home() {
 												>
 													<Trash2 size={16} />
 												</button>
-											</div>
-										</div>
-									</div>
+												</>
+											}
+										/>
+									</RecordCard>
 								))}
 							</div>
 						</section>
@@ -15057,96 +15584,52 @@ export default function Home() {
 							</div>
 							<form className="form-grid" onSubmit={saveBusinessProfile}>
 								<div className="records compact-records">
-									<div className="record-card">
-										<div className="record-head">
-											<div>
-												<div className="record-title">
-													Usar horas de ingreso y egreso
-												</div>
-												<div className="record-sub">
-													Muestra los campos de hora en reservas y los
-													horarios en agenda, cotizaciones y listados.
-												</div>
-											</div>
-											<div className="record-actions">
-												<div
-													className="mode-toggle settings-mode-toggle"
-													role="group"
-													aria-label="Usar horas de ingreso y egreso"
-												>
-													<button
-														type="button"
-														className={useReservationTimes ? 'selected' : ''}
-														aria-pressed={useReservationTimes}
-														onClick={() =>
-															patchBusinessForm({
-																use_reservation_times: true,
-															})
-														}
-													>
-														Mostrar
-													</button>
-													<button
-														type="button"
-														className={!useReservationTimes ? 'selected' : ''}
-														aria-pressed={!useReservationTimes}
-														onClick={() =>
-															patchBusinessForm({
-																use_reservation_times: false,
-															})
-														}
-													>
-														Ocultar
-													</button>
-												</div>
-											</div>
-										</div>
-									</div>
-									<div className="record-card">
-										<div className="record-head">
-											<div>
-												<div className="record-title">
-													Mostrar permanencia en todos los dias
-												</div>
-												<div className="record-sub">
-													Si se desactiva, una reserva que dura varios dias se
-													muestra solo en su fecha de ingreso.
-												</div>
-											</div>
-											<div className="record-actions">
-												<div
-													className="mode-toggle settings-mode-toggle"
-													role="group"
-													aria-label="Mostrar permanencia en todos los dias"
-												>
-													<button
-														type="button"
-														className={showStayDaysInAgenda ? 'selected' : ''}
-														aria-pressed={showStayDaysInAgenda}
-														onClick={() =>
-															patchBusinessForm({
-																show_stay_days_in_agenda: true,
-															})
-														}
-													>
-														Permanencia
-													</button>
-													<button
-														type="button"
-														className={!showStayDaysInAgenda ? 'selected' : ''}
-														aria-pressed={!showStayDaysInAgenda}
-														onClick={() =>
-															patchBusinessForm({
-																show_stay_days_in_agenda: false,
-															})
-														}
-													>
-														Ingreso
-													</button>
-												</div>
-											</div>
-										</div>
-									</div>
+									<RecordCard>
+										<RecordCardHeader
+											title="Usar horas de ingreso y egreso"
+											subtitle="Muestra los campos de hora en reservas y los horarios en agenda, cotizaciones y listados."
+											actions={
+												<SegmentedControl
+													ariaLabel="Usar horas de ingreso y egreso"
+													className="settings-mode-toggle"
+													options={[
+														{ value: 'show', label: 'Mostrar' },
+														{ value: 'hide', label: 'Ocultar' },
+													]}
+													value={useReservationTimes ? 'show' : 'hide'}
+													onChange={(nextValue) =>
+														patchBusinessForm({
+															use_reservation_times:
+																nextValue === 'show',
+														})
+													}
+												/>
+											}
+										/>
+									</RecordCard>
+									<RecordCard>
+										<RecordCardHeader
+											title="Mostrar permanencia en todos los dias"
+											subtitle="Si se desactiva, una reserva que dura varios dias se muestra solo en su fecha de ingreso."
+											actions={
+												<SegmentedControl
+													ariaLabel="Mostrar permanencia en todos los dias"
+													className="settings-mode-toggle"
+													options={[
+														{ value: 'stay', label: 'Permanencia' },
+														{ value: 'entry', label: 'Ingreso' },
+													]}
+													value={showStayDaysInAgenda ? 'stay' : 'entry'}
+													onChange={(nextValue) =>
+														patchBusinessForm({
+															show_stay_days_in_agenda:
+																nextValue === 'stay',
+														})
+													}
+												/>
+											}
+										/>
+									</RecordCard>
 								</div>
 								<div className="record-sub">
 									Si ocultas las horas, los datos historicos se conservan pero
@@ -15184,24 +15667,136 @@ export default function Home() {
 							<div className="records">
 								{employees.length ? (
 									employees.map((item) => (
-										<div className="record-card" key={item.id}>
-											<div className="record-head">
-												<div>
-													<div className="record-title">{item.username}</div>
-													<div className="record-sub">
-														{item.email || 'Sin email'} -{' '}
-														{item.is_active ? 'Activo' : 'Inactivo'}
-													</div>
-													<div className="record-sub">
-														Rol empleado - Alta{' '}
-														{formatDateTimeLabel(item.date_joined)}
-													</div>
+										<RecordCard key={item.id}>
+											<RecordCardHeader
+												title={item.username}
+												subtitle={`${item.email || 'Sin email'} - ${
+													item.is_active ? 'Activo' : 'Inactivo'
+												}`}
+											>
+												<div className="record-sub">
+													Rol empleado - Alta{' '}
+													{formatDateTimeLabel(item.date_joined)}
 												</div>
-											</div>
-										</div>
+											</RecordCardHeader>
+										</RecordCard>
 									))
 								) : (
 									<Empty text="Sin empleados creados." />
+								)}
+							</div>
+						</section>
+						) : null}
+						{settingsSection === 'history' ? (
+						<section className="panel audit-log-panel">
+							<div className="panel-head">
+								<div>
+									<h2>Historial de acciones</h2>
+									<p>
+										Cambios registrados desde la activacion de la auditoria,
+										con usuario, fecha y valores antes/despues.
+									</p>
+								</div>
+								<div className="record-actions">
+									<button
+										type="button"
+										className="ghost"
+										onClick={() => refreshAuditLogs()}
+									>
+										<RefreshCw size={16} />
+										Actualizar
+									</button>
+								</div>
+							</div>
+							<form className="audit-filter-grid" onSubmit={applyAuditFilters}>
+								<Field label="Buscar">
+									<input
+										placeholder="Registro, usuario, modulo o ruta"
+										value={auditFilters.q ?? ''}
+										onChange={(event) =>
+											updateAuditFilter('q', event.target.value)
+										}
+									/>
+								</Field>
+								<Field label="Usuario">
+									<input
+										list="audit-actor-options"
+										placeholder="Todos"
+										value={auditFilters.actor ?? ''}
+										onChange={(event) =>
+											updateAuditFilter('actor', event.target.value)
+										}
+									/>
+								</Field>
+								<Field label="Modulo">
+									<select
+										value={auditFilters.module ?? ''}
+										onChange={(event) =>
+											updateAuditFilter('module', event.target.value)
+										}
+									>
+										<option value="">Todos</option>
+										{auditModuleOptions.map((module) => (
+											<option key={module} value={module}>
+												{auditModuleLabel(module)}
+											</option>
+										))}
+									</select>
+								</Field>
+								<Field label="Accion">
+									<select
+										value={auditFilters.action ?? ''}
+										onChange={(event) =>
+											updateAuditFilter('action', event.target.value)
+										}
+									>
+										<option value="">Todas</option>
+										{auditActionOptions.map((action) => (
+											<option key={action} value={action}>
+												{auditActionLabel(action)}
+											</option>
+										))}
+									</select>
+								</Field>
+								<Field label="Desde">
+									<input
+										type="date"
+										value={auditFilters.from ?? ''}
+										onChange={(event) =>
+											updateAuditFilter('from', event.target.value)
+										}
+									/>
+								</Field>
+								<Field label="Hasta">
+									<input
+										type="date"
+										value={auditFilters.to ?? ''}
+										onChange={(event) =>
+											updateAuditFilter('to', event.target.value)
+										}
+									/>
+								</Field>
+								<div className="record-actions audit-filter-actions">
+									<button className="primary" type="submit">
+										<Search size={16} />
+										Filtrar
+									</button>
+									<button
+										type="button"
+										className="ghost"
+										disabled={!auditFiltersActive}
+										onClick={clearAuditFilters}
+									>
+										Limpiar
+									</button>
+								</div>
+							</form>
+							<DataList id="audit-actor-options" values={auditActorOptions} />
+							<div className="records audit-log-list">
+								{auditLogs.length ? (
+									auditLogs.map(renderAuditLogCard)
+								) : (
+									<Empty text="Sin acciones registradas para estos filtros." />
 								)}
 							</div>
 						</section>

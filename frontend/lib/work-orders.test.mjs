@@ -24,7 +24,9 @@ const {
 	filterReservationsByServiceBucket,
 	groupReservationsByEntryDate,
 	groupReservationsByWorkOrderStatus,
+	groupReservationsByWorkOrderStatusColumns,
 	reservationCanMoveWorkStatus,
+	workStatusColumnForStatus,
 	workStatusForReservation,
 	workOrderForReservation,
 } = loadWorkOrdersModule()
@@ -95,6 +97,110 @@ test('groups reservations by associated work order status in operational order',
 			{ key: 'in_progress', label: 'En proceso', ids: [12] },
 			{ key: 'ready', label: 'Listo', ids: [10] },
 			{ key: 'delivered', label: 'Entregado', ids: [] },
+		],
+	)
+})
+
+test('groups work statuses into operational columns', () => {
+	const columns = [
+		{
+			key: 'not_started',
+			label: 'Sin ingresar',
+			statuses: ['pending', 'confirmed'],
+			dropStatus: 'confirmed',
+		},
+		{
+			key: 'in_progress',
+			label: 'En proceso',
+			statuses: ['in_progress'],
+			dropStatus: 'in_progress',
+		},
+		{
+			key: 'finished',
+			label: 'Finalizados',
+			statuses: ['ready', 'delivered'],
+			dropStatus: 'ready',
+		},
+	]
+	const reservations = [
+		{ id: 10, status: 'pending', work_order: { id: 1, status: 'pending' } },
+		{ id: 11, status: 'confirmed', work_order: { id: 2, status: 'confirmed' } },
+		{ id: 12, status: 'in_progress' },
+		{ id: 13, status: 'ready', work_order: { id: 4, status: 'ready' } },
+		{ id: 14, status: 'delivered', work_order: { id: 5, status: 'delivered' } },
+		{ id: 15, status: 'canceled', work_order: { id: 6, status: 'ready' } },
+	]
+	const workOrders = [{ id: 3, reservation: 12, status: 'in_progress' }]
+
+	const groups = groupReservationsByWorkOrderStatusColumns(
+		reservations,
+		workOrders,
+		columns,
+	)
+
+	assert.deepEqual(
+		groups.map((group) => ({
+			key: group.key,
+			label: group.label,
+			dropStatus: group.dropStatus,
+			ids: group.reservations.map((item) => item.id),
+		})),
+		[
+			{
+				key: 'not_started',
+				label: 'Sin ingresar',
+				dropStatus: 'confirmed',
+				ids: [10, 11],
+			},
+			{
+				key: 'in_progress',
+				label: 'En proceso',
+				dropStatus: 'in_progress',
+				ids: [12],
+			},
+			{
+				key: 'finished',
+				label: 'Finalizados',
+				dropStatus: 'ready',
+				ids: [13, 14],
+			},
+		],
+	)
+	assert.equal(workStatusColumnForStatus('delivered', columns).key, 'finished')
+})
+
+test('uses reservation status as the work status source of truth', () => {
+	const columns = [
+		{
+			key: 'not_started',
+			label: 'Sin ingresar',
+			statuses: ['pending', 'confirmed'],
+			dropStatus: 'confirmed',
+		},
+		{
+			key: 'finished',
+			label: 'Finalizados',
+			statuses: ['ready', 'delivered'],
+			dropStatus: 'ready',
+		},
+	]
+	const reservations = [
+		{ id: 20, status: 'confirmed', work_order: { id: 1, status: 'delivered' } },
+	]
+
+	assert.equal(workStatusForReservation(reservations[0], []), 'confirmed')
+	assert.deepEqual(
+		groupReservationsByWorkOrderStatusColumns(
+			reservations,
+			[],
+			columns,
+		).map((group) => ({
+			key: group.key,
+			ids: group.reservations.map((item) => item.id),
+		})),
+		[
+			{ key: 'not_started', ids: [20] },
+			{ key: 'finished', ids: [] },
 		],
 	)
 })

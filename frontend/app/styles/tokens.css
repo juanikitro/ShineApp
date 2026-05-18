@@ -89,6 +89,9 @@
   --button-gap: 6px;
   --button-font-size: 13px;
   --button-font-size-compact: 12px;
+  --z-popover: 120;
+  --z-modal-backdrop: 1000;
+  --z-modal-panel: 1010;
   --motion-duration-fast: 160ms;
   --motion-duration-base: 220ms;
   --motion-duration-view: 280ms;

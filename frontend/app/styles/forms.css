@@ -477,24 +477,8 @@ button.primary.quote-action-button--filled {
     padding: 0;
   }
 
-  .sidebar {
-    height: auto;
-    max-height: none;
-    overflow: visible;
-    padding: 16px;
-    position: static;
-    width: auto;
-  }
-
   .brand {
     width: auto;
-  }
-
-  .nav {
-    flex: initial;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    overflow: visible;
-    width: 100%;
   }
 
   .agenda-layout {
@@ -539,6 +523,32 @@ button.primary.quote-action-button--filled {
 
   .customer-dashboard-head {
     grid-template-columns: 1fr;
+  }
+
+  .customer-dashboard-actions,
+  .customer-list-head,
+  .customer-record-actions {
+    justify-content: flex-start;
+  }
+
+  .customer-list-toolbar {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .customer-filter-toggle {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .customer-filter-toggle button {
+    flex: 0 0 auto;
+    min-width: 132px;
+  }
+
+  .customer-record-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .service-dashboard-head,
@@ -645,10 +655,27 @@ button.primary.quote-action-button--filled {
   .quote-line-grid,
   .stock-line,
   .customer-dashboard-head,
+  .customer-list-toolbar,
+  .customer-record-body,
   .service-dashboard-head,
   .supplier-dashboard-head,
   .material-summary {
     grid-template-columns: 1fr;
+  }
+
+  .customer-record-card .record-head--split {
+    display: grid;
+  }
+
+  .customer-record-actions,
+  .customer-secondary-actions {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .customer-record-actions > .primary,
+  .customer-secondary-actions button {
+    flex: 1 1 140px;
   }
 
   .customer-dashboard-profile,

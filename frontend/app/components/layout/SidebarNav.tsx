@@ -8,10 +8,12 @@ export type SidebarNavItem = {
 	key: string
 	label: string
 	icon: LucideIcon
+	badge?: number
 }
 
 type SidebarNavProps = {
 	collapsed?: boolean
+	mobileOpen?: boolean
 	header?: ReactNode
 	items: SidebarNavItem[]
 	active: string
@@ -21,6 +23,7 @@ type SidebarNavProps = {
 
 export function SidebarNav({
 	collapsed = false,
+	mobileOpen = false,
 	header,
 	items,
 	active,
@@ -31,6 +34,7 @@ export function SidebarNav({
 		<aside
 			className="sidebar"
 			data-collapsed={collapsed ? 'true' : 'false'}
+			data-mobile-open={mobileOpen ? 'true' : 'false'}
 		>
 			{header ? <div className="sidebar-top">{header}</div> : null}
 			<nav className="nav">
@@ -47,6 +51,11 @@ export function SidebarNav({
 						>
 							<Icon size={16} />
 							{!collapsed ? item.label : null}
+							{item.badge ? (
+								<span className="nav-badge" aria-label={`${item.badge} pendientes`}>
+									{item.badge > 99 ? '99+' : item.badge}
+								</span>
+							) : null}
 						</button>
 					)
 				})}

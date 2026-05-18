@@ -4,6 +4,7 @@ import {
 	FocusEvent,
 	KeyboardEvent,
 	useEffect,
+	useId,
 	useRef,
 	useState,
 } from 'react'
@@ -56,6 +57,8 @@ export function SearchSelect({
 	const triggerRef = useRef<HTMLButtonElement>(null)
 	const menuRef = useRef<HTMLDivElement>(null)
 	const pendingOptionFocusRef = useRef<'first' | 'last' | null>(null)
+	const fieldId = useId()
+	const optionsId = `${fieldId}-options`
 	const selected = options.find((option) => option.value === value)
 	const normalizedQuery = query.trim().toLowerCase()
 	const visibleOptions = normalizedQuery
@@ -101,6 +104,17 @@ export function SearchSelect({
 		focusOptionAt(edge === 'first' ? 0 : buttons.length - 1)
 	}
 
+	function closeMenu() {
+		setOpen(false)
+		setQuery('')
+	}
+
+	function chooseValue(nextValue: string) {
+		onChange(nextValue)
+		closeMenu()
+		window.requestAnimationFrame(() => triggerRef.current?.focus())
+	}
+
 	useEffect(() => {
 		if (!open || !pendingOptionFocusRef.current) return
 		const edge = pendingOptionFocusRef.current
@@ -116,16 +130,19 @@ export function SearchSelect({
 		) {
 			return
 		}
-		setOpen(false)
+		closeMenu()
 	}
 
 	function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-		if (
-			disabled ||
-			(event.key !== 'ArrowDown' && event.key !== 'ArrowUp')
-		) {
+		if (disabled) {
 			return
 		}
+		if (event.key === 'Escape' && open) {
+			event.preventDefault()
+			closeMenu()
+			return
+		}
+		if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
 
 		event.preventDefault()
 		const edge = event.key === 'ArrowUp' ? 'last' : 'first'
@@ -141,7 +158,7 @@ export function SearchSelect({
 	function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
 		if (event.key === 'Escape') {
 			event.preventDefault()
-			setOpen(false)
+			closeMenu()
 			triggerRef.current?.focus()
 			return
 		}
@@ -176,18 +193,30 @@ export function SearchSelect({
 
 	return (
 		<MotionFlashSurface
-			className={cx('combo-field', className)}
+			className={cx('combo-field', open && 'combo-field--open', className)}
 			data-focus-key={focusKey}
 			onBlur={closeWhenFocusLeaves}
 		>
-			<span className="field-label">{label}</span>
+			<span className="field-label" id={`${fieldId}-label`}>
+				{label}
+			</span>
 			<button
 				type="button"
 				className="combo-trigger"
 				disabled={disabled}
 				ref={triggerRef}
-				onClick={() => setOpen((current) => !current)}
+				onClick={() => {
+					if (open) {
+						closeMenu()
+					} else {
+						setOpen(true)
+					}
+				}}
 				onKeyDown={handleTriggerKeyDown}
+				aria-controls={open ? optionsId : undefined}
+				aria-expanded={open}
+				aria-haspopup="listbox"
+				aria-labelledby={`${fieldId}-label`}
 			>
 				<span>{selected?.label ?? placeholder}</span>
 				<Search size={14} />
@@ -205,17 +234,19 @@ export function SearchSelect({
 					>
 						<input
 							autoFocus
+							className="combo-search-input"
 							placeholder="Buscar..."
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
+							aria-controls={optionsId}
+							aria-label={`Buscar ${label}`}
 						/>
 						{onAdd ? (
 							<button
 								type="button"
 								className="combo-add"
 								onClick={() => {
-									setOpen(false)
-									setQuery('')
+									closeMenu()
 									onAdd()
 								}}
 							>
@@ -228,8 +259,7 @@ export function SearchSelect({
 								type="button"
 								className="combo-add"
 								onClick={() => {
-									setOpen(false)
-									setQuery('')
+									closeMenu()
 									onCreate?.(createValue)
 								}}
 							>
@@ -237,16 +267,19 @@ export function SearchSelect({
 								{resolvedCreateLabel}
 							</button>
 						) : null}
-						<div className="combo-options">
+						<div
+							className="combo-options"
+							id={optionsId}
+							role="listbox"
+							aria-labelledby={`${fieldId}-label`}
+						>
 							<button
 								type="button"
 								data-combo-option
+								role="option"
+								aria-selected={!value}
 								className={!value ? 'selected' : ''}
-								onClick={() => {
-									onChange('')
-									setQuery('')
-									setOpen(false)
-								}}
+								onClick={() => chooseValue('')}
 							>
 								{placeholder}
 							</button>
@@ -256,14 +289,12 @@ export function SearchSelect({
 										type="button"
 										key={option.value}
 										data-combo-option
+										role="option"
+										aria-selected={option.value === value}
 										className={
 											option.value === value ? 'selected' : ''
 										}
-										onClick={() => {
-											onChange(option.value)
-											setQuery('')
-											setOpen(false)
-										}}
+										onClick={() => chooseValue(option.value)}
 									>
 										<span>{option.label}</span>
 										{option.meta ? <small>{option.meta}</small> : null}

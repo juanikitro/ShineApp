@@ -7,7 +7,16 @@ export type WorkOrderServiceBucket = 'wash' | 'detailing'
 export type ReservationStatusGroup = {
 	key: string
 	label: string
+	statuses?: readonly string[]
+	dropStatus?: string
 	reservations: AnyRecord[]
+}
+
+export type WorkOrderStatusColumn = {
+	key: string
+	label: string
+	statuses: readonly string[]
+	dropStatus?: string
 }
 
 export type ReservationEntryDateGroup = {
@@ -100,12 +109,22 @@ export function workStatusForReservation(
 	reservation: AnyRecord,
 	workOrders: AnyRecord[] | Record<string, AnyRecord>,
 ) {
-	const reservationStatus = String(reservation.status ?? '')
-	if (reservationStatus && !['pending', 'canceled'].includes(reservationStatus)) {
+	const reservationStatus = normalizeId(reservation.status)
+	if (reservationStatus) {
 		return reservationStatus
 	}
 	const workOrder = workOrderForReservation(reservation, workOrders)
-	return workOrder ? String(workOrder.status ?? 'pending') : null
+	return normalizeId(workOrder?.status)
+}
+
+function reservationHasActiveWorkOrder(
+	reservation: AnyRecord,
+	workOrders: AnyRecord[] | Record<string, AnyRecord>,
+) {
+	return (
+		String(reservation.status ?? '') !== 'canceled' &&
+		Boolean(workOrderForReservation(reservation, workOrders))
+	)
 }
 
 export function reservationCanMoveWorkStatus(
@@ -115,6 +134,16 @@ export function reservationCanMoveWorkStatus(
 	return (
 		!['pending', 'canceled'].includes(String(reservation.status ?? '')) &&
 		Boolean(workOrderForReservation(reservation, workOrders))
+	)
+}
+
+export function workStatusColumnForStatus(
+	status: string | null | undefined,
+	statusColumns: readonly WorkOrderStatusColumn[],
+) {
+	if (!status) return null
+	return (
+		statusColumns.find((column) => column.statuses.includes(status)) ?? null
 	)
 }
 
@@ -173,6 +202,47 @@ export function groupReservationsByWorkOrderStatus(
 		.map(([key, reservations]) => ({
 			key,
 			label: key,
+			reservations,
+		}))
+
+	return [...knownGroups, ...unknownGroups]
+}
+
+export function groupReservationsByWorkOrderStatusColumns(
+	reservations: AnyRecord[],
+	workOrders: AnyRecord[] | Record<string, AnyRecord>,
+	statusColumns: readonly WorkOrderStatusColumn[],
+): ReservationStatusGroup[] {
+	const byColumn = (reservations ?? []).reduce<Record<string, AnyRecord[]>>(
+		(groups, reservation) => {
+			if (!reservationHasActiveWorkOrder(reservation, workOrders)) {
+				return groups
+			}
+			const status = workStatusForReservation(reservation, workOrders)
+			if (!status) return groups
+			const column = workStatusColumnForStatus(status, statusColumns)
+			const key = column?.key ?? status
+			const items = groups[key] ?? (groups[key] = [])
+			items.push(reservation)
+			return groups
+		},
+		{},
+	)
+
+	const knownGroups = statusColumns.map((column) => ({
+		key: column.key,
+		label: column.label,
+		statuses: column.statuses,
+		dropStatus: column.dropStatus ?? column.statuses[0] ?? column.key,
+		reservations: byColumn[column.key] ?? [],
+	}))
+	const unknownGroups = Object.entries(byColumn)
+		.filter(([key]) => !statusColumns.some((column) => column.key === key))
+		.map(([key, reservations]) => ({
+			key,
+			label: key,
+			statuses: [key],
+			dropStatus: key,
 			reservations,
 		}))
 

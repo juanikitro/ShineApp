@@ -42,6 +42,7 @@ input,
 select,
 textarea,
 .record,
+.record-card,
 .panel,
 .metric,
 .modal-panel,
@@ -250,7 +251,9 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
+.combo-trigger[aria-expanded='true'],
 .record[role="button"]:focus-visible,
+.record-card[role="button"]:focus-visible,
 .nav button:focus-visible,
 .day-row-head:focus-visible,
 .day-pill:focus-visible {
@@ -316,6 +319,7 @@ label {
 }
 
 .combo-field:focus-within,
+.combo-field--open,
 .panel:focus-within,
 .modal-panel:focus-within,
 .day-row:focus-within,
@@ -353,7 +357,7 @@ label {
   background: var(--shop-surface);
   border: 1px solid var(--shop-border-strong);
   border-radius: var(--radius-md);
-  box-shadow: 0 16px 36px var(--color-shadow-soft);
+  box-shadow: 0 18px 36px var(--color-shadow);
   display: grid;
   gap: 10px;
   isolation: isolate;
@@ -362,19 +366,22 @@ label {
   position: absolute;
   right: 0;
   top: calc(100% + 6px);
-  z-index: 120;
+  z-index: var(--z-popover);
 }
 
 .record,
+.record-card,
 .combo-field {
   isolation: isolate;
 }
 
-.record {
+.record,
+.record-card {
   position: relative;
 }
 
 .record > *,
+.record-card > *,
 .combo-field > :not(.combo-menu) {
   position: relative;
   z-index: 1;
@@ -404,7 +411,7 @@ label {
 .combo-options {
   display: grid;
   gap: 4px;
-  max-height: 240px;
+  max-height: min(240px, 44vh);
   overflow: auto;
 }
 
@@ -429,7 +436,8 @@ label {
 
 .combo-options button:hover,
 .combo-options button:focus-visible,
-.combo-options button.selected {
+.combo-options button.selected,
+.combo-options button[aria-selected='true'] {
   background: var(--color-surface-interactive);
   border-color: var(--shop-border);
 }

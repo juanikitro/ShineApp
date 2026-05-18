@@ -1,5 +1,6 @@
 import { MouseSensor, TouchSensor } from '@dnd-kit/core'
 import {
+	Bell,
 	CalendarDays,
 	Building2,
 	Car,
@@ -71,6 +72,7 @@ type Section =
 	| 'tools'
 	| 'quotes'
 	| 'services'
+	| 'notifications'
 	| 'settings'
 
 type ThemeMode = 'light' | 'dark'
@@ -198,6 +200,10 @@ function blankBusinessForm() {
 		default_quote_payment_instructions: '',
 		use_reservation_times: true,
 		show_stay_days_in_agenda: true,
+		public_landing_enabled: true,
+		public_landing_intro: '',
+		allow_public_booking_requests: true,
+		allow_public_quote_requests: true,
 		income_category_tree: normalizeIncomeCategoryTree(
 			DEFAULT_INCOME_CATEGORY_TREE,
 		),
@@ -725,9 +731,9 @@ const sectionMeta: Record<
 		subtitle: 'Indicadores del negocio',
 	},
 	agenda: {
-		label: 'Trabajos',
+		label: 'Agenda',
 		icon: CalendarDays,
-		subtitle: '',
+		subtitle: 'Reservas, trabajos y seguimiento diario',
 	},
 	customers: {
 		label: 'Clientes',
@@ -774,6 +780,11 @@ const sectionMeta: Record<
 		icon: Wrench,
 		subtitle: 'Lavados, detailing y combos',
 	},
+	notifications: {
+		label: 'Notificaciones',
+		icon: Bell,
+		subtitle: 'Solicitudes publicas pendientes',
+	},
 	settings: {
 		label: 'Configuracion',
 		icon: Settings,
@@ -795,7 +806,7 @@ function sectionRequiresEconomy(section: Section) {
 	return economySections.includes(section)
 }
 
-const employerOnlySections: Section[] = ['settings']
+const employerOnlySections: Section[] = ['notifications', 'settings']
 
 function sectionRequiresEmployer(section: Section) {
 	return sectionRequiresEconomy(section) || employerOnlySections.includes(section)

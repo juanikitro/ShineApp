@@ -2,6 +2,33 @@ import { ApiResponseError, normalizeApiErrorPayload } from "./api-errors";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
 
+async function readErrorPayload(response: Response) {
+  let payload: unknown = "No se pudo completar la operacion.";
+  try {
+    const rawBody = await response.text();
+    if (rawBody) {
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        payload = rawBody;
+      }
+    }
+  } catch {
+    payload = "No se pudo completar la operacion.";
+  }
+  return payload;
+}
+
+function raiseApiError(response: Response, payload: unknown): never {
+  throw new ApiResponseError(
+    normalizeApiErrorPayload(payload, { status: response.status }),
+    {
+      status: response.status,
+      payload,
+    },
+  );
+}
+
 export function getStoredToken() {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem("detailingToken");
@@ -32,26 +59,29 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   });
 
   if (!response.ok) {
-    let payload: unknown = "No se pudo completar la operacion.";
-    try {
-      const rawBody = await response.text();
-      if (rawBody) {
-        try {
-          payload = JSON.parse(rawBody);
-        } catch {
-          payload = rawBody;
-        }
-      }
-    } catch {
-      payload = "No se pudo completar la operacion.";
-    }
-    throw new ApiResponseError(
-      normalizeApiErrorPayload(payload, { status: response.status }),
-      {
-        status: response.status,
-        payload,
-      },
-    );
+    raiseApiError(response, await readErrorPayload(response));
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+  return response.json() as Promise<T>;
+}
+
+export async function publicApiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers);
+  if (!(options.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers,
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    raiseApiError(response, await readErrorPayload(response));
   }
 
   if (response.status === 204) {

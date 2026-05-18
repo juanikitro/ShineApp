@@ -38,7 +38,7 @@ function loadApiModule() {
 	return { ...apiErrorsModule.exports, ...apiModule.exports }
 }
 
-const { ApiResponseError, apiFetch } = loadApiModule()
+const { ApiResponseError, apiFetch, publicApiFetch } = loadApiModule()
 
 test('apiFetch normalizes non-JSON error bodies without reading the stream twice', async () => {
 	let consumed = false
@@ -76,4 +76,31 @@ test('apiFetch normalizes non-JSON error bodies without reading the stream twice
 			return true
 		},
 	)
+})
+
+test('publicApiFetch does not read localStorage or attach auth headers', async () => {
+	let localStorageRead = false
+	let authorizationHeader = null
+	global.window = {
+		localStorage: {
+			getItem: () => {
+				localStorageRead = true
+				return 'secret-token'
+			},
+		},
+	}
+	global.fetch = async (_url, options) => {
+		const headers = new Headers(options.headers)
+		authorizationHeader = headers.get('Authorization')
+		return {
+			ok: true,
+			status: 200,
+			json: async () => ({ ok: true }),
+		}
+	}
+
+	await publicApiFetch('/public/landing/king-shine/')
+
+	assert.equal(localStorageRead, false)
+	assert.equal(authorizationHeader, null)
 })
