@@ -10,6 +10,7 @@ def normalize_database_url(value):
     cleaned = re.sub(r"//\[([^\]@/?#]+)\]", r"//\1", cleaned)
     cleaned = re.sub(r"@\[([^\]@/?#]+)\]", r"@\1", cleaned)
     cleaned = re.sub(r"postgres\.\[([A-Za-z0-9]+)\]", r"postgres.\1", cleaned)
+    cleaned = cleaned.replace("[", "").replace("]", "")
     return cleaned
 
 
