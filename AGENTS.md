@@ -19,6 +19,12 @@ Antes de editar:
 
 Usa `docs/ia/CONTEXT_HYGIENE.md` para decidir que abrir. Expandi contexto solo con evidencia concreta: endpoint, serializer/model, consumidor frontend, permiso, side effect o doc de contexto.
 
+## Contexto compacto
+
+- Para ahorrar tokens, preferi `docs/agent-context.compact.md` y luego `*.compact.md` cuando alcance como contexto liviano.
+- Si un compacto contradice codigo, tests, specs, ADRs, `docs/registro/**`, `docs/ia/**` o este archivo, ignora el compacto.
+- Nuevos registros spec-as-source deben escribirse compactos estilo caveman, preservando exactos comandos, paths, endpoints, permisos y snippets.
+
 ## Boundaries del repo
 
 - Backend: Django + DRF en `backend/`.
@@ -61,6 +67,15 @@ Checks puntuales:
 - Compose: `docker compose config --quiet`
 
 Si no podes validar, informa causa, impacto y alternativa razonable. No confundas validacion parcial con cierre total.
+
+## Deploy
+
+- No hagas deploy a produccion ni promociones de Vercel sin confirmacion humana explicita.
+- No escribas, pegues ni commitees secrets reales. Usa `.env.example` solo con placeholders.
+- No uses filesystem local para media persistente; en demo/prod debe ir a Supabase Storage u otro storage remoto documentado.
+- No asumas que Vercel es un servidor persistente: sin workers largos, sin estado local, sin migraciones automaticas en cada cold start.
+- Antes de cerrar tareas de deploy prep, corre checks relevantes de `scripts/deploy/` o explica el bloqueo.
+- Si queda algo manual, agregalo o mantenelo en `docs/deployment/manual-steps.md` con que hacer, donde, por que, valor a copiar y como validar.
 
 ## Git
 

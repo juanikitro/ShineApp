@@ -1,0 +1,313 @@
+## Purpose
+
+- `docs/agent-context.compact.md` = contexto liviano para agentes en ShineApp.
+- No es fuente de verdad.
+- Si este compacto contradice codigo, tests, specs, ADRs, `docs/registro/**`, `docs/ia/**`, o `AGENTS.md`, ignorar este contexto compacto.
+- Usar para orientacion rapida, no para decidir contratos sin verificar.
+- Verificar en fuente original antes de tocar implementacion, compatibilidad o validacion.
+- ShineApp = MVP web para negocios de car detailing, lavado y estetica vehicular.
+- Producto pensado para operador de taller/local, foco CRM operativo.
+- Backend concentra fuente de verdad funcional.
+- Frontend consume API y hoy tiene superficie compacta.
+- Muchas tareas visibles pueden tocar backend + frontend.
+
+## Product Map
+
+- Capacidades visibles:
+- clientes y vehiculos.
+- catalogo de servicios.
+- reservas y agenda diaria.
+- ordenes de trabajo.
+- pagos y caja.
+- materiales, compras y consumos.
+- cotizaciones.
+- dashboard.
+- notificaciones.
+- Flujo operativo historico: `Agenda` + `Trabajos`.
+- Direccion aprobada: `Agenda` como unica pantalla operativa diaria.
+- `Trabajos` UI standalone debe desaparecer cuando `Agenda` cubra acciones.
+- Dominio no se fusiona: `Reservation` y `WorkOrder` siguen separados.
+- UI debe tratar reserva como entidad operativa principal.
+- `WorkOrder` sigue soporte interno para pagos, consumos, costos, estados.
+- No mostrar `WorkOrder` como entidad separada al usuario, segun plan posterior.
+- No renderizar ordenes manuales como filas de `Agenda`.
+- Cobros, consumo, avance estado: desde tarjeta de reserva si hay trabajo activo.
+- Reserva tiene `day` como ingreso.
+- Reserva suma `exit_day` como egreso opcional.
+- Si `exit_day` vacio, reserva = un solo dia.
+- Agenda expande visualmente rango `day` a `exit_day`.
+- Estados visuales de rango: `Ingreso`, `Permanece`, `Egreso`.
+- Capacidad sigue contando por fecha de ingreso.
+- No modificar capacidad diaria en esa iteracion.
+- No modificar caja, materiales, herramientas ni reglas de ordenes por agenda vertical.
+
+## Runtime Map
+
+- `backend/`: Django 5 + Django REST Framework.
+- `frontend/`: Next.js App Router, React 19, TypeScript.
+- `docker-compose.yml`: orquesta `db`, `backend`, `frontend`.
+- Base principal: Postgres cuando existen variables `POSTGRES_*`.
+- Fallback local backend: SQLite en `backend/db.sqlite3` sin Postgres configurado.
+- PDF: ReportLab.
+- SMTP configurable en backend.
+- API registrada desde `backend/config/urls.py`.
+- Recursos backend publicados bajo `/api/`.
+- `NEXT_PUBLIC_API_URL` define URL base del frontend hacia API.
+- Auth backend por defecto: token o session.
+- Runtime local recomendado: Docker Compose.
+- Validacion general desde raiz: `powershell -ExecutionPolicy Bypass -File .\scripts\validate.ps1`.
+- Backend tests: `cd backend` + `py -3 -m pytest`.
+- Backend tests alterno: `cd backend` + `.\.venv\Scripts\python.exe -m pytest`.
+- Backend salud: `cd backend` + `.\.venv\Scripts\python.exe manage.py check`.
+- Frontend tests: `cd frontend` + `npm run test`.
+- Frontend build: `cd frontend` + `npm run build`.
+- Compose check: `docker compose config --quiet`.
+- Si no se puede validar, informar causa, impacto y alternativa.
+- No confundir validacion parcial con cierre total.
+
+## Frontend Surfaces
+
+- UI principal: `frontend/app/page.tsx`.
+- Layout: `frontend/app/layout.tsx`.
+- CSS entrypoint: `frontend/app/globals.css`.
+- CSS particionado: `frontend/app/styles/*.css`.
+- Soporte home: `frontend/lib/page-support.tsx`.
+- Helpers frontend: `frontend/lib/`.
+- Componentes layout actuales/esperados: `frontend/app/components/`.
+- Sidebar actual/esperado: `frontend/app/components/layout/SidebarNav.tsx`.
+- Shell CSS: `frontend/app/styles/shell.css`.
+- Regla practica: cambios visuales primero sobre superficie existente.
+- Evitar redisenar rutas o estructura si pedido es puntual.
+- Preservar contrato backend como fuente de verdad.
+- Antes de cambiar payloads o estados: revisar serializer y endpoint.
+- Revisar consumidor en `frontend/app/page.tsx` o `frontend/lib/`.
+- Actualizar ambas capas y validacion si cambia contrato.
+- `Agenda` semanal permite reprogramar reservas entre dias con drag and drop.
+- DnD usa contrato `PATCH /reservations/:id/`.
+- Si validacion rechaza nuevo dia, frontend revierte movimiento y muestra error.
+- Plan agenda unificada queria `frontend/lib/agenda.ts`.
+- Helper exacto: `export type AnyRecord = Record<string, any>`.
+- Helper exacto: `AgendaOperationalRow`.
+- Helper exacto: `buildWorkOrderByReservation(workOrders: AnyRecord[]): Record<string, AnyRecord>`.
+- Helper exacto: `buildAgendaOperationalRows(reservations, workOrders, weekDays, workOrderByReservationOverride?)`.
+- Import propuesto: `buildAgendaOperationalRows`, `buildWorkOrderByReservation` desde `@/lib/agenda`.
+- Estado/memo propuesto: `workOrderByReservation`.
+- Estado/memo propuesto: `agendaRowsByDay`.
+- Endpoint creacion orden desde reserva, plan viejo: `/work-orders/from-reservation/`.
+- Status orden, plan viejo: `/work-orders/${workOrder.id}/status/`.
+- Confirmar reserva: `/reservations/${item.id}/confirm/`.
+- Cancelar reserva: `/reservations/${item.id}/cancel/`.
+- Pagos: `/payments/`.
+- Plan posterior dice no mostrar boton `Crear orden`.
+- Confirmar o completar reserva dispara creacion automatica de trabajo interno.
+- Si conflicto entre plan viejo y plan posterior, verificar codigo y docs fuente.
+- Sidebar collapse:
+- estado local `sidebarCollapsed` en `frontend/app/page.tsx`.
+- Pasar `collapsed` a `SidebarNav`.
+- Boton icon-only arriba alterna expandido/colapsado.
+- Expandido muestra `Buscar...`, labels, theme toggle, `Salir`, `ShineApp`.
+- Colapsado muestra solo boton colapso + iconos de navegacion.
+- Colapsado oculta `Buscar...`, labels, theme toggle, `Salir`, `ShineApp`.
+- No persistir colapso en `localStorage`.
+- Accesibilidad minima: `aria-label` y `title` en botones icon-only.
+- `SidebarNav` debe usar `data-collapsed={collapsed ? 'true' : 'false'}`.
+- `sidebar.css`/`shell.css` debe centrar iconos y reducir ancho.
+- Ancho propuesto expandido: `220px`.
+- Ancho propuesto colapsado: `72px`.
+
+## Backend Apps
+
+- Apps en `backend/config/settings.py`:
+- `core`: base comun backend.
+- `customers`: clientes y vehiculos.
+- `catalog`: servicios y catalogo base.
+- `scheduling`: agenda diaria, reservas y capacidad.
+- `workorders`: ordenes de trabajo y cambios de estado.
+- `finance`: pagos, caja diaria y cierres.
+- `inventory`: materiales, compras, consumos y herramientas.
+- `quotes`: cotizaciones.
+- `dashboard`: resumen operativo.
+- `notifications`: notificaciones derivadas de eventos negocio.
+- Endpoints usan `ModelViewSet`, `APIView`, serializers por app.
+- Logica negocio vive en serializers, model methods y acciones de views.
+- Helpers puntuales fuera de views existen, ejemplo `notifications/service.py`.
+- No forzar capa `services/` donde modulo no la usa.
+- Extraer logica solo si reduce duplicacion o aclara boundary real.
+- Agenda/capacidad viven en `backend/scheduling/models.py` con `Reservation`.
+- Ejecucion trabajo vive en `backend/workorders/models.py` con `WorkOrder`.
+- `backend/workorders/views.py` ya tuvo flujo `from-reservation`.
+- `WorkOrder` protege contratos de caja, inventario, dashboard, notificaciones.
+- Backend asegura `WorkOrder` asociada idempotente cuando reserva pasa de `pending`/`canceled`.
+- Si reserva vuelve a `pending` o `canceled`, orden existente no se borra.
+- No borrar orden: puede tener pagos, consumos o historial operativo.
+- `ReservationSerializer` expone `work_order` resumen embebido read-only.
+- Perfil negocio:
+- Modelo `core.BusinessProfile` como singleton operativo.
+- Endpoint employer-only `GET/PATCH /api/settings/business-profile/`.
+- Actualizacion con `multipart/form-data` para logo subido.
+- `MEDIA_ROOT` y `MEDIA_URL` en Django.
+- Volumen Compose `media_data` para persistir archivo.
+- Logo servido desde `/media/`.
+- Empleador puede leer/editar perfil.
+- Empleado recibe `403`.
+- Usar `FileField`, no `ImageField`, para evitar dependencias nativas.
+- Perfil unico por instalacion.
+- No multi-sucursal.
+- No multiples logos.
+- Reemplazo imagen soportado.
+- No versionado ni edicion avanzada en esa pasada.
+- Tests visibles: `backend/tests/test_mvp_flows.py`.
+
+## UI Direction
+
+- Referencias son direccionales only.
+- Borrow patterns, not identity.
+- No copiar exact layout, colors, branding, icon style.
+- Filtro final: ShineApp light CRM, operador, dark-mode variant, token layer actual.
+- Resultado debe verse ShineApp:
+- light CRM-style.
+- serio.
+- practico.
+- workshop-friendly.
+- white/gray-led.
+- navy-capable in dark mode.
+- restrained.
+- Si UI parece derivada de una sola fuente, esta demasiado cerca.
+- Linear: densidad readable, sidebar clara, bordes sutiles, superficies claras calmadas.
+- Linear aplica a sidebar, dashboard metrics, record lists, compact panels.
+- Usar borders y spacing antes que color extra.
+- Titulos de registro fuertes, metadata secundaria.
+- Active nav obvio por lift, border o accent; no iluminar todo shell.
+- Stripe: cards pulidas, tipografia clara, ritmo SaaS premium.
+- No usar gradients ni brand-specific illustrations ni landing composition exacta.
+- Polish desde spacing, no decoracion.
+- Elevation sparingly y solo para grouping.
+- Notion: flujos calmos, empty states simples, bajo ruido.
+- No block editor patterns salvo pantalla lo necesite.
+- Forms obvios y forgiving.
+- Helper text corto y util.
+- Raycast: keyboard-first, fast focus, sharp feedback, compact controls.
+- No copiar identidad visual ni macOS patterns que no encajan web app.
+- Focus states fuertes.
+- Reducir clicks innecesarios.
+- Color:
+- white panels default work surface.
+- soft gray canvas.
+- blue para primary/focus/cues, no decoracion.
+- red solo destructive/reset.
+- Dark mode: navy surfaces, white text, pale-blue focus accents.
+- Dark token historico:
+- `#0B2447` main shell canvas.
+- `#19376D` raised/interactive surfaces.
+- `#A5D7E8` restrained accents and focus.
+- Refinement dark rollout: less shine.
+- Fewer gradients.
+- Fewer shadows.
+- Fewer isolated boxes.
+- Lower border radius.
+- Stronger integration sidebar/workspace/panels/lists.
+- No cambiar business logic, endpoints, payloads o workflows por rollout visual.
+- No new dependencies.
+- Extract presentational components only.
+- Mantener state, API calls, handlers, business rules en `page.tsx`.
+
+## Historical Plan Context
+
+- `docs/plans/2026-05-06-agenda-operativa-unificada-design.md`:
+- Objetivo: `Agenda` unica pantalla diaria.
+- Acciones: crear/confirmar reservas, crear ordenes, ver trabajo, cambiar estado, cobrar, consumir material, editar.
+- No objetivos: no fusionar `scheduling` y `workorders`.
+- No reemplazar `Caja` o `Materiales` historicos/admin.
+- No mover compras a agenda.
+- No mover cierre caja o movimientos manuales a agenda.
+- No rediseñar arquitectura general frontend.
+- UI inicial: panel izquierdo semana + alta reserva; panel derecho tablero semanal/diario.
+- No nuevas rutas ni pantallas primera pasada.
+- Tarjeta operativa = reserva + orden asociada.
+- Formularios largos en modal.
+- Botones internos no deben disparar click de detalle.
+- `Cobrar` abre modal precargado con orden.
+- `Consumir material` reutiliza flujo actual con orden.
+- `Editar` abre `DetailModal`.
+- Estrategia datos inicial: cargar `reservations` + `workOrders`.
+- Construir mapa `reservationId -> workOrder`.
+- No cambio backend innecesario.
+- `docs/plans/2026-05-06-agenda-operativa-unificada-implementation-plan.md`:
+- Required sub-skill historico: `superpowers:subagent-driven-development` recomendado o `superpowers:executing-plans`.
+- Tech stack: Next.js App Router, React 19, TypeScript, `frontend/app/globals.css`, `frontend/lib/`, Django/DRF via `apiFetch`.
+- Files tocar: `frontend/app/page.tsx`, `frontend/app/globals.css`.
+- File crear historico: `frontend/lib/agenda.ts`.
+- Task build recurrente: `cd frontend` + `npm run build`.
+- `docs/plans/2026-05-06-dark-first-ui-rollout.md`:
+- Scope visual only.
+- Keep Next.js App Router.
+- Keep single-screen orchestration in `frontend/app/page.tsx`.
+- No new dependencies.
+- Presentational extraction targets: `AppShell`, `SidebarNav`, `PageHeader`, `Field`, `SearchSelect`, `StatusPill`, `Empty`, `ModalFrame`, `DetailModal`, `Panel`, `MetricCard`, `RecordCard`.
+- `docs/plans/2026-05-06-reservas-con-trabajo-embebido.md`:
+- Decision posterior: reserva entidad operativa principal.
+- No boton crear orden.
+- Trabajo interno auto por backend.
+- `ReservationSerializer` con `work_order` read-only.
+- Backend validation: tests creacion automatica e idempotencia.
+- Frontend validation: `npm run build`.
+- `docs/plans/2026-05-07-agenda-vertical-egreso.md`:
+- `exit_day` opcional.
+- Agenda vertical por dia visible.
+- Default cinco dias.
+- Cards apiladas por columna.
+- Crear reserva/cotizacion libre en toolbar.
+- Card compacta prioriza hora, cliente, servicios.
+- Patente y marca no se muestran en card compacta.
+- Modelo puede quedar dato secundario.
+- Deuda como fila economica compacta.
+- Carrusel horizontal: flecha chica un dia, doble flecha cinco dias.
+- Transicion continua, sin pausa intermedia ni reemplazo invisible.
+- Alto viewport agenda medido desde tablero renderizado y animado.
+- `docs/plans/2026-05-08-business-profile-design.md`:
+- Configuracion suma bloque `Negocio`.
+- Campos: nombre, imagen/logo, CUIT, condicion frente a IVA, celular contacto, mail contacto.
+- Frontend usa preview imagen actual o pendiente.
+- Selector cerrado para condicion frente a IVA.
+- Guardado con `FormData`.
+- `docs/plans/2026-05-08-sidebar-collapse-design.md`:
+- Colapsar sidebar solo iconos.
+- Sin rutas, datos ni permisos nuevos.
+- Sin persistencia.
+- `docs/plans/2026-05-08-sidebar-collapse-implementation-plan.md`:
+- Files: `frontend/app/page.tsx`, `frontend/app/components/layout/SidebarNav.tsx`, `frontend/app/styles/shell.css`.
+- Constraints exactas: no backend changes, no new routes, no API calls.
+- Collapsed mode only collapse/expand control + navigation icons.
+- Preserve keyboard accessibility with `aria-label` and `title`.
+
+## Safe Use
+
+- Este compacto sirve para arrancar rapido, no para cerrar decisiones.
+- Leer minimo antes de editar: `AGENTS.md`, `docs/indice.md`, archivo objetivo, tests cercanos, guia `docs/ia/` segun tarea.
+- Para UI leer `docs/ia/UI_CONTEXT.md`, archivo objetivo y CSS partial relevante.
+- No leer docs largas o generated files salvo necesidad clara.
+- No inventar endpoints, payloads, permisos, modelos, migraciones, capas `services/` obligatorias ni tooling.
+- No cambiar contratos publicos, schemas, endpoints, permisos o comportamiento observable sin justificar compatibilidad.
+- Si cambia API/serializer/model/permiso/migracion: revisar backend + consumidor frontend.
+- Si toca stock, caja, pagos, estado ordenes, emails o notificaciones: cubrir side effects con tests cuando viable.
+- Mantener diffs chicos.
+- No mezclar feature, refactor amplio y formateo masivo.
+- No introducir frontend test tooling nuevo si plan lo prohibe.
+- No agregar dependencias nuevas en rollout visual.
+- No tocar backend si cambio es sidebar collapse.
+- Checkout historico de ciertos planes no tenia `.git`; verificar antes de branch/commit/push.
+- Si tarea no implica versionar/publicar, no gastar contexto en Git.
+- Si behavior match approved design exactly, no doc extra.
+- Si implementacion cambia copy visible o screen behavior beyond plan, actualizar doc plan relevante.
+- Validar con `npm run build` para cambios frontend.
+- Validar backend con pytest/check si se toca backend.
+- Manual smoke agenda:
+- abrir `Agenda`.
+- crear reserva.
+- confirmar.
+- verificar trabajo asociado segun regla actual.
+- cambiar estado desde tarjeta si aplica.
+- registrar pago desde tarjeta si aplica.
+- registrar consumo material desde tarjeta si aplica.
+- abrir detalle/editar reserva u orden segun UI actual.
+- confirmar sidebar no expone `Trabajos` si agenda ya cubre flujo.

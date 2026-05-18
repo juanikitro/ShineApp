@@ -43,6 +43,16 @@ Wrappers por herramienta:
 - `docs/registro/decisiones/`: decisiones de arquitectura, negocio o contrato.
 - `docs/plans/`: planes y disenos historicos. Usalos como contexto solo si el cambio actual lo requiere.
 
+## Deployment
+
+- `docs/deployment/architecture.md`: arquitectura demo y camino a produccion.
+- `docs/deployment/env-vars.md`: variables privadas/publicas y placeholders.
+- `docs/deployment/vercel.md`: configuracion de proyectos Vercel.
+- `docs/deployment/supabase.md`: Postgres y Storage.
+- `docs/deployment/media-static.md`: media persistente y static files.
+- `docs/deployment/manual-steps.md`: pasos manuales obligatorios antes de deploy.
+- `docs/deployment/demo-readiness.md`: estado real de recursos demo y bloqueadores.
+
 ## Diseno y UI
 
 - `docs/ia/UI_CONTEXT.md`: primera lectura para UI.
