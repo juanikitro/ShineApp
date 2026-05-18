@@ -6,13 +6,18 @@ from django.core.exceptions import ImproperlyConfigured
 
 
 def normalize_database_url(value):
-    return re.sub(r"@\[([A-Za-z0-9.-]+)\](:|/|$)", r"@\1\2", value)
+    cleaned = value.strip().strip('"').strip("'")
+    cleaned = re.sub(r"@\[([^\]@/?#]+)\]", r"@\1", cleaned)
+    cleaned = re.sub(r"postgres\.\[([A-Za-z0-9]+)\]", r"postgres.\1", cleaned)
+    return cleaned
 
 
-if os.getenv("DATABASE_URL"):
-    os.environ["DATABASE_URL"] = normalize_database_url(os.environ["DATABASE_URL"])
+MIGRATION_DATABASE_URL = os.environ.pop("DATABASE_URL", None)
 
 from .settings import *  # noqa: F401,F403
+
+if MIGRATION_DATABASE_URL:
+    os.environ["DATABASE_URL"] = MIGRATION_DATABASE_URL
 
 
 def required_env(name):
@@ -34,7 +39,7 @@ SECRET_KEY = required_env("DJANGO_MIGRATION_SECRET_KEY")
 
 DATABASES = {
     "default": dj_database_url.parse(
-        required_env("DATABASE_URL"),
+        normalize_database_url(required_env("DATABASE_URL")),
         conn_max_age=0,
         ssl_require=env_bool("DATABASE_SSL_REQUIRE", True),
     )
