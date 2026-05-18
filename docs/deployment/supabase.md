@@ -16,7 +16,7 @@ Current demo project:
 - API URL: `https://cdzqcpwbsfyeeigecqwr.supabase.co`
 - DB host: `db.cdzqcpwbsfyeeigecqwr.supabase.co`
 
-The MCP does not expose the database password or complete pooler URL. For the public demo, `DATABASE_URL` was copied manually from the Supabase Dashboard Connect screen and stored only in the Vercel API project.
+The MCP does not expose the database password or complete pooler URL. For the public demo, `DATABASE_URL` was copied manually from the Supabase Dashboard Connect screen and stored in the Vercel API project plus the GitHub `demo-production` environment for automated migrations.
 
 Validate locally with production settings import before deploying:
 
@@ -61,21 +61,10 @@ Migration command once `DATABASE_URL` is available:
 
 ```powershell
 cd backend
-$env:DJANGO_SETTINGS_MODULE="config.settings_production"
-$env:DJANGO_SECRET_KEY="<real-secret>"
-$env:DJANGO_ALLOWED_HOSTS=".vercel.app,shineapp-api.vercel.app"
-$env:CORS_ALLOWED_ORIGINS="https://<frontend-preview>"
-$env:CSRF_TRUSTED_ORIGINS="https://<frontend-preview>"
+$env:DJANGO_SETTINGS_MODULE="config.settings_migrations"
+$env:DJANGO_MIGRATION_SECRET_KEY="<dedicated-migration-secret>"
 $env:DATABASE_URL="<supabase-pooler-url>"
 $env:DATABASE_SSL_REQUIRE="1"
-$env:SUPABASE_STORAGE_ENABLED="1"
-$env:SUPABASE_STORAGE_BUCKET="shineapp-media"
-$env:SUPABASE_S3_ENDPOINT_URL="https://cdzqcpwbsfyeeigecqwr.storage.supabase.co/storage/v1/s3"
-$env:SUPABASE_S3_REGION_NAME="sa-east-1"
-$env:SUPABASE_S3_ACCESS_KEY_ID="<server-side-key-id>"
-$env:SUPABASE_S3_SECRET_ACCESS_KEY="<server-side-secret>"
-$env:SUPABASE_STORAGE_QUERYSTRING_AUTH="1"
-$env:SUPABASE_STORAGE_LOCATION="media"
 .\.venv\Scripts\python.exe manage.py migrate
 ```
 

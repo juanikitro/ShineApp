@@ -21,7 +21,12 @@ Configure these in the GitHub repository before enabling `main` auto-deploy:
 - `VERCEL_FRONTEND_PROJECT_ID`: Vercel project id for `shineapp-web`, currently `prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ`.
 - `VERCEL_BACKEND_PROJECT_ID`: Vercel project id for `shineapp-api`, currently `prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC`.
 
-Do not add `DATABASE_URL`, Supabase S3 keys, or `DJANGO_SECRET_KEY` to GitHub. Backend runtime secrets remain in the Vercel API project and are used by Vercel during the cloud build/deploy.
+Configure these as environment secrets in the GitHub environment `demo-production`:
+
+- `DATABASE_URL`: Supabase Postgres connection string for the demo database.
+- `DJANGO_MIGRATION_SECRET_KEY`: a dedicated long random key used only by Django management commands in CI.
+
+Do not add Supabase S3 keys or the real `DJANGO_SECRET_KEY` to GitHub. Backend runtime secrets remain in the Vercel API project and are used by Vercel during the cloud build/deploy.
 
 ## Flow
 
@@ -37,19 +42,22 @@ Do not add `DATABASE_URL`, Supabase S3 keys, or `DJANGO_SECRET_KEY` to GitHub. B
 7. Run frontend checks:
    - `npm run test`
    - `npm run build`
-8. Pull backend project settings from Vercel using `VERCEL_BACKEND_PROJECT_ID`.
-9. Deploy the backend Vercel project to production with Vercel cloud build.
-10. Pull frontend project settings from Vercel using `VERCEL_FRONTEND_PROJECT_ID`.
-11. Deploy the frontend Vercel project to production with Vercel cloud build.
-12. Run `scripts/deploy/smoke-test.ps1` against the public web and API aliases.
+8. Run Django migrations against the demo database with `config.settings_migrations`:
+   - `python manage.py migrate --plan`
+   - `python manage.py migrate --noinput`
+9. Pull backend project settings from Vercel using `VERCEL_BACKEND_PROJECT_ID`.
+10. Deploy the backend Vercel project to production with Vercel cloud build.
+11. Pull frontend project settings from Vercel using `VERCEL_FRONTEND_PROJECT_ID`.
+12. Deploy the frontend Vercel project to production with Vercel cloud build.
+13. Run `scripts/deploy/smoke-test.ps1` against the public web and API aliases.
 
-The frontend deploy is after backend deploy. A backend check or deploy failure stops the job before the frontend can be deployed.
+The migration step runs before backend deploy. A backend check, migration, or deploy failure stops the job before the frontend can be deployed.
 
 ## Migration policy
 
-The workflow does not pull backend runtime secrets into GitHub Actions and therefore does not run production migrations. Run migrations manually before or during a release that includes schema changes.
+The workflow runs migrations automatically through `backend/config/settings_migrations.py`. That settings module requires only `DATABASE_URL` and `DJANGO_MIGRATION_SECRET_KEY`, so the workflow does not need Supabase Storage keys, CORS values, or the real backend runtime `DJANGO_SECRET_KEY`.
 
-Because the backend code is deployed automatically from `main`, schema changes must be migrated manually before the deploy or be forward-compatible with the current database:
+Because migrations run before backend deploy, schema changes merged to `main` must still be forward-compatible with the currently live code:
 
 - additive tables, fields, indexes, and nullable columns are acceptable;
 - code must tolerate old and new schema during the short deploy window;
@@ -62,7 +70,9 @@ The workflow never runs `seed_demo` and never creates superusers.
 - A concurrency group allows only one demo deploy to run at a time.
 - Required GitHub secrets are checked before installing dependencies.
 - Backend runtime secrets stay in Vercel and are not exported into the GitHub job.
+- The GitHub job can access only the demo DB URL and dedicated migration key from `demo-production`.
 - Local backend/frontend checks run before any production deploy.
+- Migrations run before Vercel production deploys.
 - Smoke tests run after both deployments.
 - The workflow does not print secret values and does not commit generated `.vercel` files.
 

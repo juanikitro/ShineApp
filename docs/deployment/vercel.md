@@ -37,10 +37,10 @@ https://shineapp-api.vercel.app/api/health/
 
 It is public and verifies that Django can open a database connection.
 
-Current public production status:
+Current public production aliases:
 
-- API: `https://shineapp-api.vercel.app`, deployment `dpl_4DqrsccG8GP6WqPDGtAUsd7ZW7BY`, READY
-- Web: `https://shineapp-web.vercel.app`, deployment `dpl_3HtxEZCLGEh8B7gPxWTKTfULuJUK`, READY
+- API: `https://shineapp-api.vercel.app`
+- Web: `https://shineapp-web.vercel.app`
 
 Production env vars are configured in Vercel for the public demo. Preview env vars may still need branch-scoped setup from the Dashboard if preview deployments are used again.
 
@@ -69,11 +69,13 @@ Frontend env vars required:
 
 ## Manual migration step
 
-Vercel build should not run migrations automatically. For routine demo deploys from `main`, GitHub Actions runs migrations after the backend deploy and before the frontend deploy. For manual one-off deploys outside Actions, run migrations as an approved step from a trusted machine:
+Vercel build should not run migrations automatically. For routine demo deploys from `main`, GitHub Actions runs migrations before Vercel deploys. For manual one-off deploys outside Actions, run migrations as an approved step from a trusted machine:
 
 ```powershell
 cd backend
-$env:DJANGO_SETTINGS_MODULE="config.settings_production"
+$env:DJANGO_SETTINGS_MODULE="config.settings_migrations"
+$env:DJANGO_MIGRATION_SECRET_KEY="<dedicated-migration-secret>"
+$env:DATABASE_URL="<supabase-pooler-url>"
 .\.venv\Scripts\python.exe manage.py migrate
 ```
 
@@ -81,7 +83,9 @@ Before any migration, print and review the plan:
 
 ```powershell
 cd backend
-$env:DJANGO_SETTINGS_MODULE="config.settings_production"
+$env:DJANGO_SETTINGS_MODULE="config.settings_migrations"
+$env:DJANGO_MIGRATION_SECRET_KEY="<dedicated-migration-secret>"
+$env:DATABASE_URL="<supabase-pooler-url>"
 .\.venv\Scripts\python.exe manage.py migrate --plan
 ```
 
@@ -102,20 +106,21 @@ Required GitHub secrets:
 - `VERCEL_ORG_ID`
 - `VERCEL_FRONTEND_PROJECT_ID`
 - `VERCEL_BACKEND_PROJECT_ID`
+- `DATABASE_URL` in the `demo-production` environment
+- `DJANGO_MIGRATION_SECRET_KEY` in the `demo-production` environment
 
-Backend runtime secrets are not duplicated in GitHub. The workflow uses `vercel pull --environment=production --cwd backend` with the backend project id, exports the pulled env values only inside the CI job, and masks values before later steps run.
+Backend runtime secrets are not duplicated in GitHub. The workflow uses `config.settings_migrations` for the database migration step and leaves the full runtime env in the Vercel API project.
 
 Deployment order:
 
-1. Backend production env pull.
-2. Backend production checks and migration drift check.
-3. Backend Vercel production build and deploy.
-4. `python backend/manage.py migrate --plan`.
-5. `python backend/manage.py migrate --noinput`.
-6. Frontend production env pull.
-7. Frontend tests.
-8. Frontend Vercel production build and deploy.
-9. Smoke test against `https://shineapp-web.vercel.app` and `https://shineapp-api.vercel.app/api`.
+1. Backend and frontend checks.
+2. `python backend/manage.py migrate --plan`.
+3. `python backend/manage.py migrate --noinput`.
+4. Backend project settings pull.
+5. Backend Vercel production deploy.
+6. Frontend project settings pull.
+7. Frontend Vercel production deploy.
+8. Smoke test against `https://shineapp-web.vercel.app` and `https://shineapp-api.vercel.app/api`.
 
 Do not enable Vercel's built-in Git production deploys for these projects at the same time as this workflow unless they are explicitly configured to skip. The GitHub Actions workflow is the migration gate; a parallel Vercel Git deploy can publish code before migrations run.
 

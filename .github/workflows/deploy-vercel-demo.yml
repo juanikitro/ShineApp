@@ -26,6 +26,7 @@ jobs:
   deploy-demo:
     name: Deploy demo
     runs-on: ubuntu-latest
+    environment: demo-production
     timeout-minutes: 45
 
     steps:
@@ -37,11 +38,13 @@ jobs:
         env:
           VERCEL_FRONTEND_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
           VERCEL_BACKEND_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DJANGO_MIGRATION_SECRET_KEY: ${{ secrets.DJANGO_MIGRATION_SECRET_KEY }}
         run: |
           set -euo pipefail
           missing=()
 
-          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_FRONTEND_PROJECT_ID VERCEL_BACKEND_PROJECT_ID; do
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_FRONTEND_PROJECT_ID VERCEL_BACKEND_PROJECT_ID DATABASE_URL DJANGO_MIGRATION_SECRET_KEY; do
             value="${!name:-}"
             if [ -z "$value" ]; then
               missing+=("$name")
@@ -88,6 +91,16 @@ jobs:
         run: |
           npm run test
           npm run build
+
+      - name: Run Django migrations
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings_migrations
+          DJANGO_MIGRATION_SECRET_KEY: ${{ secrets.DJANGO_MIGRATION_SECRET_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python manage.py migrate --plan
+          python manage.py migrate --noinput
 
       - name: Install Vercel CLI
         run: |

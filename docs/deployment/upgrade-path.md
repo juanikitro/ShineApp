@@ -8,7 +8,7 @@
   - API: `https://shineapp-api.vercel.app`
 - Supabase project `shineapp-demo` in `sa-east-1`.
 - Supabase Postgres and private Storage bucket `shineapp-media`.
-- Manual migrations.
+- Automated demo migrations through GitHub Actions environment `demo-production`.
 - No background workers.
 - No filesystem media.
 - Basic smoke tests after public deploy.
