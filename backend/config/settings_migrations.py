@@ -1,7 +1,16 @@
 import os
+import re
 
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
+
+
+def normalize_database_url(value):
+    return re.sub(r"@\[([A-Za-z0-9.-]+)\](:|/|$)", r"@\1\2", value)
+
+
+if os.getenv("DATABASE_URL"):
+    os.environ["DATABASE_URL"] = normalize_database_url(os.environ["DATABASE_URL"])
 
 from .settings import *  # noqa: F401,F403
 
@@ -30,4 +39,3 @@ DATABASES = {
         ssl_require=env_bool("DATABASE_SSL_REQUIRE", True),
     )
 }
-
