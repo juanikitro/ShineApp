@@ -7,6 +7,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 def normalize_database_url(value):
     cleaned = value.strip().strip('"').strip("'")
+    cleaned = re.sub(r"//\[([^\]@/?#]+)\]", r"//\1", cleaned)
     cleaned = re.sub(r"@\[([^\]@/?#]+)\]", r"@\1", cleaned)
     cleaned = re.sub(r"postgres\.\[([A-Za-z0-9]+)\]", r"postgres.\1", cleaned)
     return cleaned
