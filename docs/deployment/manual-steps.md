@@ -125,27 +125,27 @@ The public demo is deployed. These manual steps remain before showing media-heav
   - `VERCEL_ORG_ID=team_SU2ZYRqjIjG8JhFn2pc1NVxi`
   - `VERCEL_FRONTEND_PROJECT_ID=prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ`
   - `VERCEL_BACKEND_PROJECT_ID=prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC`
-- Validate: run the workflow manually with `workflow_dispatch`; it should pass the initial secret check and pull production env from both Vercel projects.
+- Validate: run the workflow manually with `workflow_dispatch`; it should pass the initial secret check, pull production env from both Vercel projects, deploy both projects, run migrations, and pass smoke tests.
 - Risk if omitted: the deploy workflow fails before installing dependencies.
 
 Do not add `DATABASE_URL`, `DJANGO_SECRET_KEY`, Supabase S3 keys, or SMTP secrets to GitHub while `vercel pull` works. Those values belong in the Vercel API project production env and are loaded into the CI job only for checks and migrations.
 
 ## 12. Make GitHub Actions the only automatic production deploy path
 
-- What: disable or bypass Vercel built-in Git production deploys for `shineapp-api` and `shineapp-web`, or configure them to skip if GitHub Actions becomes responsible for production.
+- What: disable or bypass Vercel built-in Git production deploys for `shineapp-api` and `shineapp-web`, or configure them to skip when GitHub Actions is responsible for production.
 - Where: Vercel Dashboard, project Git settings / ignored build step.
-- Why: the GitHub Actions workflow deploys backend, optionally runs migrations, then deploys frontend. A parallel Vercel Git deploy can publish backend code outside the manual gate.
+- Why: the GitHub Actions workflow deploys backend, runs migrations, then deploys frontend. A parallel Vercel Git deploy can publish backend code before the migration gate runs.
 - Value to copy: none.
 - Validate: push a harmless change to a test branch or inspect Vercel project settings before merging to `main`; production deploys should be created by the GitHub Actions CLI workflow, not an independent Vercel Git trigger.
-- Risk if omitted: duplicate deploys, race conditions, or code live outside the approved deploy path.
+- Risk if omitted: duplicate deploys, race conditions, or code live before Supabase schema is migrated.
 
 ## 13. Review migration risk before merging to `main`
 
 - What: check whether the PR contains schema or data migrations.
 - Where: PR review and `backend/*/migrations/`.
-- Why: CI prints `python backend/manage.py migrate --plan`; applying `python backend/manage.py migrate --noinput` is an explicit manual workflow input.
+- Why: CI prints `python backend/manage.py migrate --plan` and then applies `python backend/manage.py migrate --noinput` automatically on `main`.
 - Value to copy: none.
 - Validate: migration plan is additive and compatible with both old and new deployed code.
-- Risk if omitted: destructive migrations, renames, large backfills, or unsafe non-null changes can break the public demo when migrations are explicitly run.
+- Risk if omitted: destructive migrations, renames, large backfills, or unsafe non-null changes can break the public demo automatically.
 
-Forward-compatible migrations are acceptable for routine demo deploys. Destructive migrations need a manual rollout plan and should not be treated as a routine demo deploy.
+Forward-compatible migrations are acceptable for auto-deploy. Destructive migrations need a manual rollout plan and should not be merged into `main` as a routine demo deploy.

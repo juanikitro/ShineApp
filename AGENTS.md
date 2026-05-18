@@ -79,9 +79,14 @@ Si no podes validar, informa causa, impacto y alternativa razonable. No confunda
 
 ## Git
 
+Regla local de ramas:
+- Trabaja por defecto sobre `development`; este entorno debe mantenerse abierto en esa rama.
+- `main` queda reservada como branch de publicacion.
+- No crees ramas nuevas ni worktrees salvo que el usuario lo pida explicitamente. Si aparece un bloqueo tecnico que realmente lo requiera, explicalo antes de actuar.
+
 Solo si la tarea implica versionar/publicar:
 - verifica si este checkout tiene Git inicializado,
-- si hay Git, trabaja aislado cuando haga falta,
+- si hay Git, respeta la regla local de ramas y no aisles en otra rama/worktree salvo pedido explicito o bloqueo tecnico explicado,
 - no hagas push a ramas protegidas,
 - si no hay Git, no inventes ramas, commits ni PRs.
 

@@ -4,6 +4,7 @@ This repo deploys the public demo through `.github/workflows/deploy-vercel-demo.
 
 ## Trigger
 
+- `push` to `main`
 - manual `workflow_dispatch`
 
 The workflow is intentionally production-only for the demo aliases:
@@ -13,7 +14,7 @@ The workflow is intentionally production-only for the demo aliases:
 
 ## Required GitHub secrets
 
-Configure these in the GitHub repository before running the manual deploy workflow:
+Configure these in the GitHub repository before enabling `main` auto-deploy:
 
 - `VERCEL_TOKEN`: Vercel token used by the CLI in CI.
 - `VERCEL_ORG_ID`: Vercel team/org id, currently `team_SU2ZYRqjIjG8JhFn2pc1NVxi`.
@@ -36,7 +37,7 @@ Do not add `DATABASE_URL`, Supabase S3 keys, or `DJANGO_SECRET_KEY` to GitHub un
    - `python backend/manage.py makemigrations --check --dry-run`
 9. Build and deploy the backend Vercel project to production.
 10. Print `python backend/manage.py migrate --plan`.
-11. Run `python backend/manage.py migrate --noinput` only when the manual `run_migrations` input is `true`.
+11. Run `python backend/manage.py migrate --noinput`.
 12. Pull frontend production env from Vercel using `VERCEL_FRONTEND_PROJECT_ID`.
 13. Run frontend tests with `npm run test`.
 14. Build and deploy the frontend Vercel project to production.
@@ -46,7 +47,7 @@ The frontend deploy is after backend deploy and migrations. A backend failure or
 
 ## Migration policy
 
-The workflow prints the migration plan on every run. It applies migrations only when the manual `run_migrations` input is `true`.
+The workflow prints the migration plan on every run and applies migrations on the configured production-demo events: push to `main` and manual dispatch.
 
 Because the backend code is deployed before migrations, schema changes merged to `main` must be forward-compatible:
 
@@ -67,4 +68,4 @@ The workflow never runs `seed_demo` and never creates superusers.
 
 ## Before enabling
 
-Confirm that Vercel built-in Git deployments are disabled or configured not to deploy these projects independently on `main` if this workflow becomes the approved production path. Otherwise Vercel may deploy from Git outside the intended manual gate.
+Confirm that Vercel built-in Git deployments are disabled or configured not to deploy these projects independently on `main`. Otherwise Vercel may deploy from Git before the GitHub Actions migration gate runs, bypassing the intended order.

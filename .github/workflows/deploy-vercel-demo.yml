@@ -1,16 +1,10 @@
 name: Deploy Vercel Demo
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
-    inputs:
-      run_migrations:
-        description: "Run Django migrations against the configured production database"
-        required: true
-        default: "false"
-        type: choice
-        options:
-          - "false"
-          - "true"
 
 concurrency:
   group: shineapp-demo-deploy
@@ -166,10 +160,14 @@ jobs:
                   delimiter += "_END"
               handle.write(f"{key}<<{delimiter}\n{value}\n{delimiter}\n")
 
+          def is_sensitive(key):
+              sensitive_markers = ("SECRET", "TOKEN", "PASSWORD", "DATABASE_URL", "ACCESS_KEY", "PRIVATE_KEY")
+              return any(marker in key for marker in sensitive_markers)
+
           github_env = os.environ["GITHUB_ENV"]
           with open(github_env, "a", encoding="utf-8") as handle:
               for key, value in values.items():
-                  if value:
+                  if value and is_sensitive(key):
                       print(f"::add-mask::{command_escape(value)}")
                   write_github_env(handle, key, value)
 
@@ -201,7 +199,7 @@ jobs:
         run: python backend/manage.py migrate --plan
 
       - name: Run Django migrations
-        if: inputs.run_migrations == 'true'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         run: python backend/manage.py migrate --noinput
 
       - name: Pull frontend production env from Vercel

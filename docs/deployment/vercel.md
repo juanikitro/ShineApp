@@ -69,7 +69,7 @@ Frontend env vars required:
 
 ## Manual migration step
 
-Vercel build should not run migrations automatically. The GitHub Actions workflow always prints the migration plan and runs migrations only when the manual `run_migrations` input is `true`. For manual one-off deploys outside Actions, run migrations as an approved step from a trusted machine:
+Vercel build should not run migrations automatically. For routine demo deploys from `main`, GitHub Actions runs migrations after the backend deploy and before the frontend deploy. For manual one-off deploys outside Actions, run migrations as an approved step from a trusted machine:
 
 ```powershell
 cd backend
@@ -93,6 +93,7 @@ Workflow: `.github/workflows/deploy-vercel-demo.yml`.
 
 Triggers:
 
+- `push` to `main`
 - `workflow_dispatch`
 
 Required GitHub secrets:
@@ -110,15 +111,15 @@ Deployment order:
 2. Backend production checks and migration drift check.
 3. Backend Vercel production build and deploy.
 4. `python backend/manage.py migrate --plan`.
-5. Optional `python backend/manage.py migrate --noinput` only when `run_migrations=true`.
+5. `python backend/manage.py migrate --noinput`.
 6. Frontend production env pull.
 7. Frontend tests.
 8. Frontend Vercel production build and deploy.
 9. Smoke test against `https://shineapp-web.vercel.app` and `https://shineapp-api.vercel.app/api`.
 
-Do not enable Vercel's built-in Git production deploys for these projects at the same time as this workflow unless they are explicitly configured to skip. The GitHub Actions workflow is the manual deploy gate; a parallel Vercel Git deploy can publish code outside that path.
+Do not enable Vercel's built-in Git production deploys for these projects at the same time as this workflow unless they are explicitly configured to skip. The GitHub Actions workflow is the migration gate; a parallel Vercel Git deploy can publish code before migrations run.
 
-Migrations require forward-compatible Django migrations before enabling `run_migrations=true`. Destructive schema changes, large data migrations, renames, and non-null additions without safe defaults need manual review before running the workflow.
+Automatic migrations require forward-compatible Django migrations. Destructive schema changes, large data migrations, renames, and non-null additions without safe defaults need manual review before merging to `main`.
 
 Validated on 2026-05-18:
 
