@@ -4,11 +4,12 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from core.permissions import context_can_view_economy
+from core.serializers import BusinessScopedSerializerMixin
 
 from .models import Customer, Vehicle
 
 
-class CustomerSerializer(serializers.ModelSerializer):
+class CustomerSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     birthday_label = serializers.CharField(read_only=True)
     next_birthday = serializers.DateField(read_only=True, allow_null=True)
     days_until_birthday = serializers.IntegerField(read_only=True, allow_null=True)
@@ -87,7 +88,7 @@ class CustomerListSerializer(CustomerSerializer):
         return insights
 
 
-class VehicleSerializer(serializers.ModelSerializer):
+class VehicleSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.name", read_only=True)
     label = serializers.SerializerMethodField()
 
@@ -116,7 +117,13 @@ class VehicleSerializer(serializers.ModelSerializer):
         license_plate = value.strip().upper()
         if not license_plate:
             return ""
+        customer = self.initial_data.get("customer") if hasattr(self, "initial_data") else None
+        business = self.get_business()
+        if self.instance is not None:
+            business = self.instance.business
         queryset = Vehicle.objects.filter(license_plate=license_plate)
+        if business is not None:
+            queryset = queryset.filter(business=business)
         if self.instance is not None:
             queryset = queryset.exclude(pk=self.instance.pk)
         if queryset.exists():
@@ -125,6 +132,8 @@ class VehicleSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         customer = attrs.get("customer") or getattr(self.instance, "customer", None)
+        if customer:
+            self.validate_same_business(customer)
         if customer and not customer.is_active:
             raise serializers.ValidationError("No se puede usar un cliente inactivo.")
         return attrs

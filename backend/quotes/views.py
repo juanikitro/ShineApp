@@ -1,6 +1,7 @@
 from django.http import FileResponse
 from rest_framework import decorators, response, status, viewsets
 
+from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
 from core.permissions import CanViewEconomy
 from scheduling.serializers import ReservationSerializer
 
@@ -9,7 +10,8 @@ from .pdf import build_quote_pdf
 from .serializers import QuoteSerializer
 
 
-class QuoteViewSet(viewsets.ModelViewSet):
+class QuoteViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
+    audit_side_effects = ("quote_totals", "quote_items")
     queryset = Quote.objects.select_related("customer", "vehicle", "reservation").prefetch_related("items", "items__service").all()
     serializer_class = QuoteSerializer
     permission_classes = [CanViewEconomy]
@@ -28,13 +30,30 @@ class QuoteViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=["post"], url_path="mark-sent")
     def mark_sent(self, request, pk=None):
         quote = self.get_object()
+        before = audit_snapshot(quote)
         quote.mark_sent()
+        record_audit_event(
+            request=request,
+            action="mark_sent",
+            instance=quote,
+            before=before,
+            after=audit_snapshot(quote),
+        )
         return response.Response(self.get_serializer(quote).data)
 
     @decorators.action(detail=True, methods=["get"], url_path="pdf-mark-sent")
     def pdf_mark_sent(self, request, pk=None):
         quote = self.get_object()
+        before = audit_snapshot(quote)
         quote.mark_sent()
+        record_audit_event(
+            request=request,
+            action="mark_sent",
+            instance=quote,
+            before=before,
+            after=audit_snapshot(quote),
+            metadata={"source": "pdf_mark_sent"},
+        )
         buffer = build_quote_pdf(quote)
         return FileResponse(
             buffer,
@@ -92,9 +111,18 @@ class QuoteViewSet(viewsets.ModelViewSet):
             context=self.get_serializer_context(),
         )
         serializer.is_valid(raise_exception=True)
-        reservation = serializer.save()
+        reservation = serializer.save(business=quote.business)
+        reservation_after = audit_snapshot(reservation)
         quote.reservation = reservation
         quote.reservation_day = reservation.day
         quote.reservation_start_time = reservation.start_time
         quote.save(update_fields=["reservation", "reservation_day", "reservation_start_time", "updated_at"])
+        record_audit_event(
+            request=request,
+            action="create_reservation",
+            instance=reservation,
+            before=None,
+            after=reservation_after,
+            metadata={"quote": quote.id},
+        )
         return response.Response(ReservationSerializer(reservation, context=self.get_serializer_context()).data, status=status.HTTP_201_CREATED)

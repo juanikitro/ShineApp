@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework import decorators, permissions, response, viewsets
 
+from core.audit import AuditedModelViewSetMixin
 from core.permissions import CanViewEconomy, EmployerRequiredForUnsafe
 from quotes.models import Quote, QuoteItem
 from scheduling.models import Reservation, ReservationItem
@@ -99,7 +100,7 @@ def service_history_quote_row(quote):
     }
 
 
-class ServiceViewSet(viewsets.ModelViewSet):
+class ServiceViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     serializer_class = ServiceSerializer
     queryset = Service.objects.all()
     permission_classes = [permissions.IsAuthenticated, EmployerRequiredForUnsafe]

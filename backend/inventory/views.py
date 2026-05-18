@@ -8,6 +8,7 @@ from django.utils.dateparse import parse_date
 from rest_framework import decorators, serializers, status, viewsets
 from rest_framework import response
 
+from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
 from core.permissions import CanViewEconomy
 from debts.models import Debt
 from debts.serializers import DebtSerializer
@@ -31,7 +32,7 @@ from .serializers import (
 )
 
 
-class MaterialViewSet(viewsets.ModelViewSet):
+class MaterialViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     queryset = Material.objects.all()
     serializer_class = MaterialSerializer
     permission_classes = [CanViewEconomy]
@@ -49,7 +50,7 @@ class MaterialViewSet(viewsets.ModelViewSet):
         instance.delete()
 
 
-class ToolViewSet(viewsets.ModelViewSet):
+class ToolViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     queryset = Tool.objects.all()
     serializer_class = ToolSerializer
     permission_classes = [CanViewEconomy]
@@ -170,7 +171,7 @@ def supplier_material_history_rows(movements):
     )
 
 
-class SupplierViewSet(viewsets.ModelViewSet):
+class SupplierViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer
     permission_classes = [CanViewEconomy]
@@ -309,7 +310,8 @@ class SupplierViewSet(viewsets.ModelViewSet):
         )
 
 
-class StockMovementViewSet(viewsets.ModelViewSet):
+class StockMovementViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
+    audit_side_effects = ("material_stock", "cash_movement", "material_cost")
     queryset = (
         StockMovement.objects.select_related("supplier", "customer", "reservation", "work_order")
         .prefetch_related("lines__material")
@@ -331,12 +333,13 @@ class StockMovementViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def perform_destroy(self, instance):
         if stock_movement_affects_cash(instance.movement_type, instance.affects_cash):
-            ensure_cash_day_open(instance.occurred_on, field="occurred_on")
+            ensure_cash_day_open(instance.occurred_on, field="occurred_on", business=instance.business)
         reverse_stock_movement_effects(instance)
         instance.delete()
 
 
-class MaterialPurchaseViewSet(viewsets.ModelViewSet):
+class MaterialPurchaseViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
+    audit_side_effects = ("material_stock", "cash_movement", "material_cost")
     queryset = MaterialPurchase.objects.select_related("material").all()
     serializer_class = MaterialPurchaseSerializer
     permission_classes = [CanViewEconomy]
@@ -344,7 +347,7 @@ class MaterialPurchaseViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def perform_destroy(self, instance):
         if instance.affects_cash and instance.total_cost > 0:
-            ensure_cash_day_open(instance.purchased_at, field="purchased_at")
+            ensure_cash_day_open(instance.purchased_at, field="purchased_at", business=instance.business)
         material = Material.objects.select_for_update().get(pk=instance.material_id)
         if material.stock_quantity < instance.quantity:
             raise serializers.ValidationError({"quantity": "No se puede eliminar: el stock quedaria negativo."})
@@ -355,7 +358,7 @@ class MaterialPurchaseViewSet(viewsets.ModelViewSet):
         refresh_material_cost(material)
 
 
-class MaterialOpenUnitViewSet(viewsets.ModelViewSet):
+class MaterialOpenUnitViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     queryset = (
         MaterialOpenUnit.objects.select_related("material", "opened_by_work_order")
         .prefetch_related("consumptions__work_order")
@@ -383,12 +386,21 @@ class MaterialOpenUnitViewSet(viewsets.ModelViewSet):
                 "material": open_unit.material_id,
                 "open_unit": open_unit.id,
                 "quantity": "0.00",
-            }
+            },
+            context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        consumption = serializer.save()
+        consumption = serializer.save(business=open_unit.business)
+        record_audit_event(
+            request=request,
+            action="consume",
+            instance=consumption,
+            before=None,
+            after=audit_snapshot(consumption),
+            metadata={"open_unit": open_unit.id},
+        )
         return response.Response(
-            MaterialConsumptionSerializer(consumption).data,
+            MaterialConsumptionSerializer(consumption, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -396,6 +408,7 @@ class MaterialOpenUnitViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def finish(self, request, pk=None):
         open_unit = MaterialOpenUnit.objects.select_for_update().select_related("material").get(pk=self.get_object().pk)
+        before = audit_snapshot(open_unit)
         if open_unit.status != MaterialOpenUnit.Status.OPEN:
             raise serializers.ValidationError({"status": "La unidad abierta ya fue finalizada."})
 
@@ -416,10 +429,19 @@ class MaterialOpenUnitViewSet(viewsets.ModelViewSet):
         open_unit.status = MaterialOpenUnit.Status.FINISHED
         open_unit.finished_at = finished_at
         open_unit.save(update_fields=["status", "finished_at"])
+        record_audit_event(
+            request=request,
+            action="finish",
+            instance=open_unit,
+            before=before,
+            after=audit_snapshot(open_unit),
+            metadata={"material": material.id},
+        )
         return response.Response(self.get_serializer(open_unit).data)
 
 
-class MaterialConsumptionViewSet(viewsets.ModelViewSet):
+class MaterialConsumptionViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
+    audit_side_effects = ("material_stock",)
     queryset = MaterialConsumption.objects.select_related("material", "open_unit", "work_order").all()
     serializer_class = MaterialConsumptionSerializer
     permission_classes = [CanViewEconomy]

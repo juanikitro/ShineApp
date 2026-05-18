@@ -258,6 +258,29 @@ def vector_logo(path, max_width=32 * mm, max_height=22 * mm):
             document.close()
 
 
+def vector_logo_bytes(filename, content, max_width=32 * mm, max_height=22 * mm):
+    suffix = Path(filename).suffix.lower()
+    if not fitz or suffix not in {".pdf", ".svg"}:
+        return None
+    document = None
+    try:
+        document = fitz.open(stream=content, filetype=suffix.lstrip("."))
+        if document.page_count < 1:
+            return None
+        page = document.load_page(0)
+        pixmap = page.get_pixmap(matrix=fitz.Matrix(3, 3), alpha=True)
+        image_buffer = BytesIO(pixmap.tobytes("png"))
+        image_buffer.seek(0)
+        flowable = logo_image_flowable(image_buffer, max_width=max_width, max_height=max_height)
+        flowable._quote_logo_buffer = image_buffer
+        return flowable
+    except Exception:
+        return None
+    finally:
+        if document:
+            document.close()
+
+
 def raster_logo(path, max_width=32 * mm, max_height=22 * mm):
     def build_image(image_source):
         return logo_image_flowable(image_source, max_width=max_width, max_height=max_height)
@@ -282,12 +305,61 @@ def raster_logo(path, max_width=32 * mm, max_height=22 * mm):
         return None
 
 
+def raster_logo_bytes(content, max_width=32 * mm, max_height=22 * mm):
+    def build_image(image_source):
+        return logo_image_flowable(image_source, max_width=max_width, max_height=max_height)
+
+    if PILImage:
+        try:
+            image_buffer = BytesIO()
+            with PILImage.open(BytesIO(content)) as image:
+                if image.mode not in {"RGB", "RGBA"}:
+                    image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
+                image.save(image_buffer, format="PNG")
+            image_buffer.seek(0)
+            flowable = build_image(image_buffer)
+            flowable._quote_logo_buffer = image_buffer
+            return flowable
+        except Exception:
+            pass
+
+    try:
+        image_buffer = BytesIO(content)
+        flowable = build_image(image_buffer)
+        flowable._quote_logo_buffer = image_buffer
+        return flowable
+    except Exception:
+        return None
+
+
 def image_logo(path, max_width=32 * mm, max_height=22 * mm):
     if not path.exists():
         return None
     if path.suffix.lower() in {".pdf", ".svg"}:
         return vector_logo(path, max_width=max_width, max_height=max_height)
     return raster_logo(path, max_width=max_width, max_height=max_height)
+
+
+def image_logo_bytes(filename, content, max_width=32 * mm, max_height=22 * mm):
+    if Path(filename).suffix.lower() in {".pdf", ".svg"}:
+        return vector_logo_bytes(filename, content, max_width=max_width, max_height=max_height)
+    return raster_logo_bytes(content, max_width=max_width, max_height=max_height)
+
+
+def storage_logo(file_field, max_width=32 * mm, max_height=22 * mm):
+    try:
+        file_field.open("rb")
+        content = file_field.read()
+    except Exception:
+        return None
+    finally:
+        try:
+            file_field.close()
+        except Exception:
+            pass
+    if not content:
+        return None
+    return image_logo_bytes(file_field.name, content, max_width=max_width, max_height=max_height)
 
 
 def bundled_logo_path(variant="light"):
@@ -329,17 +401,14 @@ def business_logo_path(business_name):
     return bundled_logo_path()
 
 
-def logo_flowable(styles, business_name):
+def logo_flowable(styles, business_name, business=None):
     try:
-        profile = BusinessProfile.get_solo()
+        profile = BusinessProfile.get_solo(business=business)
     except Exception:
         profile = None
 
     if profile and profile.logo:
-        try:
-            logo = image_logo(Path(profile.logo.path))
-        except Exception:
-            logo = None
+        logo = storage_logo(profile.logo)
         if logo:
             return logo
 
@@ -554,7 +623,7 @@ def build_quote_pdf(quote):
     business_block = Table(
         [
             [
-                logo_flowable(styles, business_name),
+                logo_flowable(styles, business_name, business=quote.business),
                 [
                     paragraph(business_name.upper(), styles["brand"]),
                     markup("<br/>".join(plain_text_as_markup(line) for line in header_meta), styles["brand_meta"]),

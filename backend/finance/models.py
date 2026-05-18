@@ -16,6 +16,7 @@ class Payment(models.Model):
         TRANSFER = "transfer", "Transferencia"
         OTHER = "other", "Otro"
 
+    business = models.ForeignKey("core.BusinessAccount", related_name="payments", on_delete=models.PROTECT)
     work_order = models.ForeignKey("workorders.WorkOrder", related_name="payments", on_delete=models.PROTECT)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     payment_type = models.CharField(max_length=20, choices=PaymentType.choices, default=PaymentType.PAYMENT)
@@ -30,6 +31,15 @@ class Payment(models.Model):
     def __str__(self):
         return f"{self.work_order_id} - {self.amount}"
 
+    def save(self, *args, **kwargs):
+        if self.work_order_id and not self.business_id:
+            self.business = self.work_order.business
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
+        super().save(*args, **kwargs)
+
 
 class CashMovement(models.Model):
     class MovementType(models.TextChoices):
@@ -39,6 +49,7 @@ class CashMovement(models.Model):
     INCOME_CATEGORIES = list(default_income_category_tree().keys())
     EXPENSE_CATEGORIES = list(default_expense_category_tree().keys())
 
+    business = models.ForeignKey("core.BusinessAccount", related_name="cash_movements", on_delete=models.PROTECT)
     movement_type = models.CharField(max_length=20, choices=MovementType.choices)
     category = models.CharField(max_length=80)
     subcategory = models.CharField(max_length=80, blank=True)
@@ -70,6 +81,20 @@ class CashMovement(models.Model):
     def __str__(self):
         return f"{self.movement_type} {self.amount}"
 
+    def save(self, *args, **kwargs):
+        if not self.business_id:
+            if self.payment_id:
+                self.business = self.payment.business
+            elif self.material_purchase_id:
+                self.business = self.material_purchase.business
+            elif self.stock_movement_id:
+                self.business = self.stock_movement.business
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
+        super().save(*args, **kwargs)
+
     @classmethod
     def category_options(cls):
         return {
@@ -79,7 +104,8 @@ class CashMovement(models.Model):
 
 
 class CashClosure(models.Model):
-    day = models.DateField(unique=True)
+    business = models.ForeignKey("core.BusinessAccount", related_name="cash_closures", on_delete=models.PROTECT)
+    day = models.DateField()
     total_income = models.DecimalField(max_digits=12, decimal_places=2)
     total_expense = models.DecimalField(max_digits=12, decimal_places=2)
     balance = models.DecimalField(max_digits=12, decimal_places=2)
@@ -92,3 +118,13 @@ class CashClosure(models.Model):
 
     class Meta:
         ordering = ["-day"]
+        constraints = [
+            models.UniqueConstraint(fields=["business", "day"], name="unique_cash_closure_per_business_day"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
+        super().save(*args, **kwargs)

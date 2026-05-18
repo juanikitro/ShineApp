@@ -1,5 +1,5 @@
 from django.core.exceptions import DisallowedHost
-from rest_framework import permissions
+from rest_framework import permissions, serializers
 
 from core.models import BusinessProfile, UserProfile
 
@@ -9,11 +9,60 @@ EMPLOYEE_ROLE = "empleado"
 ROLE_GROUPS = [EMPLOYER_ROLE, EMPLOYEE_ROLE]
 
 
+def business_for_user(user, *, create_missing=True):
+    if not user or not user.is_authenticated:
+        return None
+    if user.is_staff or user.is_superuser:
+        return None
+    try:
+        profile = user.profile
+    except (AttributeError, UserProfile.DoesNotExist):
+        if not create_missing:
+            return None
+        profile = UserProfile.for_user(user)
+    return profile.business
+
+
+def business_from_request(request):
+    return business_for_user(getattr(request, "user", None))
+
+
+def business_from_context(context):
+    request = context.get("request") if context else None
+    if request is None:
+        return None
+    return business_from_request(request)
+
+
+def user_has_active_business(user):
+    business = business_for_user(user)
+    return bool(business and business.is_active)
+
+
+def scope_queryset_to_business(queryset, business):
+    if business is None:
+        return queryset.none()
+    field_names = {field.name for field in queryset.model._meta.fields}
+    if "business" not in field_names:
+        return queryset
+    return queryset.filter(business=business)
+
+
+def validate_same_business(business, *objects):
+    if business is None:
+        raise serializers.ValidationError("El usuario no tiene un negocio activo.")
+    for obj in objects:
+        if obj is None or not hasattr(obj, "business_id"):
+            continue
+        if obj.business_id != business.id:
+            raise serializers.ValidationError("El registro seleccionado pertenece a otro negocio.")
+
+
 def can_view_economy(user):
     if not user or not user.is_authenticated:
         return False
-    if user.is_superuser:
-        return True
+    if not user_has_active_business(user):
+        return False
     cached = getattr(user, "_shineapp_can_view_economy", None)
     if cached is not None:
         return cached
@@ -46,11 +95,18 @@ def file_url(file_field, request=None):
 
 def user_context_payload(user, request=None):
     profile = UserProfile.for_user(user)
-    business_profile = BusinessProfile.get_solo()
+    business = profile.business
+    business_profile = BusinessProfile.get_solo(business=business)
     return {
         "id": user.id,
         "username": user.username,
         "email": user.email,
+        "business": {
+            "id": business.id,
+            "name": business.name,
+            "slug": business.slug,
+            "is_active": business.is_active,
+        },
         "role": get_user_role(user),
         "can_view_economy": can_view_economy(user),
         "is_active": user.is_active,
@@ -63,6 +119,22 @@ def user_context_payload(user, request=None):
         "subscription_type": business_profile.subscription_type,
         "subscription_type_label": business_profile.get_subscription_type_display(),
     }
+
+
+class ActiveBusinessUser(permissions.BasePermission):
+    message = "El usuario no tiene un negocio activo."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_staff or user.is_superuser:
+            self.message = "El superadmin debe acceder desde Django admin."
+            return False
+        if not user_has_active_business(user):
+            self.message = "El negocio no esta activo."
+            return False
+        return True
 
 
 class EconomyFieldsMixin:

@@ -82,6 +82,8 @@ def sync_pairs(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
+
     dependencies = [
         ("scheduling", "0005_reservation_operational_statuses"),
         ("workorders", "0001_initial"),

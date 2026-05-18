@@ -14,6 +14,7 @@ class TimeStampedModel(models.Model):
 
 
 class Customer(TimeStampedModel):
+    business = models.ForeignKey("core.BusinessAccount", related_name="customers", on_delete=models.PROTECT)
     name = models.CharField(max_length=160)
     phone = models.CharField(max_length=60, blank=True)
     email = models.EmailField(blank=True)
@@ -82,12 +83,17 @@ class Customer(TimeStampedModel):
         self.save(update_fields=["is_active", "updated_at"])
 
     def save(self, *args, **kwargs):
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
         self.tax_id = "".join(character for character in str(self.tax_id) if character.isdigit())
         self.billing_address = self.billing_address.strip()
         super().save(*args, **kwargs)
 
 
 class Vehicle(TimeStampedModel):
+    business = models.ForeignKey("core.BusinessAccount", related_name="vehicles", on_delete=models.PROTECT)
     customer = models.ForeignKey(Customer, related_name="vehicles", on_delete=models.PROTECT)
     license_plate = models.CharField(max_length=20, blank=True)
     brand = models.CharField(max_length=80, blank=True)
@@ -100,9 +106,9 @@ class Vehicle(TimeStampedModel):
         ordering = ["license_plate"]
         constraints = [
             models.UniqueConstraint(
-                fields=["license_plate"],
+                fields=["business", "license_plate"],
                 condition=~models.Q(license_plate=""),
-                name="unique_vehicle_license_plate_when_present",
+                name="unique_vehicle_license_plate_per_business_when_present",
             ),
         ]
 
@@ -114,6 +120,12 @@ class Vehicle(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         self.license_plate = self.license_plate.strip().upper()
+        if self.customer_id and not self.business_id:
+            self.business = self.customer.business
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
         super().save(*args, **kwargs)
 
     def delete(self, using=None, keep_parents=False):

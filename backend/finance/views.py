@@ -6,6 +6,7 @@ from django.db.models import Sum
 from rest_framework import mixins, response, serializers, status, viewsets
 from rest_framework.views import APIView
 
+from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
 from core.models import (
     BusinessProfile,
     default_expense_category_tree,
@@ -14,6 +15,7 @@ from core.models import (
     normalize_income_category_tree,
 )
 from core.permissions import CanViewEconomy
+from core.permissions import business_for_user, business_from_request
 from debts.models import DebtPayment
 
 from .cash import decimal_total, ensure_cash_day_open, signed_amount_for, totals_payload
@@ -21,20 +23,23 @@ from .models import CashClosure, CashMovement, Payment
 from .serializers import CashClosureSerializer, CashMovementSerializer, PaymentSerializer
 
 
-def economic_totals_for_day(day):
-    movements = CashMovement.objects.filter(occurred_at__date=day)
+def economic_totals_for_day(day, business):
+    movements = CashMovement.objects.filter(business=business, occurred_at__date=day)
     income = decimal_total(movements.filter(movement_type=CashMovement.MovementType.INCOME))
     expense = decimal_total(movements.filter(movement_type=CashMovement.MovementType.EXPENSE))
     return totals_payload(income, expense)
 
 
-def cash_totals_for_day(day):
-    totals = economic_totals_for_day(day)
+def cash_totals_for_day(day, business):
+    totals = economic_totals_for_day(day, business)
     return totals["income"], totals["expense"], totals["balance"]
 
 
-def cashflow_totals_for_day(day):
-    movements = CashMovement.objects.select_related("payment", "material_purchase", "stock_movement", "debt").filter(occurred_at__date=day)
+def cashflow_totals_for_day(day, business):
+    movements = CashMovement.objects.select_related("payment", "material_purchase", "stock_movement", "debt").filter(
+        business=business,
+        occurred_at__date=day,
+    )
     cash_movements = [
         movement for movement in movements if CashMovementSerializer().get_cashflow_effect(movement)
     ]
@@ -46,18 +51,18 @@ def cashflow_totals_for_day(day):
         (movement.amount for movement in cash_movements if movement.movement_type == CashMovement.MovementType.EXPENSE),
         Decimal("0.00"),
     )
-    debt_payments = DebtPayment.objects.filter(paid_at=day)
+    debt_payments = DebtPayment.objects.filter(business=business, paid_at=day)
     expense += decimal_total(debt_payments)
     return totals_payload(income, expense)
 
 
-def expense_category_tree_for_profile():
-    tree = BusinessProfile.get_solo().expense_category_tree or default_expense_category_tree()
+def expense_category_tree_for_profile(business):
+    tree = BusinessProfile.get_solo(business=business).expense_category_tree or default_expense_category_tree()
     return normalize_expense_category_tree(tree)
 
 
-def income_category_tree_for_profile():
-    tree = BusinessProfile.get_solo().income_category_tree or default_income_category_tree()
+def income_category_tree_for_profile(business):
+    tree = BusinessProfile.get_solo(business=business).income_category_tree or default_income_category_tree()
     return normalize_income_category_tree(tree)
 
 
@@ -88,12 +93,16 @@ def debt_payment_entry(payment):
     }
 
 
-def cash_entries_for_day(day, request=None):
+def cash_entries_for_day(day, request=None, business=None):
     movements = CashMovement.objects.select_related("payment", "material_purchase", "stock_movement", "debt", "created_by").filter(
+        business=business,
         occurred_at__date=day
     )
     movement_entries = CashMovementSerializer(movements, many=True, context={"request": request}).data
-    debt_entries = [debt_payment_entry(payment) for payment in DebtPayment.objects.select_related("debt").filter(paid_at=day)]
+    debt_entries = [
+        debt_payment_entry(payment)
+        for payment in DebtPayment.objects.select_related("debt").filter(business=business, paid_at=day)
+    ]
     return sorted(
         [*movement_entries, *debt_entries],
         key=lambda item: str(item.get("occurred_at") or ""),
@@ -101,13 +110,16 @@ def cash_entries_for_day(day, request=None):
     )
 
 
-def sync_cash_closure_for_day(day, user=None, notes="Cierre automatico"):
-    existing = CashClosure.objects.filter(day=day).first()
+def sync_cash_closure_for_day(day, user=None, notes="Cierre automatico", business=None):
+    if business is None and user is not None and user.is_authenticated:
+        business = business_for_user(user)
+    existing = CashClosure.objects.filter(business=business, day=day).first()
     if existing:
         return existing
-    economic_totals = economic_totals_for_day(day)
-    cashflow_totals = cashflow_totals_for_day(day)
+    economic_totals = economic_totals_for_day(day, business)
+    cashflow_totals = cashflow_totals_for_day(day, business)
     closure = CashClosure.objects.create(
+        business=business,
         day=day,
         total_income=economic_totals["income"],
         total_expense=economic_totals["expense"],
@@ -121,22 +133,24 @@ def sync_cash_closure_for_day(day, user=None, notes="Cierre automatico"):
     return closure
 
 
-def sync_past_cash_closures(reference_day=None, user=None):
+def sync_past_cash_closures(reference_day=None, user=None, business=None):
     reference_day = reference_day or date.today()
-    movement_days = CashMovement.objects.filter(occurred_at__date__lt=reference_day).dates("occurred_at", "day")
-    debt_payment_days = DebtPayment.objects.filter(paid_at__lt=reference_day).dates("paid_at", "day")
+    movement_days = CashMovement.objects.filter(business=business, occurred_at__date__lt=reference_day).dates("occurred_at", "day")
+    debt_payment_days = DebtPayment.objects.filter(business=business, paid_at__lt=reference_day).dates("paid_at", "day")
     days = sorted(set(movement_days) | set(debt_payment_days))
     for day in days:
-        sync_cash_closure_for_day(day, user=user)
+        sync_cash_closure_for_day(day, user=user, business=business)
 
 
-class PaymentViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+class PaymentViewSet(AuditedModelViewSetMixin, mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    audit_side_effects = ("cash_movement",)
     queryset = Payment.objects.select_related("work_order").all()
     serializer_class = PaymentSerializer
     permission_classes = [CanViewEconomy]
 
 
-class CashMovementViewSet(viewsets.ModelViewSet):
+class CashMovementViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
+    audit_side_effects = ("category_suggestions",)
     queryset = CashMovement.objects.select_related("payment", "material_purchase", "stock_movement", "debt").all()
     serializer_class = CashMovementSerializer
     permission_classes = [CanViewEconomy]
@@ -151,18 +165,20 @@ class CashDailyView(APIView):
 
     def get(self, request):
         day = date.fromisoformat(request.query_params.get("date")) if request.query_params.get("date") else date.today()
-        sync_past_cash_closures(user=request.user if request.user.is_authenticated else None)
-        economic_totals = economic_totals_for_day(day)
-        cashflow_totals = cashflow_totals_for_day(day)
-        expense_category_tree = expense_category_tree_for_profile()
+        business = business_from_request(request)
+        sync_past_cash_closures(user=request.user if request.user.is_authenticated else None, business=business)
+        economic_totals = economic_totals_for_day(day, business)
+        cashflow_totals = cashflow_totals_for_day(day, business)
+        expense_category_tree = expense_category_tree_for_profile(business)
         income = economic_totals["income"]
         expense = economic_totals["expense"]
         balance = economic_totals["balance"]
         movements = CashMovement.objects.select_related("payment", "material_purchase", "stock_movement", "debt").filter(
+            business=business,
             occurred_at__date=day
         )
-        closure = CashClosure.objects.filter(day=day).first()
-        income_category_tree = income_category_tree_for_profile()
+        closure = CashClosure.objects.filter(business=business, day=day).first()
+        income_category_tree = income_category_tree_for_profile(business)
         return response.Response(
             {
                 "date": day.isoformat(),
@@ -172,7 +188,7 @@ class CashDailyView(APIView):
                 "is_closed": closure is not None,
                 "closure": CashClosureSerializer(closure).data if closure else None,
                 "movements": CashMovementSerializer(movements, many=True).data,
-                "entries": cash_entries_for_day(day, request=request),
+                "entries": cash_entries_for_day(day, request=request, business=business),
                 "economic_totals": economic_totals,
                 "cashflow_totals": cashflow_totals,
                 "category_options": {
@@ -191,11 +207,20 @@ class CashCloseView(APIView):
     @transaction.atomic
     def post(self, request):
         day = date.fromisoformat(request.data.get("date")) if request.data.get("date") else date.today()
-        if CashClosure.objects.filter(day=day).exists():
+        business = business_from_request(request)
+        if CashClosure.objects.filter(business=business, day=day).exists():
             raise serializers.ValidationError({"date": "La caja de este dia ya esta cerrada."})
         closure = sync_cash_closure_for_day(
             day,
             user=request.user if request.user.is_authenticated else None,
             notes=request.data.get("notes", "Cierre manual"),
+            business=business,
+        )
+        record_audit_event(
+            request=request,
+            action="close",
+            instance=closure,
+            before=None,
+            after=audit_snapshot(closure),
         )
         return response.Response(CashClosureSerializer(closure).data, status=status.HTTP_201_CREATED)

@@ -7,6 +7,7 @@ class Service(models.Model):
         DETAILING = "detailing", "Detailing"
         COMBO = "combo", "Combo"
 
+    business = models.ForeignKey("core.BusinessAccount", related_name="services", on_delete=models.PROTECT)
     name = models.CharField(max_length=140)
     icon = models.CharField(max_length=24, blank=True)
     service_type = models.CharField(max_length=20, choices=ServiceType.choices)
@@ -22,6 +23,13 @@ class Service(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
+        super().save(*args, **kwargs)
 
     def delete(self, using=None, keep_parents=False):
         self.is_active = False

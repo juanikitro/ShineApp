@@ -14,6 +14,7 @@ def ensure_reservation_work_order(reservation):
     order, created = WorkOrder.objects.get_or_create(
         reservation=reservation,
         defaults={
+            "business": reservation.business,
             "customer": reservation.customer,
             "vehicle": reservation.vehicle,
             "service": reservation.service,
@@ -24,7 +25,7 @@ def ensure_reservation_work_order(reservation):
         return order
 
     update_fields = []
-    for field in ["customer", "vehicle", "service"]:
+    for field in ["business", "customer", "vehicle", "service"]:
         field_id = f"{field}_id"
         reservation_value = getattr(reservation, field_id)
         if getattr(order, field_id) != reservation_value:

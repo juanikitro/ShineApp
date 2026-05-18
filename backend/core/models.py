@@ -2,6 +2,8 @@ from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
+from django.utils.text import slugify
 
 
 PROFILE_ASSET_FILE_VALIDATOR = FileExtensionValidator(
@@ -129,12 +131,13 @@ def register_profile_classification(
     *,
     field_name,
     tree_builder,
+    business=None,
 ):
     category = str(category or "").strip()
     subcategory = str(subcategory or "").strip()
     if not category or not subcategory:
         return
-    profile = BusinessProfile.get_solo()
+    profile = BusinessProfile.get_solo(business=business)
     current_tree = getattr(profile, field_name)
     next_tree = tree_builder(
         current_tree,
@@ -146,22 +149,76 @@ def register_profile_classification(
         profile.save(update_fields=[field_name, "updated_at"])
 
 
-def register_expense_classification(category, subcategory):
+def register_expense_classification(category, subcategory, *, business=None):
     register_profile_classification(
         category,
         subcategory,
         field_name="expense_category_tree",
         tree_builder=tree_with_expense_classification,
+        business=business,
     )
 
 
-def register_income_classification(category, subcategory):
+def register_income_classification(category, subcategory, *, business=None):
     register_profile_classification(
         category,
         subcategory,
         field_name="income_category_tree",
         tree_builder=tree_with_income_classification,
+        business=business,
     )
+
+
+class BusinessAccount(models.Model):
+    name = models.CharField(max_length=160)
+    slug = models.SlugField(max_length=80, unique=True)
+    is_active = models.BooleanField(default=True)
+    deactivated_at = models.DateTimeField(null=True, blank=True)
+    deactivation_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "negocio"
+        verbose_name_plural = "negocios"
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        self.name = self.name.strip()
+        if not self.slug:
+            self.slug = slugify(self.name) or "negocio"
+        self.slug = slugify(self.slug)
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_default(cls):
+        business, _ = cls.objects.get_or_create(
+            slug="default",
+            defaults={"name": getattr(settings, "BUSINESS_NAME", "ShineApp")},
+        )
+        return business
+
+    def deactivate(self, reason=""):
+        self.is_active = False
+        self.deactivated_at = timezone.now()
+        self.deactivation_reason = str(reason or "").strip()
+        self.save(update_fields=["is_active", "deactivated_at", "deactivation_reason", "updated_at"])
+        self.invalidate_user_tokens()
+
+    def reactivate(self):
+        self.is_active = True
+        self.deactivated_at = None
+        self.deactivation_reason = ""
+        self.save(update_fields=["is_active", "deactivated_at", "deactivation_reason", "updated_at"])
+
+    def invalidate_user_tokens(self):
+        from rest_framework.authtoken.models import Token
+
+        user_ids = self.user_profiles.values_list("user_id", flat=True)
+        Token.objects.filter(user_id__in=user_ids).delete()
 
 
 class BusinessProfile(models.Model):
@@ -175,6 +232,11 @@ class BusinessProfile(models.Model):
         EXENTO = "exento", "Exento"
         CONSUMIDOR_FINAL = "consumidor_final", "Consumidor final"
 
+    business = models.OneToOneField(
+        BusinessAccount,
+        related_name="profile",
+        on_delete=models.CASCADE,
+    )
     name = models.CharField(max_length=160, default=settings.BUSINESS_NAME)
     logo = models.FileField(
         upload_to="business-profile/",
@@ -212,6 +274,10 @@ class BusinessProfile(models.Model):
     default_quote_payment_instructions = models.TextField(blank=True)
     use_reservation_times = models.BooleanField(default=True)
     show_stay_days_in_agenda = models.BooleanField(default=True)
+    public_landing_enabled = models.BooleanField(default=True)
+    public_landing_intro = models.CharField(max_length=240, blank=True)
+    allow_public_booking_requests = models.BooleanField(default=True)
+    allow_public_quote_requests = models.BooleanField(default=True)
     income_category_tree = models.JSONField(
         default=default_income_category_tree,
         blank=True,
@@ -231,17 +297,20 @@ class BusinessProfile(models.Model):
         return self.name or "Negocio"
 
     @classmethod
-    def get_solo(cls):
-        profile = cls.objects.order_by("id").first()
-        if profile:
-            return profile
-        return cls.objects.create(
-            name=getattr(settings, "BUSINESS_NAME", "ShineApp"),
+    def get_solo(cls, business=None):
+        business = business or BusinessAccount.get_default()
+        profile, _ = cls.objects.get_or_create(
+            business=business,
+            defaults={"name": business.name or getattr(settings, "BUSINESS_NAME", "ShineApp")},
         )
+        return profile
 
     @classmethod
-    def current_business_name(cls):
-        profile = cls.objects.only("name").order_by("id").first()
+    def current_business_name(cls, business=None):
+        if business is not None:
+            profile = cls.objects.only("name").filter(business=business).first()
+        else:
+            profile = cls.objects.only("name").order_by("id").first()
         if profile and profile.name:
             return profile.name
         return getattr(settings, "BUSINESS_NAME", "ShineApp")
@@ -263,6 +332,11 @@ class UserProfile(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="profile",
+    )
+    business = models.ForeignKey(
+        BusinessAccount,
+        related_name="user_profiles",
+        on_delete=models.PROTECT,
     )
     avatar = models.FileField(
         upload_to="user-profiles/",
@@ -293,6 +367,64 @@ class UserProfile(models.Model):
         return f"{self.phone_country_code} {number}"
 
     @classmethod
-    def for_user(cls, user):
-        profile, _ = cls.objects.get_or_create(user=user)
+    def for_user(cls, user, business=None):
+        if business is None:
+            try:
+                profile = user.profile
+                if profile.business_id:
+                    return profile
+            except (AttributeError, cls.DoesNotExist):
+                pass
+            business = BusinessAccount.get_default()
+        profile, created = cls.objects.get_or_create(
+            user=user,
+            defaults={"business": business},
+        )
+        if not created and profile.business_id is None:
+            profile.business = business
+            profile.save(update_fields=["business", "updated_at"])
         return profile
+
+
+class AuditLog(models.Model):
+    business = models.ForeignKey(
+        BusinessAccount,
+        null=True,
+        blank=True,
+        related_name="audit_logs",
+        on_delete=models.SET_NULL,
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="audit_logs",
+    )
+    actor_username = models.CharField(max_length=150, blank=True)
+    actor_email = models.EmailField(blank=True)
+    actor_role = models.CharField(max_length=32, blank=True)
+    action = models.CharField(max_length=40)
+    module = models.CharField(max_length=80)
+    entity_type = models.CharField(max_length=120)
+    entity_id = models.CharField(max_length=80, blank=True)
+    entity_label = models.CharField(max_length=240, blank=True)
+    before = models.JSONField(null=True, blank=True)
+    after = models.JSONField(null=True, blank=True)
+    changes = models.JSONField(default=dict, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    request_path = models.CharField(max_length=500, blank=True)
+    request_method = models.CharField(max_length=12, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["-created_at"], name="core_auditl_created_49a799_idx"),
+            models.Index(fields=["actor", "-created_at"], name="core_auditl_actor_i_010a7d_idx"),
+            models.Index(fields=["module", "-created_at"], name="core_auditl_module_709697_idx"),
+            models.Index(fields=["action", "-created_at"], name="core_auditl_action_bcd443_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.created_at:%Y-%m-%d %H:%M:%S} {self.action} {self.entity_type}#{self.entity_id}"

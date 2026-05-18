@@ -1,11 +1,12 @@
 from rest_framework import serializers
 
 from core.permissions import EconomyFieldsMixin
+from core.serializers import BusinessScopedSerializerMixin
 
 from .models import Service
 
 
-class ServiceSerializer(EconomyFieldsMixin, serializers.ModelSerializer):
+class ServiceSerializer(BusinessScopedSerializerMixin, EconomyFieldsMixin, serializers.ModelSerializer):
     economy_fields = ["base_price"]
 
     class Meta:
