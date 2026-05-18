@@ -48,6 +48,7 @@ Wrappers por herramienta:
 - `docs/deployment/architecture.md`: arquitectura demo y camino a produccion.
 - `docs/deployment/env-vars.md`: variables privadas/publicas y placeholders.
 - `docs/deployment/vercel.md`: configuracion de proyectos Vercel.
+- `docs/deployment/github-actions.md`: deploy demo manual desde GitHub Actions.
 - `docs/deployment/supabase.md`: Postgres y Storage.
 - `docs/deployment/media-static.md`: media persistente y static files.
 - `docs/deployment/manual-steps.md`: pasos manuales obligatorios antes de deploy.

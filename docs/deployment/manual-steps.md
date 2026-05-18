@@ -114,3 +114,38 @@ The public demo is deployed. These manual steps remain before showing media-heav
 - Value to copy: new values only into Vercel backend env vars.
 - Validate: redeploy API, run healthcheck, login, and media validation.
 - Risk if omitted: avoidable secret exposure risk in a future commercial environment.
+
+## 11. Configure GitHub Actions deploy secrets
+
+- What: add the required CI/CD secrets for `.github/workflows/deploy-vercel-demo.yml`.
+- Where: GitHub repository settings, Secrets and variables, Actions.
+- Why: GitHub Actions needs Vercel CLI credentials and the two Vercel project ids, but should not store application runtime secrets.
+- Values to set:
+  - `VERCEL_TOKEN`
+  - `VERCEL_ORG_ID=team_SU2ZYRqjIjG8JhFn2pc1NVxi`
+  - `VERCEL_FRONTEND_PROJECT_ID=prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ`
+  - `VERCEL_BACKEND_PROJECT_ID=prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC`
+- Validate: run the workflow manually with `workflow_dispatch`; it should pass the initial secret check and pull production env from both Vercel projects.
+- Risk if omitted: the deploy workflow fails before installing dependencies.
+
+Do not add `DATABASE_URL`, `DJANGO_SECRET_KEY`, Supabase S3 keys, or SMTP secrets to GitHub while `vercel pull` works. Those values belong in the Vercel API project production env and are loaded into the CI job only for checks and migrations.
+
+## 12. Make GitHub Actions the only automatic production deploy path
+
+- What: disable or bypass Vercel built-in Git production deploys for `shineapp-api` and `shineapp-web`, or configure them to skip if GitHub Actions becomes responsible for production.
+- Where: Vercel Dashboard, project Git settings / ignored build step.
+- Why: the GitHub Actions workflow deploys backend, optionally runs migrations, then deploys frontend. A parallel Vercel Git deploy can publish backend code outside the manual gate.
+- Value to copy: none.
+- Validate: push a harmless change to a test branch or inspect Vercel project settings before merging to `main`; production deploys should be created by the GitHub Actions CLI workflow, not an independent Vercel Git trigger.
+- Risk if omitted: duplicate deploys, race conditions, or code live outside the approved deploy path.
+
+## 13. Review migration risk before merging to `main`
+
+- What: check whether the PR contains schema or data migrations.
+- Where: PR review and `backend/*/migrations/`.
+- Why: CI prints `python backend/manage.py migrate --plan`; applying `python backend/manage.py migrate --noinput` is an explicit manual workflow input.
+- Value to copy: none.
+- Validate: migration plan is additive and compatible with both old and new deployed code.
+- Risk if omitted: destructive migrations, renames, large backfills, or unsafe non-null changes can break the public demo when migrations are explicitly run.
+
+Forward-compatible migrations are acceptable for routine demo deploys. Destructive migrations need a manual rollout plan and should not be treated as a routine demo deploy.
