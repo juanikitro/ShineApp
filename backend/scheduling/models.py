@@ -5,15 +5,26 @@ from django.db import models
 
 
 class DailyCapacity(models.Model):
-    day = models.DateField(unique=True)
+    business = models.ForeignKey("core.BusinessAccount", related_name="daily_capacities", on_delete=models.PROTECT)
+    day = models.DateField()
     max_slots = models.PositiveIntegerField(default=settings.DEFAULT_DAILY_CAPACITY)
     notes = models.CharField(max_length=180, blank=True)
 
     class Meta:
         ordering = ["-day"]
+        constraints = [
+            models.UniqueConstraint(fields=["business", "day"], name="unique_daily_capacity_per_business_day"),
+        ]
 
     def __str__(self):
         return f"{self.day}: {self.max_slots} turnos"
+
+    def save(self, *args, **kwargs):
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
+        super().save(*args, **kwargs)
 
 
 class Reservation(models.Model):
@@ -25,6 +36,7 @@ class Reservation(models.Model):
         DELIVERED = "delivered", "Entregado"
         CANCELED = "canceled", "Cancelada"
 
+    business = models.ForeignKey("core.BusinessAccount", related_name="reservations", on_delete=models.PROTECT)
     customer = models.ForeignKey("customers.Customer", related_name="reservations", on_delete=models.PROTECT)
     vehicle = models.ForeignKey("customers.Vehicle", related_name="reservations", on_delete=models.PROTECT)
     service = models.ForeignKey("catalog.Service", related_name="reservations", on_delete=models.PROTECT)
@@ -45,6 +57,12 @@ class Reservation(models.Model):
         return f"{self.day} - {self.customer} - {self.service}"
 
     def save(self, *args, **kwargs):
+        if self.customer_id and not self.business_id:
+            self.business = self.customer.business
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
         super().save(*args, **kwargs)
         if getattr(self, "_skip_work_order_sync", False):
             return
@@ -88,13 +106,18 @@ class Reservation(models.Model):
         ]
 
     @classmethod
-    def capacity_for_day(cls, day):
-        capacity = DailyCapacity.objects.filter(day=day).first()
+    def capacity_for_day(cls, day, business=None):
+        queryset = DailyCapacity.objects.filter(day=day)
+        if business is not None:
+            queryset = queryset.filter(business=business)
+        capacity = queryset.first()
         return capacity.max_slots if capacity else settings.DEFAULT_DAILY_CAPACITY
 
     @classmethod
-    def used_slots_for_day(cls, day, exclude_id=None):
+    def used_slots_for_day(cls, day, exclude_id=None, business=None):
         queryset = cls.objects.filter(day=day, status__in=cls.active_statuses())
+        if business is not None:
+            queryset = queryset.filter(business=business)
         if exclude_id:
             queryset = queryset.exclude(pk=exclude_id)
         return queryset.count()

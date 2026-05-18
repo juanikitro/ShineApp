@@ -5,12 +5,13 @@ from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group, update_last_login
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import DisallowedHost
-from django.db import transaction
+from django.db import connection, transaction
 from rest_framework import parsers, permissions, serializers, status
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.audit import audit_snapshot, record_audit_event
 from core.models import (
     BusinessProfile,
     UserProfile,
@@ -18,10 +19,26 @@ from core.models import (
     normalize_income_category_tree,
 )
 from core.permissions import EMPLOYEE_ROLE, EmployerOnly, can_view_economy, user_context_payload
+from core.permissions import business_for_user, business_from_request
 
 
 ALLOWED_PROFILE_ASSET_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg", "pdf"}
 ALLOWED_PROFILE_ASSET_CONTENT_TYPES = {"application/pdf"}
+
+
+def user_account_audit_snapshot(user):
+    payload = audit_snapshot(user)
+    profile = UserProfile.for_user(user)
+    business_profile = BusinessProfile.get_solo(business=profile.business)
+    payload.update(
+        {
+            "phone_country_code": profile.phone_country_code,
+            "phone_number": profile.phone_number,
+            "avatar": profile.avatar.name or None,
+            "subscription_type": business_profile.subscription_type,
+        }
+    )
+    return payload
 
 
 def validate_profile_asset_upload(value):
@@ -41,6 +58,23 @@ def validate_profile_asset_upload(value):
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField()
+
+
+class HealthCheckView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, _request):
+        checks = {"app": "ok", "database": "ok"}
+        try:
+            connection.ensure_connection()
+        except Exception:
+            checks["database"] = "error"
+            return Response(
+                {"status": "error", "checks": checks},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response({"status": "ok", "checks": checks})
 
 
 class EmployeeUserSerializer(serializers.ModelSerializer):
@@ -80,12 +114,14 @@ class EmployeeUserCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         user_model = get_user_model()
         employee_group, _ = Group.objects.get_or_create(name=EMPLOYEE_ROLE)
+        business = self.context["business"]
         user = user_model.objects.create_user(
             username=validated_data["username"],
             email=validated_data.get("email", ""),
             password=validated_data["password"],
         )
         user.groups.set([employee_group])
+        UserProfile.objects.create(user=user, business=business)
         return user
 
 
@@ -162,6 +198,10 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "default_quote_payment_instructions",
             "use_reservation_times",
             "show_stay_days_in_agenda",
+            "public_landing_enabled",
+            "public_landing_intro",
+            "allow_public_booking_requests",
+            "allow_public_quote_requests",
             "income_category_tree",
             "expense_category_tree",
         ]
@@ -204,6 +244,9 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
         return value.strip()
 
     def validate_default_quote_payment_instructions(self, value):
+        return value.strip()
+
+    def validate_public_landing_intro(self, value):
         return value.strip()
 
     def validate_income_category_tree(self, value):
@@ -252,6 +295,17 @@ class LoginView(APIView):
         )
         if user is None:
             return Response({"detail": "Credenciales invalidas."}, status=status.HTTP_400_BAD_REQUEST)
+        if user.is_staff or user.is_superuser:
+            return Response(
+                {"detail": "El superadmin debe acceder desde Django admin."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        business = business_for_user(user, create_missing=False)
+        if business is None or not business.is_active:
+            return Response(
+                {"detail": "El negocio no esta activo."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         update_last_login(None, user)
         token, _ = Token.objects.get_or_create(user=user)
         return Response(
@@ -289,6 +343,7 @@ class MeView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        before = user_account_audit_snapshot(request.user)
         with transaction.atomic():
             profile = UserProfile.for_user(request.user)
             if "email" in validated_data:
@@ -303,10 +358,21 @@ class MeView(APIView):
             profile.save()
 
             if "subscription_type" in validated_data:
-                business_profile = BusinessProfile.get_solo()
+                business_profile = BusinessProfile.get_solo(business=profile.business)
                 business_profile.subscription_type = validated_data["subscription_type"]
                 business_profile.save()
 
+        record_audit_event(
+            request=request,
+            action="update_profile",
+            instance=request.user,
+            before=before,
+            after=user_account_audit_snapshot(request.user),
+            module="auth",
+            entity_type="User",
+            entity_id=request.user.id,
+            entity_label=request.user.get_username(),
+        )
         return Response(user_context_payload(request.user, request=request))
 
 
@@ -317,6 +383,7 @@ class EmployeeUsersView(APIView):
         user_model = get_user_model()
         return (
             user_model.objects.filter(groups__name=EMPLOYEE_ROLE, is_superuser=False)
+            .filter(profile__business=business_from_request(self.request))
             .exclude(groups__name="empleador")
             .order_by("username")
             .distinct()
@@ -327,9 +394,23 @@ class EmployeeUsersView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        serializer = EmployeeUserCreateSerializer(data=request.data)
+        serializer = EmployeeUserCreateSerializer(
+            data=request.data,
+            context={"business": business_from_request(request)},
+        )
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        record_audit_event(
+            request=request,
+            action="create",
+            instance=user,
+            before=None,
+            after=audit_snapshot(user),
+            module="auth",
+            entity_type="User",
+            entity_id=user.id,
+            entity_label=user.get_username(),
+        )
         return Response(EmployeeUserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
@@ -342,7 +423,7 @@ class BusinessProfileView(APIView):
     ]
 
     def get_profile(self):
-        return BusinessProfile.get_solo()
+        return BusinessProfile.get_solo(business=business_from_request(self.request))
 
     def get(self, request):
         serializer = BusinessProfileSerializer(
@@ -352,12 +433,22 @@ class BusinessProfileView(APIView):
         return Response(serializer.data)
 
     def patch(self, request):
+        profile = self.get_profile()
+        before = audit_snapshot(profile)
         serializer = BusinessProfileSerializer(
-            self.get_profile(),
+            profile,
             data=request.data,
             partial=True,
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        profile = serializer.save()
+        record_audit_event(
+            request=request,
+            action="update",
+            instance=profile,
+            before=before,
+            after=audit_snapshot(profile),
+            module="settings",
+        )
         return Response(serializer.data)

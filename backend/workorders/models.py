@@ -14,6 +14,7 @@ class WorkOrder(models.Model):
         DELIVERED = "delivered", "Entregado"
         CANCELED = "canceled", "Cancelada"
 
+    business = models.ForeignKey("core.BusinessAccount", related_name="work_orders", on_delete=models.PROTECT)
     reservation = models.OneToOneField(
         "scheduling.Reservation",
         related_name="work_order",
@@ -51,6 +52,12 @@ class WorkOrder(models.Model):
 
     def save(self, *args, **kwargs):
         requested_status = getattr(self, "_status_override", None)
+        if self.reservation_id and not self.business_id:
+            self.business = self.reservation.business
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
         if self.service_id and not self.total_amount:
             self.total_amount = self.service.base_price
         super().save(*args, **kwargs)

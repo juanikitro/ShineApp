@@ -24,19 +24,22 @@ def cash_day(value):
     return None
 
 
-def is_cash_day_closed(day):
-    return bool(day and CashClosure.objects.filter(day=day).exists())
+def is_cash_day_closed(day, business=None):
+    queryset = CashClosure.objects.filter(day=day)
+    if business is not None:
+        queryset = queryset.filter(business=business)
+    return bool(day and queryset.exists())
 
 
-def ensure_cash_day_open(day, field="date"):
-    if is_cash_day_closed(day):
+def ensure_cash_day_open(day, field="date", business=None):
+    if is_cash_day_closed(day, business=business):
         raise serializers.ValidationError({field: CLOSED_DAY_MESSAGE.format(day=day.isoformat())})
 
 
-def ensure_adjustment_target_closed(day, field="adjusts_closed_day"):
+def ensure_adjustment_target_closed(day, field="adjusts_closed_day", business=None):
     if not day:
         return
-    if not is_cash_day_closed(day):
+    if not is_cash_day_closed(day, business=business):
         raise serializers.ValidationError({field: "El ajuste debe referenciar un dia de caja ya cerrado."})
 
 

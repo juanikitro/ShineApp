@@ -5,7 +5,8 @@ from django.db.models import Count, Q, Sum
 from django.utils import timezone
 from rest_framework import decorators, response, viewsets
 
-from core.permissions import CanViewEconomy, can_view_economy
+from core.audit import AuditedModelViewSetMixin
+from core.permissions import CanViewEconomy, business_from_request, can_view_economy, scope_queryset_to_business
 from finance.models import Payment
 from quotes.models import Quote
 from scheduling.models import Reservation
@@ -215,6 +216,7 @@ class ActiveQuerysetMixin:
 
     def get_queryset(self):
         queryset = self.queryset
+        queryset = scope_queryset_to_business(queryset, business_from_request(self.request))
         if self.request.query_params.get("include_inactive") != "1":
             queryset = queryset.filter(is_active=True)
         search = self.request.query_params.get("search")
@@ -229,7 +231,7 @@ class ActiveQuerysetMixin:
         instance.delete()
 
 
-class CustomerViewSet(ActiveQuerysetMixin, viewsets.ModelViewSet):
+class CustomerViewSet(AuditedModelViewSetMixin, ActiveQuerysetMixin, viewsets.ModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
     search_fields = ["name", "phone", "email"]
@@ -501,7 +503,7 @@ class CustomerViewSet(ActiveQuerysetMixin, viewsets.ModelViewSet):
         )
 
 
-class VehicleViewSet(ActiveQuerysetMixin, viewsets.ModelViewSet):
+class VehicleViewSet(AuditedModelViewSetMixin, ActiveQuerysetMixin, viewsets.ModelViewSet):
     queryset = Vehicle.objects.select_related("customer").all()
     serializer_class = VehicleSerializer
     search_fields = ["license_plate", "model", "brand", "customer__name"]

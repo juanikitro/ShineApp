@@ -34,6 +34,7 @@ class Quote(models.Model):
         ACCEPTED = "accepted", "Aceptada"
         REJECTED = "rejected", "Rechazada"
 
+    business = models.ForeignKey("core.BusinessAccount", related_name="quotes", on_delete=models.PROTECT)
     customer = models.ForeignKey("customers.Customer", related_name="quotes", on_delete=models.PROTECT)
     vehicle = models.ForeignKey("customers.Vehicle", related_name="quotes", null=True, blank=True, on_delete=models.PROTECT)
     reservation = models.OneToOneField(
@@ -122,7 +123,7 @@ class Quote(models.Model):
         return bool(self.reservation_id)
 
     def apply_snapshot_defaults(self):
-        profile = BusinessProfile.get_solo()
+        profile = BusinessProfile.get_solo(business=self.business if self.business_id else None)
         if not self.valid_until:
             self.valid_until = self.quote_date + timedelta(days=profile.default_quote_validity_days)
         if not self.business_name:
@@ -161,6 +162,12 @@ class Quote(models.Model):
 
     def save(self, *args, **kwargs):
         is_new = self._state.adding
+        if self.customer_id and not self.business_id:
+            self.business = self.customer.business
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
         if is_new and not getattr(self, "_skip_snapshot_defaults", False):
             self.apply_snapshot_defaults()
         super().save(*args, **kwargs)

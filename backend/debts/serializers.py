@@ -6,6 +6,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from core.models import register_expense_classification
+from core.serializers import BusinessScopedSerializerMixin
 from finance.cash import cash_day, ensure_cash_day_open, request_user_from_context
 from finance.models import CashMovement
 
@@ -18,6 +19,7 @@ def debt_origin_datetime(debt):
 
 def sync_debt_cash_movement(debt, user=None):
     defaults = {
+        "business": debt.business,
         "movement_type": CashMovement.MovementType.EXPENSE,
         "category": debt.expense_category or "Servicios",
         "subcategory": debt.expense_subcategory or "Otros",
@@ -27,17 +29,17 @@ def sync_debt_cash_movement(debt, user=None):
     }
     if debt.cash_movement_id:
         CashMovement.objects.filter(pk=debt.cash_movement_id).update(**defaults)
-        register_expense_classification(defaults["category"], defaults["subcategory"])
+        register_expense_classification(defaults["category"], defaults["subcategory"], business=debt.business)
         return debt.cash_movement
 
     movement = CashMovement.objects.create(**defaults, created_by=user)
-    register_expense_classification(defaults["category"], defaults["subcategory"])
+    register_expense_classification(defaults["category"], defaults["subcategory"], business=debt.business)
     debt.cash_movement = movement
     debt.save(update_fields=["cash_movement", "updated_at"])
     return movement
 
 
-class DebtPaymentSerializer(serializers.ModelSerializer):
+class DebtPaymentSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     debt_concept = serializers.CharField(source="debt.concept", read_only=True)
     debt_balance_due = serializers.SerializerMethodField()
 
@@ -69,10 +71,11 @@ class DebtPaymentSerializer(serializers.ModelSerializer):
         amount = attrs.get("amount") or getattr(self.instance, "amount", Decimal("0.00"))
         paid_at = attrs.get("paid_at", getattr(self.instance, "paid_at", timezone.localdate()))
         if self.instance:
-            ensure_cash_day_open(self.instance.paid_at, field="paid_at")
-        ensure_cash_day_open(paid_at, field="paid_at")
+            ensure_cash_day_open(self.instance.paid_at, field="paid_at", business=self.instance.business)
+        ensure_cash_day_open(paid_at, field="paid_at", business=self.get_business() or getattr(debt, "business", None))
         if not debt:
             return attrs
+        self.validate_same_business(debt)
 
         available = debt.balance_due
         if self.instance and self.instance.debt_id == debt.id:
@@ -82,7 +85,7 @@ class DebtPaymentSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class DebtSerializer(serializers.ModelSerializer):
+class DebtSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
     total_paid = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     balance_due = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
@@ -144,9 +147,15 @@ class DebtSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         principal = attrs.get("principal_amount") or getattr(self.instance, "principal_amount", Decimal("0.00"))
         origin_date = attrs.get("origin_date", getattr(self.instance, "origin_date", timezone.localdate()))
+        supplier = attrs.get("supplier", getattr(self.instance, "supplier", None))
+        self.validate_same_business(supplier)
         if self.instance and self.instance.cash_movement_id:
-            ensure_cash_day_open(cash_day(self.instance.cash_movement.occurred_at), field="origin_date")
-        ensure_cash_day_open(origin_date, field="origin_date")
+            ensure_cash_day_open(
+                cash_day(self.instance.cash_movement.occurred_at),
+                field="origin_date",
+                business=self.instance.business,
+            )
+        ensure_cash_day_open(origin_date, field="origin_date", business=self.get_business() or getattr(supplier, "business", None))
         if self.instance and principal < self.instance.total_paid:
             raise serializers.ValidationError(
                 {"principal_amount": "El total de la deuda no puede ser menor a lo ya pagado."}

@@ -8,6 +8,7 @@ from core.models import PROFILE_ASSET_FILE_VALIDATOR
 
 
 class Material(models.Model):
+    business = models.ForeignKey("core.BusinessAccount", related_name="materials", on_delete=models.PROTECT)
     name = models.CharField(max_length=140)
     unit = models.CharField(max_length=30)
     category = models.CharField(max_length=80, blank=True)
@@ -25,9 +26,9 @@ class Material(models.Model):
         ordering = ["name"]
         constraints = [
             models.UniqueConstraint(
-                fields=["sku"],
+                fields=["business", "sku"],
                 condition=~models.Q(sku=""),
-                name="unique_material_sku_when_present",
+                name="unique_material_sku_per_business_when_present",
             ),
         ]
 
@@ -37,6 +38,13 @@ class Material(models.Model):
     @property
     def stock_value(self):
         return (self.stock_quantity or Decimal("0.00")) * (self.estimated_unit_cost or Decimal("0.00"))
+
+    def save(self, *args, **kwargs):
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
+        super().save(*args, **kwargs)
 
     @property
     def usage_count(self):
@@ -112,6 +120,7 @@ class Material(models.Model):
 
 
 class Supplier(models.Model):
+    business = models.ForeignKey("core.BusinessAccount", related_name="suppliers", on_delete=models.PROTECT)
     name = models.CharField(max_length=160)
     legal_name = models.CharField(max_length=180, blank=True)
     category = models.CharField(max_length=80, blank=True)
@@ -134,6 +143,10 @@ class Supplier(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
         self.name = self.name.strip()
         self.legal_name = self.legal_name.strip()
         self.category = self.category.strip()
@@ -154,6 +167,7 @@ class MaterialOpenUnit(models.Model):
         OPEN = "open", "Abierta"
         FINISHED = "finished", "Finalizada"
 
+    business = models.ForeignKey("core.BusinessAccount", related_name="material_open_units", on_delete=models.PROTECT)
     material = models.ForeignKey(Material, related_name="open_units", on_delete=models.PROTECT)
     opened_at = models.DateField(default=timezone.localdate)
     opened_by_work_order = models.ForeignKey(
@@ -176,6 +190,15 @@ class MaterialOpenUnit(models.Model):
     def __str__(self):
         return f"{self.material} - unidad {self.id or '-'}"
 
+    def save(self, *args, **kwargs):
+        if self.material_id and not self.business_id:
+            self.business = self.material.business
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
+        super().save(*args, **kwargs)
+
     @property
     def work_orders_count(self):
         return self.consumptions.values("work_order").distinct().count()
@@ -197,6 +220,7 @@ class Tool(models.Model):
         MAINTENANCE = "maintenance", "Mantenimiento"
         RETIRED = "retired", "Retirada"
 
+    business = models.ForeignKey("core.BusinessAccount", related_name="tools", on_delete=models.PROTECT)
     name = models.CharField(max_length=140)
     quantity = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.IN_USE)
@@ -213,6 +237,13 @@ class Tool(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
+        super().save(*args, **kwargs)
+
     @property
     def total_value(self):
         return Decimal(self.quantity or 0) * (self.unit_value or Decimal("0.00"))
@@ -223,6 +254,7 @@ class Tool(models.Model):
 
 
 class MaterialPurchase(models.Model):
+    business = models.ForeignKey("core.BusinessAccount", related_name="material_purchases", on_delete=models.PROTECT)
     material = models.ForeignKey(Material, related_name="purchases", on_delete=models.PROTECT)
     purchased_at = models.DateField(default=timezone.localdate)
     quantity = models.DecimalField(max_digits=12, decimal_places=2)
@@ -234,8 +266,18 @@ class MaterialPurchase(models.Model):
     class Meta:
         ordering = ["-purchased_at", "-id"]
 
+    def save(self, *args, **kwargs):
+        if self.material_id and not self.business_id:
+            self.business = self.material.business
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
+        super().save(*args, **kwargs)
+
 
 class MaterialConsumption(models.Model):
+    business = models.ForeignKey("core.BusinessAccount", related_name="material_consumptions", on_delete=models.PROTECT)
     work_order = models.ForeignKey(
         "workorders.WorkOrder",
         related_name="material_consumptions",
@@ -259,6 +301,15 @@ class MaterialConsumption(models.Model):
     class Meta:
         ordering = ["-consumed_at", "-id"]
 
+    def save(self, *args, **kwargs):
+        if self.work_order_id and not self.business_id:
+            self.business = self.work_order.business
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
+        super().save(*args, **kwargs)
+
 
 class StockMovement(models.Model):
     class MovementType(models.TextChoices):
@@ -281,6 +332,7 @@ class StockMovement(models.Model):
         TRANSFER = "transfer", "Transferencia"
         OTHER = "other", "Otro"
 
+    business = models.ForeignKey("core.BusinessAccount", related_name="stock_movements", on_delete=models.PROTECT)
     movement_type = models.CharField(max_length=24, choices=MovementType.choices)
     occurred_on = models.DateField(default=timezone.localdate)
     supplier = models.ForeignKey(
@@ -331,6 +383,19 @@ class StockMovement(models.Model):
 
     def __str__(self):
         return f"{self.get_movement_type_display()} #{self.id or '-'}"
+
+    def save(self, *args, **kwargs):
+        if not self.business_id:
+            for field_name in ["supplier", "customer", "reservation", "work_order"]:
+                related = getattr(self, field_name, None)
+                if related is not None and getattr(related, "business_id", None):
+                    self.business = related.business
+                    break
+        if not self.business_id:
+            from core.models import BusinessAccount
+
+            self.business = BusinessAccount.get_default()
+        super().save(*args, **kwargs)
 
 
 class StockMovementLine(models.Model):

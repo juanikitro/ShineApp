@@ -6,7 +6,7 @@ from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.permissions import can_view_economy
+from core.permissions import business_from_request, can_view_economy
 
 from customers.birthdays import upcoming_birthday_customers
 from customers.models import Customer
@@ -25,11 +25,17 @@ class DashboardSummaryView(APIView):
 
     def get(self, request):
         today = date.today()
+        business = business_from_request(request)
         date_from = parse_day(request.query_params.get("from"), today.replace(day=1))
         date_to = parse_day(request.query_params.get("to"), today)
         birthday_alert_days = 3
         birthday_alerts = upcoming_birthday_customers(
-            Customer.objects.filter(is_active=True, birthday_month__isnull=False, birthday_day__isnull=False),
+            Customer.objects.filter(
+                business=business,
+                is_active=True,
+                birthday_month__isnull=False,
+                birthday_day__isnull=False,
+            ),
             days=birthday_alert_days,
         )
         payload = {
@@ -46,21 +52,24 @@ class DashboardSummaryView(APIView):
         if not can_view_economy(request.user):
             return Response(payload)
 
-        payments = Payment.objects.filter(paid_at__date__gte=date_from, paid_at__date__lte=date_to)
+        payments = Payment.objects.filter(business=business, paid_at__date__gte=date_from, paid_at__date__lte=date_to)
         work_orders = WorkOrder.objects.filter(
+            business=business,
             created_at__date__gte=date_from,
             created_at__date__lte=date_to,
             reservation__status__in=WorkOrder.operational_statuses(),
         )
-        purchases = MaterialPurchase.objects.filter(purchased_at__gte=date_from, purchased_at__lte=date_to)
-        consumptions = MaterialConsumption.objects.filter(consumed_at__gte=date_from, consumed_at__lte=date_to)
+        purchases = MaterialPurchase.objects.filter(business=business, purchased_at__gte=date_from, purchased_at__lte=date_to)
+        consumptions = MaterialConsumption.objects.filter(business=business, consumed_at__gte=date_from, consumed_at__lte=date_to)
         stock_purchases = StockMovement.objects.filter(
+            business=business,
             movement_type=StockMovement.MovementType.PURCHASE,
             occurred_on__gte=date_from,
             occurred_on__lte=date_to,
         )
         stock_consumptions = StockMovementLine.objects.filter(
             movement__movement_type=StockMovement.MovementType.CONSUMPTION,
+            movement__business=business,
             movement__occurred_on__gte=date_from,
             movement__occurred_on__lte=date_to,
         )
@@ -72,7 +81,7 @@ class DashboardSummaryView(APIView):
             row["reservation__status"]: row["count"]
             for row in work_orders.values("reservation__status").annotate(count=Count("id"))
         }
-        today_movements = CashMovement.objects.filter(occurred_at__date=today)
+        today_movements = CashMovement.objects.filter(business=business, occurred_at__date=today)
         today_income = (
             today_movements.filter(movement_type=CashMovement.MovementType.INCOME).aggregate(total=Sum("amount"))["total"]
             or Decimal("0.00")

@@ -1,12 +1,13 @@
 from rest_framework import serializers
 
 from core.permissions import EconomyFieldsMixin
+from core.serializers import BusinessScopedSerializerMixin
 from scheduling.models import Reservation
 
 from .models import WorkOrder
 
 
-class WorkOrderSerializer(EconomyFieldsMixin, serializers.ModelSerializer):
+class WorkOrderSerializer(BusinessScopedSerializerMixin, EconomyFieldsMixin, serializers.ModelSerializer):
     economy_fields = ["total_amount", "paid_amount", "balance_due", "material_cost"]
 
     customer_name = serializers.CharField(source="customer.name", read_only=True)
@@ -79,6 +80,7 @@ class WorkOrderSerializer(EconomyFieldsMixin, serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"reservation": "Todo trabajo debe crearse desde una reserva."}
             )
+        self.validate_same_business(reservation, customer, vehicle)
 
         if self.instance and "reservation" in attrs and attrs["reservation"] != self.instance.reservation:
             raise serializers.ValidationError(

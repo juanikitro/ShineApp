@@ -8,6 +8,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from core.models import register_expense_classification, register_income_classification
+from core.serializers import BusinessScopedSerializerMixin
 from finance.cash import ensure_cash_day_open, request_user_from_context
 from finance.models import CashMovement
 from scheduling.services import ensure_reservation_work_order
@@ -55,6 +56,7 @@ def sync_purchase_cash_movement(purchase, user=None):
         movement, created = CashMovement.objects.update_or_create(
             material_purchase=purchase,
             defaults={
+                "business": purchase.business,
                 "movement_type": CashMovement.MovementType.EXPENSE,
                 "category": "Materiales e insumos",
                 "subcategory": purchase.material.name or "Compra de materiales",
@@ -66,7 +68,7 @@ def sync_purchase_cash_movement(purchase, user=None):
         if created and user:
             movement.created_by = user
             movement.save(update_fields=["created_by"])
-        register_expense_classification(movement.category, movement.subcategory)
+        register_expense_classification(movement.category, movement.subcategory, business=purchase.business)
     else:
         CashMovement.objects.filter(material_purchase=purchase).delete()
 
@@ -82,6 +84,7 @@ def sync_stock_movement_cash_movement(movement, user=None):
         movement_record, created = CashMovement.objects.update_or_create(
             stock_movement=movement,
             defaults={
+                "business": movement.business,
                 "movement_type": CashMovement.MovementType.EXPENSE,
                 "category": "Materiales e insumos",
                 "subcategory": movement.supplier.name if movement.supplier_id else "Compra de materiales",
@@ -93,13 +96,14 @@ def sync_stock_movement_cash_movement(movement, user=None):
         if created and user:
             movement_record.created_by = user
             movement_record.save(update_fields=["created_by"])
-        register_expense_classification(movement_record.category, movement_record.subcategory)
+        register_expense_classification(movement_record.category, movement_record.subcategory, business=movement.business)
         return
 
     if movement.movement_type == StockMovement.MovementType.SALE and movement.total_amount > 0:
         movement_record, created = CashMovement.objects.update_or_create(
             stock_movement=movement,
             defaults={
+                "business": movement.business,
                 "movement_type": CashMovement.MovementType.INCOME,
                 "category": "Venta",
                 "subcategory": movement.get_payment_method_display(),
@@ -111,7 +115,7 @@ def sync_stock_movement_cash_movement(movement, user=None):
         if created and user:
             movement_record.created_by = user
             movement_record.save(update_fields=["created_by"])
-        register_income_classification(movement_record.category, movement_record.subcategory)
+        register_income_classification(movement_record.category, movement_record.subcategory, business=movement.business)
         return
 
     CashMovement.objects.filter(stock_movement=movement).delete()
@@ -194,7 +198,7 @@ def apply_stock_movement_lines(movement, lines_data, user=None):
     sync_stock_movement_cash_movement(movement, user=user)
 
 
-class SupplierSerializer(serializers.ModelSerializer):
+class SupplierSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = Supplier
         fields = [
@@ -262,7 +266,7 @@ class SupplierListSerializer(SupplierSerializer):
         )
 
 
-class MaterialSerializer(serializers.ModelSerializer):
+class MaterialSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     last_purchase_unit_cost = serializers.SerializerMethodField()
     last_purchase_date = serializers.SerializerMethodField()
     stock_value = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
@@ -346,6 +350,9 @@ class MaterialSerializer(serializers.ModelSerializer):
         if not sku:
             return ""
         queryset = Material.objects.filter(sku=sku)
+        business = self.get_business() or getattr(self.instance, "business", None)
+        if business is not None:
+            queryset = queryset.filter(business=business)
         if self.instance is not None:
             queryset = queryset.exclude(pk=self.instance.pk)
         if queryset.exists():
@@ -353,7 +360,7 @@ class MaterialSerializer(serializers.ModelSerializer):
         return sku
 
 
-class ToolSerializer(serializers.ModelSerializer):
+class ToolSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     total_value = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
 
     class Meta:
@@ -384,7 +391,7 @@ class ToolSerializer(serializers.ModelSerializer):
         return value
 
 
-class StockMovementLineInputSerializer(serializers.Serializer):
+class StockMovementLineInputSerializer(BusinessScopedSerializerMixin, serializers.Serializer):
     material = serializers.PrimaryKeyRelatedField(queryset=Material.objects.filter(is_active=True))
     quantity = serializers.DecimalField(max_digits=12, decimal_places=2)
     unit_price = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=Decimal("0.00"))
@@ -431,7 +438,7 @@ class StockMovementLinesField(serializers.Field):
                 raise serializers.ValidationError("Las lineas deben ser un JSON valido.") from exc
         if not isinstance(data, list):
             raise serializers.ValidationError("Las lineas deben ser una lista.")
-        serializer = StockMovementLineInputSerializer(data=data, many=True)
+        serializer = StockMovementLineInputSerializer(data=data, many=True, context=self.context)
         serializer.is_valid(raise_exception=True)
         return serializer.validated_data
 
@@ -440,7 +447,7 @@ class StockMovementLinesField(serializers.Field):
         return StockMovementLineSerializer(queryset, many=True).data
 
 
-class StockMovementSerializer(serializers.ModelSerializer):
+class StockMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     movement_type_label = serializers.CharField(source="get_movement_type_display", read_only=True)
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
     customer_name = serializers.CharField(source="customer.name", read_only=True)
@@ -524,6 +531,8 @@ class StockMovementSerializer(serializers.ModelSerializer):
         affects_cash = attrs.get("affects_cash", getattr(self.instance, "affects_cash", False))
         reservation = attrs.get("reservation", getattr(self.instance, "reservation", None))
         customer = attrs.get("customer", getattr(self.instance, "customer", None))
+        supplier = attrs.get("supplier", getattr(self.instance, "supplier", None))
+        self.validate_same_business(supplier, customer, reservation)
 
         if self.instance and stock_movement_affects_cash(self.instance.movement_type, self.instance.affects_cash):
             ensure_cash_day_open(self.instance.occurred_on, field="occurred_on")
@@ -594,7 +603,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
         return instance
 
 
-class MaterialOpenUnitSerializer(serializers.ModelSerializer):
+class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     material_name = serializers.CharField(source="material.name", read_only=True)
     opened_by_work_order_label = serializers.SerializerMethodField()
     work_orders_count = serializers.IntegerField(read_only=True)
@@ -658,6 +667,15 @@ class MaterialOpenUnitSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("La cantidad a descontar debe ser mayor a cero.")
         return value
 
+    def validate(self, attrs):
+        material = attrs.get("material", getattr(self.instance, "material", None))
+        opened_by_work_order = attrs.get(
+            "opened_by_work_order",
+            getattr(self.instance, "opened_by_work_order", None),
+        )
+        self.validate_same_business(material, opened_by_work_order)
+        return attrs
+
     @transaction.atomic
     def create(self, validated_data):
         material = Material.objects.select_for_update().get(pk=validated_data["material"].pk)
@@ -670,7 +688,7 @@ class MaterialOpenUnitSerializer(serializers.ModelSerializer):
         )
 
 
-class MaterialPurchaseSerializer(serializers.ModelSerializer):
+class MaterialPurchaseSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     material_name = serializers.CharField(source="material.name", read_only=True)
 
     class Meta:
@@ -693,14 +711,16 @@ class MaterialPurchaseSerializer(serializers.ModelSerializer):
         total_cost = attrs.get("total_cost", getattr(self.instance, "total_cost", None))
         purchased_at = attrs.get("purchased_at", getattr(self.instance, "purchased_at", timezone.localdate()))
         affects_cash = attrs.get("affects_cash", getattr(self.instance, "affects_cash", True))
+        material = attrs.get("material", getattr(self.instance, "material", None))
+        self.validate_same_business(material)
         if quantity is not None and quantity <= 0:
             raise serializers.ValidationError({"quantity": "La cantidad debe ser mayor a cero."})
         if total_cost is not None and total_cost < 0:
             raise serializers.ValidationError({"total_cost": "El costo no puede ser negativo."})
         if self.instance and self.instance.affects_cash and self.instance.total_cost > 0:
-            ensure_cash_day_open(self.instance.purchased_at, field="purchased_at")
+            ensure_cash_day_open(self.instance.purchased_at, field="purchased_at", business=self.instance.business)
         if affects_cash and total_cost and total_cost > 0:
-            ensure_cash_day_open(purchased_at, field="purchased_at")
+            ensure_cash_day_open(purchased_at, field="purchased_at", business=self.get_business() or getattr(material, "business", None))
         return attrs
 
     @transaction.atomic
@@ -750,7 +770,7 @@ class MaterialPurchaseSerializer(serializers.ModelSerializer):
         return instance
 
 
-class MaterialConsumptionSerializer(serializers.ModelSerializer):
+class MaterialConsumptionSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     material_name = serializers.CharField(source="material.name", read_only=True)
     open_unit_label = serializers.SerializerMethodField()
     consumption_mode = serializers.SerializerMethodField()
@@ -804,6 +824,8 @@ class MaterialConsumptionSerializer(serializers.ModelSerializer):
         open_unit = attrs.get("open_unit", getattr(self.instance, "open_unit", None))
         quantity = attrs.get("quantity", getattr(self.instance, "quantity", None))
         material = attrs.get("material", getattr(self.instance, "material", None))
+        work_order = attrs.get("work_order", getattr(self.instance, "work_order", None))
+        self.validate_same_business(work_order, material, open_unit)
 
         if open_unit:
             if self.instance and self.instance.open_unit_id and open_unit.pk != self.instance.open_unit_id:

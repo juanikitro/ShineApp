@@ -3,12 +3,13 @@ from django.db import transaction
 from rest_framework import serializers
 
 from core.permissions import context_can_view_economy
+from core.serializers import BusinessScopedSerializerMixin
 
 from .models import DailyCapacity, Reservation, ReservationItem
 from .services import ensure_reservation_work_order
 
 
-class DailyCapacitySerializer(serializers.ModelSerializer):
+class DailyCapacitySerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     used_slots = serializers.SerializerMethodField()
     available_slots = serializers.SerializerMethodField()
 
@@ -18,13 +19,13 @@ class DailyCapacitySerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "used_slots", "available_slots"]
 
     def get_used_slots(self, obj):
-        return Reservation.used_slots_for_day(obj.day)
+        return Reservation.used_slots_for_day(obj.day, business=obj.business)
 
     def get_available_slots(self, obj):
-        return max(obj.max_slots - Reservation.used_slots_for_day(obj.day), 0)
+        return max(obj.max_slots - Reservation.used_slots_for_day(obj.day, business=obj.business), 0)
 
 
-class ReservationItemSerializer(serializers.ModelSerializer):
+class ReservationItemSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     service_name = serializers.CharField(source="service.name", read_only=True)
     service_icon = serializers.CharField(source="service.icon", read_only=True)
     service_notes = serializers.CharField(source="service.notes", read_only=True)
@@ -54,7 +55,7 @@ class ReservationItemSerializer(serializers.ModelSerializer):
         return value
 
 
-class ReservationSerializer(serializers.ModelSerializer):
+class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.name", read_only=True)
     vehicle_label = serializers.SerializerMethodField()
     service_name = serializers.SerializerMethodField()
@@ -180,8 +181,10 @@ class ReservationSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({"items": "Cada item debe indicar un servicio."})
                 if not item_service.is_active:
                     raise serializers.ValidationError("No se puede reservar un servicio inactivo.")
+                self.validate_same_business(item_service)
             service = items_data[0]["service"]
 
+        self.validate_same_business(customer, vehicle, service)
         if not self.instance and not service:
             raise serializers.ValidationError({"service": "Este campo es requerido."})
         if vehicle and customer and vehicle.customer_id != customer.id:
@@ -209,8 +212,13 @@ class ReservationSerializer(serializers.ModelSerializer):
                 }
             )
         if day and status in Reservation.active_statuses():
-            used_slots = Reservation.used_slots_for_day(day, exclude_id=getattr(self.instance, "id", None))
-            if used_slots >= Reservation.capacity_for_day(day):
+            business = self.get_business() or getattr(self.instance, "business", None)
+            used_slots = Reservation.used_slots_for_day(
+                day,
+                exclude_id=getattr(self.instance, "id", None),
+                business=business,
+            )
+            if used_slots >= Reservation.capacity_for_day(day, business=business):
                 raise serializers.ValidationError({"day": "La capacidad de turnos para este dia ya esta completa."})
         return attrs
 

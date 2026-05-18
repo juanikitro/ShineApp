@@ -6,6 +6,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from core.models import register_expense_classification, register_income_classification
+from core.serializers import BusinessScopedSerializerMixin
 
 from .cash import (
     cash_day,
@@ -19,7 +20,7 @@ from .cash import (
 from .models import CashClosure, CashMovement, Payment
 
 
-class PaymentSerializer(serializers.ModelSerializer):
+class PaymentSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     work_order_label = serializers.SerializerMethodField()
 
     class Meta:
@@ -52,9 +53,11 @@ class PaymentSerializer(serializers.ModelSerializer):
         work_order = attrs.get("work_order") or getattr(self.instance, "work_order", None)
         amount = attrs.get("amount", getattr(self.instance, "amount", None))
         paid_at = attrs.get("paid_at", getattr(self.instance, "paid_at", timezone.now()))
+        business = getattr(work_order, "business", None) or self.get_business()
         if self.instance:
-            ensure_cash_day_open(cash_day(self.instance.paid_at), field="paid_at")
-        ensure_cash_day_open(cash_day(paid_at), field="paid_at")
+            ensure_cash_day_open(cash_day(self.instance.paid_at), field="paid_at", business=self.instance.business)
+        ensure_cash_day_open(cash_day(paid_at), field="paid_at", business=business)
+        self.validate_same_business(work_order)
         if work_order and amount is None:
             amount = work_order.balance_due
             attrs["amount"] = amount
@@ -77,13 +80,14 @@ class PaymentSerializer(serializers.ModelSerializer):
             occurred_at=payment.paid_at,
             description=f"Pago orden #{payment.work_order_id}",
             payment=payment,
+            business=payment.business,
             created_by=request_user_from_context(self.context),
         )
-        register_income_classification(movement.category, movement.subcategory)
+        register_income_classification(movement.category, movement.subcategory, business=payment.business)
         return payment
 
 
-class CashMovementSerializer(serializers.ModelSerializer):
+class CashMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     debt = serializers.SerializerMethodField()
     debt_concept = serializers.SerializerMethodField()
     source_kind = serializers.SerializerMethodField()
@@ -190,12 +194,13 @@ class CashMovementSerializer(serializers.ModelSerializer):
         adjusts_closed_day = attrs.get("adjusts_closed_day", getattr(self.instance, "adjusts_closed_day", None))
         movement_type = attrs.get("movement_type", getattr(self.instance, "movement_type", ""))
         subcategory = attrs.get("subcategory", getattr(self.instance, "subcategory", ""))
+        business = self.get_business() or getattr(self.instance, "business", None)
         if movement_type == CashMovement.MovementType.EXPENSE and not str(subcategory or "").strip():
             raise serializers.ValidationError({"subcategory": "La subcategoria es obligatoria para egresos."})
         if self.instance:
-            ensure_cash_day_open(cash_day(self.instance.occurred_at), field="occurred_at")
-        ensure_cash_day_open(cash_day(occurred_at), field="occurred_at")
-        ensure_adjustment_target_closed(adjusts_closed_day)
+            ensure_cash_day_open(cash_day(self.instance.occurred_at), field="occurred_at", business=self.instance.business)
+        ensure_cash_day_open(cash_day(occurred_at), field="occurred_at", business=business)
+        ensure_adjustment_target_closed(adjusts_closed_day, business=business)
         return attrs
 
     def create(self, validated_data):
@@ -204,21 +209,21 @@ class CashMovementSerializer(serializers.ModelSerializer):
             created_by=request_user_from_context(self.context),
         )
         if movement.movement_type == CashMovement.MovementType.INCOME:
-            register_income_classification(movement.category, movement.subcategory)
+            register_income_classification(movement.category, movement.subcategory, business=movement.business)
         if movement.movement_type == CashMovement.MovementType.EXPENSE:
-            register_expense_classification(movement.category, movement.subcategory)
+            register_expense_classification(movement.category, movement.subcategory, business=movement.business)
         return movement
 
     def update(self, instance, validated_data):
         movement = super().update(instance, validated_data)
         if movement.movement_type == CashMovement.MovementType.INCOME:
-            register_income_classification(movement.category, movement.subcategory)
+            register_income_classification(movement.category, movement.subcategory, business=movement.business)
         if movement.movement_type == CashMovement.MovementType.EXPENSE:
-            register_expense_classification(movement.category, movement.subcategory)
+            register_expense_classification(movement.category, movement.subcategory, business=movement.business)
         return movement
 
 
-class CashClosureSerializer(serializers.ModelSerializer):
+class CashClosureSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = CashClosure
         fields = [

@@ -5,11 +5,12 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from core.models import BusinessProfile
+from core.serializers import BusinessScopedSerializerMixin
 
 from .models import Quote, QuoteItem
 
 
-class QuoteItemSerializer(serializers.ModelSerializer):
+class QuoteItemSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     service_name = serializers.CharField(source="service.name", read_only=True)
     service_icon = serializers.CharField(source="service.icon", read_only=True)
     service_notes = serializers.CharField(source="service.notes", read_only=True)
@@ -39,7 +40,7 @@ class QuoteItemSerializer(serializers.ModelSerializer):
         return value
 
 
-class QuoteSerializer(serializers.ModelSerializer):
+class QuoteSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.name", read_only=True)
     vehicle_label = serializers.SerializerMethodField()
     status_label = serializers.CharField(read_only=True)
@@ -114,6 +115,12 @@ class QuoteSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         customer = attrs.get("customer") or getattr(self.instance, "customer", None)
         vehicle = attrs.get("vehicle") or getattr(self.instance, "vehicle", None)
+        reservation = attrs.get("reservation") or getattr(self.instance, "reservation", None)
+        items_data = attrs.get("items")
+        self.validate_same_business(customer, vehicle, reservation)
+        if items_data:
+            for item_data in items_data:
+                self.validate_same_business(item_data.get("service"))
         if vehicle and customer and vehicle.customer_id != customer.id:
             raise serializers.ValidationError("El vehiculo seleccionado no pertenece al cliente.")
         return attrs
@@ -147,7 +154,7 @@ class QuoteSerializer(serializers.ModelSerializer):
 
     def _with_quote_defaults(self, validated_data):
         data = dict(validated_data)
-        profile = BusinessProfile.get_solo()
+        profile = BusinessProfile.get_solo(business=data.get("business") or self.get_business())
         quote_date = data.get("quote_date") or timezone.localdate()
         customer = data.get("customer")
         vehicle = data.get("vehicle")
