@@ -84,7 +84,9 @@ jobs:
       - name: Pull backend production env from Vercel
         env:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
-        run: vercel pull --yes --environment=production --token "$VERCEL_TOKEN" --cwd backend
+        run: |
+          vercel pull --yes --environment=production --token "$VERCEL_TOKEN" --cwd backend
+          vercel env pull .env.production.local --yes --environment=production --token "$VERCEL_TOKEN" --cwd backend
 
       - name: Export backend Vercel env for Django
         shell: bash
@@ -97,7 +99,11 @@ jobs:
           import sys
           from pathlib import Path
 
-          env_path = Path("backend/.vercel/.env.production.local")
+          env_candidates = [
+              Path("backend/.env.production.local"),
+              Path("backend/.vercel/.env.production.local"),
+          ]
+          env_path = next((path for path in env_candidates if path.exists()), None)
           required = [
               "DJANGO_SETTINGS_MODULE",
               "DJANGO_SECRET_KEY",
@@ -116,8 +122,9 @@ jobs:
               "SUPABASE_STORAGE_LOCATION",
           ]
 
-          if not env_path.exists():
-              sys.exit(f"Vercel env file not found: {env_path}")
+          if env_path is None:
+              checked = ", ".join(str(path) for path in env_candidates)
+              sys.exit(f"Vercel env file not found. Checked: {checked}")
 
           key_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
           values = {}
