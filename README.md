@@ -61,6 +61,31 @@ npm install
 npm run dev
 ```
 
+## Preparacion de demo deploy
+
+La estructura de deploy mantiene el monorepo actual:
+
+- `frontend/`: proyecto Vercel `shineapp-web`.
+- `backend/`: proyecto Vercel `shineapp-api`.
+- Supabase Postgres: `DATABASE_URL`.
+- Supabase Storage S3: media persistente.
+
+No se hacen migraciones ni seed automaticamente en startup. Para preparar el entorno lee `docs/deployment/` y completa los pasos manuales antes de desplegar.
+
+Checks de deploy prep:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\deploy\verify-env.ps1 -Example
+powershell -ExecutionPolicy Bypass -File .\scripts\deploy\check-backend.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\deploy\check-frontend.ps1
+```
+
+Despues de un preview deploy aprobado:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\deploy\smoke-test.ps1 -WebBaseUrl https://<web-domain> -ApiBaseUrl https://<api-domain>/api
+```
+
 ## Validacion
 
 Comando recomendado desde la raiz:

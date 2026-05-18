@@ -15,6 +15,7 @@ frontend/tsconfig.tsbuildinfo
 logs/
 .codex-logs/
 .superpowers/
+output/
 tmp/
 tmp-video-frames*/
 *.log
