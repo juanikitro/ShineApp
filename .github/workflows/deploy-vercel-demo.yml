@@ -81,110 +81,18 @@ jobs:
           npm install --global vercel@latest
           vercel --version
 
-      - name: Pull backend production env from Vercel
+      - name: Pull backend project settings from Vercel
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+        run: vercel pull --yes --environment=production --token "$VERCEL_TOKEN" --cwd backend
+
+      - name: Run backend production checks
+        working-directory: backend
         env:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
         run: |
-          vercel pull --yes --environment=production --token "$VERCEL_TOKEN" --cwd backend
-          vercel env pull .env.production.local --yes --environment=production --token "$VERCEL_TOKEN" --cwd backend
-
-      - name: Export backend Vercel env for Django
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import ast
-          import os
-          import re
-          import sys
-          from pathlib import Path
-
-          env_candidates = [
-              Path("backend/.env.production.local"),
-              Path("backend/.vercel/.env.production.local"),
-          ]
-          env_path = next((path for path in env_candidates if path.exists()), None)
-          required = [
-              "DJANGO_SETTINGS_MODULE",
-              "DJANGO_SECRET_KEY",
-              "DJANGO_ALLOWED_HOSTS",
-              "CORS_ALLOWED_ORIGINS",
-              "CSRF_TRUSTED_ORIGINS",
-              "DATABASE_URL",
-              "DATABASE_SSL_REQUIRE",
-              "SUPABASE_STORAGE_ENABLED",
-              "SUPABASE_STORAGE_BUCKET",
-              "SUPABASE_S3_ENDPOINT_URL",
-              "SUPABASE_S3_REGION_NAME",
-              "SUPABASE_S3_ACCESS_KEY_ID",
-              "SUPABASE_S3_SECRET_ACCESS_KEY",
-              "SUPABASE_STORAGE_QUERYSTRING_AUTH",
-              "SUPABASE_STORAGE_LOCATION",
-          ]
-
-          if env_path is None:
-              checked = ", ".join(str(path) for path in env_candidates)
-              sys.exit(f"Vercel env file not found. Checked: {checked}")
-
-          key_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-          values = {}
-          for lineno, line in enumerate(env_path.read_text(encoding="utf-8").splitlines(), start=1):
-              line = line.strip()
-              if not line or line.startswith("#"):
-                  continue
-              if line.startswith("export "):
-                  line = line[len("export ") :].strip()
-              if "=" not in line:
-                  sys.exit(f"Invalid dotenv line {lineno} in {env_path}")
-              key, raw_value = line.split("=", 1)
-              key = key.strip()
-              if not key_re.match(key):
-                  sys.exit(f"Invalid dotenv key {key!r} in {env_path}")
-              raw_value = raw_value.strip()
-              if raw_value[:1] in {"'", '"'}:
-                  try:
-                      value = ast.literal_eval(raw_value)
-                  except (SyntaxError, ValueError) as exc:
-                      sys.exit(f"Could not parse quoted dotenv value for {key}: {exc}")
-              else:
-                  value = raw_value
-              values[key] = value
-
-          missing = [key for key in required if not values.get(key)]
-          if missing:
-              sys.exit("Missing required backend Vercel env vars: " + ", ".join(missing))
-
-          def command_escape(value):
-              return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-
-          def write_github_env(handle, key, value):
-              if "\n" not in value:
-                  handle.write(f"{key}={value}\n")
-                  return
-
-              delimiter = f"SHINEAPP_{key}_EOF"
-              while delimiter in value:
-                  delimiter += "_END"
-              handle.write(f"{key}<<{delimiter}\n{value}\n{delimiter}\n")
-
-          def is_sensitive(key):
-              sensitive_markers = ("SECRET", "TOKEN", "PASSWORD", "DATABASE_URL", "ACCESS_KEY", "PRIVATE_KEY")
-              return any(marker in key for marker in sensitive_markers)
-
-          github_env = os.environ["GITHUB_ENV"]
-          with open(github_env, "a", encoding="utf-8") as handle:
-              for key, value in values.items():
-                  if value and is_sensitive(key):
-                      print(f"::add-mask::{command_escape(value)}")
-                  write_github_env(handle, key, value)
-
-          print(f"Exported {len(values)} backend Vercel environment variables for Django.")
-          PY
-
-      - name: Run backend production checks
-        run: |
-          python backend/manage.py check --deploy
-          python backend/manage.py makemigrations --check --dry-run
+          vercel env run -e production --token "$VERCEL_TOKEN" -- python manage.py check --deploy
+          vercel env run -e production --token "$VERCEL_TOKEN" -- python manage.py makemigrations --check --dry-run
 
       - name: Build backend Vercel artifact
         env:
@@ -203,11 +111,17 @@ jobs:
           echo "Backend deployment: $deployment_url"
 
       - name: Print Django migration plan
-        run: python backend/manage.py migrate --plan
+        working-directory: backend
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+        run: vercel env run -e production --token "$VERCEL_TOKEN" -- python manage.py migrate --plan
 
       - name: Run Django migrations
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-        run: python backend/manage.py migrate --noinput
+        working-directory: backend
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+        run: vercel env run -e production --token "$VERCEL_TOKEN" -- python manage.py migrate --noinput
 
       - name: Pull frontend production env from Vercel
         env:
