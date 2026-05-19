@@ -173,6 +173,39 @@ test('SegmentedControl supports click, roving focus and tab semantics', async ()
 	assert.equal(document.activeElement, agenda)
 })
 
+test('SegmentedControl supports segmented button semantics and reverse keyboard navigation', async () => {
+	const user = userEvent.setup()
+	const changes: string[] = []
+	render(
+		<SegmentedControl
+			ariaLabel="Prioridad"
+			className="priority-toggle"
+			value="media"
+			onChange={(value) => changes.push(value)}
+			options={[
+				{ value: 'alta', label: 'Alta', ariaLabel: 'Prioridad alta' },
+				{ value: 'media', label: 'Media' },
+				{ value: 'baja', label: 'Baja', disabled: true },
+			]}
+		/>,
+	)
+
+	const group = screen.getByRole('group', { name: 'Prioridad' })
+	const alta = screen.getByRole('button', { name: 'Prioridad alta' })
+	const media = screen.getByRole('button', { name: 'Media' })
+	assert.equal(group.className.includes('priority-toggle'), true)
+	assert.equal(media.getAttribute('aria-pressed'), 'true')
+
+	media.focus()
+	await user.keyboard('{ArrowLeft}{ }')
+	assert.equal(document.activeElement, alta)
+	assert.deepEqual(changes, ['alta'])
+	await user.keyboard('{End}')
+	assert.equal(document.activeElement, media)
+	await user.click(screen.getByRole('button', { name: 'Baja' }))
+	assert.deepEqual(changes, ['alta'])
+})
+
 test('SearchSelect filters, creates and clears selections from the current surface', async () => {
 	const user = userEvent.setup()
 	const changes: string[] = []
@@ -299,6 +332,41 @@ test('SearchSelect supports keyboard opening, roving focus and escape close', as
 	assert.equal(document.activeElement, trigger)
 })
 
+test('SearchSelect handles menu keyboard events from the search input and placeholder', async () => {
+	const user = userEvent.setup()
+	const changes: string[] = []
+	render(
+		<SearchSelect
+			label="Cliente"
+			value="1"
+			options={[
+				{ value: '1', label: 'Ana Lopez' },
+				{ value: '2', label: 'Juan Perez' },
+			]}
+			onChange={(value) => changes.push(value)}
+		/>,
+	)
+
+	const trigger = screen.getByRole('button', { name: 'Cliente' })
+	await user.click(trigger)
+	await user.keyboard('{ArrowDown}')
+	assert.equal(document.activeElement, screen.getByRole('option', { name: 'Seleccionar' }))
+	await user.keyboard('{Enter}')
+	assert.deepEqual(changes, [''])
+
+	await user.click(trigger)
+	trigger.focus()
+	await user.keyboard('{ArrowUp}')
+	assert.equal(document.activeElement, screen.getByRole('option', { name: 'Juan Perez' }))
+	await user.keyboard('{Escape}')
+	assert.equal(screen.queryByRole('listbox'), null)
+
+	await user.click(trigger)
+	trigger.focus()
+	await user.keyboard('{Escape}')
+	assert.equal(screen.queryByRole('listbox'), null)
+})
+
 test('SearchSelect blocks duplicate creates and exposes empty results', async () => {
 	const user = userEvent.setup()
 	const created: string[] = []
@@ -340,6 +408,26 @@ test('ServiceIconPicker normalizes selected and cleared emojis', async () => {
 	rerender(<ServiceIconPicker value="✨" onChange={(value) => changes.push(value)} />)
 	await user.click(screen.getByRole('button', { name: 'Limpiar emoji' }))
 	assert.deepEqual(changes, ['🧽', ''])
+})
+
+test('ServiceIconPicker closes from escape and outside pointer events', async () => {
+	const user = userEvent.setup()
+	render(<ServiceIconPicker value="✨" onChange={vi.fn()} label="Icono" />)
+
+	const trigger = screen.getByRole('button', {
+		name: 'Emoji seleccionado ✨. Abrir selector de emojis',
+	})
+	assert.equal(trigger.textContent?.includes('Cambiar emoji'), true)
+	await user.click(trigger)
+	assert.ok(screen.getByRole('dialog', { name: 'Selector de emojis' }))
+
+	fireEvent.keyDown(document, { key: 'Escape' })
+	await waitFor(() => assert.equal(screen.queryByRole('dialog'), null))
+
+	await user.click(trigger)
+	assert.ok(screen.getByRole('dialog', { name: 'Selector de emojis' }))
+	fireEvent.pointerDown(document.body)
+	await waitFor(() => assert.equal(screen.queryByRole('dialog'), null))
 })
 
 test('DetailModal formats readonly data and swaps to edit form when editing', () => {

@@ -25,6 +25,17 @@ test('motion wrappers render children while preserving accessible content', () =
 	assert.ok(document.querySelector('.motion-flash-overlay'))
 })
 
+test('MotionFlashSurface omits overlay and strips blank class names when inactive', () => {
+	render(
+		<MotionFlashSurface className="  panel   selected  " data-testid="plain-surface" layout>
+			Sin flash
+		</MotionFlashSurface>,
+	)
+
+	assert.equal(screen.getByTestId('plain-surface').className, 'panel selected')
+	assert.equal(document.querySelector('.motion-flash-overlay'), null)
+})
+
 test('AnimatedWorkspaceView scrolls to the top when the view changes', () => {
 	const scrollSpy = vi.spyOn(window, 'scrollTo')
 	const { rerender } = render(

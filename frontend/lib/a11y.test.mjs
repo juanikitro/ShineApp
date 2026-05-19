@@ -40,6 +40,12 @@ test('filters disabled, hidden, aria-hidden and visually detached elements', () 
 	assert.equal(isFocusableElement(ariaHidden), false)
 	assert.equal(isFocusableElement(detached), false)
 	assert.equal(isFocusableElement(fixedVisible), true)
+
+	const legacyVisible = document.createElement('button')
+	document.body.append(legacyVisible)
+	Object.defineProperty(legacyVisible, 'getClientRects', { value: undefined })
+	Object.defineProperty(legacyVisible, 'offsetParent', { value: document.body })
+	assert.equal(isFocusableElement(legacyVisible), true)
 })
 
 test('wraps focus at trap boundaries and when focus starts outside', () => {
@@ -66,6 +72,22 @@ test('wraps focus at trap boundaries and when focus starts outside', () => {
 			shiftKey: false,
 		}),
 		0,
+	)
+	assert.equal(
+		wrappedFocusIndex({
+			currentIndex: -1,
+			focusableCount: 3,
+			shiftKey: true,
+		}),
+		2,
+	)
+	assert.equal(
+		wrappedFocusIndex({
+			currentIndex: 0,
+			focusableCount: 0,
+			shiftKey: false,
+		}),
+		null,
 	)
 	assert.equal(
 		wrappedFocusIndex({

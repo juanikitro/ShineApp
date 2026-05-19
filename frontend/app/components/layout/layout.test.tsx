@@ -82,3 +82,12 @@ test('AppShell and PageHeader render structured workspace regions', () => {
 	assert.ok(screen.getByText('Lavado'))
 	assert.ok(screen.getByRole('button', { name: 'Nuevo' }))
 })
+
+test('PageHeader keeps optional areas absent when no secondary content is provided', () => {
+	const { container } = render(<PageHeader title="Clientes" />)
+
+	assert.ok(screen.getByRole('heading', { name: 'Clientes' }))
+	assert.equal(container.querySelector('.page-title-row span'), null)
+	assert.equal(container.querySelector('.page-intro p'), null)
+	assert.equal(container.querySelector('.page-actions'), null)
+})
