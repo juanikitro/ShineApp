@@ -728,7 +728,7 @@ const sectionMeta: Record<
 	dashboard: {
 		label: 'Dashboard',
 		icon: Gauge,
-		subtitle: 'Indicadores del negocio',
+		subtitle: 'Prioridad comercial y operativa del periodo',
 	},
 	agenda: {
 		label: 'Agenda',
@@ -738,7 +738,7 @@ const sectionMeta: Record<
 	customers: {
 		label: 'Clientes',
 		icon: Users,
-		subtitle: 'Alta y seguimiento de clientes',
+		subtitle: 'Cartera, seguimiento y vehiculos',
 	},
 	suppliers: {
 		label: 'Proveedores',
@@ -753,12 +753,12 @@ const sectionMeta: Record<
 	cash: {
 		label: 'Caja',
 		icon: CreditCard,
-		subtitle: 'Ingresos, egresos y cierre diario',
+		subtitle: 'Flujo diario, ajustes y cierre',
 	},
 	debts: {
 		label: 'Deudas',
 		icon: ReceiptText,
-		subtitle: 'Compras adeudadas y pagos parciales',
+		subtitle: 'Saldos, vencimientos y pagos parciales',
 	},
 	inventory: {
 		label: 'Materiales',
@@ -788,7 +788,7 @@ const sectionMeta: Record<
 	settings: {
 		label: 'Configuracion',
 		icon: Settings,
-		subtitle: 'Negocio, caja, agenda, cotizaciones y usuarios',
+		subtitle: 'Preferencias operativas del negocio',
 	},
 }
 

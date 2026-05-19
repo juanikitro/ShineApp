@@ -188,6 +188,7 @@ export function CustomerListPanel({
 	onDelete,
 }: CustomerListPanelProps) {
 	const hasSearch = Boolean(search.trim())
+	const hasActiveFilter = hasSearch || filter !== 'all'
 	const filterLabel =
 		filterOptions.find((option) => option.value === filter)?.label ?? 'Todos'
 	const primaryActionLabel = canViewEconomy ? 'Dashboard' : 'Detalle'
@@ -211,6 +212,8 @@ export function CustomerListPanel({
 			</div>
 			<div className="customer-list-toolbar">
 				<input
+					aria-label="Buscar clientes"
+					name="customer_search"
 					placeholder="Buscar por nombre, telefono, email, patente o modelo"
 					value={search}
 					onChange={(event) => onSearchChange(event.target.value)}
@@ -227,6 +230,7 @@ export function CustomerListPanel({
 				{customers.length ? (
 					customers.map((customer) => {
 						const insights = customerListInsights(customer)
+						const customerName = serviceDisplayName(customer)
 						const primaryPill = customerPrimaryPill(customer, canViewEconomy)
 						const nextReservation = insights.next_reservation
 						const chips = customerContextChips(
@@ -260,7 +264,7 @@ export function CustomerListPanel({
 								key={customer.id}
 							>
 								<RecordCardHeader
-									title={serviceDisplayName(customer)}
+									title={customerName}
 									subtitle={joinDisplayParts([
 										customer.phone || 'Sin telefono',
 										customer.email || 'Sin email',
@@ -271,6 +275,9 @@ export function CustomerListPanel({
 											<button
 												type="button"
 												className="primary"
+												aria-label={`Abrir ${primaryActionLabel.toLowerCase()} de ${
+													customerName
+												}`}
 												onClick={() => onOpenDashboard(customer)}
 											>
 												<Eye size={15} />
@@ -280,6 +287,7 @@ export function CustomerListPanel({
 												<button
 													className="ghost"
 													type="button"
+													aria-label={`Editar cliente ${customerName}`}
 													onClick={() => onEdit(customer)}
 												>
 													<Pencil size={15} />
@@ -288,6 +296,7 @@ export function CustomerListPanel({
 												<button
 													className="danger"
 													type="button"
+													aria-label={`Dar de baja cliente ${customerName}`}
 													onClick={() => onDelete(customer)}
 												>
 													<Trash2 size={15} />
@@ -361,17 +370,28 @@ export function CustomerListPanel({
 				) : (
 					<Empty
 						text={
-							hasSearch
-								? 'No hay clientes para esta busqueda.'
-								: 'Sin clientes.'
+							hasActiveFilter
+								? 'Sin clientes para este criterio.'
+								: 'Todavia no hay clientes cargados.'
 						}
 						hint={
-							hasSearch
-								? 'Proba con otro nombre, telefono, email o patente.'
-								: 'Crea el primer cliente para empezar.'
+							hasActiveFilter
+								? 'Limpia la busqueda o cambia el filtro para volver a la cartera completa.'
+								: 'Crea el primer cliente para empezar a vincular vehiculos, reservas y pagos.'
 						}
 						action={
-							hasSearch ? undefined : (
+							hasActiveFilter ? (
+								<button
+									type="button"
+									className="ghost"
+									onClick={() => {
+										onSearchChange('')
+										onFilterChange('all')
+									}}
+								>
+									Limpiar filtros
+								</button>
+							) : (
 								<button type="button" className="primary" onClick={onCreate}>
 									<Plus size={16} />
 									Nuevo cliente

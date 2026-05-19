@@ -2877,7 +2877,7 @@ export default function Home() {
 					) : (
 						<Empty
 							text={`Sin trabajos en ${group.label.toLowerCase()}.`}
-							hint="Cuando cambie el estado de una reserva, va a aparecer en esta columna."
+							hint="La columna queda lista para recibir trabajos cuando cambie el avance operativo."
 						/>
 					)}
 				</div>
@@ -4467,6 +4467,24 @@ export default function Home() {
 	const debtLoadBlocked = Boolean(
 		loadErrorNotice && !debts.length && !debtPayments.length,
 	)
+	const dashboardPeriodLabel = `${formatDateLabel(period.from)} a ${formatDateLabel(
+		period.to,
+	)}`
+	const dashboardWorkStatusEntries = Object.entries(orderLabels)
+	const dashboardWorkStatusTotal = dashboardWorkStatusEntries.reduce(
+		(total, [key]) => total + numberValue(dashboard.work_orders_by_status?.[key]),
+		0,
+	)
+	const dashboardWorkOrdersTotal = Math.max(
+		numberValue(dashboard.work_orders_count),
+		dashboardWorkStatusTotal,
+	)
+	const dashboardHasBusinessActivity =
+		dashboardWorkOrdersTotal > 0 ||
+		numberValue(dashboard.sales_total) > 0 ||
+		numberValue(dashboard.today_income) > 0 ||
+		numberValue(dashboard.today_expense) > 0 ||
+		numberValue(dashboard.material_consumption_estimated) > 0
 
 	function materialUsageRows(material: AnyRecord) {
 		const legacyRows = consumptions.filter(
@@ -4593,7 +4611,10 @@ export default function Home() {
 							</MotionFlashSurface>
 						))
 					) : (
-						<Empty text="Sin cumpleanos en los proximos dias." />
+						<Empty
+							text="Sin cumpleanos en los proximos dias."
+							hint="La alerta vuelve a aparecer aca cuando un cliente entre en la ventana configurada."
+						/>
 					)}
 				</div>
 			</Panel>
@@ -13754,6 +13775,8 @@ export default function Home() {
 								<button
 									type="button"
 									className="ghost"
+									aria-label={`Actualizar ${title.label.toLowerCase()}`}
+									title={`Actualizar ${title.label.toLowerCase()}`}
 									onClick={loadData}
 									disabled={loading}
 								>
@@ -13767,9 +13790,13 @@ export default function Home() {
 					<div className="grid">
 						{canViewEconomy ? (
 							<>
-								<Panel>
+								<Panel
+									title="Periodo de lectura"
+									subtitle={`Viendo ${dashboardPeriodLabel}. Ajusta el rango sin salir del tablero.`}
+								>
 									<form
-										className="toolbar"
+										aria-label="Filtrar dashboard por periodo"
+										className="toolbar dashboard-period-toolbar"
 										onSubmit={(event) => (
 											event.preventDefault(),
 											loadData()
@@ -13805,63 +13832,101 @@ export default function Home() {
 										</button>
 									</form>
 								</Panel>
-								<section className="grid three">
-									<MetricCard
-										label="Ventas"
-										value={money(dashboard.sales_total)}
+								{loading && !dashboardHasBusinessActivity ? (
+									<LoadingState
+										text="Cargando indicadores del negocio..."
+										hint="Mantenemos el tablero visible mientras llegan ventas, trabajos y caja."
 									/>
-									<MetricCard
-										label="Reservas con trabajo"
-										value={dashboard.work_orders_count ?? 0}
-									/>
-									<MetricCard
-										label="Ticket promedio"
-										value={money(dashboard.average_ticket)}
-									/>
-									<MetricCard
-										label={
-											<>
-												<span className="cash-term income">Ingresos</span>{' '}
-												del dia
-											</>
-										}
-										value={money(dashboard.today_income)}
-									/>
-									<MetricCard
-										label={
-											<>
-												<span className="cash-term expense">Egresos</span>{' '}
-												del dia
-											</>
-										}
-										value={money(dashboard.today_expense)}
-									/>
-									<MetricCard
-										label="Consumo materiales"
-										value={money(
-											dashboard.material_consumption_estimated,
-										)}
-									/>
-								</section>
-								<Panel title="Trabajo por estado">
-									<div className="records">
-										{Object.entries(orderLabels).map(
-											([key, label]) => (
-												<RecordCard key={key}>
-													<div className="record-head">
-														<span>{label}</span>
-														<strong>
-															{dashboard
-																.work_orders_by_status?.[
-																key
-															] ?? 0}
-														</strong>
-													</div>
-												</RecordCard>
-											),
-										)}
-									</div>
-								</Panel>
+								) : null}
+								{!loading || dashboardHasBusinessActivity ? (
+									<>
+										<section className="grid three metric-grid-dashboard">
+											<MetricCard
+												label="Ventas del periodo"
+												value={money(dashboard.sales_total)}
+												hint={dashboardPeriodLabel}
+											/>
+											<MetricCard
+												label="Reservas con trabajo"
+												value={dashboard.work_orders_count ?? 0}
+												hint="Ordenes creadas desde agenda"
+											/>
+											<MetricCard
+												label="Ticket promedio"
+												value={money(dashboard.average_ticket)}
+												hint="Promedio por trabajo vendido"
+											/>
+											<MetricCard
+												label={
+													<>
+														<span className="cash-term income">Ingresos</span>{' '}
+														del dia
+													</>
+												}
+												value={money(dashboard.today_income)}
+												hint={formatDateLabel(selectedDay)}
+											/>
+											<MetricCard
+												label={
+													<>
+														<span className="cash-term expense">Egresos</span>{' '}
+														del dia
+													</>
+												}
+												value={money(dashboard.today_expense)}
+												hint="Caja operativa"
+											/>
+											<MetricCard
+												label="Consumo materiales"
+												value={money(
+													dashboard.material_consumption_estimated,
+												)}
+												hint="Costo estimado imputado"
+											/>
+										</section>
+										<Panel
+											title="Trabajo por estado"
+											subtitle={
+												dashboardWorkOrdersTotal
+													? `${dashboardWorkOrdersTotal} trabajos distribuidos por avance`
+													: 'Sin trabajos registrados en el periodo seleccionado'
+											}
+										>
+											{dashboardWorkOrdersTotal ? (
+												<div className="records dashboard-status-records">
+													{dashboardWorkStatusEntries.map(([key, label]) => (
+														<RecordCard
+															className="dashboard-status-record"
+															key={key}
+														>
+															<div className="record-head">
+																<span>{label}</span>
+																<strong>
+																	{dashboard.work_orders_by_status?.[key] ?? 0}
+																</strong>
+															</div>
+														</RecordCard>
+													))}
+												</div>
+											) : (
+												<Empty
+													text="Sin trabajos en este periodo."
+													hint="Cambia el rango o crea una reserva desde Agenda para iniciar la operacion."
+													action={
+														<button
+															type="button"
+															className="primary"
+															onClick={() => setActive('agenda')}
+														>
+															<CalendarDays size={16} />
+															Ir a Agenda
+														</button>
+													}
+												/>
+											)}
+										</Panel>
+									</>
+								) : null}
 							</>
 						) : null}
 						{renderBirthdayAlerts()}
@@ -14386,7 +14451,7 @@ export default function Home() {
 							!agendaBoardModel.segments.length ? (
 								<Empty
 									text="Sin reservas en este rango."
-									hint="Usa la columna del dia o el boton Crear para cargar la proxima reserva."
+									hint="Crea una reserva para el dia seleccionado o cambia el filtro de servicio para revisar otra carga."
 									action={
 										<button
 											type="button"
@@ -14605,6 +14670,8 @@ export default function Home() {
 										</button>
 										<input
 											type="date"
+											aria-label="Dia de caja"
+											name="cash_day"
 											value={selectedDay}
 											onChange={(event) =>
 												setSelectedDay(event.target.value)
@@ -14918,14 +14985,24 @@ export default function Home() {
 										hint={
 											cashEntries.length
 												? 'Ajusta busqueda, origen, categoria o montos.'
-												: 'Registra un cobro, pago de deuda o movimiento manual para comenzar.'
+												: cashIsClosed
+													? 'La caja esta cerrada; si falta un movimiento, registra un ajuste para este dia.'
+													: 'Registra un cobro, pago de deuda o movimiento manual para comenzar.'
 										}
 										action={
-											cashEntries.length ? undefined : (
+											cashEntries.length ? undefined : cashIsClosed ? (
+												<button
+													type="button"
+													className="ghost"
+													onClick={() => openAdjustmentForClosedDay(selectedDay)}
+												>
+													<ReceiptText size={16} />
+													Registrar ajuste hoy
+												</button>
+											) : (
 												<button
 													type="button"
 													className="primary"
-													disabled={cashIsClosed}
 													onClick={() => openFormModal('payment')}
 												>
 													<CreditCard size={16} />
@@ -15177,7 +15254,7 @@ export default function Home() {
 										hint={
 											debts.length
 												? 'Ajusta la busqueda, estado o saldo.'
-												: 'Crea una deuda si necesitas registrar un egreso adeudado.'
+												: 'Crea una deuda para registrar un egreso adeudado y seguir sus pagos sin duplicar caja.'
 										}
 										action={
 											debts.length ? undefined : (
@@ -15241,15 +15318,25 @@ export default function Home() {
 										text="Sin pagos de deuda registrados."
 										hint="Cuando pagues una deuda, queda trazada aca sin duplicar el gasto economico."
 										action={
-											<button
-												type="button"
-												className="primary"
-												disabled={!debtOptions.length}
-												onClick={() => openFormModal('debt-payment')}
-											>
-												<CreditCard size={16} />
-												Registrar pago
-											</button>
+											debtOptions.length ? (
+												<button
+													type="button"
+													className="primary"
+													onClick={() => openFormModal('debt-payment')}
+												>
+													<CreditCard size={16} />
+													Registrar pago
+												</button>
+											) : (
+												<button
+													type="button"
+													className="ghost"
+													onClick={() => openFormModal('debt')}
+												>
+													<ReceiptText size={16} />
+													Nueva deuda
+												</button>
+											)
 										}
 									/>
 								)}
@@ -15900,6 +15987,7 @@ export default function Home() {
 									key={`business-logo-${businessLogoInputKey}`}
 									className="visually-hidden-input"
 									type="file"
+									aria-label="Archivo de logo del negocio"
 									accept="image/png,image/jpeg,image/webp,image/svg+xml,application/pdf,.pdf"
 									onChange={handleBusinessLogoChange}
 									tabIndex={-1}

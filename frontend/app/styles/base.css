@@ -256,7 +256,8 @@ textarea:focus-visible,
 .record-card[role="button"]:focus-visible,
 .nav button:focus-visible,
 .day-row-head:focus-visible,
-.day-pill:focus-visible {
+.day-pill:focus-visible,
+.inline-link-button:focus-visible {
   box-shadow: 0 0 0 4px var(--color-focus-ring);
   outline: none;
 }
