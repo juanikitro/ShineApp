@@ -19,6 +19,7 @@ def backfill_scheduling_business(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [
         ("catalog", "0003_service_business"),

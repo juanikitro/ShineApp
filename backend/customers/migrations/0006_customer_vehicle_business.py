@@ -19,6 +19,7 @@ def backfill_customer_business(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [
         ("core", "0010_businessaccount_multitenancy"),
