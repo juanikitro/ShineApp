@@ -4357,6 +4357,9 @@ export default function Home() {
 	const cashSummaryModeLabel =
 		cashSummaryModeOptions.find((option) => option.value === cashSummaryMode)
 			?.label ?? 'Flujo de caja'
+	const settingsSectionLabel =
+		settingsSectionOptions.find((option) => option.value === settingsSection)
+			?.label ?? 'Configuracion'
 	const cashIsClosed = cash.is_closed === true
 	const cashStatusLabel = cashIsClosed ? 'Cerrada' : 'Abierta'
 	const cashStatusClass = cashIsClosed ? 'closed' : 'open'
@@ -14397,11 +14400,14 @@ export default function Home() {
 
 				{displayedActive === 'cash' ? (
 					<div className="grid">
-						<section className="panel finance-panel cash-panel">
+						<section
+							className="panel finance-panel cash-panel"
+							aria-labelledby="cash-panel-title"
+						>
 							<div className="panel-head finance-panel-head">
 								<div>
 									<span className="panel-kicker">Caja diaria</span>
-									<h2>Caja</h2>
+									<h2 id="cash-panel-title">Caja</h2>
 									<p>
 										Cobros, egresos y cierre del dia con lectura operativa.
 									</p>
@@ -14487,7 +14493,11 @@ export default function Home() {
 										</button>
 									</div>
 								</Field>
-								<span className={`cash-status ${cashStatusClass}`}>
+								<span
+									className={`cash-status ${cashStatusClass}`}
+									role="status"
+									aria-label={`Caja ${cashStatusLabel.toLowerCase()}`}
+								>
 									{cashStatusLabel}
 								</span>
 							</div>
@@ -14599,10 +14609,13 @@ export default function Home() {
 									)}
 								</div>
 							</section>
-							<section className="cash-filters section-block-end">
+							<section
+								className="cash-filters section-block-end"
+								aria-labelledby="cash-filters-title"
+							>
 								<div className="cash-filters-head">
 									<div>
-										<h3>Filtros del listado</h3>
+										<h3 id="cash-filters-title">Filtros del listado</h3>
 										<p>
 											Refina las entradas visibles sin modificar el resumen del
 											dia.
@@ -14804,11 +14817,14 @@ export default function Home() {
 
 				{displayedActive === 'debts' ? (
 					<div className="grid">
-						<section className="panel finance-panel debt-panel">
+						<section
+							className="panel finance-panel debt-panel"
+							aria-labelledby="debt-panel-title"
+						>
 							<div className="panel-head finance-panel-head">
 								<div>
 									<span className="panel-kicker">Cobranzas y pagos</span>
-									<h2>Deudas</h2>
+									<h2 id="debt-panel-title">Deudas</h2>
 									<p>
 										Saldos pendientes, pagos parciales y detalle listo para
 										accion.
@@ -14883,10 +14899,13 @@ export default function Home() {
 								El reporte economico cuenta el egreso al crear la
 								deuda; los pagos no duplican ese gasto.
 							</div>
-							<section className="cash-filters debt-filters section-block-end">
+							<section
+								className="cash-filters debt-filters section-block-end"
+								aria-labelledby="debt-filters-title"
+							>
 								<div className="cash-filters-head">
 									<div>
-										<h3>Filtros de deudas</h3>
+										<h3 id="debt-filters-title">Filtros de deudas</h3>
 										<p>
 											Busca por concepto, acreedor o proveedor y separa lo
 											pendiente de lo saldado.
@@ -15673,7 +15692,11 @@ export default function Home() {
 								setSettingsSection(nextValue as SettingsSection)
 							}
 						/>
-						<div className="grid settings-grid">
+						<div
+							className="grid settings-grid"
+							role="tabpanel"
+							aria-label={`Panel de configuracion: ${settingsSectionLabel}`}
+						>
 						{settingsSection === 'business' ? (
 							<section className="panel">
 							<div className="panel-head">

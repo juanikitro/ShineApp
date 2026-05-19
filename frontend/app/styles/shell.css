@@ -360,6 +360,17 @@
   min-width: 0;
 }
 
+.grid,
+.panel,
+.records,
+.settings-workspace,
+.settings-grid,
+.finance-panel,
+.cash-flow-card,
+.cash-filters {
+  min-width: 0;
+}
+
 .topbar {
   align-items: flex-start;
   display: flex;
@@ -393,6 +404,7 @@
 .panel-head p {
   color: var(--shop-ink-soft);
   margin: 4px 0 0;
+  overflow-wrap: anywhere;
 }
 
 .page-actions {
@@ -452,6 +464,12 @@
   margin-bottom: 16px;
 }
 
+.panel-head > :first-child,
+.cash-flow-head > :first-child,
+.cash-filters-head > :first-child {
+  min-width: 0;
+}
+
 .panel h2,
 .panel h3 {
   color: var(--shop-ink);
@@ -483,6 +501,8 @@
   display: grid;
   gap: 8px;
   justify-items: end;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .settings-primary-actions,
@@ -1138,10 +1158,14 @@
   display: grid;
   gap: 16px;
   margin-block: auto;
+  max-height: calc(100dvh - clamp(28px, 8vh, 56px));
   max-width: 720px;
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 18px;
   position: relative;
+  scrollbar-gutter: stable;
   width: min(720px, 100%);
   z-index: var(--z-modal-panel);
 }
@@ -1312,6 +1336,8 @@
   display: grid;
   gap: 8px;
   justify-items: end;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .finance-primary-actions,
@@ -1338,6 +1364,7 @@
 
 .finance-record-card {
   gap: 12px;
+  min-width: 0;
   padding: 14px;
 }
 
@@ -1354,6 +1381,8 @@
 }
 
 .finance-record-badge {
+  max-width: 100%;
+  overflow-wrap: anywhere;
   width: fit-content;
 }
 
@@ -1403,7 +1432,7 @@
 .finance-record-body {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
 }
 
 .finance-record-stat {
@@ -1450,6 +1479,7 @@
   display: flex;
   gap: 10px;
   justify-content: space-between;
+  min-width: 0;
 }
 
 .finance-form-summary span {
@@ -1479,7 +1509,7 @@
   align-items: start;
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(240px, 1.6fr) minmax(160px, 0.7fr) minmax(160px, 0.7fr);
+  grid-template-columns: minmax(220px, 1.6fr) minmax(150px, 0.7fr) minmax(150px, 0.7fr);
 }
 
 .cash-toolbar {
@@ -1581,6 +1611,7 @@
   display: flex;
   gap: 16px;
   justify-content: space-between;
+  min-width: 0;
 }
 
 .cash-flow-head h3,
@@ -1606,6 +1637,7 @@
 .cash-summary-body {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .cash-summary-group {
@@ -1620,6 +1652,7 @@
   display: grid;
   gap: 12px;
   grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
 }
 
 .cash-summary-group-title {
@@ -1635,6 +1668,7 @@
 .cash-summary-line-amount {
   font-variant-numeric: tabular-nums;
   font-weight: 800;
+  text-align: right;
   white-space: nowrap;
 }
 
@@ -1665,6 +1699,7 @@
 
 .cash-summary-line-label {
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .cash-summary-line-label small {
@@ -1706,7 +1741,7 @@
   align-items: start;
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 178px), 1fr));
 }
 
 .cash-entry {
@@ -1760,6 +1795,7 @@
   box-shadow: 0 10px 24px var(--color-shadow-soft);
   max-height: min(496px, 58vh);
   overscroll-behavior: contain;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 10px 8px 12px 10px;
 }
@@ -2359,6 +2395,8 @@
   .cash-filters-head,
   .finance-panel-head {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
   }
 
   .business-profile-card {
@@ -2377,6 +2415,15 @@
     justify-items: start;
   }
 
+  .finance-action-rail,
+  .settings-action-rail {
+    width: 100%;
+  }
+
+  .finance-record-head.record-head--split {
+    display: grid;
+  }
+
   .finance-record-side {
     align-items: flex-start;
     justify-items: start;
@@ -2391,6 +2438,11 @@
 
   .cash-summary-toggle {
     flex-basis: auto;
+    width: 100%;
+  }
+
+  .cash-filter-actions {
+    justify-content: flex-start;
     width: 100%;
   }
 
@@ -2506,6 +2558,7 @@
   .modal-panel {
     border-radius: var(--radius-md);
     gap: 14px;
+    max-height: calc(100dvh - 24px);
     padding: 14px;
     width: min(100%, calc(100vw - 24px));
   }
@@ -2530,6 +2583,30 @@
 
   .settings-operational-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .cash-flow-card,
+  .cash-filters {
+    padding: 14px;
+  }
+
+  .cash-summary-group-head,
+  .cash-summary-line,
+  .cash-summary-balance {
+    align-items: start;
+    gap: 4px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cash-summary-total,
+  .cash-summary-line-amount {
+    overflow-wrap: anywhere;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .business-profile-preview {
+    min-height: 168px;
   }
 
   .settings-action-rail {
@@ -2570,6 +2647,12 @@
   .finance-form-summary div {
     align-items: flex-start;
     display: grid;
+  }
+
+  .finance-record-amount strong,
+  .finance-form-summary strong {
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .record-actions {
