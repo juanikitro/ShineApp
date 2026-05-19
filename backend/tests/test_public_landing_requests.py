@@ -4,6 +4,8 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -233,6 +235,45 @@ def test_public_request_exposes_duplicate_suggestions_and_archives(api_client):
     assert archived.status_code == 200
     public_request.refresh_from_db()
     assert public_request.status == PublicRequest.Status.ARCHIVED
+
+
+@pytest.mark.django_db
+def test_public_request_list_batches_duplicate_suggestions(api_client):
+    business = api_client.user.profile.business
+    service = create_service(business)
+    for index in range(10):
+        customer = Customer.objects.create(
+            business=business,
+            name=f"Cliente {index}",
+            phone=f"110000{index:04d}",
+            email=f"cliente{index}@example.com",
+        )
+        Vehicle.objects.create(
+            business=business,
+            customer=customer,
+            license_plate=f"AA{index:03d}AA",
+            brand="Ford",
+            model="Focus",
+        )
+        public_request = PublicRequest.objects.create(
+            business=business,
+            request_type=PublicRequest.RequestType.BOOKING,
+            customer_name=customer.name,
+            customer_phone=customer.phone,
+            customer_email=customer.email,
+            vehicle_license_plate=f"aa{index:03d}aa",
+            preferred_day=date(2026, 5, 22),
+        )
+        public_request.items.create(service=service, description=service.name)
+
+    with CaptureQueriesContext(connection) as queries:
+        response = api_client.get(reverse("publicrequest-list"))
+
+    assert response.status_code == 200, response.data
+    assert len(queries) <= 8
+    first = response.data["results"][0]
+    assert first["suggestions"]["customers"]
+    assert first["suggestions"]["vehicles"]
 
 
 @pytest.mark.django_db

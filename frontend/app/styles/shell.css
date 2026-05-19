@@ -423,6 +423,10 @@
   margin-bottom: 12px;
 }
 
+.dashboard-period-toolbar {
+  align-items: end;
+}
+
 .subsection-title {
   margin: 18px 0 12px;
 }
@@ -1310,6 +1314,39 @@
   letter-spacing: 0;
 }
 
+.metric small {
+  color: var(--shop-ink-soft);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.metric-grid-dashboard .metric {
+  min-height: 128px;
+}
+
+.dashboard-status-records {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+}
+
+.dashboard-status-record {
+  min-height: 76px;
+}
+
+.dashboard-status-record .record-head {
+  align-items: center;
+}
+
+.dashboard-status-record span {
+  color: var(--shop-ink-soft);
+  font-size: 13px;
+}
+
+.dashboard-status-record strong {
+  color: var(--shop-ink);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
 .inventory-metrics,
 .material-summary {
   display: grid;
@@ -2152,6 +2189,10 @@
 }
 
 .state-notice-action {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 4px;
 }
 

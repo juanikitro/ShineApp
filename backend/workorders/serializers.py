@@ -15,9 +15,9 @@ class WorkOrderSerializer(BusinessScopedSerializerMixin, EconomyFieldsMixin, ser
     service_name = serializers.CharField(source="service.name", read_only=True)
     service_icon = serializers.CharField(source="service.icon", read_only=True)
     status = serializers.CharField(required=False)
-    paid_amount = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
-    balance_due = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
-    material_cost = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    paid_amount = serializers.SerializerMethodField()
+    balance_due = serializers.SerializerMethodField()
+    material_cost = serializers.SerializerMethodField()
 
     class Meta:
         model = WorkOrder
@@ -62,6 +62,34 @@ class WorkOrderSerializer(BusinessScopedSerializerMixin, EconomyFieldsMixin, ser
 
     def get_vehicle_label(self, obj):
         return str(obj.vehicle)
+
+    def get_financial_metric(self, obj, key, fallback):
+        metrics = self.context.get("work_order_financial_metrics_map", {})
+        if obj.id in metrics and key in metrics[obj.id]:
+            return metrics[obj.id][key]
+        return fallback()
+
+    def decimal_representation(self, value):
+        return serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+            read_only=True,
+        ).to_representation(value)
+
+    def get_paid_amount(self, obj):
+        return self.decimal_representation(
+            self.get_financial_metric(obj, "paid_amount", lambda: obj.paid_amount)
+        )
+
+    def get_balance_due(self, obj):
+        return self.decimal_representation(
+            self.get_financial_metric(obj, "balance_due", lambda: obj.balance_due)
+        )
+
+    def get_material_cost(self, obj):
+        return self.decimal_representation(
+            self.get_financial_metric(obj, "material_cost", lambda: obj.material_cost)
+        )
 
     def validate_status(self, value):
         if value == "completed":

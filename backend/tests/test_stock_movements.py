@@ -3,13 +3,15 @@ from decimal import Decimal
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
 from catalog.models import Service
 from customers.models import Customer, Vehicle
 from finance.models import CashClosure, CashMovement
-from inventory.models import Material, StockMovement, Supplier
+from inventory.models import Material, MaterialPurchase, StockMovement, Supplier
 from workorders.models import WorkOrder
 
 
@@ -50,6 +52,32 @@ def test_material_accepts_operational_product_fields(api_client):
     assert response.data["sku"] == "SH-N-5L"
     assert response.data["presentation"] == "Bidon 5L"
     assert Decimal(response.data["minimum_stock"]) == Decimal("2.00")
+
+
+@pytest.mark.django_db
+def test_material_list_batches_summary_metrics(api_client):
+    for index in range(8):
+        material = Material.objects.create(
+            name=f"Material {index}",
+            unit="litro",
+            stock_quantity=Decimal("2.00"),
+            estimated_unit_cost=Decimal("10.00"),
+        )
+        MaterialPurchase.objects.create(
+            material=material,
+            quantity=Decimal("2.00"),
+            total_cost=Decimal("30.00"),
+        )
+
+    with CaptureQueriesContext(connection) as queries:
+        response = api_client.get(reverse("material-list"))
+
+    assert response.status_code == 200, response.data
+    assert len(queries) <= 12
+    first = response.data["results"][0]
+    assert first["stock_value"] == "20.00"
+    assert first["last_purchase_unit_cost"] == 15.0
+    assert first["last_purchase_date"]
 
 
 @pytest.mark.django_db

@@ -12,6 +12,7 @@ from core.permissions import EmployerOnly, business_from_request, file_url
 
 from .models import PublicRequest
 from .serializers import (
+    build_public_request_suggestions_map,
     PublicLandingRequestSerializer,
     PublicLandingServiceSerializer,
     PublicRequestConvertSerializer,
@@ -122,6 +123,24 @@ class PublicRequestViewSet(
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         return queryset
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        suggestions_map = getattr(self, "_public_request_suggestions_map", None)
+        if suggestions_map is not None:
+            context["public_request_suggestions_map"] = suggestions_map
+        return context
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        rows = page if page is not None else queryset
+        self._public_request_suggestions_map = build_public_request_suggestions_map(rows)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return response.Response(serializer.data)
 
     @decorators.action(detail=True, methods=["post"])
     def archive(self, request, pk=None):

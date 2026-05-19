@@ -3,6 +3,8 @@ from decimal import Decimal
 
 import pytest
 from django.contrib.auth.models import Group
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -10,7 +12,7 @@ from rest_framework.test import APIClient
 from catalog.models import Service
 from core.models import BusinessProfile
 from customers.models import Customer, Vehicle
-from finance.models import CashMovement
+from finance.models import CashMovement, Payment
 from inventory.models import Material
 from scheduling.models import Reservation
 
@@ -74,6 +76,29 @@ def test_payment_defaults_to_full_balance_and_payment_type(api_client, work_orde
     assert movement.category == "Pago"
     assert movement.subcategory == "Efectivo"
     assert movement.amount == Decimal("15000.00")
+
+
+@pytest.mark.django_db
+def test_payment_list_batches_work_order_labels(api_client, work_order):
+    for index in range(10):
+        reservation = Reservation.objects.create(
+            customer=work_order.customer,
+            vehicle=work_order.vehicle,
+            service=work_order.service,
+            day=f"2026-04-{10 + index}",
+            status=Reservation.Status.CONFIRMED,
+        )
+        Payment.objects.create(
+            work_order=reservation.work_order,
+            amount=Decimal("1000.00"),
+        )
+
+    with CaptureQueriesContext(connection) as queries:
+        response = api_client.get(reverse("payment-list"))
+
+    assert response.status_code == 200, response.data
+    assert len(queries) <= 10
+    assert response.data["results"][0]["work_order_label"].startswith("Orden #")
 
 
 @pytest.mark.django_db

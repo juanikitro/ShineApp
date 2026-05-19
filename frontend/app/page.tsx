@@ -155,6 +155,12 @@ import {
 	agendaSlideWindowsOverlap,
 } from '@/lib/motion-spec'
 import {
+	navigationUrlForState,
+	readNavigationStateFromUrl,
+	type NavigationConfig,
+	type NavigationState,
+} from '@/lib/navigation-state'
+import {
 	vehicleBrandOptions,
 	vehicleModelOptionsForBrand,
 } from '@/lib/vehicle-options'
@@ -365,6 +371,22 @@ const settingsSectionOptions: Array<{
 	{ value: 'users', label: 'Usuarios', icon: Users },
 	{ value: 'history', label: 'Historial', icon: History },
 ]
+const navigationConfig = {
+	sections: Object.keys(sectionMeta),
+	settingsSections: settingsSectionOptions.map((option) => option.value),
+	defaultSection: 'dashboard',
+	defaultSettingsSection: 'business',
+} satisfies NavigationConfig
+
+function initialNavigationState(): NavigationState {
+	if (typeof window === 'undefined') {
+		return {
+			section: navigationConfig.defaultSection,
+			settingsSection: navigationConfig.defaultSettingsSection,
+		}
+	}
+	return readNavigationStateFromUrl(window.location.href, navigationConfig)
+}
 const auditActionLabels: Record<string, string> = {
 	create: 'Creacion',
 	update: 'Edicion',
@@ -963,14 +985,21 @@ export default function Home() {
 
 	const [token, setToken] = useState<string | null>(null)
 	const [currentUser, setCurrentUser] = useState<AnyRecord | null>(null)
-	const [active, setActive] = useState<Section>('dashboard')
+	const [active, setActive] = useState<Section>(
+		() => initialNavigationState().section as Section,
+	)
 	const [themeMode, setThemeMode] = useState<ThemeMode>('light')
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 	const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
 	const sidebarMobileToggleRef = useRef<HTMLButtonElement>(null)
 	const sidebarReturnFocusRef = useRef<HTMLElement | null>(null)
 	const [settingsSection, setSettingsSection] =
-		useState<SettingsSection>('business')
+		useState<SettingsSection>(
+			() => initialNavigationState().settingsSection as SettingsSection,
+		)
+	const navigationHistoryModeRef = useRef<'pushState' | 'replaceState'>(
+		'replaceState',
+	)
 	const [loading, setLoading] = useState(false)
 	const [agendaLoadError, setAgendaLoadError] =
 		useState<ApiErrorNotice | null>(null)
@@ -1284,6 +1313,36 @@ export default function Home() {
 			// Theme persistence is non-critical; the app must keep rendering.
 		}
 	}, [])
+
+	useEffect(() => {
+		const handlePopState = () => {
+			const nextNavigation = readNavigationStateFromUrl(
+				window.location.href,
+				navigationConfig,
+			)
+			navigationHistoryModeRef.current = 'replaceState'
+			setActive(nextNavigation.section as Section)
+			setSettingsSection(nextNavigation.settingsSection as SettingsSection)
+			setSidebarMobileOpen(false)
+		}
+		window.addEventListener('popstate', handlePopState)
+		return () => {
+			window.removeEventListener('popstate', handlePopState)
+		}
+	}, [])
+
+	useEffect(() => {
+		const nextUrl = navigationUrlForState(
+			window.location.href,
+			{ section: active, settingsSection },
+			navigationConfig,
+		)
+		const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`
+		if (nextUrl !== currentUrl) {
+			window.history[navigationHistoryModeRef.current](null, '', nextUrl)
+		}
+		navigationHistoryModeRef.current = 'pushState'
+	}, [active, settingsSection])
 
 	useEffect(() => {
 		if (!canViewEconomy && customerCardFilter === 'with_balance') {
@@ -2290,6 +2349,7 @@ export default function Home() {
 
 	useEffect(() => {
 		if (!currentUser || canViewEconomy || !sectionRequiresEmployer(active)) return
+		navigationHistoryModeRef.current = 'replaceState'
 		setActive('agenda')
 	}, [active, canViewEconomy, currentUser])
 
@@ -2817,7 +2877,7 @@ export default function Home() {
 					) : (
 						<Empty
 							text={`Sin trabajos en ${group.label.toLowerCase()}.`}
-							hint="Cuando cambie el estado de una reserva, va a aparecer en esta columna."
+							hint="La columna queda lista para recibir trabajos cuando cambie el avance operativo."
 						/>
 					)}
 				</div>
@@ -3914,6 +3974,7 @@ export default function Home() {
 		setCurrentUser(null)
 		setToken(nextToken)
 		if (!user.can_view_economy && sectionRequiresEmployer(active)) {
+			navigationHistoryModeRef.current = 'replaceState'
 			setActive('agenda')
 		}
 	}
@@ -4406,6 +4467,24 @@ export default function Home() {
 	const debtLoadBlocked = Boolean(
 		loadErrorNotice && !debts.length && !debtPayments.length,
 	)
+	const dashboardPeriodLabel = `${formatDateLabel(period.from)} a ${formatDateLabel(
+		period.to,
+	)}`
+	const dashboardWorkStatusEntries = Object.entries(orderLabels)
+	const dashboardWorkStatusTotal = dashboardWorkStatusEntries.reduce(
+		(total, [key]) => total + numberValue(dashboard.work_orders_by_status?.[key]),
+		0,
+	)
+	const dashboardWorkOrdersTotal = Math.max(
+		numberValue(dashboard.work_orders_count),
+		dashboardWorkStatusTotal,
+	)
+	const dashboardHasBusinessActivity =
+		dashboardWorkOrdersTotal > 0 ||
+		numberValue(dashboard.sales_total) > 0 ||
+		numberValue(dashboard.today_income) > 0 ||
+		numberValue(dashboard.today_expense) > 0 ||
+		numberValue(dashboard.material_consumption_estimated) > 0
 
 	function materialUsageRows(material: AnyRecord) {
 		const legacyRows = consumptions.filter(
@@ -4532,7 +4611,10 @@ export default function Home() {
 							</MotionFlashSurface>
 						))
 					) : (
-						<Empty text="Sin cumpleanos en los proximos dias." />
+						<Empty
+							text="Sin cumpleanos en los proximos dias."
+							hint="La alerta vuelve a aparecer aca cuando un cliente entre en la ventana configurada."
+						/>
 					)}
 				</div>
 			</Panel>
@@ -10058,6 +10140,7 @@ export default function Home() {
 					label="Cliente"
 					value={reservationForm.customer}
 					options={customerOptions}
+					name="reservation_customer"
 					focusKey="reservation.customer"
 					className={flashClass(fieldFlashKey('reservation.customer'))}
 					onAdd={() =>
@@ -10069,6 +10152,7 @@ export default function Home() {
 					label="Vehiculo"
 					value={reservationForm.vehicle}
 					options={customerVehicleOptions}
+					name="reservation_vehicle"
 					focusKey="reservation.vehicle"
 					className={flashClass(fieldFlashKey('reservation.vehicle'))}
 					onAdd={() =>
@@ -10102,6 +10186,7 @@ export default function Home() {
 										label="Servicio"
 										value={item.service}
 										options={serviceOptions}
+										name={`reservation_items_${index}_service`}
 										focusKey={`reservation.service.${index}`}
 										className={flashClass(
 											fieldFlashKey(`reservation.service.${index}`),
@@ -10123,6 +10208,7 @@ export default function Home() {
 										<Field label="Cantidad">
 											<input
 												data-focus-key={`reservation.item.${index}.quantity`}
+												name={`reservation_items_${index}_quantity`}
 												type="number"
 												min="1"
 												value={item.quantity}
@@ -10139,6 +10225,7 @@ export default function Home() {
 										<Field label="Precio">
 											<input
 												data-focus-key={`reservation.item.${index}.price`}
+												name={`reservation_items_${index}_unit_price`}
 												type="number"
 												min="0"
 												value={item.unit_price}
@@ -10182,6 +10269,7 @@ export default function Home() {
 					<Field label="Fecha de ingreso (opcional)">
 						<input
 							data-focus-key="reservation.day"
+							name="reservation_day"
 							type="date"
 							value={reservationForm.day}
 							onChange={(event) => {
@@ -10197,6 +10285,7 @@ export default function Home() {
 					<Field label="Fecha de egreso">
 						<input
 							data-focus-key="reservation.exit_day"
+							name="reservation_exit_day"
 							type="date"
 							value={reservationForm.exit_day}
 							onChange={(event) => {
@@ -10224,6 +10313,7 @@ export default function Home() {
 						<Field label="Hora de ingreso (opcional)">
 							<input
 								data-focus-key="reservation.start_time"
+								name="reservation_start_time"
 								type="time"
 								value={reservationForm.start_time}
 								onChange={(event) => {
@@ -10239,6 +10329,7 @@ export default function Home() {
 						<Field label="Hora de egreso (opcional)">
 							<input
 								data-focus-key="reservation.exit_time"
+								name="reservation_exit_time"
 								type="time"
 								value={reservationForm.exit_time}
 								onChange={(event) => {
@@ -10256,6 +10347,8 @@ export default function Home() {
 				<Field label="Notas">
 					<textarea
 						data-focus-key="reservation.notes"
+						name="reservation_notes"
+						autoComplete="off"
 						value={reservationForm.notes}
 						onChange={(event) =>
 							setReservationForm({
@@ -10279,6 +10372,8 @@ export default function Home() {
 				<Field label="Nombre">
 					<input
 						data-focus-key="customer.name"
+						name="customer_name"
+						autoComplete="name"
 						required
 						list="customer-name-options"
 						value={customerForm.name}
@@ -10294,6 +10389,9 @@ export default function Home() {
 				<Field label="Telefono">
 					<input
 						data-focus-key="customer.phone"
+						name="customer_phone"
+						autoComplete="tel"
+						inputMode="tel"
 						list="customer-phone-options"
 						value={customerForm.phone}
 						onChange={(event) =>
@@ -10308,7 +10406,9 @@ export default function Home() {
 					<Field label="Email">
 						<input
 							data-focus-key="customer.email"
+							name="customer_email"
 							type="email"
+							autoComplete="email"
 							list="customer-email-options"
 							value={customerForm.email}
 							onChange={(event) =>
@@ -10324,6 +10424,8 @@ export default function Home() {
 						<Field label="CUIT/DNI">
 							<input
 								data-focus-key="customer.tax_id"
+								name="customer_tax_id"
+								autoComplete="off"
 								value={customerForm.tax_id}
 								onChange={(event) =>
 									setCustomerForm({
@@ -10337,6 +10439,8 @@ export default function Home() {
 						<Field label="Domicilio fiscal">
 							<input
 								data-focus-key="customer.billing_address"
+								name="customer_billing_address"
+								autoComplete="street-address"
 								value={customerForm.billing_address}
 								onChange={(event) =>
 									setCustomerForm({
@@ -10351,6 +10455,8 @@ export default function Home() {
 					<BirthdayFields
 						day={customerForm.birthday_day}
 						month={customerForm.birthday_month}
+						dayName="customer_birthday_day"
+						monthName="customer_birthday_month"
 						dayFocusKey="customer.birthday_day"
 						monthFocusKey="customer.birthday_month"
 						onDayChange={(value) =>
@@ -10371,6 +10477,8 @@ export default function Home() {
 				<Field label="Notas">
 					<textarea
 						data-focus-key="customer.notes"
+						name="customer_notes"
+						autoComplete="off"
 						value={customerForm.notes}
 						onChange={(event) =>
 							setCustomerForm({
@@ -10395,6 +10503,7 @@ export default function Home() {
 					label="Cliente"
 					value={vehicleForm.customer}
 					options={customerOptions}
+					name="vehicle_customer"
 					focusKey="vehicle.customer"
 					className={flashClass(fieldFlashKey('vehicle.customer'))}
 					onAdd={() => openQuickCreate('customer', 'vehicle.customer')}
@@ -10405,6 +10514,7 @@ export default function Home() {
 						label="Marca"
 						value={vehicleForm.brand}
 						options={vehicleBrandSelectOptions}
+						name="vehicle_brand"
 						placeholder="Sin marca"
 						focusKey="vehicle.brand"
 						onChange={updateVehicleBrand}
@@ -10415,6 +10525,7 @@ export default function Home() {
 						label="Modelo"
 						value={vehicleForm.model}
 						options={vehicleModelSelectOptions}
+						name="vehicle_model"
 						placeholder={
 							vehicleForm.brand ? 'Sin modelo' : 'Elegir marca'
 						}
@@ -10441,6 +10552,8 @@ export default function Home() {
 					<Field label="Color">
 						<input
 							data-focus-key="vehicle.color"
+							name="vehicle_color"
+							autoComplete="off"
 							list="vehicle-color-options"
 							value={vehicleForm.color}
 							onChange={(event) =>
@@ -10455,6 +10568,8 @@ export default function Home() {
 					<Field label="Patente">
 						<input
 							data-focus-key="vehicle.license_plate"
+							name="vehicle_license_plate"
+							autoComplete="off"
 							list="vehicle-plate-options"
 							value={vehicleForm.license_plate}
 							onChange={(event) =>
@@ -12583,10 +12698,12 @@ export default function Home() {
 						<span>Usuario</span>
 						<strong>{currentUser.username}</strong>
 					</div>
-					<div className="detail-row">
+					<label className="detail-row" htmlFor="profile-email">
 						<span>Email</span>
 						<div className="profile-detail-control">
 							<input
+								id="profile-email"
+								name="profile_email"
 								className="profile-detail-input"
 								type="email"
 								autoComplete="email"
@@ -12599,7 +12716,7 @@ export default function Home() {
 								}
 							/>
 						</div>
-					</div>
+					</label>
 					<div className="detail-row">
 						<span>Rol</span>
 						<strong>{profileRoleLabel(currentUser)}</strong>
@@ -12616,10 +12733,12 @@ export default function Home() {
 						<span>Acceso</span>
 						<strong>{profileLastLoginText(currentUser)}</strong>
 					</div>
-					<div className="detail-row">
+					<label className="detail-row" htmlFor="profile-subscription-type">
 						<span>Plan</span>
 						<div className="profile-detail-control">
 							<select
+								id="profile-subscription-type"
+								name="profile_subscription_type"
 								className="profile-detail-input"
 								value={profileForm.subscription_type}
 								onChange={(event) =>
@@ -12637,13 +12756,15 @@ export default function Home() {
 								))}
 							</select>
 						</div>
-					</div>
+					</label>
 					<div className="detail-row">
-						<span>Celular</span>
+						<span id="profile-phone-label">Celular</span>
 						<div className="profile-detail-control">
 							<div className="profile-phone-composite">
 								<select
+									name="profile_phone_country_code"
 									className="profile-country-select"
+									aria-label="Codigo de pais"
 									value={profileForm.phone_country_code}
 									onChange={(event) =>
 										setProfileForm({
@@ -12659,9 +12780,12 @@ export default function Home() {
 									))}
 								</select>
 								<input
+									name="profile_phone_number"
 									className="profile-phone-input"
 									type="tel"
 									inputMode="tel"
+									autoComplete="tel-national"
+									aria-labelledby="profile-phone-label"
 									placeholder="2345 45-5007"
 									value={profileForm.phone_number}
 									onChange={(event) =>
@@ -12929,6 +13053,7 @@ export default function Home() {
 									label="Vehiculo"
 									value={quoteReservationForm.vehicle}
 									options={quoteReservationVehicleOptions}
+									name="quote_reservation_vehicle"
 									onChange={(value) =>
 										setQuoteReservationForm({
 											...quoteReservationForm,
@@ -12940,6 +13065,7 @@ export default function Home() {
 							<div className="form-row">
 								<Field label="Fecha de reserva">
 									<input
+										name="quote_reservation_day"
 										required
 										type="date"
 										value={quoteReservationForm.day}
@@ -12957,6 +13083,7 @@ export default function Home() {
 									<Field label="Hora de ingreso">
 										<input
 											type="time"
+											name="quote_reservation_start_time"
 											value={quoteReservationForm.start_time}
 											onChange={(event) =>
 												setQuoteReservationForm({
@@ -12969,6 +13096,7 @@ export default function Home() {
 									<Field label="Hora de egreso">
 										<input
 											type="time"
+											name="quote_reservation_exit_time"
 											value={quoteReservationForm.exit_time}
 											onChange={(event) =>
 												setQuoteReservationForm({
@@ -13024,6 +13152,8 @@ export default function Home() {
 						<form className="form-grid" onSubmit={saveQuickCustomer}>
 							<Field label="Nombre">
 								<input
+									name="quick_customer_name"
+									autoComplete="name"
 									required
 									list="customer-name-options"
 									value={customerForm.name}
@@ -13037,6 +13167,9 @@ export default function Home() {
 							</Field>
 							<Field label="Telefono">
 								<input
+									name="quick_customer_phone"
+									autoComplete="tel"
+									inputMode="tel"
 									list="customer-phone-options"
 									value={customerForm.phone}
 									onChange={(event) =>
@@ -13049,7 +13182,9 @@ export default function Home() {
 							</Field>
 							<Field label="Email">
 								<input
+									name="quick_customer_email"
 									type="email"
+									autoComplete="email"
 									list="customer-email-options"
 									value={customerForm.email}
 									onChange={(event) =>
@@ -13063,6 +13198,8 @@ export default function Home() {
 							<div className="form-row">
 								<Field label="CUIT/DNI">
 									<input
+										name="quick_customer_tax_id"
+										autoComplete="off"
 										value={customerForm.tax_id}
 										onChange={(event) =>
 											setCustomerForm({
@@ -13074,6 +13211,8 @@ export default function Home() {
 								</Field>
 								<Field label="Domicilio fiscal">
 									<input
+										name="quick_customer_billing_address"
+										autoComplete="street-address"
 										value={customerForm.billing_address}
 										onChange={(event) =>
 											setCustomerForm({
@@ -13087,6 +13226,8 @@ export default function Home() {
 							<BirthdayFields
 								day={customerForm.birthday_day}
 								month={customerForm.birthday_month}
+								dayName="quick_customer_birthday_day"
+								monthName="quick_customer_birthday_month"
 								onDayChange={(value) =>
 									setCustomerForm({
 										...customerForm,
@@ -13118,6 +13259,7 @@ export default function Home() {
 								label="Cliente"
 								value={vehicleForm.customer}
 								options={customerOptions}
+								name="quick_vehicle_customer"
 								className={flashClass(fieldFlashKey('vehicle.customer'))}
 								onAdd={() =>
 									openQuickCreate('customer', 'vehicle.customer')
@@ -13134,6 +13276,7 @@ export default function Home() {
 									label="Marca"
 									value={vehicleForm.brand}
 									options={vehicleBrandSelectOptions}
+									name="quick_vehicle_brand"
 									placeholder="Sin marca"
 									onChange={updateVehicleBrand}
 									onCreate={updateVehicleBrand}
@@ -13143,6 +13286,7 @@ export default function Home() {
 									label="Modelo"
 									value={vehicleForm.model}
 									options={vehicleModelSelectOptions}
+									name="quick_vehicle_model"
 									placeholder={
 										vehicleForm.brand ? 'Sin modelo' : 'Elegir marca'
 									}
@@ -13165,6 +13309,8 @@ export default function Home() {
 							<div className="form-row">
 								<Field label="Color">
 									<input
+										name="quick_vehicle_color"
+										autoComplete="off"
 										list="vehicle-color-options"
 										value={vehicleForm.color}
 										onChange={(event) =>
@@ -13177,6 +13323,8 @@ export default function Home() {
 								</Field>
 								<Field label="Patente">
 									<input
+										name="quick_vehicle_license_plate"
+										autoComplete="off"
 										list="vehicle-plate-options"
 										value={vehicleForm.license_plate}
 										onChange={(event) =>
@@ -13627,6 +13775,8 @@ export default function Home() {
 								<button
 									type="button"
 									className="ghost"
+									aria-label={`Actualizar ${title.label.toLowerCase()}`}
+									title={`Actualizar ${title.label.toLowerCase()}`}
 									onClick={loadData}
 									disabled={loading}
 								>
@@ -13640,9 +13790,13 @@ export default function Home() {
 					<div className="grid">
 						{canViewEconomy ? (
 							<>
-								<Panel>
+								<Panel
+									title="Periodo de lectura"
+									subtitle={`Viendo ${dashboardPeriodLabel}. Ajusta el rango sin salir del tablero.`}
+								>
 									<form
-										className="toolbar"
+										aria-label="Filtrar dashboard por periodo"
+										className="toolbar dashboard-period-toolbar"
 										onSubmit={(event) => (
 											event.preventDefault(),
 											loadData()
@@ -13678,63 +13832,101 @@ export default function Home() {
 										</button>
 									</form>
 								</Panel>
-								<section className="grid three">
-									<MetricCard
-										label="Ventas"
-										value={money(dashboard.sales_total)}
+								{loading && !dashboardHasBusinessActivity ? (
+									<LoadingState
+										text="Cargando indicadores del negocio..."
+										hint="Mantenemos el tablero visible mientras llegan ventas, trabajos y caja."
 									/>
-									<MetricCard
-										label="Reservas con trabajo"
-										value={dashboard.work_orders_count ?? 0}
-									/>
-									<MetricCard
-										label="Ticket promedio"
-										value={money(dashboard.average_ticket)}
-									/>
-									<MetricCard
-										label={
-											<>
-												<span className="cash-term income">Ingresos</span>{' '}
-												del dia
-											</>
-										}
-										value={money(dashboard.today_income)}
-									/>
-									<MetricCard
-										label={
-											<>
-												<span className="cash-term expense">Egresos</span>{' '}
-												del dia
-											</>
-										}
-										value={money(dashboard.today_expense)}
-									/>
-									<MetricCard
-										label="Consumo materiales"
-										value={money(
-											dashboard.material_consumption_estimated,
-										)}
-									/>
-								</section>
-								<Panel title="Trabajo por estado">
-									<div className="records">
-										{Object.entries(orderLabels).map(
-											([key, label]) => (
-												<RecordCard key={key}>
-													<div className="record-head">
-														<span>{label}</span>
-														<strong>
-															{dashboard
-																.work_orders_by_status?.[
-																key
-															] ?? 0}
-														</strong>
-													</div>
-												</RecordCard>
-											),
-										)}
-									</div>
-								</Panel>
+								) : null}
+								{!loading || dashboardHasBusinessActivity ? (
+									<>
+										<section className="grid three metric-grid-dashboard">
+											<MetricCard
+												label="Ventas del periodo"
+												value={money(dashboard.sales_total)}
+												hint={dashboardPeriodLabel}
+											/>
+											<MetricCard
+												label="Reservas con trabajo"
+												value={dashboard.work_orders_count ?? 0}
+												hint="Ordenes creadas desde agenda"
+											/>
+											<MetricCard
+												label="Ticket promedio"
+												value={money(dashboard.average_ticket)}
+												hint="Promedio por trabajo vendido"
+											/>
+											<MetricCard
+												label={
+													<>
+														<span className="cash-term income">Ingresos</span>{' '}
+														del dia
+													</>
+												}
+												value={money(dashboard.today_income)}
+												hint={formatDateLabel(selectedDay)}
+											/>
+											<MetricCard
+												label={
+													<>
+														<span className="cash-term expense">Egresos</span>{' '}
+														del dia
+													</>
+												}
+												value={money(dashboard.today_expense)}
+												hint="Caja operativa"
+											/>
+											<MetricCard
+												label="Consumo materiales"
+												value={money(
+													dashboard.material_consumption_estimated,
+												)}
+												hint="Costo estimado imputado"
+											/>
+										</section>
+										<Panel
+											title="Trabajo por estado"
+											subtitle={
+												dashboardWorkOrdersTotal
+													? `${dashboardWorkOrdersTotal} trabajos distribuidos por avance`
+													: 'Sin trabajos registrados en el periodo seleccionado'
+											}
+										>
+											{dashboardWorkOrdersTotal ? (
+												<div className="records dashboard-status-records">
+													{dashboardWorkStatusEntries.map(([key, label]) => (
+														<RecordCard
+															className="dashboard-status-record"
+															key={key}
+														>
+															<div className="record-head">
+																<span>{label}</span>
+																<strong>
+																	{dashboard.work_orders_by_status?.[key] ?? 0}
+																</strong>
+															</div>
+														</RecordCard>
+													))}
+												</div>
+											) : (
+												<Empty
+													text="Sin trabajos en este periodo."
+													hint="Cambia el rango o crea una reserva desde Agenda para iniciar la operacion."
+													action={
+														<button
+															type="button"
+															className="primary"
+															onClick={() => setActive('agenda')}
+														>
+															<CalendarDays size={16} />
+															Ir a Agenda
+														</button>
+													}
+												/>
+											)}
+										</Panel>
+									</>
+								) : null}
 							</>
 						) : null}
 						{renderBirthdayAlerts()}
@@ -14259,7 +14451,7 @@ export default function Home() {
 							!agendaBoardModel.segments.length ? (
 								<Empty
 									text="Sin reservas en este rango."
-									hint="Usa la columna del dia o el boton Crear para cargar la proxima reserva."
+									hint="Crea una reserva para el dia seleccionado o cambia el filtro de servicio para revisar otra carga."
 									action={
 										<button
 											type="button"
@@ -14478,6 +14670,8 @@ export default function Home() {
 										</button>
 										<input
 											type="date"
+											aria-label="Dia de caja"
+											name="cash_day"
 											value={selectedDay}
 											onChange={(event) =>
 												setSelectedDay(event.target.value)
@@ -14791,14 +14985,24 @@ export default function Home() {
 										hint={
 											cashEntries.length
 												? 'Ajusta busqueda, origen, categoria o montos.'
-												: 'Registra un cobro, pago de deuda o movimiento manual para comenzar.'
+												: cashIsClosed
+													? 'La caja esta cerrada; si falta un movimiento, registra un ajuste para este dia.'
+													: 'Registra un cobro, pago de deuda o movimiento manual para comenzar.'
 										}
 										action={
-											cashEntries.length ? undefined : (
+											cashEntries.length ? undefined : cashIsClosed ? (
+												<button
+													type="button"
+													className="ghost"
+													onClick={() => openAdjustmentForClosedDay(selectedDay)}
+												>
+													<ReceiptText size={16} />
+													Registrar ajuste hoy
+												</button>
+											) : (
 												<button
 													type="button"
 													className="primary"
-													disabled={cashIsClosed}
 													onClick={() => openFormModal('payment')}
 												>
 													<CreditCard size={16} />
@@ -15050,7 +15254,7 @@ export default function Home() {
 										hint={
 											debts.length
 												? 'Ajusta la busqueda, estado o saldo.'
-												: 'Crea una deuda si necesitas registrar un egreso adeudado.'
+												: 'Crea una deuda para registrar un egreso adeudado y seguir sus pagos sin duplicar caja.'
 										}
 										action={
 											debts.length ? undefined : (
@@ -15114,15 +15318,25 @@ export default function Home() {
 										text="Sin pagos de deuda registrados."
 										hint="Cuando pagues una deuda, queda trazada aca sin duplicar el gasto economico."
 										action={
-											<button
-												type="button"
-												className="primary"
-												disabled={!debtOptions.length}
-												onClick={() => openFormModal('debt-payment')}
-											>
-												<CreditCard size={16} />
-												Registrar pago
-											</button>
+											debtOptions.length ? (
+												<button
+													type="button"
+													className="primary"
+													onClick={() => openFormModal('debt-payment')}
+												>
+													<CreditCard size={16} />
+													Registrar pago
+												</button>
+											) : (
+												<button
+													type="button"
+													className="ghost"
+													onClick={() => openFormModal('debt')}
+												>
+													<ReceiptText size={16} />
+													Nueva deuda
+												</button>
+											)
 										}
 									/>
 								)}
@@ -15773,6 +15987,7 @@ export default function Home() {
 									key={`business-logo-${businessLogoInputKey}`}
 									className="visually-hidden-input"
 									type="file"
+									aria-label="Archivo de logo del negocio"
 									accept="image/png,image/jpeg,image/webp,image/svg+xml,application/pdf,.pdf"
 									onChange={handleBusinessLogoChange}
 									tabIndex={-1}
@@ -15829,6 +16044,8 @@ export default function Home() {
 							>
 								<Field label="Nombre">
 									<input
+										name="business_name"
+										autoComplete="organization"
 										required
 										value={businessForm.name}
 										onChange={(event) =>
@@ -15841,6 +16058,8 @@ export default function Home() {
 								<div className="form-row">
 									<Field label="CUIT">
 										<input
+											name="business_cuit"
+											autoComplete="off"
 											inputMode="numeric"
 											placeholder="20304050607"
 											value={businessForm.cuit}
@@ -15854,6 +16073,7 @@ export default function Home() {
 									<Field label="Condicion frente a IVA">
 										<select
 											value={businessForm.vat_condition}
+											name="business_vat_condition"
 											onChange={(event) =>
 												patchBusinessForm({
 													vat_condition: event.target.value,
@@ -15873,6 +16093,8 @@ export default function Home() {
 									<Field label="Celular de contacto">
 										<input
 											inputMode="tel"
+											name="business_contact_phone"
+											autoComplete="tel"
 											value={businessForm.contact_phone}
 											onChange={(event) =>
 												patchBusinessForm({
@@ -15884,6 +16106,8 @@ export default function Home() {
 									<Field label="Mail de contacto">
 										<input
 											type="email"
+											name="business_contact_email"
+											autoComplete="email"
 											value={businessForm.contact_email}
 											onChange={(event) =>
 												patchBusinessForm({
@@ -15896,6 +16120,8 @@ export default function Home() {
 								<Field label="Direccion comercial">
 									<input
 										value={businessForm.address}
+										name="business_address"
+										autoComplete="street-address"
 										onChange={(event) =>
 											patchBusinessForm({
 												address: event.target.value,
@@ -15907,6 +16133,7 @@ export default function Home() {
 									<Field label="URL publica">
 										<input
 											readOnly
+											name="business_public_url"
 											value={publicLandingUrl}
 											placeholder="Disponible al iniciar sesion con negocio"
 										/>
@@ -15914,6 +16141,7 @@ export default function Home() {
 									<label>
 										<input
 											type="checkbox"
+											name="business_public_landing_enabled"
 											checked={businessForm.public_landing_enabled !== false}
 											onChange={(event) =>
 												patchBusinessForm({
@@ -15927,6 +16155,7 @@ export default function Home() {
 										<label>
 											<input
 												type="checkbox"
+												name="business_allow_public_booking_requests"
 												checked={businessForm.allow_public_booking_requests !== false}
 												onChange={(event) =>
 													patchBusinessForm({
@@ -15939,6 +16168,7 @@ export default function Home() {
 										<label>
 											<input
 												type="checkbox"
+												name="business_allow_public_quote_requests"
 												checked={businessForm.allow_public_quote_requests !== false}
 												onChange={(event) =>
 													patchBusinessForm({
@@ -15952,6 +16182,8 @@ export default function Home() {
 									<Field label="Texto corto para la landing">
 										<textarea
 											maxLength={240}
+											name="business_public_landing_intro"
+											autoComplete="off"
 											rows={3}
 											value={businessForm.public_landing_intro}
 											onChange={(event) =>

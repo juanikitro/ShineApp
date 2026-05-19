@@ -7,6 +7,7 @@ from scheduling.models import Reservation
 from scheduling.services import ensure_reservation_work_order
 
 from .models import WorkOrder
+from .metrics import build_work_order_financial_metrics
 from .serializers import WorkOrderSerializer
 
 
@@ -15,12 +16,30 @@ class WorkOrderViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     queryset = WorkOrder.objects.select_related("reservation", "customer", "vehicle", "service").all()
     serializer_class = WorkOrderSerializer
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        metrics_map = getattr(self, "_work_order_financial_metrics_map", None)
+        if metrics_map is not None:
+            context["work_order_financial_metrics_map"] = metrics_map
+        return context
+
     def get_queryset(self):
         queryset = self.queryset
         status_filter = self.request.query_params.get("status")
         if status_filter:
             queryset = queryset.filter(reservation__status=status_filter)
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        rows = page if page is not None else list(queryset)
+        self._work_order_financial_metrics_map = build_work_order_financial_metrics(rows)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(rows, many=True)
+        return response.Response(serializer.data)
 
     @decorators.action(detail=True, methods=["post"])
     def status(self, request, pk=None):
