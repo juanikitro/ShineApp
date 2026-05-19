@@ -1,26 +1,7 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import test from 'node:test'
-import ts from 'typescript'
+import { test } from 'vitest'
 
-function loadReservationActionsModule() {
-	const sourcePath = resolve('lib/reservation-actions.ts')
-	const source = readFileSync(sourcePath, 'utf8')
-	const compiled = ts.transpileModule(source, {
-		compilerOptions: {
-			module: ts.ModuleKind.CommonJS,
-			target: ts.ScriptTarget.ES2020,
-		},
-	}).outputText
-	const module = { exports: {} }
-	const loader = new Function('exports', 'module', compiled)
-	loader(module.exports, module)
-	return module.exports
-}
-
-const { reservationStatusActions, buildAgendaReservationActions } =
-	loadReservationActionsModule()
+import { buildAgendaReservationActions, reservationStatusActions } from './reservation-actions'
 
 test('canceled reservations expose an activation action through the confirm endpoint', () => {
 	assert.deepEqual(reservationStatusActions('canceled'), [
@@ -183,6 +164,70 @@ test('charge action is hidden when balance due is zero', () => {
 				label: 'Cancelar',
 				priority: 'low',
 				variant: 'icon-danger',
+			},
+		],
+	)
+})
+
+test('work-order status actions cover progress-only and charge-only states', () => {
+	assert.deepEqual(
+		buildAgendaReservationActions({
+			reservationStatus: 'in_progress',
+			workOrderStatus: 'in_progress',
+		}),
+		[
+			{
+				kind: 'work-order-status',
+				label: 'Marcar listo',
+				priority: 'high',
+				status: 'ready',
+				variant: 'filled',
+			},
+		],
+	)
+	assert.deepEqual(
+		buildAgendaReservationActions({
+			balanceDue: '2500',
+			canCharge: true,
+			reservationStatus: 'delivered',
+			workOrderStatus: 'delivered',
+		}),
+		[
+			{
+				kind: 'work-order-charge',
+				label: 'Cobrar',
+				priority: 'high',
+				variant: 'filled',
+			},
+		],
+	)
+})
+
+test('unknown or non-chargeable states expose no work-order actions', () => {
+	assert.deepEqual(reservationStatusActions('unknown'), [])
+	assert.deepEqual(
+		buildAgendaReservationActions({
+			balanceDue: 'no-numero',
+			canCharge: true,
+			reservationStatus: 'delivered',
+			workOrderStatus: 'unknown',
+		}),
+		[],
+	)
+	assert.deepEqual(
+		buildAgendaReservationActions({
+			balanceDue: 1000,
+			canCharge: false,
+			reservationStatus: 'canceled',
+			workOrderStatus: 'ready',
+		}),
+		[
+			{
+				action: 'confirm',
+				kind: 'reservation',
+				label: 'Activar',
+				priority: 'high',
+				variant: 'filled',
 			},
 		],
 	)

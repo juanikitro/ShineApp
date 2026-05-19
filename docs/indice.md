@@ -69,5 +69,5 @@ Wrappers por herramienta:
 - API autenticada por defecto con `TokenAuthentication` y `SessionAuthentication`.
 - Frontend principal: `frontend/app/page.tsx`, `frontend/lib/page-support.tsx` y partials en `frontend/app/styles/`.
 - Tests backend: `backend/tests/`.
-- Tests frontend: `frontend/lib/*.test.mjs`.
+- Tests frontend: `frontend/lib/*.test.mjs` y `frontend/app/components/**/*.test.{ts,tsx}`.
 - Validacion raiz: `scripts/validate.ps1`.

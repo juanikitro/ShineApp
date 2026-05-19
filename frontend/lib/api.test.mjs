@@ -1,53 +1,24 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import test from 'node:test'
-import ts from 'typescript'
+import { beforeEach, test, vi } from 'vitest'
 
-function loadApiModule() {
-	const apiErrorsSourcePath = resolve('lib/api-errors.ts')
-	const apiErrorsSource = readFileSync(apiErrorsSourcePath, 'utf8')
-	const compiledApiErrors = ts.transpileModule(apiErrorsSource, {
-		compilerOptions: {
-			module: ts.ModuleKind.CommonJS,
-			target: ts.ScriptTarget.ES2020,
-		},
-	}).outputText
-	const apiErrorsModule = { exports: {} }
-	const apiErrorsLoader = new Function(
-		'exports',
-		'module',
-		compiledApiErrors,
-	)
-	apiErrorsLoader(apiErrorsModule.exports, apiErrorsModule)
+import { ApiResponseError } from './api-errors'
+import {
+	apiFetch,
+	apiList,
+	clearStoredToken,
+	downloadApiFile,
+	getStoredToken,
+	publicApiFetch,
+	setStoredToken,
+} from './api'
 
-	const apiSourcePath = resolve('lib/api.ts')
-	const apiSource = readFileSync(apiSourcePath, 'utf8')
-	const compiledApi = ts.transpileModule(apiSource, {
-		compilerOptions: {
-			module: ts.ModuleKind.CommonJS,
-			target: ts.ScriptTarget.ES2020,
-		},
-	}).outputText
-	const apiModule = { exports: {} }
-	const apiLoader = new Function('exports', 'module', 'require', compiledApi)
-	apiLoader(apiModule.exports, apiModule, (request) => {
-		if (request === './api-errors') return apiErrorsModule.exports
-		throw new Error(`Unsupported dependency: ${request}`)
-	})
-	return { ...apiErrorsModule.exports, ...apiModule.exports }
-}
-
-const { ApiResponseError, apiFetch, publicApiFetch } = loadApiModule()
+beforeEach(() => {
+	window.localStorage.clear()
+})
 
 test('apiFetch normalizes non-JSON error bodies without reading the stream twice', async () => {
 	let consumed = false
-	global.window = {
-		localStorage: {
-			getItem: () => null,
-		},
-	}
-	global.fetch = async () => ({
+	global.fetch = vi.fn(async () => ({
 		ok: false,
 		status: 404,
 		json: async () => {
@@ -61,7 +32,7 @@ test('apiFetch normalizes non-JSON error bodies without reading the stream twice
 			consumed = true
 			return '<html>not found</html>'
 		},
-	})
+	}))
 
 	await assert.rejects(
 		() => apiFetch('/services/1/history/'),
@@ -79,17 +50,10 @@ test('apiFetch normalizes non-JSON error bodies without reading the stream twice
 })
 
 test('publicApiFetch does not read localStorage or attach auth headers', async () => {
-	let localStorageRead = false
 	let authorizationHeader = null
-	global.window = {
-		localStorage: {
-			getItem: () => {
-				localStorageRead = true
-				return 'secret-token'
-			},
-		},
-	}
-	global.fetch = async (_url, options) => {
+	const getItem = vi.spyOn(window.localStorage.__proto__, 'getItem')
+	setStoredToken('secret-token')
+	global.fetch = vi.fn(async (_url, options) => {
 		const headers = new Headers(options.headers)
 		authorizationHeader = headers.get('Authorization')
 		return {
@@ -97,10 +61,133 @@ test('publicApiFetch does not read localStorage or attach auth headers', async (
 			status: 200,
 			json: async () => ({ ok: true }),
 		}
-	}
+	})
 
 	await publicApiFetch('/public/landing/king-shine/')
 
-	assert.equal(localStorageRead, false)
+	assert.equal(getItem.mock.calls.length, 0)
 	assert.equal(authorizationHeader, null)
+})
+
+test('stored token helpers persist and clear the detailing token', () => {
+	assert.equal(getStoredToken(), null)
+	setStoredToken('abc123')
+	assert.equal(getStoredToken(), 'abc123')
+	clearStoredToken()
+	assert.equal(getStoredToken(), null)
+})
+
+test('apiFetch attaches auth and json headers but leaves FormData content type to the browser', async () => {
+	const captured = []
+	setStoredToken('token-1')
+	global.fetch = vi.fn(async (_url, options) => {
+		captured.push(new Headers(options.headers))
+		return {
+			ok: true,
+			status: 200,
+			json: async () => ({ ok: true }),
+		}
+	})
+
+	await apiFetch('/customers/', { method: 'POST', body: JSON.stringify({ name: 'Ana' }) })
+	await apiFetch('/uploads/', { method: 'POST', body: new FormData() })
+	await apiFetch('/plain/', {
+		headers: { 'Content-Type': 'text/plain' },
+		body: 'raw',
+	})
+
+	assert.equal(captured[0].get('Authorization'), 'Token token-1')
+	assert.equal(captured[0].get('Content-Type'), 'application/json')
+	assert.equal(captured[1].get('Content-Type'), null)
+	assert.equal(captured[2].get('Content-Type'), 'text/plain')
+})
+
+test('apiFetch and publicApiFetch return undefined for 204 responses', async () => {
+	global.fetch = vi.fn(async () => ({
+		ok: true,
+		status: 204,
+		json: async () => {
+			throw new Error('json should not be read for 204')
+		},
+	}))
+
+	assert.equal(await apiFetch('/customers/1/', { method: 'DELETE' }), undefined)
+	assert.equal(await publicApiFetch('/public/ping/'), undefined)
+})
+
+test('publicApiFetch normalizes JSON error payloads', async () => {
+	global.fetch = vi.fn(async () => ({
+		ok: false,
+		status: 400,
+		text: async () => JSON.stringify({ amount: ['Debe ser mayor a cero.'] }),
+	}))
+
+	await assert.rejects(
+		() => publicApiFetch('/public/debts/'),
+		(error) => {
+			assert.ok(error instanceof ApiResponseError)
+			assert.equal(error.status, 400)
+			assert.equal(error.payload.amount[0], 'Debe ser mayor a cero.')
+			return true
+		},
+	)
+})
+
+test('apiList accepts both plain arrays and paginated results', async () => {
+	global.fetch = vi.fn(async (_url) => ({
+		ok: true,
+		status: 200,
+		json: async () =>
+			String(_url).includes('paginated')
+				? { results: [{ id: 2 }] }
+				: [{ id: 1 }],
+	}))
+
+	assert.deepEqual(await apiList('/customers/'), [{ id: 1 }])
+	assert.deepEqual(await apiList('/paginated/customers/'), [{ id: 2 }])
+})
+
+test('downloadApiFile sends auth, clicks a download link and revokes the blob url', async () => {
+	const click = vi.fn()
+	const revokeObjectURL = vi.fn()
+	setStoredToken('download-token')
+	vi.spyOn(document, 'createElement').mockReturnValue({
+		click,
+		set href(value) {
+			this._href = value
+		},
+		get href() {
+			return this._href
+		},
+		set download(value) {
+			this._download = value
+		},
+		get download() {
+			return this._download
+		},
+	})
+	vi.spyOn(window.URL, 'createObjectURL').mockReturnValue('blob:report')
+	vi.spyOn(window.URL, 'revokeObjectURL').mockImplementation(revokeObjectURL)
+	global.fetch = vi.fn(async (_url, options) => {
+		const headers = new Headers(options.headers)
+		assert.equal(headers.get('Authorization'), 'Token download-token')
+		return {
+			ok: true,
+			blob: async () => new Blob(['csv']),
+		}
+	})
+
+	await downloadApiFile('/exports/report.csv', 'report.csv')
+
+	assert.equal(click.mock.calls.length, 1)
+	assert.deepEqual(revokeObjectURL.mock.calls, [['blob:report']])
+})
+
+test('downloadApiFile raises a generic error when the file response fails', async () => {
+	global.fetch = vi.fn(async () => ({ ok: false }))
+
+	await assert.rejects(
+		() => downloadApiFile('/exports/missing.csv', 'missing.csv'),
+		/No se pudo descargar el archivo\./,
+	)
 })

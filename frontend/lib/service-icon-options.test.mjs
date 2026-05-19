@@ -1,31 +1,13 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import test from 'node:test'
-import ts from 'typescript'
+import { test } from 'vitest'
 
-function loadModule() {
-	const sourcePath = resolve('lib/service-icon-options.ts')
-	const source = readFileSync(sourcePath, 'utf8')
-	const compiled = ts.transpileModule(source, {
-		compilerOptions: {
-			module: ts.ModuleKind.CommonJS,
-			target: ts.ScriptTarget.ES2020,
-		},
-	}).outputText
-	const module = { exports: {} }
-	const loader = new Function('exports', 'module', compiled)
-	loader(module.exports, module)
-	return module.exports
-}
-
-const {
+import {
 	normalizeServiceIcon,
 	serviceIconCustomCategoryName,
 	serviceIconCustomEmojis,
 	serviceIconFromCustomEmojiId,
 	serviceIconSuggestions,
-} = loadModule()
+} from './service-icon-options'
 
 test('keeps a curated custom category for car wash services', () => {
 	assert.equal(serviceIconCustomCategoryName, 'Lavadero & detailing')
@@ -59,4 +41,14 @@ test('custom picker category maps dedicated emojis back to unicode values', () =
 test('normalizes manually pasted service icons', () => {
 	assert.equal(normalizeServiceIcon('  🧽  '), '🧽')
 	assert.equal(normalizeServiceIcon('x'.repeat(32)), 'x'.repeat(24))
+})
+
+test('custom emoji lookup is case-insensitive and safe for unknown ids', () => {
+	const first = serviceIconCustomEmojis[0]
+	assert.equal(
+		serviceIconFromCustomEmojiId(first.id.toUpperCase()),
+		serviceIconSuggestions[0].emoji,
+	)
+	assert.equal(serviceIconFromCustomEmojiId('missing-id'), '')
+	assert.equal(normalizeServiceIcon('   '), '')
 })

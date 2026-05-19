@@ -1,30 +1,12 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import test from 'node:test'
-import ts from 'typescript'
+import { test } from 'vitest'
 
-function loadApiErrorsModule() {
-	const sourcePath = resolve('lib/api-errors.ts')
-	const source = readFileSync(sourcePath, 'utf8')
-	const compiled = ts.transpileModule(source, {
-		compilerOptions: {
-			module: ts.ModuleKind.CommonJS,
-			target: ts.ScriptTarget.ES2020,
-		},
-	}).outputText
-	const module = { exports: {} }
-	const loader = new Function('exports', 'module', compiled)
-	loader(module.exports, module)
-	return module.exports
-}
-
-const {
+import {
 	ApiResponseError,
 	createValidationNotice,
 	formatApiError,
 	normalizeApiErrorPayload,
-} = loadApiErrorsModule()
+} from './api-errors'
 
 test('normalizes DRF field arrays into a readable notice with affected fields', () => {
 	const notice = normalizeApiErrorPayload({
@@ -119,4 +101,82 @@ test('creates local validation notices for client-side checks', () => {
 
 	assert.equal(notice.title, 'Falta un servicio')
 	assert.equal(notice.fields[0].path, 'items')
+})
+
+test('formats network errors and existing notice-like objects without losing copy', () => {
+	const network = formatApiError(new TypeError('fetch failed'))
+	assert.equal(network.title, 'No pudimos conectar con el servidor')
+	assert.match(network.description, /conexion/)
+
+	const existing = createValidationNotice('Manual', 'Mensaje local')
+	assert.equal(formatApiError({ notice: existing }), existing)
+})
+
+test('maps auth, missing-record, server and html detail responses to safe descriptions', () => {
+	assert.equal(
+		normalizeApiErrorPayload({ detail: 'Invalid token.' }, { status: 401 })
+			.description,
+		'Volve a iniciar sesion para continuar.',
+	)
+	assert.equal(
+		normalizeApiErrorPayload({ detail: 'Object not found.' }, { status: 404 })
+			.description,
+		'El registro solicitado ya no esta disponible.',
+	)
+	assert.equal(
+		normalizeApiErrorPayload('<!doctype html><html>Error</html>', {
+			status: 500,
+		}).title,
+		'Problema del servidor',
+	)
+	assert.equal(
+		normalizeApiErrorPayload('<!doctype html><html>Error</html>', {
+			status: 500,
+		}).description,
+		'Intenta nuevamente. Si el problema continua, revisa los datos cargados.',
+	)
+})
+
+test('normalizes array details, root array fields and unknown field labels', () => {
+	assert.equal(
+		normalizeApiErrorPayload({
+			detail: ['Primero', '', { ignored: true }, 'Segundo'],
+		}).description,
+		'Primero Segundo',
+	)
+
+	const notice = normalizeApiErrorPayload({
+		items: [
+			{ custom_field: 'Mensaje custom' },
+			{ license_plate: ['Patente requerida'] },
+		],
+	})
+
+	assert.deepEqual(notice.fields, [
+		{
+			path: 'items[1].custom_field',
+			label: 'Servicios 1 - Custom Field',
+			message: 'Mensaje custom',
+		},
+		{
+			path: 'items[2].license_plate',
+			label: 'Servicios 2 - Patente',
+			message: 'Patente requerida',
+		},
+	])
+})
+
+test('uses fallback title and description when no structured detail is available', () => {
+	const notice = normalizeApiErrorPayload('', {
+		fallbackTitle: 'Titulo manual',
+		fallbackDescription: 'Descripcion manual',
+	})
+
+	assert.deepEqual(notice, {
+		title: 'Titulo manual',
+		description: 'Descripcion manual',
+		fields: [],
+	})
+	assert.equal(formatApiError('texto plano').description, 'texto plano')
+	assert.equal(formatApiError({ unexpected: true }).title, 'No se pudo completar la accion')
 })

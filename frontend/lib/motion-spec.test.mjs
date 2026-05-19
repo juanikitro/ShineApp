@@ -1,31 +1,12 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import test from 'node:test'
-import ts from 'typescript'
+import { test } from 'vitest'
 
-function loadMotionSpecModule() {
-	const sourcePath = resolve('lib/motion-spec.ts')
-	const source = readFileSync(sourcePath, 'utf8')
-	const compiled = ts.transpileModule(source, {
-		compilerOptions: {
-			module: ts.ModuleKind.CommonJS,
-			target: ts.ScriptTarget.ES2020,
-		},
-	}).outputText
-	const module = { exports: {} }
-	const loader = new Function('exports', 'module', compiled)
-	loader(module.exports, module)
-	return module.exports
-}
-
-const {
+import {
 	agendaBoardVariants,
 	agendaSlideMotionFromOffset,
 	agendaSlidePresenceMode,
 	agendaSlideWindowsOverlap,
-} =
-	loadMotionSpecModule()
+} from './motion-spec'
 
 test('slides a full agenda range without fading the board out', () => {
 	const slideMotion = agendaSlideMotionFromOffset(5, 5)

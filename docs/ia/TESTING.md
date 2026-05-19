@@ -7,7 +7,7 @@ Fuente de verdad general: `../../AGENTS.md`.
 ## Herramientas detectadas
 
 - Backend: `pytest`, `pytest-django`.
-- Frontend: Node test runner sobre `frontend/lib/*.test.mjs`.
+- Frontend: Vitest sobre `frontend/lib/*.test.mjs` y `frontend/app/components/**/*.test.{ts,tsx}`.
 - Build visible: `next build`.
 - Runtime integrado: `docker compose`.
 

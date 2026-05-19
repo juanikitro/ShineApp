@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "test": "node --test lib/*.test.mjs",
-    "test:agenda": "node --test lib/agenda.test.mjs",
-    "test:api-errors": "node --test lib/api-errors.test.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:agenda": "vitest run lib/agenda.test.mjs",
+    "test:api-errors": "vitest run lib/api-errors.test.mjs",
     "validate": "npm run test && npm run build",
     "build": "next build",
     "start": "next start"
@@ -25,9 +27,16 @@
     "postcss": "^8.5.10"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
-    "typescript": "^5.7.2"
+    "@vitejs/plugin-react": "^6.0.2",
+    "@vitest/coverage-v8": "^4.1.6",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.6"
   }
 }

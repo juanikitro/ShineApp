@@ -1,26 +1,7 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import test from 'node:test'
-import ts from 'typescript'
+import { test } from 'vitest'
 
-function loadVehicleOptionsModule() {
-	const sourcePath = resolve('lib/vehicle-options.ts')
-	const source = readFileSync(sourcePath, 'utf8')
-	const compiled = ts.transpileModule(source, {
-		compilerOptions: {
-			module: ts.ModuleKind.CommonJS,
-			target: ts.ScriptTarget.ES2020,
-		},
-	}).outputText
-	const module = { exports: {} }
-	const loader = new Function('exports', 'module', compiled)
-	loader(module.exports, module)
-	return module.exports
-}
-
-const { vehicleBrandOptions, vehicleModelOptionsForBrand } =
-	loadVehicleOptionsModule()
+import { vehicleBrandOptions, vehicleModelOptionsForBrand } from './vehicle-options'
 
 test('vehicleBrandOptions combines known brands with historical custom brands', () => {
 	const options = vehicleBrandOptions(['Zanella', 'Toyota', ''])

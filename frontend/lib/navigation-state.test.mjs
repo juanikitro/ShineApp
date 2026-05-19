@@ -1,23 +1,7 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import test from 'node:test'
-import ts from 'typescript'
+import { test } from 'vitest'
 
-function loadNavigationModule() {
-	const sourcePath = resolve('lib/navigation-state.ts')
-	const source = readFileSync(sourcePath, 'utf8')
-	const compiled = ts.transpileModule(source, {
-		compilerOptions: {
-			module: ts.ModuleKind.CommonJS,
-			target: ts.ScriptTarget.ES2020,
-		},
-	}).outputText
-	const module = { exports: {} }
-	const loader = new Function('exports', 'module', compiled)
-	loader(module.exports, module)
-	return module.exports
-}
+import { navigationUrlForState, readNavigationStateFromUrl } from './navigation-state'
 
 const navigationConfig = {
 	sections: ['dashboard', 'agenda', 'cash', 'debts', 'settings'],
@@ -27,8 +11,6 @@ const navigationConfig = {
 }
 
 test('reads main section and settings subsection from URL query params', () => {
-	const { readNavigationStateFromUrl } = loadNavigationModule()
-
 	assert.deepEqual(
 		readNavigationStateFromUrl(
 			'http://localhost:3000/?section=settings&settings=users',
@@ -46,8 +28,6 @@ test('reads main section and settings subsection from URL query params', () => {
 })
 
 test('ignores unknown URL values and keeps safe defaults', () => {
-	const { readNavigationStateFromUrl } = loadNavigationModule()
-
 	assert.deepEqual(
 		readNavigationStateFromUrl(
 			'http://localhost:3000/?section=admin&settings=secrets',
@@ -58,8 +38,6 @@ test('ignores unknown URL values and keeps safe defaults', () => {
 })
 
 test('writes canonical query params without dropping unrelated params', () => {
-	const { navigationUrlForState } = loadNavigationModule()
-
 	assert.equal(
 		navigationUrlForState('http://localhost:3000/?foo=bar', {
 			section: 'cash',
@@ -77,13 +55,49 @@ test('writes canonical query params without dropping unrelated params', () => {
 })
 
 test('falls back to controlled hash links when query params are absent', () => {
-	const { readNavigationStateFromUrl } = loadNavigationModule()
-
 	assert.deepEqual(
 		readNavigationStateFromUrl(
 			'http://localhost:3000/#settings/cash',
 			navigationConfig,
 		),
 		{ section: 'settings', settingsSection: 'cash' },
+	)
+})
+
+test('canonical urls clear default sections and controlled legacy hashes', () => {
+	assert.equal(
+		navigationUrlForState('http://localhost:3000/?section=cash&settings=users#/agenda', {
+			section: 'dashboard',
+			settingsSection: 'users',
+		}, navigationConfig),
+		'/',
+	)
+	assert.equal(
+		navigationUrlForState('http://localhost:3000/#external-anchor', {
+			section: 'settings',
+			settingsSection: 'unknown',
+		}, navigationConfig),
+		'/?section=settings&settings=business#external-anchor',
+	)
+})
+
+test('reads case-insensitive hash variants and ignores empty hash values', () => {
+	assert.deepEqual(
+		readNavigationStateFromUrl(
+			'http://localhost:3000/#/SETTINGS:History',
+			navigationConfig,
+		),
+		{ section: 'settings', settingsSection: 'history' },
+	)
+	assert.deepEqual(
+		readNavigationStateFromUrl('http://localhost:3000/#/', navigationConfig),
+		{ section: 'dashboard', settingsSection: 'business' },
+	)
+	assert.equal(
+		navigationUrlForState('http://localhost:3000/?settings=users', {
+			section: 'unknown',
+			settingsSection: 'users',
+		}, navigationConfig),
+		'/',
 	)
 })
