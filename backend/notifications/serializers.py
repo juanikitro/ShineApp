@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.db.models import Q
 from django.db import transaction
 from rest_framework import serializers
 
@@ -14,6 +15,108 @@ from .models import PublicRequest, PublicRequestItem
 
 def digits_only(value):
     return "".join(character for character in str(value or "") if character.isdigit())
+
+
+def public_request_suggestions_payload(customers, vehicles):
+    return {
+        "customers": [
+            {
+                "id": customer.id,
+                "label": customer.name,
+                "name": customer.name,
+                "phone": customer.phone,
+                "email": customer.email,
+            }
+            for customer in customers
+        ],
+        "vehicles": [
+            {
+                "id": vehicle.id,
+                "label": str(vehicle),
+                "customer": vehicle.customer_id,
+                "customer_name": vehicle.customer.name,
+                "license_plate": vehicle.license_plate,
+            }
+            for vehicle in vehicles
+        ],
+    }
+
+
+def build_public_request_suggestions_map(public_requests):
+    requests = list(public_requests)
+    if not requests:
+        return {}
+
+    business_ids = {public_request.business_id for public_request in requests}
+    request_emails = {
+        (public_request.customer_email or "").strip().lower()
+        for public_request in requests
+        if (public_request.customer_email or "").strip()
+    }
+    request_phone_digits = {
+        digits_only(public_request.customer_phone)
+        for public_request in requests
+        if digits_only(public_request.customer_phone)
+    }
+    request_plates = {
+        (public_request.vehicle_license_plate or "").strip().upper()
+        for public_request in requests
+        if (public_request.vehicle_license_plate or "").strip()
+    }
+
+    customers_by_email = {}
+    customers_by_phone = {}
+    if request_emails or request_phone_digits:
+        for customer in Customer.objects.filter(
+            business_id__in=business_ids,
+            is_active=True,
+        ).order_by("name", "id"):
+            email = (customer.email or "").strip().lower()
+            phone = digits_only(customer.phone)
+            if email in request_emails:
+                customers_by_email.setdefault(email, []).append(customer)
+            if phone in request_phone_digits:
+                customers_by_phone.setdefault(phone, []).append(customer)
+
+    vehicles_by_plate = {}
+    if request_plates:
+        plate_query = Q()
+        for plate in request_plates:
+            plate_query |= Q(license_plate__iexact=plate)
+        for vehicle in (
+            Vehicle.objects.filter(
+                business_id__in=business_ids,
+                is_active=True,
+            )
+            .filter(plate_query)
+            .select_related("customer")
+            .order_by("id")
+        ):
+            vehicles_by_plate.setdefault(vehicle.license_plate.upper(), []).append(vehicle)
+
+    suggestions = {}
+    for public_request in requests:
+        email = (public_request.customer_email or "").strip().lower()
+        phone = digits_only(public_request.customer_phone)
+        plate = (public_request.vehicle_license_plate or "").strip().upper()
+        customer_matches = [
+            *customers_by_email.get(email, []),
+            *customers_by_phone.get(phone, []),
+        ]
+        deduped_customers = []
+        seen_customer_ids = set()
+        for customer in sorted(customer_matches, key=lambda item: (item.name.lower(), item.id)):
+            if customer.id in seen_customer_ids:
+                continue
+            seen_customer_ids.add(customer.id)
+            deduped_customers.append(customer)
+            if len(deduped_customers) >= 5:
+                break
+        suggestions[public_request.id] = public_request_suggestions_payload(
+            deduped_customers,
+            vehicles_by_plate.get(plate, [])[:5],
+        )
+    return suggestions
 
 
 class PublicLandingServiceSerializer(serializers.ModelSerializer):
@@ -193,6 +296,10 @@ class PublicRequestSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_suggestions(self, obj):
+        suggestions_map = self.context.get("public_request_suggestions_map")
+        if suggestions_map is not None and obj.id in suggestions_map:
+            return suggestions_map[obj.id]
+
         phone_digits = digits_only(obj.customer_phone)
         email = (obj.customer_email or "").strip().lower()
         customers = []
@@ -213,28 +320,7 @@ class PublicRequestSerializer(serializers.ModelSerializer):
                 license_plate__iexact=obj.vehicle_license_plate,
             ).select_related("customer")[:5]
 
-        return {
-            "customers": [
-                {
-                    "id": customer.id,
-                    "label": customer.name,
-                    "name": customer.name,
-                    "phone": customer.phone,
-                    "email": customer.email,
-                }
-                for customer in customers
-            ],
-            "vehicles": [
-                {
-                    "id": vehicle.id,
-                    "label": str(vehicle),
-                    "customer": vehicle.customer_id,
-                    "customer_name": vehicle.customer.name,
-                    "license_plate": vehicle.license_plate,
-                }
-                for vehicle in vehicles
-            ],
-        }
+        return public_request_suggestions_payload(customers, vehicles)
 
 
 class PublicRequestConvertSerializer(serializers.Serializer):

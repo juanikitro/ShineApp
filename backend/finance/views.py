@@ -144,7 +144,7 @@ def sync_past_cash_closures(reference_day=None, user=None, business=None):
 
 class PaymentViewSet(AuditedModelViewSetMixin, mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     audit_side_effects = ("cash_movement",)
-    queryset = Payment.objects.select_related("work_order").all()
+    queryset = Payment.objects.select_related("work_order", "work_order__customer").all()
     serializer_class = PaymentSerializer
     permission_classes = [CanViewEconomy]
 

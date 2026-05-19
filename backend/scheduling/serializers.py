@@ -123,7 +123,7 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
             "service": order.service_id,
             "service_name": order.service.name,
             "service_icon": order.service.icon,
-            "status": order.status,
+            "status": obj.status,
             "internal_notes": order.internal_notes,
             "received_at": order.received_at.isoformat() if order.received_at else None,
             "estimated_delivery_at": (
@@ -133,12 +133,19 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
             "updated_at": order.updated_at.isoformat() if order.updated_at else None,
         }
         if context_can_view_economy(self.context):
+            metrics = self.context.get("work_order_financial_metrics_map", {}).get(order.id)
             payload.update(
                 {
                     "total_amount": str(order.total_amount),
-                    "paid_amount": str(order.paid_amount),
-                    "balance_due": str(order.balance_due),
-                    "material_cost": str(order.material_cost),
+                    "paid_amount": str(
+                        metrics["paid_amount"] if metrics else order.paid_amount
+                    ),
+                    "balance_due": str(
+                        metrics["balance_due"] if metrics else order.balance_due
+                    ),
+                    "material_cost": str(
+                        metrics["material_cost"] if metrics else order.material_cost
+                    ),
                 }
             )
         return payload

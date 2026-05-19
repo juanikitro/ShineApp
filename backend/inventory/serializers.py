@@ -269,15 +269,15 @@ class SupplierListSerializer(SupplierSerializer):
 class MaterialSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     last_purchase_unit_cost = serializers.SerializerMethodField()
     last_purchase_date = serializers.SerializerMethodField()
-    stock_value = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
-    usage_count = serializers.IntegerField(read_only=True)
-    total_consumed_quantity = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
-    total_consumed_estimated_cost = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
-    last_consumed_at = serializers.DateField(read_only=True, allow_null=True)
-    open_units_active_count = serializers.IntegerField(read_only=True)
-    open_units_finished_count = serializers.IntegerField(read_only=True)
-    average_jobs_per_finished_unit = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
-    average_days_per_finished_unit = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    stock_value = serializers.SerializerMethodField()
+    usage_count = serializers.SerializerMethodField()
+    total_consumed_quantity = serializers.SerializerMethodField()
+    total_consumed_estimated_cost = serializers.SerializerMethodField()
+    last_consumed_at = serializers.SerializerMethodField()
+    open_units_active_count = serializers.SerializerMethodField()
+    open_units_finished_count = serializers.SerializerMethodField()
+    average_jobs_per_finished_unit = serializers.SerializerMethodField()
+    average_days_per_finished_unit = serializers.SerializerMethodField()
 
     class Meta:
         model = Material
@@ -325,14 +325,105 @@ class MaterialSerializer(BusinessScopedSerializerMixin, serializers.ModelSeriali
             "updated_at",
         ]
 
-    def get_last_purchase_unit_cost(self, obj):
+    def get_material_metrics(self, obj):
+        return self.context.get("material_list_metrics_map", {}).get(obj.id)
+
+    def get_metric_value(self, obj, key, fallback):
+        metrics = self.get_material_metrics(obj)
+        if metrics is not None and key in metrics:
+            return metrics[key]
+        return fallback()
+
+    def decimal_representation(self, value):
+        return serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+            read_only=True,
+        ).to_representation(value or Decimal("0.00"))
+
+    def latest_purchase(self, obj):
         purchase = obj.purchases.order_by("-purchased_at", "-id").first()
+        return purchase
+
+    def get_last_purchase_unit_cost(self, obj):
+        value = self.get_metric_value(
+            obj,
+            "last_purchase_unit_cost",
+            lambda: self.get_last_purchase_unit_cost_fallback(obj),
+        )
+        return value
+
+    def get_last_purchase_date(self, obj):
+        return self.get_metric_value(
+            obj,
+            "last_purchase_date",
+            lambda: self.get_last_purchase_date_fallback(obj),
+        )
+
+    def get_stock_value(self, obj):
+        return self.decimal_representation(obj.stock_value)
+
+    def get_usage_count(self, obj):
+        return self.get_metric_value(obj, "usage_count", lambda: obj.usage_count) or 0
+
+    def get_total_consumed_quantity(self, obj):
+        value = self.get_metric_value(
+            obj,
+            "total_consumed_quantity",
+            lambda: obj.total_consumed_quantity,
+        )
+        return self.decimal_representation(value)
+
+    def get_total_consumed_estimated_cost(self, obj):
+        value = self.get_metric_value(
+            obj,
+            "total_consumed_estimated_cost",
+            lambda: obj.total_consumed_estimated_cost,
+        )
+        return self.decimal_representation(value)
+
+    def get_last_consumed_at(self, obj):
+        value = self.get_metric_value(obj, "last_consumed_at", lambda: obj.last_consumed_at)
+        return value.isoformat() if value else None
+
+    def get_open_units_active_count(self, obj):
+        return self.get_metric_value(
+            obj,
+            "open_units_active_count",
+            lambda: obj.open_units_active_count,
+        ) or 0
+
+    def get_open_units_finished_count(self, obj):
+        return self.get_metric_value(
+            obj,
+            "open_units_finished_count",
+            lambda: obj.open_units_finished_count,
+        ) or 0
+
+    def get_average_jobs_per_finished_unit(self, obj):
+        value = self.get_metric_value(
+            obj,
+            "average_jobs_per_finished_unit",
+            lambda: obj.average_jobs_per_finished_unit,
+        )
+        return self.decimal_representation(value)
+
+    def get_average_days_per_finished_unit(self, obj):
+        value = self.get_metric_value(
+            obj,
+            "average_days_per_finished_unit",
+            lambda: obj.average_days_per_finished_unit,
+        )
+        return self.decimal_representation(value)
+
+    def get_last_purchase_unit_cost_fallback(self, obj):
+        purchase = self.latest_purchase(obj)
         if not purchase or purchase.quantity <= 0:
             return None
         return purchase.total_cost / purchase.quantity
 
-    def get_last_purchase_date(self, obj):
-        purchase = obj.purchases.order_by("-purchased_at", "-id").first()
+    def get_last_purchase_date_fallback(self, obj):
+        purchase = self.latest_purchase(obj)
         return purchase.purchased_at if purchase else None
 
     def validate_stock_quantity(self, value):

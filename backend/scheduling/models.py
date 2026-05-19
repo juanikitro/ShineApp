@@ -72,7 +72,12 @@ class Reservation(models.Model):
 
     @property
     def service_items(self):
-        items = list(self.items.select_related("service").all())
+        prefetched = getattr(self, "_prefetched_objects_cache", {}).get("items")
+        items = (
+            list(prefetched)
+            if prefetched is not None
+            else list(self.items.select_related("service").all())
+        )
         if items:
             return items
         return [

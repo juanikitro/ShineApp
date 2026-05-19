@@ -1,5 +1,6 @@
 from datetime import date
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from rest_framework import decorators, response, status, viewsets
 from rest_framework.views import APIView
@@ -10,10 +11,21 @@ from quotes.serializers import QuoteSerializer
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
 from core.models import BusinessProfile
 from core.permissions import business_from_request
+from workorders.metrics import build_work_order_financial_metrics
 
 from .models import DailyCapacity, Reservation
 from .serializers import DailyCapacitySerializer, ReservationSerializer
 from .services import ensure_reservation_work_order
+
+
+def work_orders_for_reservations(reservations):
+    work_orders = []
+    for reservation in reservations:
+        try:
+            work_orders.append(reservation.work_order)
+        except (AttributeError, ObjectDoesNotExist):
+            continue
+    return work_orders
 
 
 class DailyCapacityViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
@@ -34,6 +46,13 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     ).prefetch_related("items", "items__service").all()
     serializer_class = ReservationSerializer
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        metrics_map = getattr(self, "_work_order_financial_metrics_map", None)
+        if metrics_map is not None:
+            context["work_order_financial_metrics_map"] = metrics_map
+        return context
+
     def get_queryset(self):
         queryset = self.queryset
         day = self.request.query_params.get("day")
@@ -43,6 +62,19 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        rows = page if page is not None else list(queryset)
+        self._work_order_financial_metrics_map = build_work_order_financial_metrics(
+            work_orders_for_reservations(rows)
+        )
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(rows, many=True)
+        return response.Response(serializer.data)
 
     @decorators.action(detail=True, methods=["post"])
     def confirm(self, request, pk=None):
@@ -154,6 +186,10 @@ class DailyAgendaView(APIView):
             )
         else:
             reservations = reservations.filter(day=day)
+        reservation_rows = list(reservations)
+        work_order_metrics = build_work_order_financial_metrics(
+            work_orders_for_reservations(reservation_rows)
+        )
         used_slots = Reservation.used_slots_for_day(day, business=business)
         return response.Response(
             {
@@ -162,7 +198,14 @@ class DailyAgendaView(APIView):
                 "max_slots": max_slots,
                 "used_slots": used_slots,
                 "available_slots": max(max_slots - used_slots, 0),
-                "reservations": ReservationSerializer(reservations, many=True, context={"request": request}).data,
+                "reservations": ReservationSerializer(
+                    reservation_rows,
+                    many=True,
+                    context={
+                        "request": request,
+                        "work_order_financial_metrics_map": work_order_metrics,
+                    },
+                ).data,
             },
             status=status.HTTP_200_OK,
         )

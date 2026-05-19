@@ -1,11 +1,14 @@
 from decimal import Decimal
 
 import pytest
+from django.db import connection
 from django.db import IntegrityError
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from catalog.models import Service
 from customers.models import Customer, Vehicle
+from finance.models import Payment
 from scheduling.models import Reservation
 from workorders.models import WorkOrder
 
@@ -111,6 +114,58 @@ def test_work_order_status_updates_reservation_status(api_client, base_data):
     assert reservation.status == "ready"
     assert order.status == "ready"
     assert response.data["status"] == "ready"
+
+
+@pytest.mark.django_db
+def test_work_order_list_batches_financial_totals(api_client, base_data):
+    customer, vehicle, service = base_data
+    for index in range(10):
+        reservation = Reservation.objects.create(
+            customer=customer,
+            vehicle=vehicle,
+            service=service,
+            day=f"2026-04-{20 + index}",
+            status=Reservation.Status.CONFIRMED,
+        )
+        order = reservation.work_order
+        order.total_amount = Decimal("15000.00")
+        order.save(update_fields=["total_amount", "updated_at"])
+        Payment.objects.create(work_order=order, amount=Decimal("5000.00"))
+
+    with CaptureQueriesContext(connection) as queries:
+        response = api_client.get(reverse("workorder-list"))
+
+    assert response.status_code == 200, response.data
+    assert len(queries) <= 12
+    first = response.data["results"][0]
+    assert first["paid_amount"] == "5000.00"
+    assert first["balance_due"] == "10000.00"
+
+
+@pytest.mark.django_db
+def test_reservation_list_batches_embedded_work_order_totals(api_client, base_data):
+    customer, vehicle, service = base_data
+    for index in range(10):
+        reservation = Reservation.objects.create(
+            customer=customer,
+            vehicle=vehicle,
+            service=service,
+            day=f"2026-04-{20 + index}",
+            status=Reservation.Status.CONFIRMED,
+        )
+        order = reservation.work_order
+        order.total_amount = Decimal("15000.00")
+        order.save(update_fields=["total_amount", "updated_at"])
+        Payment.objects.create(work_order=order, amount=Decimal("5000.00"))
+
+    with CaptureQueriesContext(connection) as queries:
+        response = api_client.get(reverse("reservation-list"))
+
+    assert response.status_code == 200, response.data
+    assert len(queries) <= 16
+    first = response.data["results"][0]["work_order"]
+    assert first["paid_amount"] == "5000"
+    assert first["balance_due"] == "10000.00"
 
 
 @pytest.mark.django_db
