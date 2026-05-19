@@ -1065,6 +1065,7 @@ export default function Home() {
 	const [employees, setEmployees] = useState<AnyRecord[]>([])
 	const [auditLogs, setAuditLogs] = useState<AnyRecord[]>([])
 	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>({})
+	const auditLogsLoadedRef = useRef(false)
 	const [expandedAuditLogId, setExpandedAuditLogId] = useState<string | null>(
 		null,
 	)
@@ -2153,6 +2154,7 @@ export default function Home() {
 	async function refreshAuditLogs(filters: AuditLogFilters = auditFilters) {
 		if (!canViewEconomy) return
 		const logs = await auditLogListOrEmpty<AnyRecord>(apiList, filters)
+		auditLogsLoadedRef.current = true
 		setAuditLogs(logs)
 	}
 
@@ -2215,7 +2217,6 @@ export default function Home() {
 				publicRequestData,
 				businessProfileData,
 				employeeData,
-				auditLogData,
 			] = await Promise.all([
 				apiFetch<AnyRecord>(
 					`/dashboard/summary/?from=${period.from}&to=${period.to}`,
@@ -2258,9 +2259,6 @@ export default function Home() {
 				canViewEconomy
 					? apiList<AnyRecord>('/auth/employees/')
 					: Promise.resolve([]),
-				canViewEconomy
-					? auditLogListOrEmpty<AnyRecord>(apiList, auditFilters)
-					: Promise.resolve([]),
 			])
 			setDashboard(dashboardData)
 			setCash(cashData)
@@ -2283,7 +2281,6 @@ export default function Home() {
 			setPublicRequests(publicRequestData)
 			syncBusinessProfile(businessProfileData)
 			setEmployees(employeeData)
-			setAuditLogs(auditLogData)
 		} catch (err: any) {
 			const notice = formatApiError(err, {
 				fallbackTitle: 'No se pudieron cargar los datos',
@@ -2310,6 +2307,7 @@ export default function Home() {
 			setCurrentUser(null)
 			syncBusinessProfile(null)
 			setAuditLogs([])
+			auditLogsLoadedRef.current = false
 			setPublicRequests([])
 			return
 		}
@@ -2346,6 +2344,45 @@ export default function Home() {
 			loadData()
 		}
 	}, [currentUser, selectedDay, token])
+
+	useEffect(() => {
+		if (
+			!canViewEconomy ||
+			displayedActive !== 'settings' ||
+			settingsSection !== 'history' ||
+			auditLogsLoadedRef.current
+		) {
+			return
+		}
+
+		let ignore = false
+		setLoading(true)
+		auditLogListOrEmpty<AnyRecord>(apiList, auditFilters)
+			.then((logs) => {
+				if (ignore) return
+				auditLogsLoadedRef.current = true
+				setAuditLogs(logs)
+			})
+			.catch((err: any) => {
+				if (ignore) return
+				setError(
+					formatApiError(err, {
+						fallbackTitle: 'No se pudo cargar el historial',
+						fallbackDescription:
+							'Actualiza nuevamente o revisa la conexion con el servidor.',
+					}),
+				)
+			})
+			.finally(() => {
+				if (!ignore) {
+					setLoading(false)
+				}
+			})
+
+		return () => {
+			ignore = true
+		}
+	}, [auditFilters, canViewEconomy, displayedActive, settingsSection])
 
 	useEffect(() => {
 		if (!currentUser || canViewEconomy || !sectionRequiresEmployer(active)) return
