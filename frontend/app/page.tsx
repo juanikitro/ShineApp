@@ -67,6 +67,7 @@ import {
 	CustomerListPanel,
 	type CustomerCardFilter,
 } from '@/app/components/customers/CustomerListPanel'
+import { FinanceRecordCard } from '@/app/components/finance/FinanceRecordCard'
 import { AppBrand } from '@/app/components/layout/AppBrand'
 import { AppShell } from '@/app/components/layout/AppShell'
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
@@ -92,6 +93,11 @@ import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
 import { ServiceIconPicker } from '@/app/components/ui/ServiceIconPicker'
 import { StatusPill } from '@/app/components/ui/StatusPill'
 import { cx } from '@/app/components/utils'
+import {
+	focusElementIfAvailable,
+	focusFirstElement,
+	trapFocusWithin,
+} from '@/lib/a11y'
 import {
 	apiFetch,
 	apiList,
@@ -247,6 +253,8 @@ import {
 	useFlashTarget,
 	useNoticeToasts,
 } from '@/lib/page-support'
+
+const SIDEBAR_NAV_ID = 'app-sidebar-navigation'
 
 const agendaServiceBuckets: Array<{
 	value: AgendaServiceBucket
@@ -407,6 +415,10 @@ type CashFilterState = {
 	amountMin: string
 	amountMax: string
 }
+type DebtFilterState = {
+	status: string
+	balance: string
+}
 type CashSummaryLine = {
 	key: string
 	label: string
@@ -439,12 +451,17 @@ const CASH_FILTER_DEFAULTS: CashFilterState = {
 	amountMax: '',
 }
 
+const DEBT_FILTER_DEFAULTS: DebtFilterState = {
+	status: '',
+	balance: '',
+}
+
 const cashSummaryModeOptions: Array<{
 	value: CashSummaryMode
 	label: string
 }> = [
-	{ value: 'cashflow', label: 'Caja real' },
-	{ value: 'economic', label: 'Resultado economico' },
+	{ value: 'cashflow', label: 'Flujo de caja' },
+	{ value: 'economic', label: 'Resultado del dia' },
 ]
 
 const cashMovementTypeOptions = [
@@ -453,9 +470,18 @@ const cashMovementTypeOptions = [
 ]
 
 const cashEffectOptions = [
-	{ value: 'cashflow', label: 'Caja real' },
-	{ value: 'economic_only', label: 'Solo economico' },
+	{ value: 'cashflow', label: 'Impacta caja' },
+	{ value: 'economic_only', label: 'Solo resultado' },
 ]
+
+const debtBalanceFilterOptions = [
+	{ value: 'open', label: 'Con saldo' },
+	{ value: 'settled', label: 'Saldadas' },
+]
+
+const debtStatusFilterOptions = Object.entries(debtStatusLabels).map(
+	([value, label]) => ({ value, label }),
+)
 
 const cashSummaryGroupDefinitions = [
 	{ key: 'charges', label: 'Cobros' },
@@ -661,7 +687,9 @@ function formatCashPercent(value: number) {
 }
 
 function normalizedCashFilterAmount(value: any) {
-	const amount = Number(String(value ?? '').replace(',', '.'))
+	const rawValue = String(value ?? '').trim()
+	if (!rawValue) return null
+	const amount = Number(rawValue.replace(',', '.'))
 	return Number.isFinite(amount) ? amount : null
 }
 
@@ -715,6 +743,42 @@ function cashEntryMatchesFilters(item: AnyRecord, filters: CashFilterState) {
 }
 
 function hasCashFilters(filters: CashFilterState) {
+	return Object.values(filters).some((value) => String(value ?? '').trim())
+}
+
+function debtMatchesFilters(
+	item: AnyRecord,
+	filters: DebtFilterState,
+	query: string,
+) {
+	if (filters.status && String(item.status ?? '') !== filters.status) {
+		return false
+	}
+	const balanceDue = numberValue(item.balance_due)
+	if (filters.balance === 'open' && balanceDue <= 0) return false
+	if (filters.balance === 'settled' && balanceDue > 0) return false
+
+	const term = normalizedCashText(query)
+	if (!term) return true
+	const haystack = normalizedCashText(
+		[
+			item.concept,
+			item.creditor,
+			item.supplier_name,
+			debtStatusLabels[item.status],
+			item.status,
+			item.expense_category,
+			item.expense_subcategory,
+			item.notes,
+			item.principal_amount,
+			item.total_paid,
+			item.balance_due,
+		].join(' '),
+	)
+	return haystack.includes(term)
+}
+
+function hasDebtFilters(filters: DebtFilterState) {
 	return Object.values(filters).some((value) => String(value ?? '').trim())
 }
 
@@ -903,10 +967,14 @@ export default function Home() {
 	const [themeMode, setThemeMode] = useState<ThemeMode>('light')
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 	const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
+	const sidebarMobileToggleRef = useRef<HTMLButtonElement>(null)
+	const sidebarReturnFocusRef = useRef<HTMLElement | null>(null)
 	const [settingsSection, setSettingsSection] =
 		useState<SettingsSection>('business')
 	const [loading, setLoading] = useState(false)
 	const [agendaLoadError, setAgendaLoadError] =
+		useState<ApiErrorNotice | null>(null)
+	const [loadErrorNotice, setLoadErrorNotice] =
 		useState<ApiErrorNotice | null>(null)
 	const { toasts, showToast, dismissToast } = useNoticeToasts()
 	const [search, setSearch] = useState('')
@@ -922,6 +990,8 @@ export default function Home() {
 		useState<CashSummaryMode>('cashflow')
 	const [cashFilters, setCashFilters] =
 		useState<CashFilterState>(CASH_FILTER_DEFAULTS)
+	const [debtFilters, setDebtFilters] =
+		useState<DebtFilterState>(DEBT_FILTER_DEFAULTS)
 	const cashMovementDateTimeFor = (day: string) => `${day}T12:00`
 	const blankMovementForm = (
 		day = selectedDay,
@@ -1225,15 +1295,25 @@ export default function Home() {
 		if (!sidebarMobileOpen) return
 
 		const previousOverflow = document.body.style.overflow
+		const sidebar = document.getElementById(SIDEBAR_NAV_ID)
+		const focusFrame = window.requestAnimationFrame(() => {
+			focusFirstElement(sidebar)
+		})
+		const focusTimer = window.setTimeout(() => {
+			focusFirstElement(document.getElementById(SIDEBAR_NAV_ID))
+		}, 220)
 		const closeOnDesktop = () => {
 			if (window.innerWidth > 980) {
-				setSidebarMobileOpen(false)
+				closeSidebarMobileMenu({ restoreFocus: false })
 			}
 		}
 		const handleKeyDown = (event: globalThis.KeyboardEvent) => {
 			if (event.key === 'Escape') {
-				setSidebarMobileOpen(false)
+				event.preventDefault()
+				closeSidebarMobileMenu()
+				return
 			}
+			trapFocusWithin(event, sidebar)
 		}
 
 		document.body.style.overflow = 'hidden'
@@ -1241,6 +1321,8 @@ export default function Home() {
 		window.addEventListener('resize', closeOnDesktop)
 		window.addEventListener('keydown', handleKeyDown)
 		return () => {
+			window.cancelAnimationFrame(focusFrame)
+			window.clearTimeout(focusTimer)
 			document.body.style.overflow = previousOverflow
 			window.removeEventListener('resize', closeOnDesktop)
 			window.removeEventListener('keydown', handleKeyDown)
@@ -1693,23 +1775,8 @@ export default function Home() {
 	}, [tools, search])
 
 	const filteredDebts = useMemo(() => {
-		const term = search.toLowerCase()
-		if (!term) return debts
-		return debts.filter((item) =>
-			[
-				item.concept,
-				item.creditor,
-				item.supplier_name,
-				debtStatusLabels[item.status],
-				item.status,
-				item.notes,
-			].some((value) =>
-				String(value ?? '')
-					.toLowerCase()
-					.includes(term),
-			),
-		)
-	}, [debts, search])
+		return debts.filter((item) => debtMatchesFilters(item, debtFilters, search))
+	}, [debtFilters, debts, search])
 
 	const filteredSuppliers = useMemo(() => {
 		const term = search.trim().toLowerCase()
@@ -2065,6 +2132,7 @@ export default function Home() {
 		setLoading(true)
 		setError(null)
 		setAgendaLoadError(null)
+		setLoadErrorNotice(null)
 		try {
 			const [
 				dashboardData,
@@ -2164,6 +2232,7 @@ export default function Home() {
 					'Actualiza nuevamente o revisa la conexion con el servidor.',
 			})
 			setAgendaLoadError(notice)
+			setLoadErrorNotice(notice)
 			setError(notice)
 		} finally {
 			setLoading(false)
@@ -3849,13 +3918,33 @@ export default function Home() {
 		}
 	}
 
-	function closeSidebarMobileMenu() {
+	function restoreSidebarMobileFocus() {
+		window.requestAnimationFrame(() => {
+			if (focusElementIfAvailable(sidebarReturnFocusRef.current)) return
+			sidebarMobileToggleRef.current?.focus()
+		})
+	}
+
+	function closeSidebarMobileMenu(
+		options: { restoreFocus?: boolean } = { restoreFocus: true },
+	) {
 		setSidebarMobileOpen(false)
+		if (options.restoreFocus !== false) {
+			restoreSidebarMobileFocus()
+		}
 	}
 
 	function toggleSidebarMobileMenu() {
+		if (sidebarMobileOpen) {
+			closeSidebarMobileMenu()
+			return
+		}
+		sidebarReturnFocusRef.current =
+			document.activeElement instanceof HTMLElement
+				? document.activeElement
+				: sidebarMobileToggleRef.current
 		setSidebarCollapsed(false)
-		setSidebarMobileOpen((current) => !current)
+		setSidebarMobileOpen(true)
 	}
 
 	function handleSectionChange(key: string) {
@@ -3870,6 +3959,14 @@ export default function Home() {
 	const publicLandingUrl = businessSlug
 		? `${typeof window !== 'undefined' ? window.location.origin : ''}/publica/${businessSlug}`
 		: ''
+	const publicLandingEnabled = businessForm.public_landing_enabled !== false
+	const bookingRequestsEnabled =
+		businessForm.allow_public_booking_requests !== false
+	const quoteRequestsEnabled = businessForm.allow_public_quote_requests !== false
+	const activeEmployeeCount = employees.filter(
+		(item) => item.is_active !== false,
+	).length
+	const inactiveEmployeeCount = employees.length - activeEmployeeCount
 	const title = sectionMeta[displayedActive]
 	const navItems: SidebarNavItem[] = (Object.keys(sectionMeta) as Section[])
 		.filter((key) => canViewEconomy || !sectionRequiresEmployer(key))
@@ -4256,9 +4353,10 @@ export default function Home() {
 	}
 
 	const cashFiltersActive = hasCashFilters(cashFilters)
+	const debtFiltersActive = Boolean(search.trim()) || hasDebtFilters(debtFilters)
 	const cashSummaryModeLabel =
 		cashSummaryModeOptions.find((option) => option.value === cashSummaryMode)
-			?.label ?? 'Caja real'
+			?.label ?? 'Flujo de caja'
 	const cashIsClosed = cash.is_closed === true
 	const cashStatusLabel = cashIsClosed ? 'Cerrada' : 'Abierta'
 	const cashStatusClass = cashIsClosed ? 'closed' : 'open'
@@ -4286,6 +4384,9 @@ export default function Home() {
 			total + numberValue(line.quantity) * numberValue(line.unit_price),
 		0,
 	)
+	const selectedWorkOrderForPayment = workOrders.find(
+		(item) => String(item.id) === String(paymentForm.work_order),
+	)
 	const selectedDebtForPayment = debts.find(
 		(item) => String(item.id) === String(debtPaymentForm.debt),
 	)
@@ -4297,6 +4398,10 @@ export default function Home() {
 			open: summary.open + (numberValue(debt.balance_due) > 0 ? 1 : 0),
 		}),
 		{ original: 0, paid: 0, pending: 0, open: 0 },
+	)
+	const cashLoadBlocked = Boolean(loadErrorNotice && !cashEntries.length)
+	const debtLoadBlocked = Boolean(
+		loadErrorNotice && !debts.length && !debtPayments.length,
 	)
 
 	function materialUsageRows(material: AnyRecord) {
@@ -6263,6 +6368,50 @@ export default function Home() {
 			[key]: value,
 			...(key === 'category' ? { subcategory: '' } : {}),
 		}))
+	}
+
+	function updateDebtFilter(key: keyof DebtFilterState, value: string) {
+		setDebtFilters((current) => ({
+			...current,
+			[key]: value,
+		}))
+	}
+
+	function clearDebtFilters() {
+		setSearch('')
+		setDebtFilters(DEBT_FILTER_DEFAULTS)
+	}
+
+	function debtPaymentDetailData(item: AnyRecord) {
+		const sourceId = item.source_id ?? item.id
+		const payment = debtPayments.find(
+			(current) => String(current.id) === String(sourceId),
+		)
+		if (payment) return payment
+		return {
+			...item,
+			id: sourceId,
+			debt: item.debt,
+			paid_at: String(item.occurred_at ?? '').slice(0, 10),
+			notes: item.description ?? '',
+		}
+	}
+
+	function openCashEntryDetail(item: AnyRecord) {
+		if (item.source_kind === 'debt_payment') {
+			openDetailModal('Pago de deuda', debtPaymentDetailData(item))
+			return
+		}
+		openDetailModal('Movimiento de caja', item)
+	}
+
+	function openDebtPaymentForDebt(debt: AnyRecord) {
+		setDebtPaymentForm({
+			...blankDebtPaymentForm(today),
+			debt: String(debt.id),
+			amount: normalizedAmountInput(debt.balance_due),
+		})
+		setFormModal({ kind: 'debt-payment' })
 	}
 
 	function moveSelectedCashDay(offset: number) {
@@ -10690,6 +10839,26 @@ export default function Home() {
 						focusField('payment.amount')
 					}}
 				/>
+				{selectedWorkOrderForPayment ? (
+					<div className="finance-form-summary">
+						<div>
+							<span>Saldo a cobrar</span>
+							<strong>
+								{money(
+									selectedWorkOrderForPayment.balance_due ??
+										selectedWorkOrderForPayment.total_amount,
+								)}
+							</strong>
+						</div>
+						<small>
+							{joinDisplayParts([
+								selectedWorkOrderForPayment.customer_name,
+								selectedWorkOrderForPayment.vehicle_label,
+								serviceDisplayName(selectedWorkOrderForPayment),
+							])}
+						</small>
+					</div>
+				) : null}
 				<div className="form-row">
 					<Field label="Importe">
 						<input
@@ -10734,13 +10903,26 @@ export default function Home() {
 						{ value: 'other', label: 'Otro' },
 					]}
 					focusKey="payment.method"
-					onChange={(value) =>
+					onChange={(value) => {
 						setPaymentForm({
 							...paymentForm,
 							method: value || DEFAULT_PAYMENT_METHOD,
 						})
-					}
+						focusField('payment.notes')
+					}}
 				/>
+				<Field label="Notas">
+					<textarea
+						data-focus-key="payment.notes"
+						value={paymentForm.notes}
+						onChange={(event) =>
+							setPaymentForm({
+								...paymentForm,
+								notes: event.target.value,
+							})
+						}
+					/>
+				</Field>
 				<button className="primary" data-focus-key="payment.submit">
 					<CreditCard size={16} />
 					{submitLabel}
@@ -11071,9 +11253,19 @@ export default function Home() {
 					}}
 				/>
 				{selectedDebtForPayment ? (
-					<div className="info-note">
-						Saldo pendiente:{' '}
-						<strong>{money(selectedDebtForPayment.balance_due)}</strong>
+					<div className="finance-form-summary finance-form-summary--debt">
+						<div>
+							<span>Saldo pendiente</span>
+							<strong>{money(selectedDebtForPayment.balance_due)}</strong>
+						</div>
+						<small>
+							{joinDisplayParts([
+								selectedDebtForPayment.creditor || 'Sin acreedor',
+								selectedDebtForPayment.due_date
+									? `Limite ${formatDateLabel(selectedDebtForPayment.due_date)}`
+									: null,
+							])}
+						</small>
 					</div>
 				) : null}
 				<div className="form-row">
@@ -13260,12 +13452,14 @@ export default function Home() {
 							type="button"
 							className="sidebar-backdrop"
 							aria-label="Cerrar menu lateral"
-							onClick={closeSidebarMobileMenu}
+							aria-controls={SIDEBAR_NAV_ID}
+							onClick={() => closeSidebarMobileMenu()}
 						/>
 					) : null
 				}
 				sidebar={
 					<SidebarNav
+						id={SIDEBAR_NAV_ID}
 						collapsed={sidebarCollapsed}
 						mobileOpen={sidebarMobileOpen}
 						header={
@@ -13279,6 +13473,8 @@ export default function Home() {
 								<button
 									type="button"
 									className="ghost sidebar-collapse-toggle"
+									aria-controls={SIDEBAR_NAV_ID}
+									aria-expanded={sidebarMobileOpen ? true : !sidebarCollapsed}
 									aria-label={
 										sidebarMobileOpen
 											? 'Cerrar menu lateral'
@@ -13393,8 +13589,11 @@ export default function Home() {
 						actions={
 							<div className="record-actions">
 								<button
+									ref={sidebarMobileToggleRef}
 									type="button"
 									className="ghost shell-mobile-toggle"
+									aria-controls={SIDEBAR_NAV_ID}
+									aria-expanded={sidebarMobileOpen}
 									aria-label={
 										sidebarMobileOpen
 											? 'Cerrar menu lateral'
@@ -14198,59 +14397,66 @@ export default function Home() {
 
 				{displayedActive === 'cash' ? (
 					<div className="grid">
-						<section className="panel">
-							<div className="panel-head">
+						<section className="panel finance-panel cash-panel">
+							<div className="panel-head finance-panel-head">
 								<div>
+									<span className="panel-kicker">Caja diaria</span>
 									<h2>Caja</h2>
-									<p>Conciliacion diaria con caja real y resultado economico.</p>
+									<p>
+										Cobros, egresos y cierre del dia con lectura operativa.
+									</p>
 								</div>
-								<div className="record-actions">
-									<button
-										type="button"
-										className="primary"
-										disabled={cashIsClosed}
-										onClick={closeCashDay}
-									>
-										<LockKeyhole size={16} />
-										Cerrar dia
-									</button>
-									<button
-										type="button"
-										className="ghost"
-										disabled={cashIsClosed}
-										onClick={() => openFormModal('payment')}
-									>
-										<CreditCard size={16} />
-										Registrar pago
-									</button>
-									<button
-										type="button"
-										className="ghost"
-										disabled={cashIsClosed}
-										onClick={() => openFormModal('debt-payment')}
-									>
-										<CreditCard size={16} />
-										Pago de deuda
-									</button>
-									<button
-										type="button"
-										className="ghost"
-										disabled={cashIsClosed}
-										onClick={() => openFormModal('cash-movement')}
-									>
-										<ReceiptText size={16} />
-										Movimiento manual
-									</button>
-									{cashIsClosed ? (
+								<div className="finance-action-rail">
+									<div className="finance-primary-actions">
+										<button
+											type="button"
+											className="primary"
+											disabled={cashIsClosed}
+											onClick={() => openFormModal('payment')}
+										>
+											<CreditCard size={16} />
+											Cobrar trabajo
+										</button>
 										<button
 											type="button"
 											className="ghost"
-											onClick={() => openAdjustmentForClosedDay(selectedDay)}
+											disabled={cashIsClosed}
+											onClick={() => openFormModal('cash-movement')}
 										>
 											<ReceiptText size={16} />
-											Registrar ajuste hoy
+											Ingreso / egreso
 										</button>
-									) : null}
+									</div>
+									<div className="finance-secondary-actions">
+										<button
+											type="button"
+											className="ghost"
+											disabled={cashIsClosed}
+											onClick={() => openFormModal('debt-payment')}
+										>
+											<CreditCard size={16} />
+											Pagar deuda
+										</button>
+										<button
+											type="button"
+											className="ghost"
+											disabled={cashIsClosed}
+											onClick={closeCashDay}
+										>
+											<LockKeyhole size={16} />
+											Cerrar dia
+										</button>
+										{cashIsClosed ? (
+											<button
+												type="button"
+												className="ghost"
+												onClick={() => openAdjustmentForClosedDay(selectedDay)}
+											>
+												<ReceiptText size={16} />
+												Registrar ajuste hoy
+											</button>
+										) : null}
+									</div>
 								</div>
 							</div>
 							<div className="toolbar toolbar-spaced cash-toolbar">
@@ -14285,36 +14491,59 @@ export default function Home() {
 									{cashStatusLabel}
 								</span>
 							</div>
+							{cashLoadBlocked ? (
+								<ErrorState
+									text={
+										loadErrorNotice?.title ??
+										'No se pudieron cargar los datos de caja'
+									}
+									hint={loadErrorNotice?.description}
+									action={
+										<button type="button" className="ghost" onClick={loadData}>
+											<RefreshCw size={16} />
+											Actualizar
+										</button>
+									}
+								/>
+							) : null}
+							{!cashLoadBlocked && loading && !cashEntries.length ? (
+								<LoadingState
+									text="Cargando caja del dia..."
+									hint="Estamos trayendo cobros, pagos, movimientos y cierre."
+								/>
+							) : null}
+							{!cashLoadBlocked && (!loading || cashEntries.length) ? (
+								<>
 							<div className="info-note">
-								Caja real muestra cobros, pagos de deuda, compras, movimientos
-								manuales y ajustes. Resultado economico mantiene el criterio de
-								deudas: la deuda original impacta una sola vez y sus pagos no
-								duplican el gasto.
+								Flujo de caja muestra el dinero que entro o salio hoy:
+								cobros, pagos de deuda, compras, movimientos manuales y
+								ajustes. Resultado del dia cuenta ingresos y gastos sin
+								duplicar pagos de deudas.
 								{cash.closure
-									? ` Cierre guardado: caja real ${money(cash.closure.cashflow_balance ?? cash.closure.balance)}.`
+									? ` Cierre guardado: flujo de caja ${money(cash.closure.cashflow_balance ?? cash.closure.balance)}.`
 									: ''}
 							</div>
 							<section className="grid three section-block-end cash-metrics-primary">
 								<div className="metric cash-metric">
 									<span>
-										<span className="cash-term income">Ingresos</span> caja real
+										<span className="cash-term income">Ingresos</span> de caja
 									</span>
 									<strong>{money(cashflowTotals.income)}</strong>
 								</div>
 								<div className="metric cash-metric">
 									<span>
-										<span className="cash-term expense">Egresos</span> caja real
+										<span className="cash-term expense">Egresos</span> de caja
 									</span>
 									<strong>{money(cashflowTotals.expense)}</strong>
 								</div>
 								<div className="metric cash-metric cash-metric-balance">
-									<span>Saldo caja real</span>
+									<span>Saldo de caja</span>
 									<strong>{money(cashflowTotals.balance)}</strong>
 								</div>
 							</section>
 							<section className="cash-economic-panel section-block-end">
 								<div>
-									<span>Resultado economico</span>
+									<span>Resultado del dia</span>
 									<strong>{money(economicTotals.balance)}</strong>
 								</div>
 								<p>
@@ -14481,41 +14710,63 @@ export default function Home() {
 							<div className="records cash-records">
 								{filteredCashEntries.length ? (
 									filteredCashEntries.map((item: AnyRecord) => (
-										<MotionFlashSurface
+										<FinanceRecordCard
+											amount={{
+												label:
+													item.movement_type === 'income'
+														? 'Ingreso'
+														: 'Egreso',
+												value: item.signed_amount ?? money(item.amount),
+												tone:
+													item.movement_type === 'income'
+														? 'income'
+														: 'expense',
+											}}
+											badges={[
+												{
+													label:
+														item.source_label ??
+														cashSourceKindLabel(item.source_kind),
+													className: 'status',
+												},
+												{
+													label: item.cashflow_effect
+														? 'Impacta caja'
+														: 'Solo resultado',
+													className: 'status',
+												},
+											]}
 											className={cx(
 												recordClass('cash-movement', item.id),
 												'cash-entry',
 												!item.cashflow_effect && 'cash-entry-muted',
 											)}
 											key={cashEntryKey(item)}
-											{...(item.source_kind === 'debt_payment'
-												? {}
-												: detailRecordProps('Movimiento de caja', item))}
-										>
-											<div className="record-head">
-												<div>
-													<div className="cash-entry-badges">
-														<span className="status">{item.source_label}</span>
-														<span className="status">
-															{item.cashflow_effect
-																? 'Caja real'
-																: 'Solo economico'}
-														</span>
-													</div>
-													<div className="record-title cash-entry-title">
-														{cashEntryTitle(item)}
-													</div>
-													<div className="record-sub">
-														{cashEntryDescription(item)}
-													</div>
-												</div>
-												<span
-													className={`cash-entry-amount ${item.movement_type}`}
-												>
-													{item.signed_amount ?? money(item.amount)}
-												</span>
-											</div>
-										</MotionFlashSurface>
+											primaryAction={{
+												label: 'Abrir detalle',
+												icon: <Eye size={15} />,
+												onClick: () => openCashEntryDetail(item),
+												variant: 'primary',
+											}}
+											stats={[
+												{
+													label: 'Categoria',
+													value: item.category || 'Sin categoria',
+													hint: item.subcategory || 'Sin subcategoria',
+												},
+												{
+													label: 'Fecha',
+													value: item.occurred_at
+														? formatDateTimeLabel(item.occurred_at)
+														: 'Sin fecha',
+													hint: item.created_by_username
+														? `Registrado por ${item.created_by_username}`
+														: 'Origen automatico o manual',
+												},
+											]}
+											subtitle={cashEntryDescription(item)}
+											title={cashEntryTitle(item)}
+										/>
 									))
 								) : (
 									<Empty
@@ -14524,40 +14775,95 @@ export default function Home() {
 												? 'Sin entradas para los filtros aplicados.'
 												: 'Sin movimientos para el dia.'
 										}
+										hint={
+											cashEntries.length
+												? 'Ajusta busqueda, origen, categoria o montos.'
+												: 'Registra un cobro, pago de deuda o movimiento manual para comenzar.'
+										}
+										action={
+											cashEntries.length ? undefined : (
+												<button
+													type="button"
+													className="primary"
+													disabled={cashIsClosed}
+													onClick={() => openFormModal('payment')}
+												>
+													<CreditCard size={16} />
+													Cobrar trabajo
+												</button>
+											)
+										}
 									/>
 								)}
 							</div>
+								</>
+							) : null}
 						</section>
 					</div>
 				) : null}
 
 				{displayedActive === 'debts' ? (
 					<div className="grid">
-						<section className="panel">
-							<div className="panel-head">
+						<section className="panel finance-panel debt-panel">
+							<div className="panel-head finance-panel-head">
 								<div>
+									<span className="panel-kicker">Cobranzas y pagos</span>
 									<h2>Deudas</h2>
-									<p>Saldos pendientes y pagos parciales sin duplicar egresos.</p>
+									<p>
+										Saldos pendientes, pagos parciales y detalle listo para
+										accion.
+									</p>
 								</div>
-								<div className="record-actions">
+								<div className="finance-action-rail">
+									<div className="finance-primary-actions">
+										<button
+											type="button"
+											className="primary"
+											onClick={() => openFormModal('debt-payment')}
+										>
+											<CreditCard size={16} />
+											Registrar pago
+										</button>
+									</div>
+									<div className="finance-secondary-actions">
 									<button
 										type="button"
-										className="primary"
+										className="ghost"
 										onClick={() => openFormModal('debt')}
 									>
 										<ReceiptText size={16} />
 										Nueva deuda
 									</button>
-									<button
-										type="button"
-										className="ghost"
-										onClick={() => openFormModal('debt-payment')}
-									>
-										<CreditCard size={16} />
-										Registrar pago
-									</button>
+									</div>
 								</div>
 							</div>
+							{debtLoadBlocked ? (
+								<ErrorState
+									text={
+										loadErrorNotice?.title ??
+										'No se pudieron cargar los datos de deudas'
+									}
+									hint={loadErrorNotice?.description}
+									action={
+										<button type="button" className="ghost" onClick={loadData}>
+											<RefreshCw size={16} />
+											Actualizar
+										</button>
+									}
+								/>
+							) : null}
+							{!debtLoadBlocked &&
+							loading &&
+							!debts.length &&
+							!debtPayments.length ? (
+								<LoadingState
+									text="Cargando deudas..."
+									hint="Estamos preparando saldos, estado y pagos recientes."
+								/>
+							) : null}
+							{!debtLoadBlocked &&
+							(!loading || debts.length || debtPayments.length) ? (
+								<>
 							<section className="grid three section-block-end">
 								<div className="metric">
 									<span>Deuda original</span>
@@ -14577,71 +14883,233 @@ export default function Home() {
 								El reporte economico cuenta el egreso al crear la
 								deuda; los pagos no duplican ese gasto.
 							</div>
-							<div className="records">
+							<section className="cash-filters debt-filters section-block-end">
+								<div className="cash-filters-head">
+									<div>
+										<h3>Filtros de deudas</h3>
+										<p>
+											Busca por concepto, acreedor o proveedor y separa lo
+											pendiente de lo saldado.
+										</p>
+									</div>
+									<div className="cash-filter-actions">
+										<span className="cash-filter-counter">
+											{filteredDebts.length} de {debts.length}
+										</span>
+										<button
+											type="button"
+											className="ghost"
+											disabled={!debtFiltersActive}
+											onClick={clearDebtFilters}
+										>
+											Limpiar filtros
+										</button>
+									</div>
+								</div>
+								<div className="debt-filter-grid">
+									<Field label="Buscar">
+										<input
+											placeholder="Concepto, acreedor, proveedor o monto"
+											value={search}
+											onChange={(event) => setSearch(event.target.value)}
+										/>
+									</Field>
+									<SearchSelect
+										label="Estado"
+										value={debtFilters.status}
+										options={debtStatusFilterOptions}
+										placeholder="Todos"
+										onChange={(value) => updateDebtFilter('status', value)}
+									/>
+									<SearchSelect
+										label="Saldo"
+										value={debtFilters.balance}
+										options={debtBalanceFilterOptions}
+										placeholder="Todas"
+										onChange={(value) => updateDebtFilter('balance', value)}
+									/>
+								</div>
+							</section>
+							<div className="records finance-records debt-records">
 								{filteredDebts.length ? (
 									filteredDebts.map((item) => (
-										<MotionFlashSurface
-											className={recordClass('debt', item.id)}
+										<FinanceRecordCard
+											amount={{
+												label: 'Saldo',
+												value: money(item.balance_due),
+												tone:
+													numberValue(item.balance_due) > 0
+														? 'warning'
+														: 'payment',
+											}}
+											badges={[
+												{
+													label:
+														debtStatusLabels[item.status] ?? item.status,
+													className: `status ${item.status}`,
+												},
+												{
+													label:
+														numberValue(item.balance_due) > 0
+															? 'Con saldo'
+															: 'Saldada',
+													className:
+														numberValue(item.balance_due) > 0
+															? 'status warning'
+															: 'status paid',
+												},
+											]}
+											className={recordClass(
+												'debt',
+												item.id,
+												'debt-record-card',
+											)}
 											key={item.id}
-											{...detailRecordProps('Deuda', item)}
-										>
-											<div className="record-head">
-												<div>
-													<div className="record-title">
-														{item.concept}
-													</div>
-													<div className="record-sub">
-														{item.creditor || 'Sin acreedor'} - origen{' '}
-														{item.origin_date}
-														{item.due_date
-															? ` - limite ${item.due_date}`
-															: ''}
-													</div>
-													<div className="record-sub">
-														Original {money(item.principal_amount)} -
-														pagado {money(item.total_paid)} - saldo{' '}
-														{money(item.balance_due)}
-													</div>
-												</div>
-												<span className={`status ${item.status}`}>
-													{debtStatusLabels[item.status] ?? item.status}
-												</span>
-											</div>
-										</MotionFlashSurface>
+											primaryAction={
+												numberValue(item.balance_due) > 0
+													? {
+															label: 'Registrar pago',
+															icon: <CreditCard size={15} />,
+															onClick: () => openDebtPaymentForDebt(item),
+															variant: 'primary',
+														}
+													: {
+															label: 'Abrir detalle',
+															icon: <Eye size={15} />,
+															onClick: () => openDetailModal('Deuda', item),
+															variant: 'primary',
+														}
+											}
+											secondaryActions={
+												numberValue(item.balance_due) > 0
+													? [
+															{
+																label: 'Detalle',
+																icon: <Eye size={15} />,
+																onClick: () =>
+																	openDetailModal('Deuda', item),
+																variant: 'ghost',
+															},
+														]
+													: []
+											}
+											stats={[
+												{
+													label: 'Original',
+													value: money(item.principal_amount),
+													hint: item.origin_date
+														? `Origen ${formatDateLabel(item.origin_date)}`
+														: 'Sin fecha de origen',
+												},
+												{
+													label: 'Pagado',
+													value: money(item.total_paid),
+													hint: 'Pagos registrados',
+												},
+												{
+													label: 'Vencimiento',
+													value: item.due_date
+														? formatDateLabel(item.due_date)
+														: 'Sin limite',
+													hint: item.expense_subcategory || item.expense_category,
+												},
+											]}
+											subtitle={joinDisplayParts([
+												item.creditor || 'Sin acreedor',
+												item.supplier_name,
+											])}
+											title={item.concept}
+										/>
 									))
 								) : (
-									<Empty text="Sin deudas registradas." />
+									<Empty
+										text={
+											debts.length
+												? 'Sin deudas para estos filtros.'
+												: 'Sin deudas registradas.'
+										}
+										hint={
+											debts.length
+												? 'Ajusta la busqueda, estado o saldo.'
+												: 'Crea una deuda si necesitas registrar un egreso adeudado.'
+										}
+										action={
+											debts.length ? undefined : (
+												<button
+													type="button"
+													className="primary"
+													onClick={() => openFormModal('debt')}
+												>
+													<ReceiptText size={16} />
+													Nueva deuda
+												</button>
+											)
+										}
+									/>
 								)}
 							</div>
 							<h2 className="subsection-title">Pagos recientes</h2>
-							<div className="records">
+							<div className="records finance-records debt-payment-records">
 								{debtPayments.slice(0, 5).map((item) => (
-									<MotionFlashSurface
-										className={recordClass('debt-payment', item.id)}
+									<FinanceRecordCard
+										amount={{
+											label: 'Pago',
+											value: money(item.amount),
+											tone: 'expense',
+										}}
+										badges={[
+											{
+												label:
+													debtPaymentMethodLabels[item.method] ??
+													item.method,
+												className: 'status payment',
+											},
+										]}
+										className={recordClass(
+											'debt-payment',
+											item.id,
+											'debt-payment-record-card',
+										)}
 										key={item.id}
-										{...detailRecordProps('Pago de deuda', item)}
-									>
-										<div className="record-head">
-											<div>
-												<div className="record-title">
-													{item.debt_concept}
-												</div>
-												<div className="record-sub">
-													{item.paid_at} -{' '}
-													{debtPaymentMethodLabels[item.method] ??
-														item.method}
-												</div>
-											</div>
-											<span className="status payment">
-												{money(item.amount)}
-											</span>
-										</div>
-									</MotionFlashSurface>
+										primaryAction={{
+											label: 'Abrir detalle',
+											icon: <Eye size={15} />,
+											onClick: () => openDetailModal('Pago de deuda', item),
+											variant: 'primary',
+										}}
+										stats={[
+											{
+												label: 'Fecha',
+												value: item.paid_at
+													? formatDateLabel(item.paid_at)
+													: 'Sin fecha',
+												hint: item.notes || 'Pago parcial de deuda',
+											},
+										]}
+										subtitle="Pago parcial registrado"
+										title={item.debt_concept}
+									/>
 								))}
 								{debtPayments.length ? null : (
-									<Empty text="Sin pagos de deuda registrados." />
+									<Empty
+										text="Sin pagos de deuda registrados."
+										hint="Cuando pagues una deuda, queda trazada aca sin duplicar el gasto economico."
+										action={
+											<button
+												type="button"
+												className="primary"
+												disabled={!debtOptions.length}
+												onClick={() => openFormModal('debt-payment')}
+											>
+												<CreditCard size={16} />
+												Registrar pago
+											</button>
+										}
+									/>
 								)}
 							</div>
+								</>
+							) : null}
 						</section>
 					</div>
 				) : null}
@@ -15210,11 +15678,34 @@ export default function Home() {
 							<section className="panel">
 							<div className="panel-head">
 								<div>
+									<span className="panel-kicker">Configuracion comercial</span>
 									<h2>Negocio</h2>
 									<p>
 										Nombre comercial, logo y datos de contacto que
 										identifican la operacion.
 									</p>
+								</div>
+								<div className="settings-action-rail">
+									<div className="settings-primary-actions">
+										<button
+											type="submit"
+											className="primary"
+											form="settings-business-form"
+										>
+											<Building2 size={16} />
+											Guardar datos
+										</button>
+									</div>
+									<div className="settings-secondary-actions">
+										<button
+											type="button"
+											className="ghost"
+											onClick={openBusinessLogoPicker}
+										>
+											<FileText size={16} />
+											{businessLogoPreview ? 'Cambiar logo' : 'Cargar logo'}
+										</button>
+									</div>
 								</div>
 							</div>
 							<div className="business-profile-card">
@@ -15263,15 +15754,56 @@ export default function Home() {
 									onChange={handleBusinessLogoChange}
 									tabIndex={-1}
 								/>
-								<div className="record-sub">
-									{businessLogoFile
-										? `Nuevo archivo listo para guardar: ${businessLogoFile.name}`
-										: businessProfile?.logo_url
-											? 'Hace click en el archivo para reemplazar el logo actual.'
-											: 'Hace click en la imagen para cargar un logo. Acepta JPG, PNG, WEBP, SVG o PDF.'}
+								<div className="business-profile-details">
+									<div className="settings-status-row">
+										<span
+											className={cx(
+												'status',
+												publicLandingEnabled ? 'paid' : 'warning',
+											)}
+										>
+											{publicLandingEnabled ? 'Landing activa' : 'Landing pausada'}
+										</span>
+										<span
+											className={cx(
+												'status',
+												bookingRequestsEnabled ? 'paid' : 'draft',
+											)}
+										>
+											Turnos {bookingRequestsEnabled ? 'abiertos' : 'cerrados'}
+										</span>
+										<span
+											className={cx(
+												'status',
+												quoteRequestsEnabled ? 'paid' : 'draft',
+											)}
+										>
+											Cotizaciones {quoteRequestsEnabled ? 'abiertas' : 'cerradas'}
+										</span>
+									</div>
+									<strong>{businessForm.name || 'Negocio sin nombre'}</strong>
+									<p>
+										{businessForm.contact_email || businessForm.contact_phone
+											? joinDisplayParts([
+													businessForm.contact_email,
+													businessForm.contact_phone,
+												])
+											: 'Completa mail o celular para que la landing publica tenga un contacto claro.'}
+									</p>
+									<div className="record-sub">
+										{businessLogoFile
+											? `Nuevo archivo listo para guardar: ${businessLogoFile.name}`
+											: businessProfile?.logo_url
+												? 'Hace click en el archivo para reemplazar el logo actual.'
+												: 'Hace click en la imagen para cargar un logo. Acepta JPG, PNG, WEBP, SVG o PDF.'}
+									</div>
 								</div>
 							</div>
-							<form className="form-grid" onSubmit={saveBusinessProfile}>
+							<form
+								className="form-grid"
+								id="settings-business-form"
+								onSubmit={saveBusinessProfile}
+							>
 								<Field label="Nombre">
 									<input
 										required
@@ -15407,10 +15939,6 @@ export default function Home() {
 										/>
 									</Field>
 								</div>
-								<button className="primary">
-									<Building2 size={16} />
-									Guardar datos del negocio
-								</button>
 							</form>
 						</section>
 						) : null}
@@ -15418,14 +15946,31 @@ export default function Home() {
 						<section className="panel">
 							<div className="panel-head">
 								<div>
+									<span className="panel-kicker">Venta y documentos</span>
 									<h2>Cotizaciones</h2>
 									<p>
 										Define los valores comerciales que se cargan por defecto
 										en nuevas cotizaciones y sus PDF.
 									</p>
 								</div>
+								<div className="settings-action-rail">
+									<div className="settings-primary-actions">
+										<button
+											type="submit"
+											className="primary"
+											form="settings-quotes-form"
+										>
+											<FileText size={16} />
+											Guardar defaults
+										</button>
+									</div>
+								</div>
 							</div>
-							<form className="form-grid" onSubmit={saveBusinessProfile}>
+							<form
+								className="form-grid"
+								id="settings-quotes-form"
+								onSubmit={saveBusinessProfile}
+							>
 								<div className="form-row">
 									<Field label="Validez dias">
 										<input
@@ -15488,10 +16033,6 @@ export default function Home() {
 										}
 									/>
 								</Field>
-								<button className="primary">
-									<FileText size={16} />
-									Guardar defaults de cotizacion
-								</button>
 							</form>
 						</section>
 						) : null}
@@ -15499,6 +16040,7 @@ export default function Home() {
 						<section className="panel">
 							<div className="panel-head">
 								<div>
+									<span className="panel-kicker">Caja y resultado</span>
 									<h2>Categorias de caja</h2>
 									<p>
 										Define las categorias y subcategorias que Caja sugiere
@@ -15508,19 +16050,36 @@ export default function Home() {
 										y movimientos automaticos.
 									</p>
 								</div>
-								<div className="record-actions">
-									<button
-										type="button"
-										className="primary"
-										onClick={() => openFormModal('expense-classification')}
-									>
-										<Plus size={16} />
-										Nueva clasificacion
-									</button>
+								<div className="settings-action-rail">
+									<div className="settings-primary-actions">
+										<button
+											type="button"
+											className="primary"
+											onClick={() => openFormModal('expense-classification')}
+										>
+											<Plus size={16} />
+											Nueva clasificacion
+										</button>
+									</div>
 								</div>
 							</div>
+							<section className="settings-operational-metrics section-block-end">
+								<MetricCard
+									label="Ingresos configurados"
+									value={incomeClassificationPairs.length}
+								/>
+								<MetricCard
+									label="Egresos configurados"
+									value={expenseClassificationPairs.length}
+								/>
+								<MetricCard
+									label="Total de sugerencias"
+									value={cashClassificationPairs.length}
+								/>
+							</section>
 							<div className="records compact-records settings-classification-list">
-								{cashClassificationPairs.map((item) => (
+								{cashClassificationPairs.length ? (
+									cashClassificationPairs.map((item) => (
 									<RecordCard
 										className="settings-classification-card"
 										key={`${item.movement_type}-${item.category}-${item.subcategory}`}
@@ -15567,7 +16126,23 @@ export default function Home() {
 											}
 										/>
 									</RecordCard>
-								))}
+									))
+								) : (
+									<Empty
+										text="Sin clasificaciones configuradas."
+										hint="Carga categorias de ingreso y egreso para que Caja sugiera valores consistentes."
+										action={
+											<button
+												type="button"
+												className="primary"
+												onClick={() => openFormModal('expense-classification')}
+											>
+												<Plus size={16} />
+												Nueva clasificacion
+											</button>
+										}
+									/>
+								)}
 							</div>
 						</section>
 						) : null}
@@ -15575,14 +16150,31 @@ export default function Home() {
 						<section className="panel">
 							<div className="panel-head">
 								<div>
+									<span className="panel-kicker">Operacion diaria</span>
 									<h2>Agenda y reservas</h2>
 									<p>
 										Define si la operacion usa horarios y como se ve la
 										permanencia de reservas multidia.
 									</p>
 								</div>
+								<div className="settings-action-rail">
+									<div className="settings-primary-actions">
+										<button
+											type="submit"
+											className="primary"
+											form="settings-agenda-form"
+										>
+											<CalendarDays size={16} />
+											Guardar agenda
+										</button>
+									</div>
+								</div>
 							</div>
-							<form className="form-grid" onSubmit={saveBusinessProfile}>
+							<form
+								className="form-grid"
+								id="settings-agenda-form"
+								onSubmit={saveBusinessProfile}
+							>
 								<div className="records compact-records">
 									<RecordCard>
 										<RecordCardHeader
@@ -15635,10 +16227,6 @@ export default function Home() {
 									Si ocultas las horas, los datos historicos se conservan pero
 									dejan de mostrarse y las nuevas reservas se guardan sin horario.
 								</div>
-								<button className="primary">
-									<Building2 size={16} />
-									Guardar configuracion operativa
-								</button>
 							</form>
 						</section>
 						) : null}
@@ -15646,24 +16234,37 @@ export default function Home() {
 						<section className="panel">
 							<div className="panel-head">
 								<div>
+									<span className="panel-kicker">Equipo y permisos</span>
 									<h2>Empleados activos</h2>
-									<p>{employees.length} usuarios con rol empleado.</p>
+									<p>
+										Usuarios operativos que acceden al CRM con permisos de
+										empleado.
+									</p>
 								</div>
-								<div className="record-actions">
-									<button
-										type="button"
-										className="primary"
-										onClick={() => openFormModal('employee')}
-									>
-										<Plus size={16} />
-										Nuevo empleado
-									</button>
-									<button type="button" className="ghost" onClick={loadData}>
-										<RefreshCw size={16} />
-										Actualizar
-									</button>
+								<div className="settings-action-rail">
+									<div className="settings-primary-actions">
+										<button
+											type="button"
+											className="primary"
+											onClick={() => openFormModal('employee')}
+										>
+											<Plus size={16} />
+											Nuevo empleado
+										</button>
+									</div>
+									<div className="settings-secondary-actions">
+										<button type="button" className="ghost" onClick={loadData}>
+											<RefreshCw size={16} />
+											Actualizar
+										</button>
+									</div>
 								</div>
 							</div>
+							<section className="settings-operational-metrics section-block-end">
+								<MetricCard label="Empleados" value={employees.length} />
+								<MetricCard label="Activos" value={activeEmployeeCount} />
+								<MetricCard label="Inactivos" value={inactiveEmployeeCount} />
+							</section>
 							<div className="records">
 								{employees.length ? (
 									employees.map((item) => (
@@ -15682,7 +16283,20 @@ export default function Home() {
 										</RecordCard>
 									))
 								) : (
-									<Empty text="Sin empleados creados." />
+									<Empty
+										text="Sin empleados creados."
+										hint="Agrega empleados cuando necesites separar accesos de operacion."
+										action={
+											<button
+												type="button"
+												className="primary"
+												onClick={() => openFormModal('employee')}
+											>
+												<Plus size={16} />
+												Nuevo empleado
+											</button>
+										}
+									/>
 								)}
 							</div>
 						</section>
@@ -15691,21 +16305,24 @@ export default function Home() {
 						<section className="panel audit-log-panel">
 							<div className="panel-head">
 								<div>
+									<span className="panel-kicker">Control operativo</span>
 									<h2>Historial de acciones</h2>
 									<p>
 										Cambios registrados desde la activacion de la auditoria,
 										con usuario, fecha y valores antes/despues.
 									</p>
 								</div>
-								<div className="record-actions">
-									<button
-										type="button"
-										className="ghost"
-										onClick={() => refreshAuditLogs()}
-									>
-										<RefreshCw size={16} />
-										Actualizar
-									</button>
+								<div className="settings-action-rail">
+									<div className="settings-secondary-actions">
+										<button
+											type="button"
+											className="ghost"
+											onClick={() => refreshAuditLogs()}
+										>
+											<RefreshCw size={16} />
+											Actualizar
+										</button>
+									</div>
 								</div>
 							</div>
 							<form className="audit-filter-grid" onSubmit={applyAuditFilters}>
@@ -15792,13 +16409,33 @@ export default function Home() {
 								</div>
 							</form>
 							<DataList id="audit-actor-options" values={auditActorOptions} />
-							<div className="records audit-log-list">
-								{auditLogs.length ? (
-									auditLogs.map(renderAuditLogCard)
-								) : (
-									<Empty text="Sin acciones registradas para estos filtros." />
-								)}
-							</div>
+							{loading && !auditLogs.length ? (
+								<LoadingState
+									text="Cargando historial de acciones..."
+									hint="Estamos trayendo los eventos auditados para esta operacion."
+								/>
+							) : (
+								<div className="records audit-log-list">
+									{auditLogs.length ? (
+										auditLogs.map(renderAuditLogCard)
+									) : (
+										<Empty
+											text="Sin acciones registradas para estos filtros."
+											hint="Cambia los filtros o actualiza el historial para revisar eventos recientes."
+											action={
+												<button
+													type="button"
+													className="ghost"
+													onClick={() => refreshAuditLogs()}
+												>
+													<RefreshCw size={16} />
+													Actualizar
+												</button>
+											}
+										/>
+									)}
+								</div>
+							)}
 						</section>
 						) : null}
 						</div>
