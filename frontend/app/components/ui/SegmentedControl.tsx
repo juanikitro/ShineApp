@@ -88,6 +88,16 @@ export function SegmentedControl<T extends string>({
 		focusButtonAt(currentIndex + offset)
 	}
 
+	function handleOptionKeyDown(
+		event: KeyboardEvent<HTMLButtonElement>,
+		nextValue: T,
+	) {
+		if (event.key !== 'Enter' && event.key !== ' ') return
+		event.preventDefault()
+		event.stopPropagation()
+		onChange(nextValue)
+	}
+
 	return (
 		<div
 			ref={rootRef}
@@ -119,6 +129,7 @@ export function SegmentedControl<T extends string>({
 						data-segmented-option
 						disabled={option.disabled}
 						onClick={() => onChange(option.value)}
+						onKeyDown={(event) => handleOptionKeyDown(event, option.value)}
 					>
 						{Icon ? <Icon aria-hidden={true} size={iconSize} /> : null}
 						{option.label}

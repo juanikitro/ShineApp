@@ -12,6 +12,7 @@ export type SidebarNavItem = {
 }
 
 type SidebarNavProps = {
+	id?: string
 	collapsed?: boolean
 	mobileOpen?: boolean
 	header?: ReactNode
@@ -22,6 +23,7 @@ type SidebarNavProps = {
 }
 
 export function SidebarNav({
+	id,
 	collapsed = false,
 	mobileOpen = false,
 	header,
@@ -32,12 +34,14 @@ export function SidebarNav({
 }: SidebarNavProps) {
 	return (
 		<aside
+			id={id}
 			className="sidebar"
 			data-collapsed={collapsed ? 'true' : 'false'}
 			data-mobile-open={mobileOpen ? 'true' : 'false'}
+			aria-label="Navegacion principal"
 		>
 			{header ? <div className="sidebar-top">{header}</div> : null}
-			<nav className="nav">
+			<nav className="nav" aria-label="Secciones">
 				{items.map((item) => {
 					const Icon = item.icon
 					return (
@@ -47,6 +51,7 @@ export function SidebarNav({
 							onClick={() => onChange(item.key)}
 							type="button"
 							aria-label={item.label}
+							aria-current={active === item.key ? 'page' : undefined}
 							title={item.label}
 						>
 							<Icon size={16} />

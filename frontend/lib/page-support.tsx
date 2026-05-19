@@ -1504,6 +1504,8 @@ function LoginScreen({
 				<div className="form-grid">
 					<Field label="Usuario">
 						<input
+							name="username"
+							autoComplete="username"
 							value={form.username}
 							onChange={(event) =>
 								setForm({
@@ -1516,6 +1518,8 @@ function LoginScreen({
 					<Field label="Clave">
 						<input
 							type="password"
+							name="password"
+							autoComplete="current-password"
 							value={form.password}
 							onChange={(event) =>
 								setForm({
@@ -1525,7 +1529,7 @@ function LoginScreen({
 							}
 						/>
 					</Field>
-					<button className="primary" disabled={loading}>
+					<button type="submit" className="primary" disabled={loading}>
 						Ingresar
 					</button>
 				</div>

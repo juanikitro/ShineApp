@@ -16,6 +16,11 @@ import {
 	modalBackdropVariants,
 	modalPanelVariants,
 } from '@/lib/motion-spec'
+import {
+	focusElementIfAvailable,
+	focusFirstElement,
+	trapFocusWithin,
+} from '@/lib/a11y'
 
 type ModalFrameProps = {
 	title: string
@@ -35,16 +40,12 @@ export function ModalFrame({
 	useEffect(() => {
 		const previouslyFocused = document.activeElement
 		const frame = window.requestAnimationFrame(() => {
-			const firstFocusable = getFocusableElements(panelRef.current)[0]
-			;(firstFocusable ?? panelRef.current)?.focus()
+			focusFirstElement(panelRef.current)
 		})
 		return () => {
 			window.cancelAnimationFrame(frame)
-			if (
-				previouslyFocused instanceof HTMLElement &&
-				document.contains(previouslyFocused)
-			) {
-				previouslyFocused.focus()
+			if (previouslyFocused instanceof HTMLElement) {
+				focusElementIfAvailable(previouslyFocused)
 			}
 		}
 	}, [])
@@ -58,29 +59,11 @@ export function ModalFrame({
 	function handlePanelKeyDown(event: KeyboardEvent<HTMLDivElement>) {
 		if (event.key === 'Escape') {
 			event.preventDefault()
+			event.stopPropagation()
 			onClose()
 			return
 		}
-		if (event.key !== 'Tab') return
-
-		const focusable = getFocusableElements(panelRef.current)
-		if (!focusable.length) {
-			event.preventDefault()
-			panelRef.current?.focus()
-			return
-		}
-
-		const first = focusable[0]
-		const last = focusable[focusable.length - 1]
-		if (event.shiftKey && document.activeElement === first) {
-			event.preventDefault()
-			last.focus()
-			return
-		}
-		if (!event.shiftKey && document.activeElement === last) {
-			event.preventDefault()
-			first.focus()
-		}
+		trapFocusWithin(event, panelRef.current)
 	}
 
 	return (
@@ -121,26 +104,5 @@ export function ModalFrame({
 				{children}
 			</m.div>
 		</m.div>
-	)
-}
-
-function getFocusableElements(root: HTMLElement | null) {
-	if (!root) return []
-	return Array.from(
-		root.querySelectorAll<HTMLElement>(
-			[
-				'a[href]',
-				'button:not(:disabled)',
-				'input:not(:disabled)',
-				'select:not(:disabled)',
-				'textarea:not(:disabled)',
-				'[tabindex]:not([tabindex="-1"])',
-			].join(','),
-		),
-	).filter(
-		(element) =>
-			!element.hasAttribute('disabled') &&
-			element.getAttribute('aria-hidden') !== 'true' &&
-			element.offsetParent !== null,
 	)
 }
