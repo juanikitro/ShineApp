@@ -23,6 +23,8 @@ type BirthdayFieldsProps = {
 	month: string | number | null | undefined
 	onDayChange: (value: string) => void
 	onMonthChange: (value: string) => void
+	dayName?: string
+	monthName?: string
 	dayFocusKey?: string
 	monthFocusKey?: string
 	onDayKeyDown?: (event: KeyboardEvent<HTMLSelectElement>) => void
@@ -38,6 +40,8 @@ export function BirthdayFields({
 	month,
 	onDayChange,
 	onMonthChange,
+	dayName,
+	monthName,
 	dayFocusKey,
 	monthFocusKey,
 	onDayKeyDown,
@@ -53,6 +57,7 @@ export function BirthdayFields({
 				<label className="birthday-fields__control">
 					<span>Dia</span>
 					<select
+						name={dayName}
 						data-focus-key={dayFocusKey}
 						value={fieldValue(day)}
 						onChange={(event) => onDayChange(event.target.value)}
@@ -69,6 +74,7 @@ export function BirthdayFields({
 				<label className="birthday-fields__control">
 					<span>Mes</span>
 					<select
+						name={monthName}
 						data-focus-key={monthFocusKey}
 						value={fieldValue(month)}
 						onChange={(event) => onMonthChange(event.target.value)}

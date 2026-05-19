@@ -27,6 +27,7 @@ type SearchSelectProps = {
 	value: string
 	options: SelectOption[]
 	onChange: (value: string) => void
+	name?: string
 	placeholder?: string
 	disabled?: boolean
 	onAdd?: () => void
@@ -42,6 +43,7 @@ export function SearchSelect({
 	value,
 	options,
 	onChange,
+	name,
 	placeholder = 'Seleccionar',
 	disabled = false,
 	onAdd,
@@ -222,6 +224,9 @@ export function SearchSelect({
 			<span className="field-label" id={`${fieldId}-label`}>
 				{label}
 			</span>
+			{name ? (
+				<input type="hidden" name={name} value={value} disabled={disabled} />
+			) : null}
 			<button
 				id={`${fieldId}-trigger`}
 				type="button"
