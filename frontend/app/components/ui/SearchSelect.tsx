@@ -10,7 +10,6 @@ import {
 } from 'react'
 
 import { Plus, Search } from 'lucide-react'
-import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
@@ -105,6 +104,7 @@ export function SearchSelect({
 	}
 
 	function closeMenu() {
+		pendingOptionFocusRef.current = null
 		setOpen(false)
 		setQuery('')
 	}
@@ -115,6 +115,16 @@ export function SearchSelect({
 		window.requestAnimationFrame(() => triggerRef.current?.focus())
 	}
 
+	function handleOptionKeyDown(
+		event: KeyboardEvent<HTMLButtonElement>,
+		nextValue: string,
+	) {
+		if (event.key !== 'Enter' && event.key !== ' ') return
+		event.preventDefault()
+		event.stopPropagation()
+		chooseValue(nextValue)
+	}
+
 	useEffect(() => {
 		if (!open || !pendingOptionFocusRef.current) return
 		const edge = pendingOptionFocusRef.current
@@ -123,14 +133,24 @@ export function SearchSelect({
 	}, [open, visibleOptions.length])
 
 	function closeWhenFocusLeaves(event: FocusEvent<HTMLDivElement>) {
+		const currentTarget = event.currentTarget
 		const nextTarget = event.relatedTarget
 		if (
 			nextTarget instanceof Node &&
-			event.currentTarget.contains(nextTarget)
+			currentTarget.contains(nextTarget)
 		) {
 			return
 		}
-		closeMenu()
+		window.requestAnimationFrame(() => {
+			const activeElement = document.activeElement
+			if (
+				activeElement instanceof Node &&
+				currentTarget.contains(activeElement)
+			) {
+				return
+			}
+			closeMenu()
+		})
 	}
 
 	function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
@@ -139,6 +159,7 @@ export function SearchSelect({
 		}
 		if (event.key === 'Escape' && open) {
 			event.preventDefault()
+			event.stopPropagation()
 			closeMenu()
 			return
 		}
@@ -158,6 +179,7 @@ export function SearchSelect({
 	function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
 		if (event.key === 'Escape') {
 			event.preventDefault()
+			event.stopPropagation()
 			closeMenu()
 			triggerRef.current?.focus()
 			return
@@ -201,6 +223,7 @@ export function SearchSelect({
 				{label}
 			</span>
 			<button
+				id={`${fieldId}-trigger`}
 				type="button"
 				className="combo-trigger"
 				disabled={disabled}
@@ -213,7 +236,7 @@ export function SearchSelect({
 					}
 				}}
 				onKeyDown={handleTriggerKeyDown}
-				aria-controls={open ? optionsId : undefined}
+				aria-controls={optionsId}
 				aria-expanded={open}
 				aria-haspopup="listbox"
 				aria-labelledby={`${fieldId}-label`}
@@ -221,17 +244,17 @@ export function SearchSelect({
 				<span>{selected?.label ?? placeholder}</span>
 				<Search size={14} />
 			</button>
-			<AnimatePresence initial={false}>
-				{open ? (
-					<m.div
-						className="combo-menu"
-						ref={menuRef}
-						variants={comboMenuVariants}
-						initial="initial"
-						animate="animate"
-						exit="exit"
-						onKeyDown={handleMenuKeyDown}
-					>
+			{open ? (
+				<m.div
+					id={`${fieldId}-menu`}
+					className="combo-menu"
+					ref={menuRef}
+					aria-labelledby={`${fieldId}-label`}
+					variants={comboMenuVariants}
+					initial="initial"
+					animate="animate"
+					onKeyDown={handleMenuKeyDown}
+				>
 						<input
 							autoFocus
 							className="combo-search-input"
@@ -275,11 +298,13 @@ export function SearchSelect({
 						>
 							<button
 								type="button"
+								data-combo-placeholder
 								data-combo-option
 								role="option"
 								aria-selected={!value}
 								className={!value ? 'selected' : ''}
 								onClick={() => chooseValue('')}
+								onKeyDown={(event) => handleOptionKeyDown(event, '')}
 							>
 								{placeholder}
 							</button>
@@ -295,6 +320,9 @@ export function SearchSelect({
 											option.value === value ? 'selected' : ''
 										}
 										onClick={() => chooseValue(option.value)}
+										onKeyDown={(event) =>
+											handleOptionKeyDown(event, option.value)
+										}
 									>
 										<span>{option.label}</span>
 										{option.meta ? <small>{option.meta}</small> : null}
@@ -304,9 +332,8 @@ export function SearchSelect({
 								<div className="combo-empty">Sin resultados</div>
 							)}
 						</div>
-					</m.div>
-				) : null}
-			</AnimatePresence>
+				</m.div>
+			) : null}
 		</MotionFlashSurface>
 	)
 }

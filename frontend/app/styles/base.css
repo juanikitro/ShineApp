@@ -362,6 +362,8 @@ label {
   gap: 10px;
   isolation: isolate;
   left: 0;
+  min-width: min(100%, 260px);
+  overscroll-behavior: contain;
   padding: 10px;
   position: absolute;
   right: 0;
@@ -406,12 +408,14 @@ label {
 
 .combo-menu input {
   background: var(--color-surface-raised);
+  min-width: 0;
 }
 
 .combo-options {
   display: grid;
   gap: 4px;
-  max-height: min(240px, 44vh);
+  max-height: min(240px, calc(100vh - 220px));
+  overscroll-behavior: contain;
   overflow: auto;
 }
 
@@ -454,6 +458,18 @@ label {
 
 .combo-empty {
   padding: 8px;
+}
+
+@media (max-width: 620px) {
+  .combo-menu {
+    margin-top: 6px;
+    position: static;
+    width: 100%;
+  }
+
+  .combo-options {
+    max-height: min(220px, 40vh);
+  }
 }
 
 .login-screen {
