@@ -73,7 +73,8 @@ import {
 	type DebtSummary,
 } from '@/app/components/debts/DebtPanel'
 import { DashboardPanel } from '@/app/components/dashboard/DashboardPanel'
-import { BusinessSettingsPanel } from '@/app/components/settings/BusinessSettingsPanel'
+import { InventoryPanel } from '@/app/components/inventory/InventoryPanel'
+import { SettingsWorkspace } from '@/app/components/settings/SettingsWorkspace'
 import {
 	CustomerDashboardShell,
 	type CustomerDashboardMetric,
@@ -146,11 +147,8 @@ import {
 	safeImageAssetSource,
 } from '@/lib/pdf-preview'
 import {
-	auditActorLabel,
-	auditChangeRows,
 	auditLogListOrEmpty,
 	type AuditLogFilters,
-	type AuditLogEntry,
 } from '@/lib/audit-log'
 import { joinDisplayParts } from '@/lib/display-text'
 import {
@@ -2258,10 +2256,6 @@ export default function Home() {
 
 	function auditModuleLabel(module: string) {
 		return auditModuleLabels[module] ?? module
-	}
-
-	function auditFieldLabel(field: string) {
-		return field.replaceAll('_', ' ')
 	}
 
 	function updateAuditFilter(key: keyof AuditLogFilters, value: string) {
@@ -4424,9 +4418,13 @@ export default function Home() {
 		setSidebarMobileOpen(false)
 	}
 
-	const pendingPublicRequestsCount = publicRequests.filter(
+	const pendingPublicRequests = publicRequests.filter(
 		(item) => item.status === 'pending',
-	).length
+	)
+	const managedPublicRequests = publicRequests.filter(
+		(item) => item.status !== 'pending',
+	)
+	const pendingPublicRequestsCount = pendingPublicRequests.length
 	const activeEmployeeCount = employees.filter(
 		(item) => item.is_active !== false,
 	).length
@@ -13384,6 +13382,14 @@ export default function Home() {
 					{item.message ? <p className="record-sub">{item.message}</p> : null}
 					{isPending ? (
 						<div className="public-request-resolution">
+							<div className="public-request-resolution-note">
+								<strong>Resolver solicitud</strong>
+								<span>
+									{customerSuggestions.length || vehicleSuggestions.length
+										? 'Revisa coincidencias sugeridas antes de convertir o archivar.'
+										: 'Al convertir se crean cliente y vehiculo nuevos si no elegis existentes.'}
+								</span>
+							</div>
 							<Field label="Cliente">
 								<select
 									value={selection.customer ?? ''}
@@ -13432,7 +13438,7 @@ export default function Home() {
 									onClick={() => convertPublicRequest(item)}
 								>
 									<CheckCircle2 size={16} />
-									Convertir
+									Convertir solicitud
 								</button>
 								<button
 									type="button"
@@ -13457,73 +13463,6 @@ export default function Home() {
 					)}
 				</RecordCard>
 			</MotionFlashSurface>
-		)
-	}
-
-	function renderAuditLogCard(item: AnyRecord) {
-		const itemId = String(item.id)
-		const expanded = expandedAuditLogId === itemId
-		const rows = auditChangeRows(item.changes ?? {})
-		const actorLabel = auditActorLabel(
-			item as AuditLogEntry,
-			currentUser?.id ?? null,
-		)
-		return (
-			<RecordCard className="audit-log-card" key={item.id}>
-				<RecordCardHeader
-					title={
-						<>
-							{auditActionLabel(String(item.action ?? ''))} -{' '}
-							{item.entity_label || item.entity_type || 'Registro'}
-						</>
-					}
-					subtitle={
-						<>
-							{auditModuleLabel(String(item.module ?? ''))} -{' '}
-							{String(item.entity_type ?? '')}
-							{item.entity_id ? ` #${item.entity_id}` : ''}
-						</>
-					}
-					actions={
-						<button
-							type="button"
-							className="ghost"
-							onClick={() =>
-								setExpandedAuditLogId(expanded ? null : itemId)
-							}
-						>
-							<Eye size={16} />
-							{expanded ? 'Ocultar' : 'Detalle'}
-						</button>
-					}
-				>
-					<div className="record-sub">
-						{formatDateTimeLabel(item.created_at)} - {actorLabel}
-					</div>
-				</RecordCardHeader>
-				{expanded ? (
-					<div className="audit-change-table">
-						<div className="audit-change-row audit-change-row--head">
-							<span>Campo</span>
-							<span>Antes</span>
-							<span>Despues</span>
-						</div>
-						{rows.length ? (
-							rows.map((row) => (
-								<div className="audit-change-row" key={row.field}>
-									<span>{auditFieldLabel(row.field)}</span>
-									<strong>{row.before}</strong>
-									<strong>{row.after}</strong>
-								</div>
-							))
-						) : (
-							<div className="record-sub audit-empty-change">
-								Accion registrada sin cambios campo por campo.
-							</div>
-						)}
-					</div>
-				) : null}
-			</RecordCard>
 		)
 	}
 
@@ -14672,10 +14611,10 @@ export default function Home() {
 							subtitle={`${pendingPublicRequestsCount} pendientes`}
 						>
 							<div className="records">
-								{publicRequests.filter((item) => item.status === 'pending').length ? (
-									publicRequests
-										.filter((item) => item.status === 'pending')
-										.map((item) => renderPublicRequestCard(item))
+								{pendingPublicRequests.length ? (
+									pendingPublicRequests.map((item) =>
+										renderPublicRequestCard(item),
+									)
 								) : (
 									<Empty
 										text="Sin solicitudes pendientes"
@@ -14686,12 +14625,15 @@ export default function Home() {
 						</Panel>
 						<Panel title="Gestionadas">
 							<div className="records">
-								{publicRequests.filter((item) => item.status !== 'pending').length ? (
-									publicRequests
-										.filter((item) => item.status !== 'pending')
-										.map((item) => renderPublicRequestCard(item))
+								{managedPublicRequests.length ? (
+									managedPublicRequests.map((item) =>
+										renderPublicRequestCard(item),
+									)
 								) : (
-									<Empty text="Sin solicitudes gestionadas" />
+									<Empty
+										text="Sin solicitudes gestionadas"
+										hint="Cuando conviertas o archives solicitudes, quedan registradas aca."
+									/>
 								)}
 							</div>
 						</Panel>
@@ -14751,76 +14693,6 @@ export default function Home() {
 								)
 							}
 						/>
-						<section className="panel hidden-section">
-							<h2>Vehiculos</h2>
-							<div className="records">
-								{filteredVehicles.map((item) => {
-									const quickActions = vehicleQuickActions(item)
-									return (
-									<MotionFlashSurface
-										className={recordClass('vehicle', item.id)}
-										key={`v-${item.id}`}
-										{...detailRecordProps('Vehiculo', item)}
-										{...quickActionTargetProps(
-											'Acciones de vehiculo',
-											quickActions,
-										)}
-									>
-										{renderQuickActionsTrigger(
-											'Acciones de vehiculo',
-											quickActions,
-											'Acciones rapidas de vehiculo',
-										)}
-										<div className="record-head">
-											<div>
-												<div className="record-title">
-													{vehicleDisplayTitle(item)}
-												</div>
-												<div className="record-sub">
-													{vehicleDescription(item)}
-												</div>
-											</div>
-											<div className="record-actions">
-												<button
-													className="ghost"
-													onClick={() =>
-														openDetailModal('Vehiculo', item)
-													}
-												>
-													Editar
-												</button>
-												<button
-													className="danger"
-													onClick={() =>
-														runAction(() =>
-															apiFetch(
-																`/vehicles/${item.id}/`,
-																{
-																	method: 'DELETE',
-																},
-															),
-															{
-																successTitle: entityFeedbackTitle(
-																	'vehicle',
-																	'deleted',
-																),
-																undo: undoRestoreActiveRecord(
-																	'vehicle',
-																	item,
-																),
-															},
-														)
-													}
-												>
-													Baja
-												</button>
-											</div>
-										</div>
-									</MotionFlashSurface>
-									)
-								})}
-							</div>
-						</section>
 					</div>
 						)}
 					</>
@@ -15485,433 +15357,51 @@ export default function Home() {
 					/>
 				) : null}
 				{displayedActive === 'inventory' ? (
-					<div className="grid">
-						<section className="panel">
-							<div className="panel-head">
-								<div>
-									<h2>Materiales</h2>
-									<p>Productos, proveedores y movimientos de stock.</p>
-								</div>
-								<div className="record-actions">
-									<button
-										type="button"
-										className="primary"
-										onClick={() => openFormModal('stock-movement')}
-									>
-										<Package size={16} />
-										Nuevo movimiento
-									</button>
-									<button
-										type="button"
-										className="ghost"
-										onClick={() => openFormModal('material')}
-									>
-										Nuevo material
-									</button>
-									<button
-										type="button"
-										className="ghost"
-										onClick={() => openFormModal('supplier')}
-									>
-										Proveedor
-									</button>
-								</div>
-							</div>
-							<div className="inventory-metrics">
-								<div className="material-kpi">
-									<span>Stock valorizado</span>
-									<strong>
-										{money(inventorySummary.stockValue)}
-									</strong>
-								</div>
-								<div className="material-kpi">
-									<span>Usos registrados</span>
-									<strong>
-										{inventorySummary.usageCount}
-									</strong>
-								</div>
-								<div className="material-kpi">
-									<span>Costo imputado</span>
-									<strong>
-										{money(inventorySummary.consumedCost)}
-									</strong>
-								</div>
-								<div className="material-kpi">
-									<span>Unidades abiertas</span>
-									<strong>{inventorySummary.openUnits}</strong>
-								</div>
-							</div>
-							<div className="records">
-								{stockMovements.slice(0, 8).map((item) => (
-									<MotionFlashSurface
-										className={recordClass('stock-movement', item.id)}
-										key={`sm-${item.id}`}
-									>
-										<div className="record-head">
-											<div>
-												<div className="record-title">
-													{stockMovementTypeLabels[item.movement_type] ??
-														item.movement_type}{' '}
-													- {money(item.total_amount)}
-												</div>
-												<div className="record-sub">
-													{item.occurred_on} -{' '}
-													{item.supplier_name ||
-														item.customer_name ||
-														item.reservation_label ||
-														'Movimiento interno'}
-												</div>
-												<div className="record-sub">
-													{(item.lines ?? []).length} producto
-													{(item.lines ?? []).length === 1 ? '' : 's'}
-													{item.movement_type === 'purchase'
-														? item.products_received
-															? ' - recibido'
-															: ' - pendiente de recepcion'
-														: ''}
-												</div>
-											</div>
-										</div>
-									</MotionFlashSurface>
-								))}
-								{stockMovements.length ? null : (
-									<Empty text="Sin movimientos de stock." />
-								)}
-								{suppliers.slice(0, 5).map((item) => {
-									const quickActions = supplierQuickActions(item)
-									return (
-									<MotionFlashSurface
-										className={recordClass('supplier', item.id)}
-										key={`supplier-${item.id}`}
-										{...interactiveRecordProps(() =>
-											openSupplierDashboard(item)
-										)}
-										{...quickActionTargetProps(
-											'Acciones de proveedor',
-											quickActions,
-										)}
-									>
-										<div className="record-head">
-											<div>
-												<div className="record-title">
-													Proveedor - {item.name}
-												</div>
-												<div className="record-sub">
-													{supplierProfileSubtitle(item) ||
-														[item.contact_name, item.phone, item.email]
-															.filter(Boolean)
-															.join(' - ') ||
-														'Sin datos de contacto'}
-												</div>
-												<div className="record-sub">
-													Comprado{' '}
-													{money(
-														supplierListInsight(item).total_purchased,
-													)}{' '}
-													-{' '}
-													{supplierListInsight(item).purchase_count ?? 0}{' '}
-													compras
-												</div>
-											</div>
-											<div className="record-actions">
-												{renderQuickActionsTrigger(
-													'Acciones de proveedor',
-													quickActions,
-													'Acciones rapidas de proveedor',
-												)}
-											</div>
-										</div>
-									</MotionFlashSurface>
-									)
-								})}
-								{materials.length ? (
-									materials.map((item) => {
-										const usage = materialUsageSummary(item)
-										const quickActions = materialQuickActions(item)
-										return (
-											<MotionFlashSurface
-												className={recordClass('material', item.id)}
-												key={item.id}
-												{...detailRecordProps(
-													'Material',
-													item,
-												)}
-												{...quickActionTargetProps(
-													'Acciones de material',
-													quickActions,
-												)}
-											>
-												<div className="record-head">
-													<div>
-														<div className="record-title">
-															{item.name}
-														</div>
-														<div className="record-sub">
-															Stock{' '}
-															{quantity(
-																item.stock_quantity,
-																item.unit,
-															)}{' '}
-															- unidad{' '}
-															{money(
-																materialUnitValue(
-																	item,
-																),
-															)}{' '}
-															- stock valorizado{' '}
-															{money(
-																materialStockValue(
-																	item,
-																),
-															)}
-														</div>
-														<div className="record-sub">
-															{usage.count} usos -{' '}
-															{quantity(
-																usage.totalQuantity,
-																item.unit,
-															)}{' '}
-															consumidos -{' '}
-															{money(
-																usage.totalCost,
-															)}{' '}
-															imputados
-														</div>
-														<div className="record-sub">
-															{numberValue(
-																item.open_units_active_count,
-															)}{' '}
-															unidades abiertas -{' '}
-															{numberValue(
-																item.open_units_finished_count,
-															)}{' '}
-															finalizadas - promedio{' '}
-															{numberValue(
-																item.average_jobs_per_finished_unit,
-															).toLocaleString('es-AR', {
-																maximumFractionDigits: 1,
-															})}{' '}
-															trabajos /{' '}
-															{numberValue(
-																item.average_days_per_finished_unit,
-															).toLocaleString('es-AR', {
-																maximumFractionDigits: 1,
-															})}{' '}
-															dias
-														</div>
-													</div>
-													<div className="record-actions">
-														<button
-															type="button"
-															className="ghost"
-															onClick={() => openUnitForMaterial(item)}
-														>
-															Abrir unidad
-														</button>
-														<button
-															type="button"
-															className="ghost"
-															onClick={() =>
-																openDetailModal('Material', item)
-															}
-														>
-															Editar
-														</button>
-														<button
-															type="button"
-															className="danger"
-															onClick={() =>
-																runAction(() =>
-																	apiFetch(
-																		`/materials/${item.id}/`,
-																		{
-																			method: 'DELETE',
-																		},
-																	),
-																	{
-																		successTitle:
-																			entityFeedbackTitle(
-																				'material',
-																				'deleted',
-																			),
-																		undo: undoRestoreActiveRecord(
-																			'material',
-																			item,
-																		),
-																	},
-																)
-															}
-														>
-															Inactivar
-														</button>
-														{renderQuickActionsTrigger(
-															'Acciones de material',
-															quickActions,
-															'Acciones rapidas de material',
-														)}
-													</div>
-												</div>
-											</MotionFlashSurface>
-										)
-									})
-								) : (
-									<Empty text="Sin materiales." />
-								)}
-								{materialOpenUnits.slice(0, 8).map((item) => {
-									const material = materials.find(
-										(materialItem) =>
-											String(materialItem.id) === String(item.material),
-									)
-									const quickActions = materialOpenUnitQuickActions(item)
-									return (
-										<MotionFlashSurface
-											className={recordClass(
-												'material-open-unit',
-												item.id,
-											)}
-											key={`ou-${item.id}`}
-											{...detailRecordProps('Unidad abierta', item)}
-											{...quickActionTargetProps(
-												'Acciones de unidad',
-												quickActions,
-											)}
-										>
-											<div className="record-head">
-												<div>
-													<div className="record-title">
-														Unidad abierta - {item.material_name}
-													</div>
-													<div className="record-sub">
-														{item.status === 'open'
-															? 'Abierta'
-															: 'Finalizada'}{' '}
-														desde {item.opened_at}
-														{item.finished_at
-															? ` - cierre ${item.finished_at}`
-															: ''}
-													</div>
-													<div className="record-sub">
-														{item.consumptions_count ?? 0} usos -{' '}
-														{item.work_orders_count ?? 0} trabajos
-														{item.duration_days
-															? ` - ${item.duration_days} dias`
-															: ''}{' '}
-														- descuenta{' '}
-														{quantity(
-															item.stock_quantity_to_decrement,
-															material?.unit,
-														)}
-													</div>
-												</div>
-												{item.status === 'open' ||
-												availableQuickActions(quickActions).length ? (
-													<div className="record-actions">
-														{item.status === 'open' ? (
-															<button
-																className="primary"
-																onClick={() => finishOpenUnit(item)}
-															>
-																Finalizar
-															</button>
-														) : null}
-														{renderQuickActionsTrigger(
-															'Acciones de unidad',
-															quickActions,
-															'Acciones rapidas de unidad',
-														)}
-													</div>
-												) : null}
-											</div>
-										</MotionFlashSurface>
-									)
-								})}
-								{purchases.slice(0, 5).map((item) => {
-									const quickActions = materialPurchaseQuickActions(item)
-									return (
-									<MotionFlashSurface
-										className={recordClass(
-											'material-purchase',
-											item.id,
-										)}
-										key={`p-${item.id}`}
-										{...detailRecordProps('Compra de material', item)}
-										{...quickActionTargetProps(
-											'Acciones de compra',
-											quickActions,
-										)}
-									>
-										<div className="record-head">
-											<div>
-												<div className="record-title">
-													{joinDisplayParts([
-														'Compra',
-														item.material_name,
-													])}
-												</div>
-												<div className="record-sub">
-													{joinDisplayParts([
-														item.quantity,
-														money(item.total_cost),
-														item.purchased_at,
-													])}
-												</div>
-												</div>
-											<div className="record-actions">
-												{renderQuickActionsTrigger(
-													'Acciones de compra',
-													quickActions,
-													'Acciones rapidas de compra',
-												)}
-											</div>
-											</div>
-									</MotionFlashSurface>
-									)
-								})}
-								{consumptions.slice(0, 5).map((item) => {
-									const quickActions = materialConsumptionQuickActions(item)
-									return (
-									<MotionFlashSurface
-										className={recordClass(
-											'material-consumption',
-											item.id,
-										)}
-										key={`c-${item.id}`}
-										{...detailRecordProps('Consumo de material', item)}
-										{...quickActionTargetProps(
-											'Acciones de consumo',
-											quickActions,
-										)}
-									>
-										<div className="record-head">
-											<div>
-												<div className="record-title">
-													{joinDisplayParts([
-														'Consumo',
-														item.material_name,
-													])}
-												</div>
-												<div className="record-sub">
-													Trabajo asociado -{' '}
-													{item.quantity} -{' '}
-													{money(
-														item.estimated_total_cost,
-													)}
-												</div>
-												</div>
-											<div className="record-actions">
-												{renderQuickActionsTrigger(
-													'Acciones de consumo',
-													quickActions,
-													'Acciones rapidas de consumo',
-												)}
-											</div>
-											</div>
-									</MotionFlashSurface>
-									)
-								})}
-							</div>
-						</section>
-					</div>
+					<InventoryPanel
+						availableQuickActions={availableQuickActions}
+						consumptions={consumptions}
+						detailRecordProps={detailRecordProps}
+						interactiveRecordProps={interactiveRecordProps}
+						inventorySummary={inventorySummary}
+						materialConsumptionQuickActions={materialConsumptionQuickActions}
+						materialOpenUnitQuickActions={materialOpenUnitQuickActions}
+						materialOpenUnits={materialOpenUnits}
+						materialPurchaseQuickActions={materialPurchaseQuickActions}
+						materialQuickActions={materialQuickActions}
+						materials={materials}
+						materialStockValue={materialStockValue}
+						materialUnitValue={materialUnitValue}
+						materialUsageSummary={materialUsageSummary}
+						purchases={purchases}
+						quickActionTargetProps={quickActionTargetProps}
+						recordClass={recordClass}
+						renderQuickActionsTrigger={renderQuickActionsTrigger}
+						stockMovements={stockMovements}
+						stockMovementTypeLabels={stockMovementTypeLabels}
+						supplierListInsight={supplierListInsight}
+						supplierProfileSubtitle={supplierProfileSubtitle}
+						supplierQuickActions={supplierQuickActions}
+						suppliers={suppliers}
+						onDeleteMaterial={(item) =>
+							runAction(
+								() =>
+									apiFetch(`/materials/${item.id}/`, {
+										method: 'DELETE',
+									}),
+								{
+									successTitle: entityFeedbackTitle('material', 'deleted'),
+									undo: undoRestoreActiveRecord('material', item),
+								},
+							)
+						}
+						onFinishOpenUnit={finishOpenUnit}
+						onOpenMaterialDetail={(item) => openDetailModal('Material', item)}
+						onOpenMaterialForm={() => openFormModal('material')}
+						onOpenStockMovementForm={() => openFormModal('stock-movement')}
+						onOpenSupplierDashboard={openSupplierDashboard}
+						onOpenSupplierForm={() => openFormModal('supplier')}
+						onOpenUnitForMaterial={openUnitForMaterial}
+					/>
 				) : null}
 
 				{displayedActive === 'tools' ? (
@@ -16108,543 +15598,58 @@ export default function Home() {
 				) : null}
 
 				{displayedActive === 'settings' ? (
-					<div className="settings-workspace">
-						<SegmentedControl
-							ariaLabel="Secciones de configuracion"
-							className="settings-section-toggle"
-							options={settingsSectionOptions}
-							selectionMode="tabs"
-							value={settingsSection}
-							onChange={(nextValue) =>
-								setSettingsSection(nextValue as SettingsSection)
-							}
-						/>
-						<div
-							className="grid settings-grid"
-							role="tabpanel"
-							aria-label={`Panel de configuracion: ${settingsSectionLabel}`}
-						>
-						{settingsSection === 'business' ? (
-							<BusinessSettingsPanel
-								businessForm={businessForm}
-								businessLogoFile={businessLogoFile}
-								businessLogoInputKey={businessLogoInputKey}
-								businessLogoInputRef={businessLogoInputRef}
-								businessLogoIsPdf={businessLogoIsPdf}
-								businessLogoPdfStatus={businessLogoPdfStatus}
-								businessLogoPreview={businessLogoPreview}
-								businessProfile={businessProfile}
-								businessSlug={String(currentUser?.business?.slug ?? '')}
-								safeBusinessLogoPdfThumbnail={safeBusinessLogoPdfThumbnail}
-								safeBusinessLogoPreview={safeBusinessLogoPreview}
-								onBusinessLogoChange={handleBusinessLogoChange}
-								onOpenBusinessLogoPicker={openBusinessLogoPicker}
-								onPatchBusinessForm={patchBusinessForm}
-								onSaveBusinessProfile={saveBusinessProfile}
-							/>
-						) : null}
-						{settingsSection === 'quotes' ? (
-						<section className="panel">
-							<div className="panel-head">
-								<div>
-									<span className="panel-kicker">Venta y documentos</span>
-									<h2>Cotizaciones</h2>
-									<p>
-										Define los valores comerciales que se cargan por defecto
-										en nuevas cotizaciones y sus PDF.
-									</p>
-								</div>
-								<div className="settings-action-rail">
-									<div className="settings-primary-actions">
-										<button
-											type="submit"
-											className="primary"
-											form="settings-quotes-form"
-										>
-											<FileText size={16} />
-											Guardar defaults
-										</button>
-									</div>
-								</div>
-							</div>
-							<form
-								className="form-grid"
-								id="settings-quotes-form"
-								onSubmit={saveBusinessProfile}
-							>
-								<div className="form-row">
-									<Field label="Validez dias">
-										<input
-											type="number"
-											min="0"
-											value={businessForm.default_quote_validity_days}
-											onChange={(event) =>
-												patchBusinessForm({
-													default_quote_validity_days: event.target.value,
-												})
-											}
-										/>
-									</Field>
-									<Field label="Descuento % default">
-										<input
-											type="number"
-											min="0"
-											max="100"
-											step="0.01"
-											value={businessForm.default_quote_discount_rate}
-											onChange={(event) =>
-												patchBusinessForm({
-													default_quote_discount_rate: event.target.value,
-												})
-											}
-										/>
-									</Field>
-									<Field label="IVA % default">
-										<input
-											type="number"
-											min="0"
-											max="100"
-											step="0.01"
-											value={businessForm.default_quote_tax_rate}
-											onChange={(event) =>
-												patchBusinessForm({
-													default_quote_tax_rate: event.target.value,
-												})
-											}
-										/>
-									</Field>
-								</div>
-								<Field label="Terminos default">
-									<textarea
-										value={businessForm.default_quote_terms}
-										onChange={(event) =>
-											patchBusinessForm({
-												default_quote_terms: event.target.value,
-											})
-										}
-									/>
-								</Field>
-								<Field label="Instrucciones de pago default">
-									<textarea
-										value={businessForm.default_quote_payment_instructions}
-										onChange={(event) =>
-											patchBusinessForm({
-												default_quote_payment_instructions: event.target.value,
-											})
-										}
-									/>
-								</Field>
-							</form>
-						</section>
-						) : null}
-						{settingsSection === 'cash' ? (
-						<section className="panel">
-							<div className="panel-head">
-								<div>
-									<span className="panel-kicker">Caja y resultado</span>
-									<h2>Categorias de caja</h2>
-									<p>
-										Define las categorias y subcategorias que Caja sugiere
-										para{' '}
-										<span className="cash-term income">ingresos</span>,{' '}
-										<span className="cash-term expense">egresos</span>, deudas
-										y movimientos automaticos.
-									</p>
-								</div>
-								<div className="settings-action-rail">
-									<div className="settings-primary-actions">
-										<button
-											type="button"
-											className="primary"
-											onClick={() => openFormModal('expense-classification')}
-										>
-											<Plus size={16} />
-											Nueva clasificacion
-										</button>
-									</div>
-								</div>
-							</div>
-							<section className="settings-operational-metrics section-block-end">
-								<MetricCard
-									label="Ingresos configurados"
-									value={incomeClassificationPairs.length}
-								/>
-								<MetricCard
-									label="Egresos configurados"
-									value={expenseClassificationPairs.length}
-								/>
-								<MetricCard
-									label="Total de sugerencias"
-									value={cashClassificationPairs.length}
-								/>
-							</section>
-							<div className="records compact-records settings-classification-list">
-								{cashClassificationPairs.length ? (
-									cashClassificationPairs.map((item) => (
-									<RecordCard
-										className="settings-classification-card"
-										key={`${item.movement_type}-${item.category}-${item.subcategory}`}
-									>
-										<RecordCardHeader
-											title={item.subcategory}
-											subtitle={
-												<>
-													<span className={`cash-term ${item.movement_type}`}>
-														{item.movement_type === 'income'
-															? 'Ingreso'
-															: 'Egreso'}
-													</span>{' '}
-													- {item.category}
-												</>
-											}
-											actions={
-												<>
-												<button
-													type="button"
-													className="ghost"
-													onClick={() =>
-														openExpenseClassificationEditor(item)
-													}
-													aria-label={`Editar ${item.subcategory} de ${item.category}`}
-												>
-													<Pencil size={16} />
-												</button>
-												<button
-													type="button"
-													className="danger"
-													onClick={() =>
-														deleteExpenseClassification(
-															item.movement_type,
-															item.category,
-															item.subcategory,
-														)
-													}
-													aria-label={`Eliminar ${item.subcategory} de ${item.category}`}
-												>
-													<Trash2 size={16} />
-												</button>
-												</>
-											}
-										/>
-									</RecordCard>
-									))
-								) : (
-									<Empty
-										text="Sin clasificaciones configuradas."
-										hint="Carga categorias de ingreso y egreso para que Caja sugiera valores consistentes."
-										action={
-											<button
-												type="button"
-												className="primary"
-												onClick={() => openFormModal('expense-classification')}
-											>
-												<Plus size={16} />
-												Nueva clasificacion
-											</button>
-										}
-									/>
-								)}
-							</div>
-						</section>
-						) : null}
-						{settingsSection === 'agenda' ? (
-						<section className="panel">
-							<div className="panel-head">
-								<div>
-									<span className="panel-kicker">Operacion diaria</span>
-									<h2>Agenda y reservas</h2>
-									<p>
-										Define si la operacion usa horarios y como se ve la
-										permanencia de reservas multidia.
-									</p>
-								</div>
-								<div className="settings-action-rail">
-									<div className="settings-primary-actions">
-										<button
-											type="submit"
-											className="primary"
-											form="settings-agenda-form"
-										>
-											<CalendarDays size={16} />
-											Guardar agenda
-										</button>
-									</div>
-								</div>
-							</div>
-							<form
-								className="form-grid"
-								id="settings-agenda-form"
-								onSubmit={saveBusinessProfile}
-							>
-								<div className="records compact-records">
-									<RecordCard>
-										<RecordCardHeader
-											title="Usar horas de ingreso y egreso"
-											subtitle="Muestra los campos de hora en reservas y los horarios en agenda, cotizaciones y listados."
-											actions={
-												<SegmentedControl
-													ariaLabel="Usar horas de ingreso y egreso"
-													className="settings-mode-toggle"
-													options={[
-														{ value: 'show', label: 'Mostrar' },
-														{ value: 'hide', label: 'Ocultar' },
-													]}
-													value={useReservationTimes ? 'show' : 'hide'}
-													onChange={(nextValue) =>
-														patchBusinessForm({
-															use_reservation_times:
-																nextValue === 'show',
-														})
-													}
-												/>
-											}
-										/>
-									</RecordCard>
-									<RecordCard>
-										<RecordCardHeader
-											title="Mostrar permanencia en todos los dias"
-											subtitle="Si se desactiva, una reserva que dura varios dias se muestra solo en su fecha de ingreso."
-											actions={
-												<SegmentedControl
-													ariaLabel="Mostrar permanencia en todos los dias"
-													className="settings-mode-toggle"
-													options={[
-														{ value: 'stay', label: 'Permanencia' },
-														{ value: 'entry', label: 'Ingreso' },
-													]}
-													value={showStayDaysInAgenda ? 'stay' : 'entry'}
-													onChange={(nextValue) =>
-														patchBusinessForm({
-															show_stay_days_in_agenda:
-																nextValue === 'stay',
-														})
-													}
-												/>
-											}
-										/>
-									</RecordCard>
-								</div>
-								<div className="record-sub">
-									Si ocultas las horas, los datos historicos se conservan pero
-									dejan de mostrarse y las nuevas reservas se guardan sin horario.
-								</div>
-							</form>
-						</section>
-						) : null}
-						{settingsSection === 'users' ? (
-						<section className="panel">
-							<div className="panel-head">
-								<div>
-									<span className="panel-kicker">Equipo y permisos</span>
-									<h2>Empleados activos</h2>
-									<p>
-										Usuarios operativos que acceden al CRM con permisos de
-										empleado.
-									</p>
-								</div>
-								<div className="settings-action-rail">
-									<div className="settings-primary-actions">
-										<button
-											type="button"
-											className="primary"
-											onClick={() => openFormModal('employee')}
-										>
-											<Plus size={16} />
-											Nuevo empleado
-										</button>
-									</div>
-									<div className="settings-secondary-actions">
-										<button
-											type="button"
-											className="ghost"
-											onClick={() => loadData({ force: true })}
-										>
-											<RefreshCw size={16} />
-											Actualizar
-										</button>
-									</div>
-								</div>
-							</div>
-							<section className="settings-operational-metrics section-block-end">
-								<MetricCard label="Empleados" value={employees.length} />
-								<MetricCard label="Activos" value={activeEmployeeCount} />
-								<MetricCard label="Inactivos" value={inactiveEmployeeCount} />
-							</section>
-							<div className="records">
-								{employees.length ? (
-									employees.map((item) => (
-										<RecordCard key={item.id}>
-											<RecordCardHeader
-												title={item.username}
-												subtitle={`${item.email || 'Sin email'} - ${
-													item.is_active ? 'Activo' : 'Inactivo'
-												}`}
-											>
-												<div className="record-sub">
-													Rol empleado - Alta{' '}
-													{formatDateTimeLabel(item.date_joined)}
-												</div>
-											</RecordCardHeader>
-										</RecordCard>
-									))
-								) : (
-									<Empty
-										text="Sin empleados creados."
-										hint="Agrega empleados cuando necesites separar accesos de operacion."
-										action={
-											<button
-												type="button"
-												className="primary"
-												onClick={() => openFormModal('employee')}
-											>
-												<Plus size={16} />
-												Nuevo empleado
-											</button>
-										}
-									/>
-								)}
-							</div>
-						</section>
-						) : null}
-						{settingsSection === 'history' ? (
-						<section className="panel audit-log-panel">
-							<div className="panel-head">
-								<div>
-									<span className="panel-kicker">Control operativo</span>
-									<h2>Historial de acciones</h2>
-									<p>
-										Cambios registrados desde la activacion de la auditoria,
-										con usuario, fecha y valores antes/despues.
-									</p>
-								</div>
-								<div className="settings-action-rail">
-									<div className="settings-secondary-actions">
-										<button
-											type="button"
-											className="ghost"
-											onClick={() => refreshAuditLogs()}
-										>
-											<RefreshCw size={16} />
-											Actualizar
-										</button>
-									</div>
-								</div>
-							</div>
-							<form className="audit-filter-grid" onSubmit={applyAuditFilters}>
-								<Field label="Buscar">
-									<input
-										placeholder="Registro, usuario, modulo o ruta"
-										value={auditFilters.q ?? ''}
-										onChange={(event) =>
-											updateAuditFilter('q', event.target.value)
-										}
-									/>
-								</Field>
-								<Field label="Usuario">
-									<input
-										list="audit-actor-options"
-										placeholder="Todos"
-										value={auditFilters.actor ?? ''}
-										onChange={(event) =>
-											updateAuditFilter('actor', event.target.value)
-										}
-									/>
-								</Field>
-								<Field label="Modulo">
-									<select
-										value={auditFilters.module ?? ''}
-										onChange={(event) =>
-											updateAuditFilter('module', event.target.value)
-										}
-									>
-										<option value="">Todos</option>
-										{auditModuleOptions.map((module) => (
-											<option key={module} value={module}>
-												{auditModuleLabel(module)}
-											</option>
-										))}
-									</select>
-								</Field>
-								<Field label="Accion">
-									<select
-										value={auditFilters.action ?? ''}
-										onChange={(event) =>
-											updateAuditFilter('action', event.target.value)
-										}
-									>
-										<option value="">Todas</option>
-										{auditActionOptions.map((action) => (
-											<option key={action} value={action}>
-												{auditActionLabel(action)}
-											</option>
-										))}
-									</select>
-								</Field>
-								<Field label="Desde">
-									<input
-										type="date"
-										value={auditFilters.from ?? ''}
-										onChange={(event) =>
-											updateAuditFilter('from', event.target.value)
-										}
-									/>
-								</Field>
-								<Field label="Hasta">
-									<input
-										type="date"
-										value={auditFilters.to ?? ''}
-										onChange={(event) =>
-											updateAuditFilter('to', event.target.value)
-										}
-									/>
-								</Field>
-								<div className="record-actions audit-filter-actions">
-									<button className="primary" type="submit">
-										<Search size={16} />
-										Filtrar
-									</button>
-									<button
-										type="button"
-										className="ghost"
-										disabled={!auditFiltersActive}
-										onClick={clearAuditFilters}
-									>
-										Limpiar
-									</button>
-								</div>
-							</form>
-							<DataList id="audit-actor-options" values={auditActorOptions} />
-							{loading && !auditLogs.length ? (
-								<LoadingState
-									text="Cargando historial de acciones..."
-									hint="Estamos trayendo los eventos auditados para esta operacion."
-								/>
-							) : (
-								<div className="records audit-log-list">
-									{auditLogs.length ? (
-										auditLogs.map(renderAuditLogCard)
-									) : (
-										<Empty
-											text="Sin acciones registradas para estos filtros."
-											hint="Cambia los filtros o actualiza el historial para revisar eventos recientes."
-											action={
-												<button
-													type="button"
-													className="ghost"
-													onClick={() => refreshAuditLogs()}
-												>
-													<RefreshCw size={16} />
-													Actualizar
-												</button>
-											}
-										/>
-									)}
-								</div>
-							)}
-						</section>
-						) : null}
-						</div>
-					</div>
+					<SettingsWorkspace
+						activeEmployeeCount={activeEmployeeCount}
+						auditActionOptions={auditActionOptions}
+						auditActorOptions={auditActorOptions}
+						auditFilters={auditFilters}
+						auditFiltersActive={auditFiltersActive}
+						auditLogs={auditLogs}
+						auditModuleOptions={auditModuleOptions}
+						businessForm={businessForm}
+						businessLogoFile={businessLogoFile}
+						businessLogoInputKey={businessLogoInputKey}
+						businessLogoInputRef={businessLogoInputRef}
+						businessLogoIsPdf={businessLogoIsPdf}
+						businessLogoPdfStatus={businessLogoPdfStatus}
+						businessLogoPreview={businessLogoPreview}
+						businessProfile={businessProfile}
+						businessSlug={String(currentUser?.business?.slug ?? '')}
+						cashClassificationPairs={cashClassificationPairs}
+						currentUserId={currentUser?.id ?? null}
+						employees={employees}
+						expandedAuditLogId={expandedAuditLogId}
+						expenseClassificationPairs={expenseClassificationPairs}
+						inactiveEmployeeCount={inactiveEmployeeCount}
+						incomeClassificationPairs={incomeClassificationPairs}
+						loading={loading}
+						safeBusinessLogoPdfThumbnail={safeBusinessLogoPdfThumbnail}
+						safeBusinessLogoPreview={safeBusinessLogoPreview}
+						settingsSection={settingsSection}
+						settingsSectionLabel={settingsSectionLabel}
+						settingsSectionOptions={settingsSectionOptions}
+						showStayDaysInAgenda={showStayDaysInAgenda}
+						useReservationTimes={useReservationTimes}
+						onApplyAuditFilters={applyAuditFilters}
+						onAuditActionLabel={auditActionLabel}
+						onAuditModuleLabel={auditModuleLabel}
+						onBusinessLogoChange={handleBusinessLogoChange}
+						onClearAuditFilters={clearAuditFilters}
+						onDeleteExpenseClassification={deleteExpenseClassification}
+						onEditExpenseClassification={openExpenseClassificationEditor}
+						onOpenBusinessLogoPicker={openBusinessLogoPicker}
+						onOpenEmployeeForm={() => openFormModal('employee')}
+						onOpenExpenseClassificationForm={() =>
+							openFormModal('expense-classification')
+						}
+						onPatchBusinessForm={patchBusinessForm}
+						onRefreshAuditLogs={() => refreshAuditLogs()}
+						onRefreshData={() => loadData({ force: true })}
+						onSaveBusinessProfile={saveBusinessProfile}
+						onSettingsSectionChange={setSettingsSection}
+						onToggleAuditLog={setExpandedAuditLogId}
+						onUpdateAuditFilter={updateAuditFilter}
+					/>
 				) : null}
 				</AnimatedWorkspaceView>
 			</AppShell>
