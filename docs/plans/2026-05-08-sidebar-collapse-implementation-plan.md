@@ -1,47 +1,47 @@
-# Sidebar Collapse Implementation Plan
+# Plan De Implementacion: Colapsar Sidebar
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Para workers agenticos:** SUB-SKILL REQUERIDA: usar `superpowers:subagent-driven-development` (recomendado) o `superpowers:executing-plans` para implementar este plan tarea por tarea. Los pasos usan sintaxis de checkbox (`- [ ]`) para seguimiento.
 
-**Goal:** Add a sidebar toggle that collapses the shell to icon-only navigation and expands it back to the current full layout.
+**Objetivo:** Agregar un toggle de sidebar que colapse la shell a navegacion solo con iconos y la expanda de nuevo al layout completo actual.
 
-**Architecture:** Keep the feature local to the existing shell seam. Store `sidebarCollapsed` in `frontend/app/page.tsx`, pass it into `SidebarNav.tsx` for label rendering and accessibility, and drive width/alignment changes from `frontend/app/styles/shell.css`.
+**Arquitectura:** Mantener la feature local al seam existente de shell. Guardar `sidebarCollapsed` en `frontend/app/page.tsx`, pasarlo a `SidebarNav.tsx` para render de labels y accesibilidad, y manejar cambios de ancho/alineacion desde `frontend/app/styles/shell.css`.
 
-**Tech Stack:** Next.js App Router, React 19 state in `frontend/app/page.tsx`, TypeScript, global CSS partials in `frontend/app/styles/`.
+**Tech Stack:** Next.js App Router, estado React 19 en `frontend/app/page.tsx`, TypeScript, partials CSS globales en `frontend/app/styles/`.
 
 ---
 
-## Constraints
+## Restricciones
 
-- Do not add backend changes, new routes, or API calls.
-- Do not add persistence in this iteration.
-- In collapsed mode, only the collapse/expand control and navigation icons remain visible.
-- Preserve keyboard accessibility with `aria-label` and `title` on icon-only buttons.
+- No agregar cambios backend, rutas nuevas ni llamadas API.
+- No agregar persistencia en esta iteracion.
+- En modo colapsado, solo quedan visibles el control de colapsar/expandir y los iconos de navegacion.
+- Preservar accesibilidad de teclado con `aria-label` y `title` en botones solo-icono.
 
-## File Structure
+## Estructura De Archivos
 
-### Files to modify
+### Archivos A Modificar
 
 - `frontend/app/page.tsx`
-  Responsibility: own the collapsed state, wire the top toggle button, and hide footer/header content when collapsed.
+  Responsabilidad: poseer el estado collapsed, cablear el boton superior de toggle y ocultar contenido de footer/header cuando esta colapsado.
 
 - `frontend/app/components/layout/SidebarNav.tsx`
-  Responsibility: accept collapsed-mode props, expose the state to CSS, and hide navigation labels in collapsed mode while preserving accessible names.
+  Responsabilidad: aceptar props de modo collapsed, exponer el estado a CSS y ocultar labels de navegacion en modo collapsed preservando nombres accesibles.
 
 - `frontend/app/styles/shell.css`
-  Responsibility: reduce sidebar width, center icon-only navigation, and style the collapse toggle without disturbing the current expanded layout.
+  Responsabilidad: reducir ancho del sidebar, centrar navegacion solo-icono y estilar el toggle de colapso sin alterar el layout expandido actual.
 
-## Task 1: Add collapsed sidebar state and wiring
+## Tarea 1: Agregar Estado De Sidebar Colapsado Y Wiring
 
-**Files:**
-- Modify: `frontend/app/page.tsx`
+**Archivos:**
+- Modificar: `frontend/app/page.tsx`
 
-- [ ] **Step 1: Add local collapsed state near the other shell-level UI state**
+- [ ] **Paso 1: Agregar estado local collapsed cerca del otro estado UI de nivel shell**
 
 ```ts
 const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 ```
 
-- [ ] **Step 2: Build the sidebar header so it always renders the toggle button and only renders `Buscar...` when expanded**
+- [ ] **Paso 2: Construir el header del sidebar para que siempre renderice el boton de toggle y solo renderice `Buscar...` cuando esta expandido**
 
 ```tsx
 header={
@@ -67,7 +67,7 @@ header={
 }
 ```
 
-- [ ] **Step 3: Pass collapsed state into the sidebar component and hide footer content when collapsed**
+- [ ] **Paso 3: Pasar estado collapsed al componente sidebar y ocultar contenido de footer cuando esta colapsado**
 
 ```tsx
 <SidebarNav
@@ -86,12 +86,12 @@ header={
 />
 ```
 
-## Task 2: Make navigation render icon-only mode safely
+## Tarea 2: Hacer Que La Navegacion Renderice Modo Solo-Icono De Forma Segura
 
-**Files:**
-- Modify: `frontend/app/components/layout/SidebarNav.tsx`
+**Archivos:**
+- Modificar: `frontend/app/components/layout/SidebarNav.tsx`
 
-- [ ] **Step 1: Extend props with the collapsed flag**
+- [ ] **Paso 1: Extender props con el flag collapsed**
 
 ```ts
 type SidebarNavProps = {
@@ -104,7 +104,7 @@ type SidebarNavProps = {
 }
 ```
 
-- [ ] **Step 2: Expose collapsed state on the `<aside>` and preserve accessible names on buttons**
+- [ ] **Paso 2: Exponer estado collapsed en el `<aside>` y preservar nombres accesibles en botones**
 
 ```tsx
 <aside className="sidebar" data-collapsed={collapsed ? 'true' : 'false'}>
@@ -124,12 +124,12 @@ type SidebarNavProps = {
 </button>
 ```
 
-## Task 3: Collapse width and center icon-only navigation
+## Tarea 3: Colapsar Ancho Y Centrar Navegacion Solo-Icono
 
-**Files:**
-- Modify: `frontend/app/styles/shell.css`
+**Archivos:**
+- Modificar: `frontend/app/styles/shell.css`
 
-- [ ] **Step 1: Add a small stack for the top controls and style the collapse button**
+- [ ] **Paso 1: Agregar un stack chico para controles superiores y estilar el boton de colapso**
 
 ```css
 .sidebar-top-stack {
@@ -143,7 +143,7 @@ type SidebarNavProps = {
 }
 ```
 
-- [ ] **Step 2: Make the expanded sidebar use a stable width and define the collapsed width**
+- [ ] **Paso 2: Hacer que el sidebar expandido use ancho estable y definir el ancho colapsado**
 
 ```css
 .sidebar {
@@ -156,7 +156,7 @@ type SidebarNavProps = {
 }
 ```
 
-- [ ] **Step 3: Let the nav fill the sidebar width and center icon-only buttons in collapsed mode**
+- [ ] **Paso 3: Dejar que la nav ocupe el ancho del sidebar y centrar botones solo-icono en modo colapsado**
 
 ```css
 .nav {
@@ -169,27 +169,27 @@ type SidebarNavProps = {
 }
 ```
 
-## Task 4: Verify the shell still compiles
+## Tarea 4: Verificar Que La Shell Siga Compilando
 
-**Files:**
-- Verify: `frontend/app/page.tsx`
-- Verify: `frontend/app/components/layout/SidebarNav.tsx`
-- Verify: `frontend/app/styles/shell.css`
+**Archivos:**
+- Verificar: `frontend/app/page.tsx`
+- Verificar: `frontend/app/components/layout/SidebarNav.tsx`
+- Verificar: `frontend/app/styles/shell.css`
 
-- [ ] **Step 1: Run the frontend build**
+- [ ] **Paso 1: Correr el build frontend**
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-Expected:
-- the sidebar changes compile
-- if the build fails, confirm whether the error comes from the sidebar patch or from a pre-existing unrelated file
+Esperado:
+- los cambios de sidebar compilan
+- si el build falla, confirmar si el error viene del patch de sidebar o de un archivo preexistente no relacionado
 
-- [ ] **Step 2: Manually verify the two visual states**
+- [ ] **Paso 2: Verificar manualmente los dos estados visuales**
 
-Check:
-- expanded mode keeps `Buscar...`, labels, theme toggle, `Salir`, and `ShineApp`
-- collapsed mode keeps only the top collapse button and navigation icons
-- clicking the top button reopens the sidebar
+Chequear:
+- modo expandido mantiene `Buscar...`, labels, theme toggle, `Salir` y `ShineApp`
+- modo colapsado mantiene solo el boton superior de colapso y los iconos de navegacion
+- click en el boton superior reabre el sidebar

@@ -1,50 +1,50 @@
-# Vercel Setup
+# Configuracion De Vercel
 
-Manual deploys or promotions still require human confirmation. The approved automated path for the public demo is the GitHub Actions workflow documented in `docs/deployment/github-actions.md`.
+Los deploys manuales o promociones todavia requieren confirmacion humana. El camino automatizado aprobado para la demo publica es el workflow de GitHub Actions documentado en `docs/deployment/github-actions.md`.
 
-## Web project
+## Proyecto Web
 
-- Project name: `shineapp-web`
+- Nombre del proyecto: `shineapp-web`
 - Project id: `prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ`
 - Root Directory: `frontend`
 - Framework preset: Next.js
-- Install command: default or `npm install`
+- Install command: default o `npm install`
 - Build command: `npm run build`
-- Output: Vercel default for Next.js
+- Output: default de Vercel para Next.js
 - Env vars:
-  - `NEXT_PUBLIC_API_URL=https://shineapp-api.vercel.app/api` for the public demo
+  - `NEXT_PUBLIC_API_URL=https://shineapp-api.vercel.app/api` para la demo publica
 
-## API project
+## Proyecto API
 
-- Project name: `shineapp-api`
+- Nombre del proyecto: `shineapp-api`
 - Project id: `prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC`
 - Root Directory: `backend`
-- Runtime: Python, pinned with `backend/.python-version` to `3.12`
-- Entrypoint: `backend/wsgi.py` exposes `app`
+- Runtime: Python, fijado con `backend/.python-version` a `3.12`
+- Entrypoint: `backend/wsgi.py` expone `app`
 - Install command: `python -m pip install -r requirements.txt`
 - Build command: `python manage.py collectstatic --noinput`
 - Env vars:
   - `DJANGO_SETTINGS_MODULE=config.settings_production`
-  - all backend private vars from `docs/deployment/env-vars.md`
+  - todas las variables privadas backend de `docs/deployment/env-vars.md`
 
-`backend/vercel.json` keeps install/build explicit and excludes local-only artifacts from the Python function bundle.
+`backend/vercel.json` mantiene install/build explicitos y excluye artefactos solo-locales del bundle de la funcion Python.
 
-Healthcheck after deploy:
+Healthcheck despues del deploy:
 
 ```text
 https://shineapp-api.vercel.app/api/health/
 ```
 
-It is public and verifies that Django can open a database connection.
+Es publico y verifica que Django pueda abrir una conexion a la base de datos.
 
-Current public production aliases:
+Aliases publicos actuales de produccion:
 
 - API: `https://shineapp-api.vercel.app`
 - Web: `https://shineapp-web.vercel.app`
 
-Production env vars are configured in Vercel for the public demo. Preview env vars may still need branch-scoped setup from the Dashboard if preview deployments are used again.
+Las env vars de produccion estan configuradas en Vercel para la demo publica. Las env vars de preview todavia pueden necesitar configuracion acotada por branch desde el Dashboard si se vuelven a usar deploys preview.
 
-Backend env vars required:
+Env vars backend requeridas:
 
 - `DJANGO_SETTINGS_MODULE=config.settings_production`
 - `DJANGO_SECRET_KEY`
@@ -52,7 +52,7 @@ Backend env vars required:
 - `DATABASE_SSL_REQUIRE=1`
 - `DJANGO_ALLOWED_HOSTS=shineapp-api.vercel.app`
 - `CORS_ALLOWED_ORIGINS=https://shineapp-web.vercel.app`
-- `CORS_ALLOWED_ORIGIN_REGEXES` (`^https://.*\.vercel\.app$` only for preview)
+- `CORS_ALLOWED_ORIGIN_REGEXES` (`^https://.*\.vercel\.app$` solo para preview)
 - `CSRF_TRUSTED_ORIGINS=https://shineapp-web.vercel.app`
 - `SUPABASE_STORAGE_ENABLED=1`
 - `SUPABASE_STORAGE_BUCKET=shineapp-media`
@@ -63,13 +63,13 @@ Backend env vars required:
 - `SUPABASE_STORAGE_QUERYSTRING_AUTH=1`
 - `SUPABASE_STORAGE_LOCATION=media`
 
-Frontend env vars required:
+Env vars frontend requeridas:
 
 - `NEXT_PUBLIC_API_URL=https://shineapp-api.vercel.app/api`
 
-## Manual migration step
+## Paso Manual De Migracion
 
-Vercel build should not run migrations automatically. For routine demo deploys from `main`, GitHub Actions runs migrations before Vercel deploys. For manual one-off deploys outside Actions, run migrations as an approved step from a trusted machine:
+El build de Vercel no debe ejecutar migraciones automaticamente. Para deploys demo rutinarios desde `main`, GitHub Actions ejecuta migraciones antes del deploy en Vercel. Para deploys manuales one-off fuera de Actions, ejecutar migraciones como paso aprobado desde una maquina confiable:
 
 ```powershell
 cd backend
@@ -79,7 +79,7 @@ $env:DATABASE_URL="<supabase-pooler-url>"
 .\.venv\Scripts\python.exe manage.py migrate
 ```
 
-Before any migration, print and review the plan:
+Antes de cualquier migracion, imprimir y revisar el plan:
 
 ```powershell
 cd backend
@@ -89,7 +89,7 @@ $env:DATABASE_URL="<supabase-pooler-url>"
 .\.venv\Scripts\python.exe manage.py migrate --plan
 ```
 
-Run `seed_demo` only for demo environments and only after confirming the target database. The GitHub Actions deploy workflow never runs `seed_demo` and never creates superusers.
+Ejecutar `seed_demo` solo para entornos demo y solo despues de confirmar la base de datos destino. El workflow de deploy de GitHub Actions nunca ejecuta `seed_demo` y nunca crea superusers.
 
 ## GitHub Actions CI/CD
 
@@ -97,39 +97,39 @@ Workflow: `.github/workflows/deploy-vercel-demo.yml`.
 
 Triggers:
 
-- `push` to `main`
+- `push` a `main`
 - `workflow_dispatch`
 
-Required GitHub secrets:
+Secretos GitHub requeridos:
 
 - `VERCEL_TOKEN`
 - `VERCEL_ORG_ID`
 - `VERCEL_FRONTEND_PROJECT_ID`
 - `VERCEL_BACKEND_PROJECT_ID`
-- `DATABASE_URL` in the `demo-production` environment
-- `DJANGO_MIGRATION_SECRET_KEY` in the `demo-production` environment
+- `DATABASE_URL` en el entorno `demo-production`
+- `DJANGO_MIGRATION_SECRET_KEY` en el entorno `demo-production`
 
-Backend runtime secrets are not duplicated in GitHub. The workflow uses `config.settings_migrations` for the database migration step and leaves the full runtime env in the Vercel API project.
+Los secretos de runtime backend no se duplican en GitHub. El workflow usa `config.settings_migrations` para el paso de migracion de base de datos y deja el runtime env completo en el proyecto Vercel API.
 
-Deployment order:
+Orden de deploy:
 
-1. Backend and frontend checks.
+1. Checks backend y frontend.
 2. `python backend/manage.py migrate --plan`.
 3. `python backend/manage.py migrate --noinput`.
-4. Backend project settings pull.
-5. Backend Vercel production deploy.
-6. Frontend project settings pull.
-7. Frontend Vercel production deploy.
-8. Smoke test against `https://shineapp-web.vercel.app` and `https://shineapp-api.vercel.app/api`.
+4. Pull de configuracion del proyecto backend en Vercel.
+5. Deploy productivo del proyecto backend en Vercel.
+6. Pull de configuracion del proyecto frontend en Vercel.
+7. Deploy productivo del proyecto frontend en Vercel.
+8. Smoke test contra `https://shineapp-web.vercel.app` y `https://shineapp-api.vercel.app/api`.
 
-Do not enable Vercel's built-in Git production deploys for these projects at the same time as this workflow unless they are explicitly configured to skip. The GitHub Actions workflow is the migration gate; a parallel Vercel Git deploy can publish code before migrations run.
+No habilitar los deploys Git productivos integrados de Vercel para estos proyectos al mismo tiempo que este workflow salvo que esten configurados explicitamente para saltearse. El workflow de GitHub Actions es el gate de migracion; un deploy Git paralelo de Vercel puede publicar codigo antes de que corran las migraciones.
 
-Automatic migrations require forward-compatible Django migrations. Destructive schema changes, large data migrations, renames, and non-null additions without safe defaults need manual review before merging to `main`.
+Las migraciones automaticas requieren migraciones Django compatibles hacia adelante. Cambios destructivos de schema, migraciones grandes de datos, renombres y agregados non-null sin defaults seguros necesitan revision manual antes de mergear a `main`.
 
-Validated on 2026-05-18:
+Validado el 2026-05-18:
 
 - `scripts/deploy/smoke-test.ps1 -WebBaseUrl https://shineapp-web.vercel.app -ApiBaseUrl https://shineapp-api.vercel.app/api`
-- Browser login from public web to public API.
-- Next deployed bundle contains the public API URL and no localhost or placeholder API URL.
-- Django admin login page and `/static/admin/...` CSS return 200.
-- Recent Vercel error logs for both projects returned no entries.
+- Login en navegador desde web publica a API publica.
+- El bundle deployado de Next contiene la URL publica de API y no contiene localhost ni placeholder de API URL.
+- La pagina de login de Django admin y el CSS `/static/admin/...` retornan 200.
+- Logs recientes de error de Vercel para ambos proyectos no retornaron entradas.

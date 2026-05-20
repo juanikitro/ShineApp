@@ -1,4 +1,4 @@
-# UI / UX Design System Plan - ShineApp
+# Plan De Sistema De Diseno UI/UX - ShineApp
 
 ## Objetivo
 
@@ -22,11 +22,11 @@ El sistema debe soportar:
 
 ## Tokens necesarios
 
-### Color tokens
+### Tokens De Color
 
 Mantener y completar la capa en `frontend/app/styles/tokens.css`.
 
-#### Core
+#### Base
 
 - `--color-canvas`
 - `--color-canvas-deep`
@@ -40,7 +40,7 @@ Mantener y completar la capa en `frontend/app/styles/tokens.css`.
 - `--color-text-soft`
 - `--color-text-muted`
 
-#### Action / state
+#### Accion / Estado
 
 - `--color-primary`
 - `--color-primary-hover`
@@ -57,7 +57,7 @@ Mantener y completar la capa en `frontend/app/styles/tokens.css`.
 
 - mantener `--shop-*` como alias temporales hasta completar migracion.
 
-### Spacing tokens
+### Tokens De Espaciado
 
 Definir una escala fija y dejar de abrir valores nuevos por pantalla:
 
@@ -76,7 +76,7 @@ Regla:
 - padding de paneles: `20/24`
 - separacion de secciones: `32/48`
 
-### Radius tokens
+### Tokens De Radius
 
 Mantener filosofia sobria:
 
@@ -88,7 +88,7 @@ Excepcion:
 
 - si el toggle de tema sobrevive, debe adaptarse al sistema; no imponer `999px` como lenguaje general.
 
-### Motion tokens
+### Tokens De Motion
 
 Conservar la familia ya existente y prohibir duraciones one-off:
 
@@ -100,7 +100,7 @@ Conservar la familia ya existente y prohibir duraciones one-off:
 
 ## Componentes base a normalizar primero
 
-### 1. Button
+### 1. Boton
 
 Variantes:
 
@@ -138,7 +138,7 @@ Estados:
 - error
 - disabled
 
-### 3. Tabs / SegmentedControl
+### 3. Tabs / Control Segmentado
 
 Usos actuales a unificar:
 
@@ -154,7 +154,7 @@ Debe soportar:
 - `role=tablist` coherente,
 - teclado.
 
-### 4. Card / Record
+### 4. Card / Registro
 
 Subtipos:
 
@@ -168,7 +168,7 @@ Regla:
 
 - el card navegable no debe contener botones interactivos ambiguos sin jerarquia clara.
 
-### 5. Modal / Dialog
+### 5. Modal / Dialogo
 
 Debe resolver:
 
@@ -182,7 +182,7 @@ Debe resolver:
 - focus return
 - mobile height behavior
 
-### 6. Empty / Loading / Error
+### 6. Vacio / Carga / Error
 
 Necesita tres primitives reales:
 
@@ -192,7 +192,7 @@ Necesita tres primitives reales:
 
 Con CTA opcional y tono consistente.
 
-### 7. Search / Filter Row
+### 7. Fila De Busqueda / Filtros
 
 Hoy esta repetido por modulo. Debe soportar:
 
@@ -204,7 +204,7 @@ Hoy esta repetido por modulo. Debe soportar:
 
 ## Variantes necesarias
 
-### Buttons
+### Botones
 
 - `ButtonPrimary`
 - `ButtonSecondary`
@@ -227,7 +227,7 @@ Hoy esta repetido por modulo. Debe soportar:
 - `InsightCard`
 - `PanelCard`
 
-### States
+### Estados
 
 - `StatusPill`
 - `ValueDelta`
@@ -261,7 +261,7 @@ Hoy esta repetido por modulo. Debe soportar:
 
 ## Reglas de color
 
-### Light default
+### Claro Por Defecto
 
 - fondo principal suave gris
 - paneles blancos
@@ -269,7 +269,7 @@ Hoy esta repetido por modulo. Debe soportar:
 - azul solo para primary/focus/selected
 - rojo solo para acciones destructivas o riesgo
 
-### Dark supported
+### Dark Soportado
 
 - navy canvas
 - superficies navy elevadas
@@ -323,13 +323,13 @@ ShineApp hoy es card/list-first, no table-first.
 
 ## Patrones para estados
 
-### Loading
+### Carga
 
 - skeleton o placeholder estructural en dashboards/listas,
 - inline spinner en botones async,
 - no texto plano como unica respuesta en bloques grandes.
 
-### Empty
+### Vacio
 
 - explicar que falta,
 - decir por que importa,
@@ -341,7 +341,7 @@ ShineApp hoy es card/list-first, no table-first.
 - dar siguiente paso,
 - mantener tono operativo.
 
-### Success
+### Exito
 
 - toasts cortos,
 - feedback local cuando la accion ocurre en modal o panel.

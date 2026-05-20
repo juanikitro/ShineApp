@@ -1,91 +1,34 @@
-# Agenda Operativa Unificada Implementation Plan
+# Plan Compacto: Agenda Operativa Unificada
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+Objetivo: hacer que `Agenda` sea la unica superficie diaria para reservas + ejecucion de ordenes, quitando la UI standalone de `Trabajos` sin fusionar dominios backend.
 
-**Goal:** Convert `Agenda` into the only daily operational surface for reservations and work-order execution, removing the standalone `Trabajos` UI without merging backend domains.
+Arquitectura: mantener contratos Django/DRF existentes. Resolver `Reservation -> WorkOrder` en frontend, enriquecer cards de agenda y reutilizar modales/forms actuales de pago, consumo y detalle. Sin rutas nuevas ni state machine nueva.
 
-**Architecture:** Keep the existing backend contracts and implement the unification in the current Next.js single-screen surface. Resolve `Reservation -> WorkOrder` in the frontend, enrich agenda cards with work-order summaries, and reuse existing modals/forms for payment, consumption, and editing instead of opening a new route or state machine.
+Stack: Next.js App Router, React 19, TypeScript, CSS global en `frontend/app/globals.css`, helpers en `frontend/lib/`, API via `apiFetch`.
 
-**Tech Stack:** Next.js App Router, React 19, TypeScript, global CSS in `frontend/app/globals.css`, existing frontend helpers in `frontend/lib/`, Django/DRF backend consumed via `apiFetch`.
+## Restricciones
 
----
+- Checkout sin `.git`: no planear commit/branch/push.
+- No agregar tooling de tests frontend.
+- Preservar shell dark-first y layout de paneles.
+- No cambiar modelos backend ni contratos API salvo bloqueo real.
 
-## Constraints
+## Archivos
 
-- The current checkout has no `.git`; do not add plan steps that require commit, branch, or push.
-- Do not add frontend test tooling this iteration.
-- Preserve dark-first shell and panel layout.
-- Do not change backend models or API contracts unless blocker appears.
+- Crear `frontend/lib/agenda.ts`: helpers puros para unir reservas con ordenes.
+- Modificar `frontend/app/page.tsx`: quitar `workorders` de nav, computar filas operativas, renderizar cards unificadas, acciones locales y modales.
+- Modificar `frontend/app/globals.css`: estilos de card operativa, resumen, acciones y responsive.
 
-## File Structure
+## Tarea 1: Selectors De Agenda
 
-### Files to modify
+Crear en `frontend/lib/agenda.ts`:
 
-- `frontend/app/page.tsx`
-  Responsibility: remove `workorders` from the navigation flow, compute agenda operational rows, render unified cards, wire agenda-local actions, and reuse existing modals for payment/consumption/detail.
+- `AnyRecord = Record<string, any>`
+- `AgendaOperationalRow = { reservation: AnyRecord; workOrder: AnyRecord | null }`
+- `buildWorkOrderByReservation(workOrders)`
+- `buildAgendaOperationalRows(reservations, workOrders, weekDays, workOrderByReservationOverride?)`
 
-- `frontend/app/globals.css`
-  Style unified agenda cards, work-order summary, contextual action groups, responsive behavior. Do not break existing agenda grid.
-
-### Files to create
-
-- `frontend/lib/agenda.ts`
-  Responsibility: keep small pure helpers out of `page.tsx` for joining reservations to work orders and formatting agenda operational rows. This is not a new architecture layer; it is a local readability seam.
-
-## Task 1: Extract agenda operational selectors
-
-**Files:**
-- Create: `frontend/lib/agenda.ts`
-- Modify: `frontend/app/page.tsx`
-- Verify: `frontend/package.json` scripts via `npm run build`
-
-- [ ] **Step 1: Create helper file for agenda composition**
-
-```ts
-export type AnyRecord = Record<string, any>
-
-export type AgendaOperationalRow = {
-  reservation: AnyRecord
-  workOrder: AnyRecord | null
-}
-
-export function buildWorkOrderByReservation(
-  workOrders: AnyRecord[],
-): Record<string, AnyRecord> {
-  return workOrders.reduce<Record<string, AnyRecord>>((acc, workOrder) => {
-    if (workOrder.reservation !== null && workOrder.reservation !== undefined) {
-      acc[String(workOrder.reservation)] = workOrder
-    }
-    return acc
-  }, {})
-}
-
-export function buildAgendaOperationalRows(
-  reservations: AnyRecord[],
-  workOrders: AnyRecord[],
-  weekDays: string[],
-  workOrderByReservationOverride?: Record<string, AnyRecord>,
-): Record<string, AgendaOperationalRow[]> {
-  const workOrderByReservation =
-    workOrderByReservationOverride ?? buildWorkOrderByReservation(workOrders)
-  return reservations.reduce<Record<string, AgendaOperationalRow[]>>(
-    (groups, reservation) => {
-      if (!weekDays.includes(reservation.day)) return groups
-      const key = reservation.day
-      const row = {
-        reservation,
-        workOrder: workOrderByReservation[String(reservation.id)] ?? null,
-      }
-      const dayRows = groups[key] ?? (groups[key] = [])
-      dayRows.push(row)
-      return groups
-    },
-    {},
-  )
-}
-```
-
-- [ ] **Step 2: Import the helper into `page.tsx` and replace the reservation-only reducer**
+Importar en `page.tsx`:
 
 ```ts
 import {
@@ -93,6 +36,8 @@ import {
   buildWorkOrderByReservation,
 } from '@/lib/agenda'
 ```
+
+Calcular:
 
 ```ts
 const workOrderByReservation = useMemo(
@@ -112,161 +57,48 @@ const agendaRowsByDay = useMemo(
 )
 ```
 
-- [ ] **Step 3: Replace direct `reservationsByDay` reads with `agendaRowsByDay` where agenda cards are rendered**
+Reemplazar `reservationsByDay` por:
 
 ```ts
 const dayRows = agendaRowsByDay[day] ?? []
 ```
 
-```ts
-<small>{dayRows.length} turnos</small>
-```
-
-- [ ] **Step 4: Build early for type/import mistakes**
-
-Run:
+Validar:
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-Expected:
+Esperado: `next build` OK, sin import roto `@/lib/agenda`, sin errores en `agendaRowsByDay` ni `workOrderByReservation`.
 
-- `next build` completes successfully.
-- No unresolved import for `@/lib/agenda`.
-- No type errors on `agendaRowsByDay` or `workOrderByReservation`.
+## Tarea 2: Quitar `Trabajos`
 
-## Task 2: Remove the standalone `Trabajos` section and move the flow anchor into `Agenda`
+En `frontend/app/page.tsx`:
 
-**Files:**
-- Modify: `frontend/app/page.tsx`
-- Verify: `frontend/package.json` scripts via `npm run build`
+- Quitar `workorders` de `Section`.
+- Quitar `workorders` de `sectionMeta`.
+- Cambiar metadata de `agenda` a subtitle `Reservas, trabajos y operatoria diaria`.
+- Borrar rama JSX `active === 'workorders'`.
+- Mantener `createOrderFromReservation(reservation)` usando endpoint `POST /work-orders/from-reservation/`.
 
-- [ ] **Step 1: Remove `workorders` from the `Section` union and `sectionMeta`**
-
-```ts
-type Section =
-  | 'dashboard'
-  | 'agenda'
-  | 'customers'
-  | 'vehicles'
-  | 'cash'
-  | 'inventory'
-  | 'quotes'
-  | 'services'
-```
-
-```ts
-agenda: {
-  label: 'Agenda',
-  icon: CalendarDays,
-  subtitle: 'Reservas, trabajos y operatoria diaria',
-},
-```
-
-- [ ] **Step 2: Delete the standalone `active === 'workorders'` render block**
-
-```tsx
-{active === 'workorders' ? (
-  /* remove the entire block */
-) : null}
-```
-
-- [ ] **Step 3: Keep work-order creation helpers; entry point becomes agenda cards**
-
-```ts
-function createOrderFromReservation(reservation: AnyRecord) {
-  return runAction(() =>
-    apiFetch('/work-orders/from-reservation/', {
-      method: 'POST',
-      body: JSON.stringify({ reservation: reservation.id }),
-    }),
-  )
-}
-```
-
-- [ ] **Step 4: Build and confirm the sidebar no longer references `Trabajos`**
-
-Run:
+Validar:
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-Expected:
+Esperado: sin referencias JSX a `active === 'workorders'`; sidebar sin `Trabajos`.
 
-- No JSX branch references `active === 'workorders'`.
-- Sidebar renders only the remaining sections.
+## Tarea 3: Cards Operativas Unificadas
 
-## Task 3: Replace reservation-only agenda cards with unified operational cards
+Agregar helpers en `page.tsx`:
 
-**Files:**
-- Modify: `frontend/app/page.tsx`
-- Modify: `frontend/app/globals.css`
-- Verify: `frontend/package.json` scripts via `npm run build`
+- `renderAgendaWorkOrderSummary(workOrder)`
+- `renderAgendaWorkOrderActions(workOrder)`
 
-- [ ] **Step 1: Add focused work-order summary render helper**
-
-```ts
-function renderAgendaWorkOrderSummary(workOrder: AnyRecord) {
-  return (
-    <div className="agenda-work-summary">
-      <div className="agenda-work-meta">
-        <strong>Orden #{workOrder.id}</strong>
-        <StatusPill value={workOrder.status} labels={orderLabels} />
-      </div>
-      <div className="record-sub">
-        Total <span className="money">{money(workOrder.total_amount)}</span>
-        {' · '}Pagado <span className="money">{money(workOrder.paid_amount)}</span>
-        {' · '}Deuda{' '}
-        <span className={Number(workOrder.balance_due) > 0 ? 'debt' : 'money'}>
-          {money(workOrder.balance_due)}
-        </span>
-      </div>
-      <div className="record-sub">
-        Materiales <span className="money">{money(workOrder.material_cost)}</span>
-      </div>
-    </div>
-  )
-}
-```
-
-- [ ] **Step 2: Add focused work-order action cluster render helper**
-
-```ts
-function renderAgendaWorkOrderActions(workOrder: AnyRecord) {
-  return (
-    <div className="record-actions agenda-work-actions">
-      <button className="primary" onClick={() => openPaymentForOrder(workOrder)}>
-        Cobrar
-      </button>
-      <button className="ghost" onClick={() => openConsumptionForOrder(workOrder)}>
-        Consumir material
-      </button>
-      {Object.entries(orderLabels).map(([key, label]) => (
-        <button
-          key={key}
-          className="ghost"
-          onClick={() =>
-            runAction(() =>
-              apiFetch(`/work-orders/${workOrder.id}/status/`, {
-                method: 'POST',
-                body: JSON.stringify({ status: key }),
-              }),
-            )
-          }
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  )
-}
-```
-
-- [ ] **Step 3: Replace the agenda card mapping with a `reservation + workOrder` render path**
+La card debe mapear:
 
 ```tsx
 {dayRows.map(({ reservation, workOrder }) => (
@@ -275,62 +107,26 @@ function renderAgendaWorkOrderActions(workOrder: AnyRecord) {
     key={reservation.id}
     {...detailRecordProps('Reserva', reservation)}
   >
-    <div className="record-head">
-      <div>
-        <div className="record-title">
-          {reservation.start_time?.slice(0, 5) || 'Sin hora'} - {reservation.customer_name}
-        </div>
-        <div className="record-sub">{reservation.service_name}</div>
-      </div>
-      <StatusPill value={reservation.status} labels={reservationLabels} />
-    </div>
-
+    ...
     {workOrder ? renderAgendaWorkOrderSummary(workOrder) : null}
-
     {renderReservationActions(reservation, workOrder)}
-
     {workOrder ? renderAgendaWorkOrderActions(workOrder) : null}
   </div>
 ))}
 ```
 
-- [ ] **Step 4: Update `renderReservationActions` so it does not offer `Crear orden` when the row already has one**
+Actualizar `renderReservationActions(item, workOrder?)`:
 
-```ts
-function renderReservationActions(item: AnyRecord, workOrder?: AnyRecord | null) {
-  return (
-    <div className="record-actions">
-      {item.status === 'pending' ? (
-        <button className="ghost" onClick={() => runAction(() => apiFetch(`/reservations/${item.id}/confirm/`, { method: 'POST' }))}>
-          Confirmar
-        </button>
-      ) : null}
-      {!workOrder && ['pending', 'confirmed'].includes(item.status) ? (
-        <button className="ghost" onClick={() => createOrderFromReservation(item)}>
-          Crear orden
-        </button>
-      ) : null}
-      {['pending', 'confirmed'].includes(item.status) ? (
-        <button className="danger" onClick={() => runAction(() => apiFetch(`/reservations/${item.id}/cancel/`, { method: 'POST' }))}>
-          Cancelar
-        </button>
-      ) : null}
-    </div>
-  )
-}
-```
+- `Confirmar` si `item.status === 'pending'`.
+- `Crear orden` solo si no hay `workOrder` y status es `pending` o `confirmed`.
+- `Cancelar` si status es `pending` o `confirmed`.
+- Endpoints: `/reservations/${item.id}/confirm/`, `/reservations/${item.id}/cancel/`.
 
-- [ ] **Step 5: Add minimum CSS classes for richer card**
+CSS minimo:
 
 ```css
-.agenda-record {
-  gap: 12px;
-}
-
-.agenda-record.has-work-order {
-  border-color: var(--shop-border-strong);
-}
-
+.agenda-record { gap: 12px; }
+.agenda-record.has-work-order { border-color: var(--shop-border-strong); }
 .agenda-work-summary {
   display: grid;
   gap: 8px;
@@ -338,117 +134,52 @@ function renderReservationActions(item: AnyRecord, workOrder?: AnyRecord | null)
   background: var(--shop-surface-raised);
   border: 1px solid var(--shop-border);
 }
-
 .agenda-work-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
-
-.agenda-work-actions {
-  align-items: center;
-}
+.agenda-work-actions { align-items: center; }
 ```
 
-- [ ] **Step 6: Build after card replacement**
-
-Run:
+Validar:
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-Expected:
+## Tarea 4: Modales Contextuales
 
-- No duplicate function names.
-- No JSX errors from helper calls.
-- Richer card compiles.
+Agregar en `page.tsx`:
 
-## Task 4: Reuse contextual modals for payment and edit flows from agenda
+- `openPaymentForOrder(order)`
+- `openWorkOrderDetail(order)`
+- estado `const [payForOrder, setPayForOrder] = useState<AnyRecord | null>(null)`
 
-**Files:**
-- Modify: `frontend/app/page.tsx`
-- Verify: `frontend/package.json` scripts via `npm run build`
-
-- [ ] **Step 1: Add agenda-local openers; do not send operator to another section**
+`openPaymentForOrder` debe setear:
 
 ```ts
-function openPaymentForOrder(order: AnyRecord) {
-  setPaymentForm({
-    work_order: String(order.id),
-    amount: '',
-    payment_type: 'deposit',
-    method: 'cash',
-    notes: '',
-  })
-  setPayForOrder(order)
-}
-
-function openWorkOrderDetail(order: AnyRecord) {
-  openDetailModal('Orden de trabajo', order)
-}
+setPaymentForm({
+  work_order: String(order.id),
+  amount: '',
+  payment_type: 'deposit',
+  method: 'cash',
+  notes: '',
+})
+setPayForOrder(order)
 ```
 
-- [ ] **Step 2: Add payment modal state beside existing consumption modal**
+Renderizar modal `Registrar pago - Orden #${payForOrder.id}` con `savePayment`.
 
-```ts
-const [payForOrder, setPayForOrder] = useState<AnyRecord | null>(null)
-```
+Actualizar `savePayment`:
 
-- [ ] **Step 3: Render a payment modal reusing the existing `savePayment` handler**
+- `POST /payments/`
+- resetear `paymentForm`
+- `setPayForOrder(null)`
 
-```tsx
-{payForOrder ? (
-  <Modal
-    title={`Registrar pago - Orden #${payForOrder.id}`}
-    onClose={() => setPayForOrder(null)}
-  >
-    <form className="form-grid" onSubmit={savePayment}>
-      <div className="info-note">
-        {payForOrder.customer_name} - {payForOrder.vehicle_label} - deuda {money(payForOrder.balance_due)}
-      </div>
-      <Field label="Importe">
-        <input
-          required
-          type="number"
-          min="0"
-          value={paymentForm.amount}
-          onChange={(event) =>
-            setPaymentForm({ ...paymentForm, amount: event.target.value })
-          }
-        />
-      </Field>
-      <button className="primary">Registrar pago</button>
-    </form>
-  </Modal>
-) : null}
-```
-
-- [ ] **Step 4: Close payment modal after successful save**
-
-```ts
-async function savePayment(event: FormEvent) {
-  event.preventDefault()
-  await runAction(async () => {
-    await apiFetch('/payments/', {
-      method: 'POST',
-      body: JSON.stringify(paymentForm),
-    })
-    setPaymentForm({
-      work_order: '',
-      amount: '',
-      payment_type: 'deposit',
-      method: 'cash',
-      notes: '',
-    })
-    setPayForOrder(null)
-  })
-}
-```
-
-- [ ] **Step 5: Reuse existing consumption modal opener from agenda cards**
+Reutilizar:
 
 ```tsx
 <button className="ghost" onClick={() => openConsumptionForOrder(workOrder)}>
@@ -456,27 +187,18 @@ async function savePayment(event: FormEvent) {
 </button>
 ```
 
-- [ ] **Step 6: Build after modal wiring**
-
-Run:
+Validar:
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-Expected:
+Esperado: `savePayment` sigue funcionando para agenda y caja restante; `payForOrder`/`consumeForOrder` cierran al guardar.
 
-- `savePayment` still compiles for both the agenda modal and any remaining cash surface.
-- `payForOrder` and `consumeForOrder` close cleanly after save.
+## Tarea 5: Responsive Y Smoke
 
-## Task 5: Responsive polish and verification
-
-**Files:**
-- Modify: `frontend/app/globals.css`
-- Verify: `frontend/package.json` scripts via `npm run build`
-
-- [ ] **Step 1: Add responsive guards for heavier agenda card**
+CSS responsive:
 
 ```css
 @media (max-width: 980px) {
@@ -501,67 +223,42 @@ Expected:
 }
 ```
 
-- [ ] **Step 2: Run final build**
-
-Run:
+Build final:
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-Expected:
+Smoke manual:
 
-- Touched frontend builds successfully with final CSS and JSX.
+1. Abrir `Agenda`.
+2. Crear reserva.
+3. Confirmarla.
+4. Crear orden desde la misma card.
+5. Cambiar estado desde la misma card.
+6. Registrar pago desde la misma card.
+7. Registrar consumo de material desde la misma card.
+8. Abrir detalle y editar reserva/orden.
+9. Confirmar que sidebar no expone `Trabajos`.
 
-- [ ] **Step 3: Manual smoke test unified operator flow**
+Docs follow-up: si cambia copy visible o comportamiento mas alla del plan, actualizar `docs/plans/2026-05-06-agenda-operativa-unificada-design.md`. Si coincide con el diseno aprobado, no hace falta doc extra.
 
-Run existing app. Verify:
+## Self-Review
 
-1. Open `Agenda`.
-2. Create a reservation.
-3. Confirm it.
-4. Create a work order from the same card.
-5. Change its status from the same card.
-6. Register a payment from the same card.
-7. Register a material consumption from the same card.
-8. Open detail and edit reservation/order.
-9. Confirm the sidebar no longer exposes `Trabajos`.
+- Agenda unica: Tareas 2 y 3.
+- Sin UI standalone `Trabajos`: Tarea 2.
+- Crear/ver/editar/estado/pago/consumo desde agenda: Tareas 3 y 4.
+- Separacion backend preservada: sin cambios backend.
+- Compras/caja admin preservadas: acciones limitadas a agenda.
+- Sin placeholders `TODO`, `TBD` ni "similar to previous task".
+- Comandos concretos: `cd frontend`, `npm run build`.
 
-- [ ] **Step 4: Decide whether docs need follow-up note**
+## Handoff
 
-If implementation changes visible copy or screen behavior beyond plan, update:
+Plan completo: `docs/plans/2026-05-06-agenda-operativa-unificada-implementation-plan.md`.
 
-- `docs/plans/2026-05-06-agenda-operativa-unificada-design.md`
+Opciones:
 
-If behavior matches approved design exactly, no extra doc file.
-
-## Self-review
-
-### Spec coverage
-
-- Single agenda operational entry point: Tasks 2, 3.
-- Remove standalone `Trabajos` UI: Task 2.
-- Support create/view/edit/status/payment/consumption from agenda: covered by Tasks 3 and 4.
-- Preserve backend separation: architecture + no backend changes.
-- Preserve purchases/cash admin modules: constraints + agenda-local scope.
-
-### Placeholder scan
-
-- No `TODO`, `TBD`, or "similar to previous task" placeholders remain.
-- All changed files named.
-- All verification commands concrete, current repo scripts.
-
-### Type consistency
-
-- `AgendaOperationalRow`, `workOrderByReservation`, and `agendaRowsByDay` use the same reservation/work-order names throughout.
-- `openPaymentForOrder`, `openConsumptionForOrder`, and `openDetailModal` align with existing naming in `page.tsx`.
-
-## Execution handoff
-
-Plan saved to `docs/plans/2026-05-06-agenda-operativa-unificada-implementation-plan.md`.
-
-Two execution options:
-
-1. Subagent-Driven (recommended) - fresh subagent per task, review between tasks.
-2. Inline Execution - execute tasks in order, with review checkpoints.
+1. Subagent-Driven: subagente por tarea, review entre tareas.
+2. Inline: ejecutar en esta sesion en orden, con checkpoints.

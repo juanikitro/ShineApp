@@ -1,4 +1,4 @@
-# UI / UX Improvement Backlog - ShineApp
+# Backlog De Mejoras UI/UX - ShineApp
 
 Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins historicos cerrados salen de "Ahora" para que el siguiente batch refleje deuda vigente real.
 
@@ -34,10 +34,10 @@ Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins hi
 | Settings mobile tabs | Cerrado | CSS responsive convierte tabs a grid/columna; QA no reprodujo overflow. |
 | Sidebar search muerto | Cerrado | `SidebarNav` ya no tiene input de busqueda; search real en clientes funciona. |
 | Agenda naming | Cerrado | IA principal usa `Agenda`; `Trabajos` queda como concepto de dominio dentro de la agenda. |
-| Modal accesible base | Cerrado | `ModalFrame` incluye dialog semantics, Escape y test de foco. |
+| Modal accesible base | Cerrado | `ModalFrame` incluye semantica de dialog, Escape y test de foco. |
 | Deep-linking | Cerrado | Navegacion por `?section=...` funciona en QA y codigo. |
 | Encoding `Â·` | Cerrado | No quedan ocurrencias en `frontend/app` ni `frontend/lib`. |
-| Cards/list actions en superficies auditadas | Cerrado | `RecordCard` y `CustomerListPanel` separan accion primaria/secundarias. |
+| Acciones de cards/listas en superficies auditadas | Cerrado | `RecordCard` y `CustomerListPanel` separan accion primaria/secundarias. |
 | Runtime visual productivo | Cerrado para auditoria | `npm run build` + `npm run start` renderizaron flujos principales y landing publica. |
 
 ## Despues - deuda diferible

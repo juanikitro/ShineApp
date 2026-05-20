@@ -1,4 +1,4 @@
-# UI / UX Implementation Plan - ShineApp
+# Plan De Implementacion UI/UX - ShineApp
 
 ## Enfoque
 
@@ -95,7 +95,7 @@ Subir percepcion profesional y reducir friccion sin tocar dominio ni endpoints.
 - reglas de negocio de agenda/caja,
 - dark-mode redesign completo.
 
-## Fase 2 - Componentes base / design system
+## Fase 2 - Componentes Base / Sistema De Diseno
 
 ### Objetivo
 

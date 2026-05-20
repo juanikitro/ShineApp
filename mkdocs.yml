@@ -1,4 +1,4 @@
-site_name: ShineApp Docs
+site_name: Documentacion ShineApp
 site_description: Documentacion viva de ShineApp basada en el estado real del repo.
 docs_dir: docs
 site_dir: site
@@ -48,41 +48,41 @@ nav:
       - Arquitectura: contexto/arquitectura.md
       - Aplicaciones: contexto/aplicaciones.md
   - Guias IA:
-      - Context hygiene: ia/CONTEXT_HYGIENE.md
-      - Testing: ia/TESTING.md
+      - Higiene de contexto: ia/CONTEXT_HYGIENE.md
+      - Pruebas: ia/TESTING.md
       - Arquitectura: ia/ARCHITECTURE.md
-      - UI context: ia/UI_CONTEXT.md
-      - Style guide: ia/STYLE_GUIDE.md
-      - Security AI: ia/SECURITY_AI.md
-      - Errors logging: ia/ERRORS_LOGGING.md
-      - Contributing AI: ia/CONTRIBUTING_AI.md
-      - Testing prompt: ia/CODEX_TESTING_PROMPT.md
+      - Contexto UI: ia/UI_CONTEXT.md
+      - Guia de estilo: ia/STYLE_GUIDE.md
+      - Seguridad IA: ia/SECURITY_AI.md
+      - Errores y logging: ia/ERRORS_LOGGING.md
+      - Contribucion IA: ia/CONTRIBUTING_AI.md
+      - Prompt de testing: ia/CODEX_TESTING_PROMPT.md
       - Guia agentes: agentes/guia.md
   - Registro:
       - Spec-as-source: registro/README.md
       - Errores agentes: registro/errores-agentes.md
       - Cambios: registro/cambios/index.md
       - Decisiones: registro/decisiones/index.md
-  - Deployment:
+  - Deploy:
       - Arquitectura: deployment/architecture.md
-      - Env vars: deployment/env-vars.md
+      - Variables de entorno: deployment/env-vars.md
       - GitHub Actions: deployment/github-actions.md
       - Vercel: deployment/vercel.md
       - Supabase: deployment/supabase.md
-      - Media y static: deployment/media-static.md
+      - Media y archivos static: deployment/media-static.md
       - Pasos manuales: deployment/manual-steps.md
-      - Demo readiness: deployment/demo-readiness.md
-      - Upgrade path: deployment/upgrade-path.md
+      - Estado de demo: deployment/demo-readiness.md
+      - Camino de actualizacion: deployment/upgrade-path.md
   - Diseno y UI:
-      - Design brief: design-brief.md
-      - Design system: design-system.md
-      - Inspiration: inspiration.md
-      - UI review checklist: ui-review-checklist.md
+      - Resumen de diseno: design-brief.md
+      - Sistema de diseno: design-system.md
+      - Inspiracion: inspiration.md
+      - Checklist de revision UI: ui-review-checklist.md
       - Materiales y unidades: materiales-unidades-abiertas.md
-      - UI/UX audit: ui-ux/UI_UX_AUDIT.md
-      - UI/UX issues: ui-ux/UI_UX_ISSUES.md
-      - UI/UX backlog: ui-ux/UI_UX_IMPROVEMENT_BACKLOG.md
-      - UI/UX implementation plan: ui-ux/UI_UX_IMPLEMENTATION_PLAN.md
-      - UI/UX design system plan: ui-ux/UI_UX_DESIGN_SYSTEM_PLAN.md
+      - Auditoria UI/UX: ui-ux/UI_UX_AUDIT.md
+      - Incidencias UI/UX: ui-ux/UI_UX_ISSUES.md
+      - Backlog UI/UX: ui-ux/UI_UX_IMPROVEMENT_BACKLOG.md
+      - Plan de implementacion UI/UX: ui-ux/UI_UX_IMPLEMENTATION_PLAN.md
+      - Plan de sistema de diseno UI/UX: ui-ux/UI_UX_DESIGN_SYSTEM_PLAN.md
   - Planes:
       - Indice: plans/index.md

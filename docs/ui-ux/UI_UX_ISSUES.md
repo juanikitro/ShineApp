@@ -1,4 +1,4 @@
-# UI / UX Issues - ShineApp
+# Incidencias UI/UX - ShineApp
 
 Fuente viva de deuda UI/UX. Esta version separa deuda vigente de deuda ya cerrada en codigo para evitar arrastrar P0/P1 historicos por inercia.
 
@@ -32,7 +32,7 @@ No quedaron P0 reproducidos en runtime estable. Como P1/P2 estructural queda la 
 | UI-002 Settings mobile tabs | Cerrado | `shell.css` convierte tabs de settings a grid responsive y una columna en ancho chico. La auditoria no reprodujo overflow horizontal de settings. |
 | UI-004 Sidebar search muerto | Cerrado | `SidebarNav` ya no contiene input de busqueda. La busqueda visible vive en clientes, donde QA confirmo interaccion `ana` sin errores. |
 | UI-005 Agenda naming | Cerrado | Navegacion principal y seccion usan `Agenda`. La etiqueta residual `Trabajos` aparece como concepto de dominio dentro de agenda, no como IA principal. |
-| UI-006 Cards/list actions | Cerrado en superficies auditadas | `RecordCard` separa accion primaria de acciones secundarias; `CustomerListPanel` mantiene dashboard/acciones separadas. Mantener vigilancia en nuevas listas. |
+| UI-006 Acciones de cards/listas | Cerrado en superficies auditadas | `RecordCard` separa accion primaria de acciones secundarias; `CustomerListPanel` mantiene dashboard/acciones separadas. Mantener vigilancia en nuevas listas. |
 | UI-007 Modal accesible base | Cerrado | `ModalFrame` tiene `role="dialog"`, `aria-modal`, `aria-labelledby`, cierre con Escape y test de foco en `ui.test.tsx`. |
 | UI-011 Encoding `Â·` | Cerrado | `rg -F "Â·" frontend/app frontend/lib` no encontro ocurrencias en fuente UI. Solo queda mencionado en docs historicas. |
 | UI-013 Deep-linking | Cerrado | `navigation-state.ts` define `section` en URL; `page.tsx` sincroniza `pushState`/`popstate`. QA navego `?section=agenda`, `customers`, `cash`, `settings&settings=business`. |
@@ -52,7 +52,7 @@ No quedaron P0 reproducidos en runtime estable. Como P1/P2 estructural queda la 
 | UI-014 | P2 | Configuracion / branding | Card de logo y negocio puede mejorar densidad y lectura, especialmente en dark mode. | QA settings dark no bloqueo flujo, pero la pantalla sigue pesada para configuracion frecuente. |
 | UI-015 | P2 | Dashboard | La pantalla carga estable, pero puede mejorar siguiente accion y priorizacion de datos. | QA dashboard desktop sin errores; mejora de producto, no bloqueo. |
 | UI-017 | P2 | Clientes | El dashboard de clientes funciona, pero low-data/empty guidance puede ser mas accionable. | QA busqueda de cliente sin errores; queda como polish operativo. |
-| UI-018 | P2 | Empty/loading states | Existen primitivos, pero no todos los estados de carga/empty tienen accion clara o copy consistente. | No se reprodujo blank/loading roto en QA; queda como deuda transversal. |
+| UI-018 | P2 | Estados de vacio/carga | Existen primitivos, pero no todos los estados de carga/vacio tienen accion clara o copy consistente. | No se reprodujo blank/loading roto en QA; queda como deuda transversal. |
 | UI-019 | P2 | Vehiculos | Se mantiene seccion oculta por CSS/estado, lo que agrega ruido de mantenimiento. | Codigo conserva `hidden-section` en shell/base. |
 | UI-022 | P2 | Sidebar footer/profile mobile | Drawer resuelto, pero footer/perfil mobile puede compactarse mejor. | QA no bloqueo navegacion; polish visual. |
 | UI-023 | P2 | Bulk workflows | Acciones masivas y feedback pueden ser mas consistentes. | No bloquea flujos QA cubiertos. |

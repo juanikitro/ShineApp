@@ -1,66 +1,66 @@
-# Design Inspiration Assets
+# Activos De Inspiracion De Diseno
 
-This folder is for visual reference material that should guide future UI work.
+Esta carpeta guarda material de referencia visual para orientar trabajo futuro de UI.
 
-Allowed contents:
+Contenido permitido:
 
-- screenshots
+- capturas de pantalla
 - mockups
-- annotated captures
+- capturas anotadas
 - wireframes
-- exported design specs
+- especificaciones de diseno exportadas
 
-## Naming rules
+## Reglas De Nombres
 
-Use descriptive, sortable file names.
+Usa nombres de archivo descriptivos y ordenables.
 
-Preferred patterns:
+Patrones preferidos:
 
 - `YYYY-MM-DD-source-screen-topic.ext`
 - `source-feature-variant.ext`
 - `internal-screen-state-note.ext`
 
-Examples:
+Ejemplos:
 
 - `2026-05-06-linear-sidebar-density.png`
 - `stripe-dashboard-card-rhythm.png`
 - `internal-workorder-modal-mobile.png`
 
-## How future prompts should reference these files
+## Como Referenciar Estos Archivos En Prompts Futuros
 
-Future prompts should mention the exact path and the exact intent.
+Los prompts futuros deben mencionar la ruta exacta y la intencion exacta.
 
-Good example:
+Buen ejemplo:
 
-- "Use `assets/design-inspo/2026-05-06-linear-sidebar-density.png` as a spacing and density reference for the sidebar and record list. Do not copy the layout."
+- "Usa `assets/design-inspo/2026-05-06-linear-sidebar-density.png` como referencia de espaciado y densidad para el sidebar y la lista de registros. No copies el layout."
 
-Bad example:
+Mal ejemplo:
 
-- "Make it look like the screenshot."
+- "Hacelo como la captura."
 
-Prompts should always say:
+Los prompts siempre deben decir:
 
-- which file is relevant
-- which part of it is useful
-- what should not be copied
+- que archivo es relevante
+- que parte sirve
+- que no debe copiarse
 
-## Important rule
+## Regla Importante
 
-These files are inspiration, not assets to copy directly.
+Estos archivos son inspiracion, no activos para copiar directamente.
 
-Do not:
+No hacer:
 
-- copy logos
-- copy brand colors
-- copy illustrations
-- copy exact layouts
-- treat external screenshots as product assets
+- copiar logos
+- copiar colores de marca
+- copiar ilustraciones
+- copiar layouts exactos
+- tratar capturas externas como activos del producto
 
-## Documentation rule
+## Regla De Documentacion
 
-Whenever a new screenshot or mockup is added here, update `docs/inspiration.md` with:
+Cada vez que se agregue una captura o mockup aca, actualizar `docs/inspiration.md` con:
 
-- the source
-- what to borrow
-- what not to copy
-- where it applies in ShineApp
+- la fuente
+- que tomar como referencia
+- que no copiar
+- donde aplica en ShineApp

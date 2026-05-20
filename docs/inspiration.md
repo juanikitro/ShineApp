@@ -1,187 +1,187 @@
-# Inspiration
+# Inspiracion
 
-## How to use this document
+## Como Usar Este Documento
 
-These references are directional only. They exist to shape decisions, not to justify copying another product.
+Estas referencias son solo direccionales. Existen para orientar decisiones, no para justificar copiar otro producto.
 
-For each source:
+Para cada fuente:
 
-- borrow patterns, not identity
-- translate visual ideas into repo-friendly rules
-- keep the ShineApp light CRM reference, operator context, dark-mode variant, and current token layer as the final filter
+- tomar patrones, no identidad
+- traducir ideas visuales a reglas compatibles con el repo
+- usar como filtro final la referencia CRM clara de ShineApp, el contexto del operador, la variante dark mode y la capa actual de tokens
 
 ## Linear
 
-### What to borrow
+### Que Tomar Como Referencia
 
-- dense but readable layouts
-- clear sidebar navigation
-- subtle borders
-- calm light surfaces
-- strong list and dashboard hierarchy
+- layouts densos pero legibles
+- navegacion de sidebar clara
+- bordes sutiles
+- superficies claras y calmas
+- jerarquia fuerte en listas y dashboards
 
-### What not to copy
+### Que No Copiar
 
-- exact layout
-- exact colors
+- layout exacto
+- colores exactos
 - branding
-- icon style
+- estilo de iconos
 
-### Where it applies in ShineApp
+### Donde Aplica En ShineApp
 
-- sidebar and section navigation
-- dashboard metrics
-- record lists
-- compact panels with frequent actions
+- sidebar y navegacion por secciones
+- metricas de dashboard
+- listas de registros
+- paneles compactos con acciones frecuentes
 
-### How to translate it here
+### Como Traducirlo Aca
 
-- keep the shell compact and utilitarian
-- use borders and spacing to separate content before adding extra color
-- keep record titles strong and metadata secondary
-- let the active nav state be obvious through lift, border, or accent instead of brightening the whole shell
+- mantener la shell compacta y utilitaria
+- usar bordes y espaciado para separar contenido antes de agregar color extra
+- mantener titulos de registros fuertes y metadata secundaria
+- hacer obvio el estado activo de navegacion con elevacion, borde o acento, en vez de iluminar toda la shell
 
-### Palette translation
+### Traduccion De Paleta
 
-Use Linear-like calm structure, but with ShineApp light CRM surfaces:
+Usar una estructura calma tipo Linear, pero con las superficies CRM claras de ShineApp:
 
-- white sidebar and panels for structure
-- soft gray workspace for framing
-- blue for active/primary emphasis
-- red only for destructive/reset actions
-- in dark mode, keep the same hierarchy with navy surfaces and pale-blue focus accents instead of copying Linear's palette
+- sidebar y paneles blancos para estructura
+- workspace gris suave para encuadre
+- azul para enfasis activo/primario
+- rojo solo para acciones destructivas o reset
+- en dark mode, mantener la misma jerarquia con superficies navy y acentos de foco celeste palido, sin copiar la paleta de Linear
 
 ## Stripe
 
-### What to borrow
+### Que Tomar Como Referencia
 
-- polished cards
-- clear typography
-- premium SaaS rhythm
-- strong section composition
-- visual confidence without clutter
+- cards pulidas
+- tipografia clara
+- ritmo SaaS premium
+- composicion fuerte de secciones
+- confianza visual sin desorden
 
-### What not to copy
+### Que No Copiar
 
-- gradients
-- brand-specific illustrations
-- exact landing-page composition
+- gradientes
+- ilustraciones especificas de marca
+- composicion exacta de landing page
 
-### Where it applies in ShineApp
+### Donde Aplica En ShineApp
 
-- cards and panels
-- login surface
-- dashboard summaries
-- modal composition
+- cards y paneles
+- superficie de login
+- resumenes de dashboard
+- composicion de modales
 
-### How to translate it here
+### Como Traducirlo Aca
 
-- make panels feel intentional through spacing and alignment
-- keep headings clear and readable
-- use elevation sparingly and only where it helps grouping
-- give key summaries enough breathing room without turning them into hero cards
+- hacer que los paneles se sientan intencionales mediante espaciado y alineacion
+- mantener headings claros y legibles
+- usar elevacion con moderacion y solo cuando ayude a agrupar
+- dar aire suficiente a los resumenes clave sin convertirlos en hero cards
 
-### Palette translation
+### Traduccion De Paleta
 
-Stripe-like polish should come from spacing, not decoration. The ShineApp version should use:
+El polish tipo Stripe debe venir del espaciado, no de la decoracion. La version ShineApp debe usar:
 
-- white panels as the default work surface
-- soft gray canvas for depth
-- blue only for primary action and restrained emphasis
-- in dark mode, polish should come from alignment and contrast, not glossy gradients or glowing cards
+- paneles blancos como superficie de trabajo default
+- canvas gris suave para profundidad
+- azul solo para accion primaria y enfasis contenido
+- en dark mode, el polish debe venir de alineacion y contraste, no de gradientes brillantes ni cards luminosas
 
 ## Notion
 
-### What to borrow
+### Que Tomar Como Referencia
 
-- calm editing flows
-- low-friction interactions
-- simple empty states
-- minimal visual noise
+- flujos de edicion calmos
+- interacciones de baja friccion
+- estados vacios simples
+- ruido visual minimo
 
-### What not to copy
+### Que No Copiar
 
-- block editor patterns unless a screen truly needs them
-- exact monochrome aesthetic
-- exact page structure
+- patrones de editor por bloques salvo que una pantalla realmente los necesite
+- estetica monocroma exacta
+- estructura exacta de pagina
 
-### Where it applies in ShineApp
+### Donde Aplica En ShineApp
 
-- forms
-- empty states
-- detail modals
-- operational notes and helper text
+- formularios
+- estados vacios
+- modales de detalle
+- notas operativas y textos de ayuda
 
-### How to translate it here
+### Como Traducirlo Aca
 
-- keep forms obvious and forgiving
-- keep helper text short and useful
-- do not overload empty states with decoration
-- let the interface get out of the way during data entry
+- mantener formularios obvios y tolerantes
+- mantener textos de ayuda cortos y utiles
+- no sobrecargar estados vacios con decoracion
+- dejar que la interfaz se quite del medio durante la carga de datos
 
-### Palette translation
+### Traduccion De Paleta
 
-Notion-like calm does not mean removing color. It means using the reference palette with restraint:
+La calma tipo Notion no significa quitar color. Significa usar la paleta de referencia con moderacion:
 
-- white and light gray surfaces first
-- dark text for hierarchy
-- blue for cues, not for decoration
-- in dark mode, keep forms quiet and readable with navy panels, white text, and restrained accent use
+- superficies blancas y gris claro primero
+- texto oscuro para jerarquia
+- azul para senales, no para decoracion
+- en dark mode, mantener formularios tranquilos y legibles con paneles navy, texto blanco y uso contenido de acentos
 
 ## Raycast
 
-### What to borrow
+### Que Tomar Como Referencia
 
-- keyboard-first thinking
-- fast focused interaction
-- sharp feedback
-- compact control density
+- pensamiento keyboard-first
+- interaccion rapida y enfocada
+- feedback preciso
+- densidad compacta de controles
 
-### What not to copy
+### Que No Copiar
 
-- exact visual identity
-- macOS-specific patterns that do not fit the web app
+- identidad visual exacta
+- patrones especificos de macOS que no encajan en la web app
 
-### Where it applies in ShineApp
+### Donde Aplica En ShineApp
 
-- search interactions
-- quick create flows
-- modal actions
-- future command palette or shortcut work, if requested
+- interacciones de busqueda
+- flujos de creacion rapida
+- acciones de modales
+- futura paleta de comandos o shortcuts, si se pide
 
-### How to translate it here
+### Como Traducirlo Aca
 
-- keep primary actions easy to reach
-- make search and selection controls fast and readable
-- ensure focus states are strong
-- reduce interaction lag and unnecessary clicks
+- mantener acciones primarias faciles de alcanzar
+- hacer que busqueda y seleccion sean rapidas y legibles
+- asegurar estados de foco fuertes
+- reducir demora de interaccion y clicks innecesarios
 
-### Palette translation
+### Traduccion De Paleta
 
-Raycast-like speed should feel operational, not flashy:
+La velocidad tipo Raycast debe sentirse operativa, no llamativa:
 
-- blue for focus and decisive action
-- light gray for active support states
-- red only for reset/destructive moments
-- in dark mode, preserve fast focus states with `#A5D7E8` rings and clear keyboard visibility
+- azul para foco y accion decisiva
+- gris claro para estados activos de apoyo
+- rojo solo para reset o momentos destructivos
+- en dark mode, preservar estados de foco rapidos con anillos `#A5D7E8` y visibilidad clara de teclado
 
-## Final synthesis for ShineApp
+## Sintesis Final Para ShineApp
 
-The combined reference should produce:
+La referencia combinada debe producir:
 
-- the hierarchy discipline of Linear
-- the polish and spacing rhythm of Stripe
-- the calm editing behavior of Notion
-- the interaction sharpness of Raycast
+- la disciplina de jerarquia de Linear
+- el polish y ritmo de espaciado de Stripe
+- el comportamiento de edicion calmo de Notion
+- la precision de interaccion de Raycast
 
-But the final result must still look like ShineApp:
+Pero el resultado final debe seguir pareciendo ShineApp:
 
-- light CRM-style
-- serious
-- practical
-- workshop-friendly
-- white/gray-led
-- navy-capable in dark mode
-- restrained
+- estilo CRM claro
+- serio
+- practico
+- amigable para taller
+- liderado por blanco/gris
+- compatible con navy en dark mode
+- contenido
 
-If a future UI proposal feels obviously derivative of one source, it is too close.
+Si una propuesta futura de UI se siente demasiado derivada de una sola fuente, esta demasiado cerca.

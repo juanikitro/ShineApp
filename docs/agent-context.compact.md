@@ -1,4 +1,4 @@
-## Purpose
+## Proposito
 
 - `docs/agent-context.compact.md` = contexto liviano para agentes en ShineApp.
 - No es fuente de verdad.
@@ -11,7 +11,7 @@
 - Frontend consume API y hoy tiene superficie compacta.
 - Muchas tareas visibles pueden tocar backend + frontend.
 
-## Product Map
+## Mapa Del Producto
 
 - Capacidades visibles:
 - clientes y vehiculos.
@@ -41,7 +41,7 @@
 - No modificar capacidad diaria en esa iteracion.
 - No modificar caja, materiales, herramientas ni reglas de ordenes por agenda vertical.
 
-## Runtime Map
+## Mapa De Runtime
 
 - `backend/`: Django 5 + Django REST Framework.
 - `frontend/`: Next.js App Router, React 19, TypeScript.
@@ -65,7 +65,7 @@
 - Si no se puede validar, informar causa, impacto y alternativa.
 - No confundir validacion parcial con cierre total.
 
-## Frontend Surfaces
+## Superficies Frontend
 
 - UI principal: `frontend/app/page.tsx`.
 - Layout: `frontend/app/layout.tsx`.
@@ -115,7 +115,7 @@
 - Ancho propuesto expandido: `220px`.
 - Ancho propuesto colapsado: `72px`.
 
-## Backend Apps
+## Apps Backend
 
 - Apps en `backend/config/settings.py`:
 - `core`: base comun backend.
@@ -158,60 +158,60 @@
 - No versionado ni edicion avanzada en esa pasada.
 - Tests visibles: `backend/tests/test_mvp_flows.py`.
 
-## UI Direction
+## Direccion UI
 
-- Referencias son direccionales only.
-- Borrow patterns, not identity.
-- No copiar exact layout, colors, branding, icon style.
-- Filtro final: ShineApp light CRM, operador, dark-mode variant, token layer actual.
+- Referencias son solo direccionales.
+- Tomar patrones, no identidad.
+- No copiar layout exacto, colores, branding ni estilo de iconos.
+- Filtro final: ShineApp CRM claro, operador, variante dark mode y capa actual de tokens.
 - Resultado debe verse ShineApp:
-- light CRM-style.
+- estilo CRM claro.
 - serio.
 - practico.
-- workshop-friendly.
-- white/gray-led.
-- navy-capable in dark mode.
-- restrained.
+- apto taller.
+- liderado por blanco/gris.
+- compatible con navy en dark mode.
+- contenido.
 - Si UI parece derivada de una sola fuente, esta demasiado cerca.
-- Linear: densidad readable, sidebar clara, bordes sutiles, superficies claras calmadas.
-- Linear aplica a sidebar, dashboard metrics, record lists, compact panels.
-- Usar borders y spacing antes que color extra.
+- Linear: densidad legible, sidebar clara, bordes sutiles, superficies claras y calmas.
+- Linear aplica a sidebar, metricas de dashboard, listas de registros y paneles compactos.
+- Usar bordes y espaciado antes que color extra.
 - Titulos de registro fuertes, metadata secundaria.
-- Active nav obvio por lift, border o accent; no iluminar todo shell.
+- Nav activo obvio por elevacion, borde o acento; no iluminar toda la shell.
 - Stripe: cards pulidas, tipografia clara, ritmo SaaS premium.
-- No usar gradients ni brand-specific illustrations ni landing composition exacta.
-- Polish desde spacing, no decoracion.
-- Elevation sparingly y solo para grouping.
-- Notion: flujos calmos, empty states simples, bajo ruido.
-- No block editor patterns salvo pantalla lo necesite.
-- Forms obvios y forgiving.
+- No usar gradientes, ilustraciones especificas de marca ni composicion exacta de landing.
+- Polish desde espaciado, no decoracion.
+- Elevacion con moderacion y solo para agrupar.
+- Notion: flujos calmos, estados vacios simples, bajo ruido.
+- Sin patrones de editor por bloques salvo que la pantalla lo necesite.
+- Formularios obvios y tolerantes.
 - Helper text corto y util.
-- Raycast: keyboard-first, fast focus, sharp feedback, compact controls.
-- No copiar identidad visual ni macOS patterns que no encajan web app.
-- Focus states fuertes.
+- Raycast: keyboard-first, foco rapido, feedback preciso, controles compactos.
+- No copiar identidad visual ni patrones macOS que no encajan en la web app.
+- Estados de foco fuertes.
 - Reducir clicks innecesarios.
 - Color:
-- white panels default work surface.
-- soft gray canvas.
-- blue para primary/focus/cues, no decoracion.
-- red solo destructive/reset.
-- Dark mode: navy surfaces, white text, pale-blue focus accents.
-- Dark token historico:
-- `#0B2447` main shell canvas.
-- `#19376D` raised/interactive surfaces.
-- `#A5D7E8` restrained accents and focus.
-- Refinement dark rollout: less shine.
-- Fewer gradients.
-- Fewer shadows.
-- Fewer isolated boxes.
-- Lower border radius.
-- Stronger integration sidebar/workspace/panels/lists.
+- paneles blancos como superficie default de trabajo.
+- canvas gris suave.
+- azul para primario/foco/senales, no decoracion.
+- rojo solo destructivo/reset.
+- Dark mode: superficies navy, texto blanco, acentos de foco celeste palido.
+- Token dark historico:
+- `#0B2447` canvas principal de shell.
+- `#19376D` superficies elevadas/interactivas.
+- `#A5D7E8` acentos y foco contenidos.
+- Refinamiento del rollout dark: menos brillo.
+- Menos gradientes.
+- Menos sombras.
+- Menos cajas aisladas.
+- Menor border radius.
+- Integracion mas fuerte sidebar/workspace/paneles/listas.
 - No cambiar business logic, endpoints, payloads o workflows por rollout visual.
-- No new dependencies.
-- Extract presentational components only.
-- Mantener state, API calls, handlers, business rules en `page.tsx`.
+- Sin dependencias nuevas.
+- Extraer solo componentes presentacionales.
+- Mantener estado, llamadas API, handlers y reglas de negocio en `page.tsx`.
 
-## Historical Plan Context
+## Contexto Historico De Planes
 
 - `docs/plans/2026-05-06-agenda-operativa-unificada-design.md`:
 - Objetivo: `Agenda` unica pantalla diaria.
@@ -233,17 +233,17 @@
 - Construir mapa `reservationId -> workOrder`.
 - No cambio backend innecesario.
 - `docs/plans/2026-05-06-agenda-operativa-unificada-implementation-plan.md`:
-- Required sub-skill historico: `superpowers:subagent-driven-development` recomendado o `superpowers:executing-plans`.
+- Sub-skill historica requerida: `superpowers:subagent-driven-development` recomendado o `superpowers:executing-plans`.
 - Tech stack: Next.js App Router, React 19, TypeScript, `frontend/app/globals.css`, `frontend/lib/`, Django/DRF via `apiFetch`.
 - Files tocar: `frontend/app/page.tsx`, `frontend/app/globals.css`.
 - File crear historico: `frontend/lib/agenda.ts`.
-- Task build recurrente: `cd frontend` + `npm run build`.
+- Tarea recurrente de build: `cd frontend` + `npm run build`.
 - `docs/plans/2026-05-06-dark-first-ui-rollout.md`:
-- Scope visual only.
-- Keep Next.js App Router.
-- Keep single-screen orchestration in `frontend/app/page.tsx`.
-- No new dependencies.
-- Presentational extraction targets: `AppShell`, `SidebarNav`, `PageHeader`, `Field`, `SearchSelect`, `StatusPill`, `Empty`, `ModalFrame`, `DetailModal`, `Panel`, `MetricCard`, `RecordCard`.
+- Alcance solo visual.
+- Mantener Next.js App Router.
+- Mantener orquestacion de pantalla unica en `frontend/app/page.tsx`.
+- Sin dependencias nuevas.
+- Objetivos de extraccion presentacional: `AppShell`, `SidebarNav`, `PageHeader`, `Field`, `SearchSelect`, `StatusPill`, `Empty`, `ModalFrame`, `DetailModal`, `Panel`, `MetricCard`, `RecordCard`.
 - `docs/plans/2026-05-06-reservas-con-trabajo-embebido.md`:
 - Decision posterior: reserva entidad operativa principal.
 - No boton crear orden.
@@ -276,11 +276,11 @@
 - Sin persistencia.
 - `docs/plans/2026-05-08-sidebar-collapse-implementation-plan.md`:
 - Files: `frontend/app/page.tsx`, `frontend/app/components/layout/SidebarNav.tsx`, `frontend/app/styles/shell.css`.
-- Constraints exactas: no backend changes, no new routes, no API calls.
-- Collapsed mode only collapse/expand control + navigation icons.
-- Preserve keyboard accessibility with `aria-label` and `title`.
+- Restricciones exactas: sin cambios backend, sin rutas nuevas, sin llamadas API.
+- Modo colapsado: solo control colapsar/expandir + iconos de navegacion.
+- Preservar accesibilidad de teclado con `aria-label` y `title`.
 
-## Safe Use
+## Uso Seguro
 
 - Este compacto sirve para arrancar rapido, no para cerrar decisiones.
 - Leer minimo antes de editar: `AGENTS.md`, `docs/indice.md`, archivo objetivo, tests cercanos, guia `docs/ia/` segun tarea.

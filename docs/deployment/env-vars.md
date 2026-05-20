@@ -1,54 +1,54 @@
-# Environment Variables
+# Variables De Entorno
 
-Do not commit real values. Use `.env.example` as shape only.
+No commitear valores reales. Usar `.env.example` solo como forma.
 
-## Backend private vars
+## Variables Privadas Backend
 
-- `APP_ENVIRONMENT`: runtime label. Use `local` locally, `staging` for staging, and `production` only for real production.
-- `DJANGO_SETTINGS_MODULE`: `config.settings` locally, `config.settings_production` on Vercel API.
-- `DJANGO_SECRET_KEY`: secret server-side key. Production must be a real random value.
-- `DJANGO_DEBUG`: `1` locally, ignored as false in production settings.
-- `DJANGO_ALLOWED_HOSTS`: comma-separated API hostnames.
-- `CORS_ALLOWED_ORIGINS`: comma-separated web origins allowed by the API.
-- `CORS_ALLOWED_ORIGIN_REGEXES`: optional comma-separated regex origins for Vercel preview domains.
-- `CSRF_TRUSTED_ORIGINS`: comma-separated trusted web origins for Django CSRF.
-- `DATABASE_URL`: Supabase Postgres connection string.
-- `DATABASE_SSL_REQUIRE`: `1` for Supabase production connections.
-- `DJANGO_THROTTLE_ANON_RATE`: DRF anonymous throttle rate in production settings, default `60/min`.
-- `DJANGO_THROTTLE_USER_RATE`: DRF authenticated throttle rate in production settings, default `600/min`.
-- `SUPABASE_STORAGE_ENABLED`: `1` in demo/prod when media must persist.
-- `SUPABASE_STORAGE_BUCKET`: Storage bucket for uploads.
+- `APP_ENVIRONMENT`: etiqueta de runtime. Usar `local` localmente, `staging` para staging y `production` solo para produccion real.
+- `DJANGO_SETTINGS_MODULE`: `config.settings` localmente, `config.settings_production` en Vercel API.
+- `DJANGO_SECRET_KEY`: clave secreta server-side. Produccion debe usar un valor aleatorio real.
+- `DJANGO_DEBUG`: `1` localmente; en configuracion de produccion se ignora como false.
+- `DJANGO_ALLOWED_HOSTS`: hostnames de API separados por coma.
+- `CORS_ALLOWED_ORIGINS`: origenes web permitidos por la API, separados por coma.
+- `CORS_ALLOWED_ORIGIN_REGEXES`: regex opcionales separadas por coma para dominios preview de Vercel.
+- `CSRF_TRUSTED_ORIGINS`: origenes web confiables para Django CSRF, separados por coma.
+- `DATABASE_URL`: connection string de Supabase Postgres.
+- `DATABASE_SSL_REQUIRE`: `1` para conexiones productivas Supabase.
+- `DJANGO_THROTTLE_ANON_RATE`: tasa de throttle anonimo DRF en configuracion de produccion, default `60/min`.
+- `DJANGO_THROTTLE_USER_RATE`: tasa de throttle autenticado DRF en configuracion de produccion, default `600/min`.
+- `SUPABASE_STORAGE_ENABLED`: `1` en demo/prod cuando media debe persistir.
+- `SUPABASE_STORAGE_BUCKET`: bucket Storage para uploads.
 - `SUPABASE_S3_ENDPOINT_URL`: `https://<project-ref>.storage.supabase.co/storage/v1/s3`.
-- `SUPABASE_S3_REGION_NAME`: Supabase project region.
-- `SUPABASE_S3_ACCESS_KEY_ID`: server-side S3 access key id.
-- `SUPABASE_S3_SECRET_ACCESS_KEY`: server-side S3 secret key.
-- `SUPABASE_STORAGE_QUERYSTRING_AUTH`: `0` for public bucket URLs, `1` for signed S3 URLs.
-- `SUPABASE_STORAGE_PUBLIC_URL`: public object URL base when unsigned media URLs are used.
-- `SUPABASE_STORAGE_LOCATION`: optional prefix inside the bucket, default `media`.
-- `SENTRY_DSN`: backend Sentry DSN. Leave empty locally; required by `verify-env.ps1 -Production`.
-- `SENTRY_ENVIRONMENT`: Sentry environment, usually `staging` or `production`.
-- `SENTRY_RELEASE`: optional release identifier, for example a commit SHA.
-- `SENTRY_TRACES_SAMPLE_RATE`: performance trace sample rate. Start low, for example `0.05`.
-- `SENTRY_SEND_DEFAULT_PII`: keep `0` unless a documented privacy review approves user PII in events.
-- `WAF_PROVIDER`: edge protection owner/provider, for example `vercel`.
-- `WAF_STATUS`: must be `configured` only after WAF/rate-limit rules are active.
+- `SUPABASE_S3_REGION_NAME`: region del proyecto Supabase.
+- `SUPABASE_S3_ACCESS_KEY_ID`: id de access key S3 server-side.
+- `SUPABASE_S3_SECRET_ACCESS_KEY`: secret key S3 server-side.
+- `SUPABASE_STORAGE_QUERYSTRING_AUTH`: `0` para URLs de bucket publico, `1` para URLs S3 firmadas.
+- `SUPABASE_STORAGE_PUBLIC_URL`: base publica de object URL cuando se usan URLs de media sin firma.
+- `SUPABASE_STORAGE_LOCATION`: prefijo opcional dentro del bucket, default `media`.
+- `SENTRY_DSN`: DSN backend de Sentry. Dejar vacio localmente; requerido por `verify-env.ps1 -Production`.
+- `SENTRY_ENVIRONMENT`: entorno de Sentry, usualmente `staging` o `production`.
+- `SENTRY_RELEASE`: identificador opcional de release, por ejemplo un commit SHA.
+- `SENTRY_TRACES_SAMPLE_RATE`: sample rate de trazas de performance. Empezar bajo, por ejemplo `0.05`.
+- `SENTRY_SEND_DEFAULT_PII`: mantener `0` salvo que una revision de privacidad documentada apruebe PII de usuarios en eventos.
+- `WAF_PROVIDER`: dueno/proveedor de proteccion edge, por ejemplo `vercel`.
+- `WAF_STATUS`: debe ser `configured` solo despues de que las reglas WAF/rate-limit esten activas.
 
-## Frontend public vars
+## Variables Publicas Frontend
 
-- `NEXT_PUBLIC_API_URL`: API root, including `/api`, for example `https://shineapp-api.vercel.app/api`.
-- `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN`: optional local/demo flag. Use `1` only when the login may prefill a demo username. Leave unset in real production.
-- `NEXT_PUBLIC_SHINEAPP_DEMO_USERNAME`: optional demo username to prefill when `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN=1`. Never put a password in public frontend env vars.
+- `NEXT_PUBLIC_API_URL`: raiz de API, incluyendo `/api`, por ejemplo `https://shineapp-api.vercel.app/api`.
+- `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN`: flag opcional local/demo. Usar `1` solo cuando el login pueda prellenar un usuario demo. Dejar sin setear en produccion real.
+- `NEXT_PUBLIC_SHINEAPP_DEMO_USERNAME`: usuario demo opcional para prellenar cuando `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN=1`. Nunca poner un password en env vars publicas de frontend.
 
-Every `NEXT_PUBLIC_` variable is bundled into browser JavaScript. Never put server secrets there.
+Toda variable `NEXT_PUBLIC_` se bundlea en JavaScript del navegador. Nunca poner secretos de servidor ahi.
 
-## Local defaults
+## Defaults Locales
 
-Local dev can use Docker Postgres through `POSTGRES_*` or SQLite fallback when no DB env is set. Keep `SUPABASE_STORAGE_ENABLED=0` locally unless you are explicitly testing remote media.
+Dev local puede usar Docker Postgres mediante `POSTGRES_*` o fallback SQLite cuando no hay env de DB. Mantener `SUPABASE_STORAGE_ENABLED=0` localmente salvo que estes probando media remota explicitamente.
 
-For real production, run:
+Para produccion real, ejecutar:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\deploy\verify-env.ps1 -Production
 ```
 
-That mode intentionally rejects localhost values, demo aliases, placeholder secrets, disabled remote storage, missing Sentry, and unconfigured WAF status.
+Ese modo rechaza intencionalmente valores localhost, aliases demo, secretos placeholder, storage remoto deshabilitado, Sentry faltante y WAF sin configurar.
