@@ -40,6 +40,14 @@ Segundo corte UI-009 aplicado 2026-05-20:
 - Conteo post-corte Deudas: `page.tsx` tiene 17.232 lineas y aprox. 161 coincidencias `render*`; `DebtPanel.tsx` concentra 450 lineas presentacionales.
 - Validacion: `cd frontend && npm run build`; `next start` sirvio `/` y `/?section=debts` con HTTP 200. QA visual/screenshot quedo bloqueada por Codex Browser `net::ERR_BLOCKED_BY_CLIENT`.
 
+Tercer corte UI-009 aplicado 2026-05-20:
+
+- Dashboard se movio desde `frontend/app/page.tsx` a `frontend/app/components/dashboard/DashboardPanel.tsx`.
+- `page.tsx` conserva estado, fetch, callbacks, permisos y routing; el componente nuevo concentra render y calculos presentacionales del tablero.
+- Conteo post-corte Dashboard: `page.tsx` tiene 16.929 lineas y aprox. 161 coincidencias `render*`; `DashboardPanel.tsx` concentra 906 lineas presentacionales.
+- Validacion: `cd frontend && npm run build`; build adicional con `NEXT_PUBLIC_API_URL=http://localhost:8000/api`; `next start` en `9000` sirvio `/` con HTTP 200.
+- QA visual autenticada normal quedo bloqueada por CORS del backend local: `OPTIONS http://localhost:8000/api/auth/me/` desde `http://localhost:9000` respondio 200 sin `Access-Control-Allow-Origin`. Como workaround solo visual, Chrome headless con `--disable-web-security` cargo `/?section=dashboard` en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay, sin errores de consola/runtime/red. Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-dashboard-qa-2026-05-20T15-22-57-401Z\*.png`.
+
 Corte UI-024 aplicado 2026-05-20:
 
 - `frontend/app/styles/tokens.css` define tokens `--segmented-*` para light/dark.
