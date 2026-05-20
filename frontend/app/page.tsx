@@ -981,6 +981,14 @@ function profileActiveText(user?: AnyRecord | null) {
 	return user?.is_active === false ? 'Inactivo' : 'Activo'
 }
 
+function profileTrialText(user?: AnyRecord | null) {
+	if (user?.trial_expired) return 'Prueba vencida'
+	if (user?.trial_ends_at) {
+		return `Prueba activa hasta ${formatDateLabel(user.trial_ends_at)}`
+	}
+	return null
+}
+
 function usePdfThumbnailPreview(
 	source: string | null,
 	enabled: boolean,
@@ -13959,6 +13967,12 @@ export default function Home() {
 						<span>Estado</span>
 						<strong>{profileActiveText(currentUser)}</strong>
 					</div>
+					{profileTrialText(currentUser) ? (
+						<div className="detail-row">
+							<span>Prueba</span>
+							<strong>{profileTrialText(currentUser)}</strong>
+						</div>
+					) : null}
 					<div className="detail-row">
 						<span>Alta</span>
 						<strong>{profileJoinedText(currentUser)}</strong>
@@ -13968,7 +13982,7 @@ export default function Home() {
 						<strong>{profileLastLoginText(currentUser)}</strong>
 					</div>
 					<label className="detail-row" htmlFor="profile-subscription-type">
-						<span>Plan</span>
+						<span>Plan interno</span>
 						<div className="profile-detail-control">
 							<select
 								id="profile-subscription-type"
@@ -14035,9 +14049,13 @@ export default function Home() {
 				</div>
 				{!canViewEconomy ? (
 					<div className="record-sub">
-						Solo el empleador puede cambiar el tipo de suscripcion.
+						Solo el empleador puede cambiar esta referencia interna.
 					</div>
-				) : null}
+				) : (
+					<div className="record-sub">
+						Referencia interna de demo; no cobra ni cambia billing real.
+					</div>
+				)}
 				<div className="modal-actions split">
 					<button type="button" className="danger" onClick={handleProfileLogout}>
 						<LogOut size={16} />
@@ -14944,6 +14962,9 @@ export default function Home() {
 										<span className="sidebar-profile-copy">
 											<strong>{profileDisplayName(currentUser)}</strong>
 											<span>{profileRoleLabel(currentUser)}</span>
+											{profileTrialText(currentUser) ? (
+												<span>{profileTrialText(currentUser)}</span>
+											) : null}
 										</span>
 									</button>
 								</div>

@@ -35,6 +35,7 @@ from .views import (
     LoginView,
     LogoutView,
     MeView,
+    TrialSignupView,
 )
 
 router = DefaultRouter()
@@ -62,6 +63,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", HealthCheckView.as_view(), name="health-check"),
     path("api/auth/login/", LoginView.as_view(), name="auth-login"),
+    path("api/auth/trial-signup/", TrialSignupView.as_view(), name="auth-trial-signup"),
     path("api/auth/logout/", LogoutView.as_view(), name="auth-logout"),
     path("api/auth/me/", MeView.as_view(), name="auth-me"),
     path("api/auth/employees/", EmployeeUsersView.as_view(), name="auth-employees"),

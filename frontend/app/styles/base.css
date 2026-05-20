@@ -537,6 +537,10 @@ label {
   width: 100%;
 }
 
+.login-card--trial {
+  max-width: 560px;
+}
+
 .login-card h1 {
   color: var(--shop-ink);
   font-size: 30px;
@@ -546,5 +550,30 @@ label {
 .login-card p {
   color: var(--shop-ink-soft);
   margin: 0 0 22px;
+}
+
+.login-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.login-actions button {
+  flex: 1 1 160px;
+}
+
+.login-trial-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.login-trial-grid .login-actions {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 620px) {
+  .login-trial-grid {
+    grid-template-columns: 1fr;
+  }
 }
 

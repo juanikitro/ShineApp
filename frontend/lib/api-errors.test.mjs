@@ -81,6 +81,21 @@ test('formats legacy JSON error messages into the same readable notice', () => {
 	assert.equal(notice.fields[0].message, 'Agrega al menos un servicio.')
 })
 
+test('labels trial signup field errors with business-facing names', () => {
+	const notice = normalizeApiErrorPayload({
+		business_name: ['Este campo es obligatorio.'],
+		industry: ['Este campo es obligatorio.'],
+		owner_name: ['Este campo es obligatorio.'],
+		city: ['Este campo es obligatorio.'],
+		country: ['Este campo es obligatorio.'],
+	})
+
+	assert.deepEqual(
+		notice.fields.map((field) => field.label),
+		['Negocio', 'Rubro', 'Responsable', 'Ciudad', 'Pais'],
+	)
+})
+
 test('keeps structured notices attached to ApiResponseError', () => {
 	const notice = normalizeApiErrorPayload({ amount: ['Debe ser mayor a cero.'] })
 	const error = new ApiResponseError(notice, {
