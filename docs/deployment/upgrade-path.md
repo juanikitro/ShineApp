@@ -21,9 +21,9 @@ Before real customer traffic:
 - Move to Supabase Pro or equivalent backup/retention plan.
 - Add custom domains for web and API.
 - Configure production email provider and verified sender domain.
-- Add Sentry or equivalent error tracking.
-- Add rate limiting or WAF rules on public endpoints.
-- Decide whether Django remains on Vercel or moves to a persistent container.
+- Configure Sentry through `SENTRY_DSN` and keep `SENTRY_SEND_DEFAULT_PII=0` unless privacy review approves otherwise.
+- Configure rate limiting and WAF rules on public endpoints; set `WAF_STATUS=configured` only after dashboard rules are active.
+- Keep Django on Vercel only for initial production traffic that stays request/response oriented and low concurrency.
 - Add a release checklist for migrations, rollback, seed/demo data, and smoke tests.
 - Separate staging and production projects before real customer data.
 - Add secret rotation for Vercel env vars and Supabase S3 keys.
@@ -31,4 +31,4 @@ Before real customer traffic:
 - Replace default demo passwords and decide whether a real Django admin superuser is needed.
 - Delete unused/accidental Vercel projects to avoid operational drift.
 
-Move Django off serverless if the app needs long PDF work, queues, websocket-style persistence, heavy uploads, scheduled workers, or high DB connection concurrency.
+Move Django off serverless and into a persistent container before accepting workloads with long PDF generation, queues, websocket-style persistence, heavy uploads, scheduled workers, high DB connection concurrency, or background processing. If any of those are needed for the first real client, the container move is a launch blocker rather than a later optimization.

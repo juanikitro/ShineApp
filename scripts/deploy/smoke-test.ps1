@@ -1,7 +1,9 @@
 param(
     [string]$WebBaseUrl = $env:WEB_BASE_URL,
     [string]$ApiBaseUrl = $env:NEXT_PUBLIC_API_URL,
-    [string]$Token = $env:SMOKE_TEST_TOKEN
+    [string]$Token = $env:SMOKE_TEST_TOKEN,
+    [string]$AuthenticatedPath = $env:SMOKE_TEST_AUTH_PATH,
+    [string]$MediaUrl = $env:SMOKE_TEST_MEDIA_URL
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,6 +53,18 @@ if ($ApiBaseUrl) {
     $ApiRoot = $ApiBaseUrl.TrimEnd("/")
     Invoke-SmokeRequest -Name "api health" -Url "$ApiRoot/health/" -AllowedStatuses @(200)
     Invoke-SmokeRequest -Name "api auth/me" -Url "$ApiRoot/auth/me/" -AllowedStatuses @(200, 401, 403)
+
+    if ($Token) {
+        if (-not $AuthenticatedPath) {
+            $AuthenticatedPath = "auth/me/"
+        }
+        $AuthenticatedUrl = "$ApiRoot/$($AuthenticatedPath.TrimStart('/'))"
+        Invoke-SmokeRequest -Name "api authenticated" -Url $AuthenticatedUrl -AllowedStatuses @(200)
+    }
+}
+
+if ($MediaUrl) {
+    Invoke-SmokeRequest -Name "media" -Url $MediaUrl -AllowedStatuses @(200, 301, 302)
 }
 
 Write-Host ""

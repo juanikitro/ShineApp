@@ -2,6 +2,7 @@
 
 ShineApp uses GitHub Actions as the only approved automated production-demo path. Pull requests to `main` run without secrets. Merges to `main` run migrations against Supabase and deploy both Vercel projects.
 
+This workflow is still a demo-production path. Before real customer data, create separate staging and production Vercel projects, Supabase projects, Storage buckets, Sentry environments, and GitHub environments; do not reuse `demo-production` as the real production environment.
 
 ## Pull request gate
 
@@ -62,6 +63,7 @@ Optional `demo-production` environment secret:
 
 Backend runtime secrets stay in the Vercel API project. Do not duplicate `DJANGO_SECRET_KEY`, Supabase S3 keys, or SMTP secrets into GitHub unless a future workflow explicitly needs a narrower deploy-time credential.
 
+Real production additionally requires `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, throttle rates, and WAF status in the backend runtime env. Keep those values in the runtime project dashboard, not in repository files.
 
 ## Deploy order
 

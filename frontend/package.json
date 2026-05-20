@@ -10,7 +10,7 @@
     "test:agenda": "vitest run lib/agenda.test.mjs",
     "test:api-errors": "vitest run lib/api-errors.test.mjs",
     "validate": "npm run test && npm run build",
-    "build": "next build",
+    "build": "node ./node_modules/next/dist/bin/next build",
     "start": "next start"
   },
   "dependencies": {

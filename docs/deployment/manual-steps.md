@@ -171,3 +171,60 @@ Do not add the real `DJANGO_SECRET_KEY`, Supabase S3 keys, or SMTP secrets to Gi
 - Risk if omitted: destructive migrations, renames, large backfills, or unsafe non-null changes can break the public demo automatically.
 
 Forward-compatible migrations are acceptable for the automated demo release path. Destructive migrations need a manual rollout plan and should not be merged into `main` as a routine demo deploy.
+
+## 15. Separate staging and real production
+
+- What: create separate Vercel web/API projects, Supabase projects, Storage buckets, Sentry environments, and GitHub environments for `staging` and `production`.
+- Where: Vercel, Supabase, Sentry, and GitHub repository settings.
+- Why: the current `shineapp-web`, `shineapp-api`, and `demo-production` path are demo resources and must not hold real customer data.
+- Value to copy: no shared secrets; each environment gets its own generated `DJANGO_SECRET_KEY`, `DATABASE_URL`, S3 keys, Sentry DSN, and frontend API URL.
+- Validate: `verify-env.ps1 -Production` passes against the production env shape, and staging/prod dashboards show different project ids, database refs, buckets, domains, and DSNs.
+- Risk if omitted: test/demo data, secrets, observability, and rollback evidence can cross-contaminate real customers.
+
+## 16. Configure Sentry and WAF before real traffic
+
+- What: create the backend Sentry project and configure Vercel Firewall/WAF rate-limit rules.
+- Where: Sentry project settings and Vercel Dashboard, Firewall section for the real API project.
+- Why: production must capture backend exceptions and limit abusive public traffic before customer access.
+- Values to set:
+  - `SENTRY_DSN=<backend-sentry-dsn>`
+  - `SENTRY_ENVIRONMENT=production`
+  - `SENTRY_TRACES_SAMPLE_RATE=0.05` initially
+  - `SENTRY_SEND_DEFAULT_PII=0`
+  - `WAF_PROVIDER=vercel`
+  - `WAF_STATUS=configured` only after rules are active
+- WAF rules to configure:
+  - stricter limit for `/api/auth/login/`
+  - stricter limit for `/api/public/landing/*/requests/`
+  - general limit or challenge policy for `/api/*`
+- Validate: `verify-env.ps1 -Production` rejects the env until Sentry and WAF status are configured; Sentry receives a controlled test exception from a non-customer environment.
+- Risk if omitted: production errors become invisible and public endpoints remain easier to abuse.
+
+## 17. Rotate secrets for production cutover
+
+- What: rotate every demo/shared credential before first real customer data.
+- Where: Vercel project env vars, Supabase Dashboard, GitHub environments, Sentry, and any email provider.
+- Values to rotate:
+  - `DJANGO_SECRET_KEY`
+  - Supabase database password or pooler credential if it was shared during setup
+  - `SUPABASE_S3_ACCESS_KEY_ID` and `SUPABASE_S3_SECRET_ACCESS_KEY`
+  - demo app passwords and any Django admin password
+  - `DJANGO_MIGRATION_SECRET_KEY`
+  - `VERCEL_TOKEN` if it was broadly scoped or shared
+- Validate: redeploy/restart approved runtime only after rotation, then run healthcheck, login, authenticated smoke, and media smoke.
+- Risk if omitted: demo-era credentials become long-lived production credentials.
+
+## 18. Rollback, migration, and media smoke gate
+
+- What: before each production release, document rollback owner, last known good deployment, database backup/restore point, and migration risk.
+- Where: release checklist or PR description before merging to the production deploy path.
+- Required checks:
+  - review `python manage.py migrate --plan`
+  - confirm migrations are forward-compatible, or write a manual rollout/rollback plan
+  - confirm no seed/demo command runs against production
+  - record the previous Vercel deployment URL or container image tag
+  - run `scripts/deploy/smoke-test.ps1` with web/API URLs
+  - if a test media URL exists, include `-MediaUrl <signed-or-public-media-url>`
+  - manually upload a logo/avatar/document, reload, and confirm the generated quote PDF renders the logo
+- Validate: release notes contain the migration/rollback decision and smoke evidence before client traffic is pointed at the deployment.
+- Risk if omitted: schema changes and media regressions can be discovered only after customer use.
