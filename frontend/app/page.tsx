@@ -61,6 +61,14 @@ import { AnimatedLabelSwap } from '@/app/components/motion/AnimatedLabelSwap'
 import { AgendaBoardToolbar } from '@/app/components/agenda/AgendaBoardToolbar'
 import { AgendaReservationCard } from '@/app/components/agenda/AgendaReservationCard'
 import {
+	CashPanel,
+	type CashFilterState,
+	type CashFlowSummary,
+	type CashSummaryGroup,
+	type CashSummaryLine,
+	type CashSummaryMode,
+} from '@/app/components/cash/CashPanel'
+import {
 	CustomerDashboardShell,
 	type CustomerDashboardMetric,
 	type CustomerDashboardProfileItem,
@@ -477,40 +485,9 @@ const publicRequestStatusLabels: Record<string, string> = {
 	converted: 'Convertida',
 	archived: 'Archivada',
 }
-type CashSummaryMode = 'cashflow' | 'economic'
-type CashFilterState = {
-	query: string
-	movementType: string
-	sourceKind: string
-	category: string
-	subcategory: string
-	effect: string
-	amountMin: string
-	amountMax: string
-}
 type DebtFilterState = {
 	status: string
 	balance: string
-}
-type CashSummaryLine = {
-	key: string
-	label: string
-	count: number
-	amount: number
-	percent: number
-}
-type CashSummaryGroup = {
-	key: string
-	label: string
-	count: number
-	amount: number
-	lines: CashSummaryLine[]
-}
-type CashFlowSummary = {
-	groups: CashSummaryGroup[]
-	commercialBalance: number
-	financialBalance: number
-	netFlow: number
 }
 
 const CASH_FILTER_DEFAULTS: CashFilterState = {
@@ -528,24 +505,6 @@ const DEBT_FILTER_DEFAULTS: DebtFilterState = {
 	status: '',
 	balance: '',
 }
-
-const cashSummaryModeOptions: Array<{
-	value: CashSummaryMode
-	label: string
-}> = [
-	{ value: 'cashflow', label: 'Flujo de caja' },
-	{ value: 'economic', label: 'Resultado del dia' },
-]
-
-const cashMovementTypeOptions = [
-	{ value: 'income', label: 'Ingresos' },
-	{ value: 'expense', label: 'Egresos' },
-]
-
-const cashEffectOptions = [
-	{ value: 'cashflow', label: 'Impacta caja' },
-	{ value: 'economic_only', label: 'Solo resultado' },
-]
 
 const debtBalanceFilterOptions = [
 	{ value: 'open', label: 'Con saldo' },
@@ -744,19 +703,6 @@ function buildCashFlowSummary(
 		financialBalance,
 		netFlow,
 	}
-}
-
-function cashSummaryAmountClass(amount: number) {
-	if (amount > 0) return 'positive'
-	if (amount < 0) return 'negative'
-	return 'neutral'
-}
-
-function formatCashPercent(value: number) {
-	return value.toLocaleString('es-AR', {
-		maximumFractionDigits: value >= 1 ? 0 : 2,
-		style: 'percent',
-	})
 }
 
 function normalizedCashFilterAmount(value: any) {
@@ -4886,15 +4832,10 @@ export default function Home() {
 
 	const cashFiltersActive = hasCashFilters(cashFilters)
 	const debtFiltersActive = Boolean(search.trim()) || hasDebtFilters(debtFilters)
-	const cashSummaryModeLabel =
-		cashSummaryModeOptions.find((option) => option.value === cashSummaryMode)
-			?.label ?? 'Flujo de caja'
 	const settingsSectionLabel =
 		settingsSectionOptions.find((option) => option.value === settingsSection)
 			?.label ?? 'Configuracion'
 	const cashIsClosed = cash.is_closed === true
-	const cashStatusLabel = cashIsClosed ? 'Cerrada' : 'Abierta'
-	const cashStatusClass = cashIsClosed ? 'closed' : 'open'
 	const selectedPurchaseMaterial = materials.find(
 		(item) => String(item.id) === String(purchaseForm.material),
 	)
@@ -7184,70 +7125,6 @@ export default function Home() {
 
 	function moveSelectedCashDay(offset: number) {
 		setSelectedDay((current) => addDays(current || today, offset))
-	}
-
-	function renderCashSummaryLine(line: CashSummaryLine) {
-		return (
-			<div className="cash-summary-line" key={line.key}>
-				<span className="cash-summary-line-label">
-					{line.amount < 0 ? '↓ ' : ''}
-					{line.label}
-					<small>
-						({line.count}) {formatCashPercent(line.percent)}
-					</small>
-				</span>
-				<span
-					className={`cash-summary-line-amount ${cashSummaryAmountClass(
-						line.amount,
-					)}`}
-				>
-					{money(line.amount)}
-				</span>
-			</div>
-		)
-	}
-
-	function renderCashSummaryGroup(
-		groupKey: string,
-		options: { hideWhenEmpty?: boolean } = {},
-	) {
-		const group = cashFlowSummary.groups.find((item) => item.key === groupKey)
-		if (!group || (options.hideWhenEmpty && group.count === 0)) return null
-		return (
-			<div className="cash-summary-group" key={group.key}>
-				<div className="cash-summary-group-head">
-					<span className="cash-summary-group-title">
-						{group.label}
-						{group.lines.length ? <Eye size={15} aria-hidden="true" /> : null}
-					</span>
-					<strong
-						className={`cash-summary-total ${cashSummaryAmountClass(
-							group.amount,
-						)}`}
-					>
-						{money(group.amount)}
-					</strong>
-				</div>
-				{group.lines.length ? (
-					<div className="cash-summary-lines">
-						{group.lines.map(renderCashSummaryLine)}
-					</div>
-				) : null}
-			</div>
-		)
-	}
-
-	function renderCashSummaryBalance(label: string, amount: number) {
-		return (
-			<div className="cash-summary-balance" key={label}>
-				<span>{label}</span>
-				<strong
-					className={`cash-summary-total ${cashSummaryAmountClass(amount)}`}
-				>
-					{money(amount)}
-				</strong>
-			</div>
-		)
 	}
 
 	function closeCashDay() {
@@ -16374,451 +16251,53 @@ export default function Home() {
 
 
 				{displayedActive === 'cash' ? (
-					<div className="grid">
-						<section
-							className="panel finance-panel cash-panel"
-							aria-labelledby="cash-panel-title"
-						>
-							<div className="panel-head finance-panel-head">
-								<div>
-									<span className="panel-kicker">Caja diaria</span>
-									<h2 id="cash-panel-title">Caja</h2>
-									<p>
-										Cobros, egresos y cierre del dia con lectura operativa.
-									</p>
-								</div>
-								<div className="finance-action-rail">
-									<div className="finance-primary-actions">
-										<button
-											type="button"
-											className="primary"
-											disabled={cashIsClosed}
-											onClick={() => openFormModal('payment')}
-										>
-											<CreditCard size={16} />
-											Cobrar trabajo
-										</button>
-										<button
-											type="button"
-											className="ghost"
-											disabled={cashIsClosed}
-											onClick={() => openFormModal('cash-movement')}
-										>
-											<ReceiptText size={16} />
-											Ingreso / egreso
-										</button>
-									</div>
-									<div className="finance-secondary-actions">
-										<button
-											type="button"
-											className="ghost"
-											disabled={cashIsClosed}
-											onClick={() => openFormModal('debt-payment')}
-										>
-											<CreditCard size={16} />
-											Pagar deuda
-										</button>
-										<button
-											type="button"
-											className="ghost"
-											disabled={cashIsClosed}
-											onClick={closeCashDay}
-										>
-											<LockKeyhole size={16} />
-											Cerrar dia
-										</button>
-										{cashIsClosed ? (
-											<button
-												type="button"
-												className="ghost"
-												onClick={() => openAdjustmentForClosedDay(selectedDay)}
-											>
-												<ReceiptText size={16} />
-												Registrar ajuste hoy
-											</button>
-										) : null}
-									</div>
-								</div>
-							</div>
-							<div className="toolbar toolbar-spaced cash-toolbar">
-								<Field label="Dia">
-									<div className="date-stepper">
-										<button
-											type="button"
-											className="ghost date-stepper-button"
-											onClick={() => moveSelectedCashDay(-1)}
-											aria-label="Ver dia anterior"
-										>
-											<ChevronLeft size={16} />
-										</button>
-										<input
-											type="date"
-											aria-label="Dia de caja"
-											name="cash_day"
-											value={selectedDay}
-											onChange={(event) =>
-												setSelectedDay(event.target.value)
-											}
-										/>
-										<button
-											type="button"
-											className="ghost date-stepper-button"
-											onClick={() => moveSelectedCashDay(1)}
-											aria-label="Ver dia siguiente"
-										>
-											<ChevronRight size={16} />
-										</button>
-									</div>
-								</Field>
-								<span
-									className={`cash-status ${cashStatusClass}`}
-									role="status"
-									aria-label={`Caja ${cashStatusLabel.toLowerCase()}`}
-								>
-									{cashStatusLabel}
-								</span>
-							</div>
-							{cashLoadBlocked ? (
-								<ErrorState
-									text={
-										loadErrorNotice?.title ??
-										'No se pudieron cargar los datos de caja'
-									}
-									hint={loadErrorNotice?.description}
-									action={
-										<button
-											type="button"
-											className="ghost"
-											onClick={() => loadData({ force: true })}
-										>
-											<RefreshCw size={16} />
-											Actualizar
-										</button>
-									}
-								/>
-							) : null}
-							{!cashLoadBlocked && loading && !cashEntries.length ? (
-								<LoadingState
-									text="Cargando caja del dia..."
-									hint="Estamos trayendo cobros, pagos, movimientos y cierre."
-								/>
-							) : null}
-							{!cashLoadBlocked && (!loading || cashEntries.length) ? (
-								<>
-							<div className="info-note">
-								Flujo de caja muestra el dinero que entro o salio hoy:
-								cobros, pagos de deuda, compras, movimientos manuales y
-								ajustes. Resultado del dia cuenta ingresos y gastos sin
-								duplicar pagos de deudas.
-								{cash.closure
-									? ` Cierre guardado: flujo de caja ${money(cash.closure.cashflow_balance ?? cash.closure.balance)}.`
-									: ''}
-							</div>
-							<section className="grid three section-block-end cash-metrics-primary">
-								<div className="metric cash-metric">
-									<span>
-										<span className="cash-term income">Ingresos</span> de caja
-									</span>
-									<strong>{money(cashflowTotals.income)}</strong>
-								</div>
-								<div className="metric cash-metric">
-									<span>
-										<span className="cash-term expense">Egresos</span> de caja
-									</span>
-									<strong>{money(cashflowTotals.expense)}</strong>
-								</div>
-								<div className="metric cash-metric cash-metric-balance">
-									<span>Saldo de caja</span>
-									<strong>{money(cashflowTotals.balance)}</strong>
-								</div>
-							</section>
-							<section className="cash-economic-panel section-block-end">
-								<div>
-									<span>Resultado del dia</span>
-									<strong>{money(economicTotals.balance)}</strong>
-								</div>
-								<p>
-									<span className="cash-term income">Ingresos</span>{' '}
-									{money(economicTotals.income)} -{' '}
-									<span className="cash-term expense">egresos</span>{' '}
-									{money(economicTotals.expense)}. Incluye deudas originales
-									devengadas.
-								</p>
-							</section>
-							<section className="cash-flow-card section-block-end">
-								<div className="cash-flow-head">
-									<div>
-										<h3>
-											Flujo de dinero del dia
-											<Info size={16} aria-hidden="true" />
-										</h3>
-										<p>
-											Resumen completo del dia en modo {cashSummaryModeLabel}.
-											Los filtros de abajo no alteran estos totales.
-										</p>
-									</div>
-									<SegmentedControl
-										ariaLabel="Vista del resumen"
-										className="cash-summary-toggle"
-										options={cashSummaryModeOptions}
-										value={cashSummaryMode}
-										onChange={(nextValue) =>
-											setCashSummaryMode(nextValue as CashSummaryMode)
-										}
-									/>
-								</div>
-								<div className="cash-summary-body">
-									{renderCashSummaryGroup('charges')}
-									{renderCashSummaryGroup('payments')}
-									{renderCashSummaryBalance(
-										'Balance comercial',
-										cashFlowSummary.commercialBalance,
-									)}
-									{renderCashSummaryGroup('partner_contributions')}
-									{renderCashSummaryGroup('investments')}
-									{renderCashSummaryGroup('partner_withdrawals')}
-									{renderCashSummaryGroup('adjustments', {
-										hideWhenEmpty: true,
-									})}
-									{renderCashSummaryBalance(
-										'Balance financiero',
-										cashFlowSummary.financialBalance,
-									)}
-									{renderCashSummaryBalance(
-										'Flujo neto de dinero',
-										cashFlowSummary.netFlow,
-									)}
-								</div>
-							</section>
-							<section
-								className="cash-filters section-block-end"
-								aria-labelledby="cash-filters-title"
-							>
-								<div className="cash-filters-head">
-									<div>
-										<h3 id="cash-filters-title">Filtros del listado</h3>
-										<p>
-											Refina las entradas visibles sin modificar el resumen del
-											dia.
-										</p>
-									</div>
-									<div className="cash-filter-actions">
-										<span className="cash-filter-counter">
-											{filteredCashEntries.length} de {cashEntries.length}
-										</span>
-										<button
-											type="button"
-											className="ghost"
-											disabled={!cashFiltersActive}
-											onClick={() => setCashFilters(CASH_FILTER_DEFAULTS)}
-										>
-											Limpiar filtros
-										</button>
-									</div>
-								</div>
-								<div className="cash-filter-grid">
-									<Field label="Buscar">
-										<input
-											placeholder="Origen, detalle, categoria o monto"
-											value={cashFilters.query}
-											onChange={(event) =>
-												updateCashFilter('query', event.target.value)
-											}
-										/>
-									</Field>
-									<SearchSelect
-										label="Tipo"
-										value={cashFilters.movementType}
-										options={cashMovementTypeOptions}
-										placeholder="Todos"
-										onChange={(value) =>
-											updateCashFilter('movementType', value)
-										}
-									/>
-									<SearchSelect
-										label="Origen"
-										value={cashFilters.sourceKind}
-										options={cashSourceKindOptions}
-										placeholder="Todos los origenes"
-										onChange={(value) =>
-											updateCashFilter('sourceKind', value)
-										}
-									/>
-									<SearchSelect
-										label="Categoria"
-										value={cashFilters.category}
-										options={selectOptionsFromValues(
-											cashFilterCategoryValues,
-											cashFilters.category,
-										)}
-										placeholder="Todas"
-										onChange={(value) =>
-											updateCashFilter('category', value)
-										}
-									/>
-									<SearchSelect
-										label="Subcategoria"
-										value={cashFilters.subcategory}
-										options={selectOptionsFromValues(
-											cashFilterSubcategoryValues,
-											cashFilters.subcategory,
-										)}
-										placeholder="Todas"
-										onChange={(value) =>
-											updateCashFilter('subcategory', value)
-										}
-									/>
-									<SearchSelect
-										label="Efecto"
-										value={cashFilters.effect}
-										options={cashEffectOptions}
-										placeholder="Todos"
-										onChange={(value) =>
-											updateCashFilter('effect', value)
-										}
-									/>
-									<Field label="Monto minimo">
-										<input
-											type="number"
-											min="0"
-											step="0.01"
-											value={cashFilters.amountMin}
-											onChange={(event) =>
-												updateCashFilter('amountMin', event.target.value)
-											}
-										/>
-									</Field>
-									<Field label="Monto maximo">
-										<input
-											type="number"
-											min="0"
-											step="0.01"
-											value={cashFilters.amountMax}
-											onChange={(event) =>
-												updateCashFilter('amountMax', event.target.value)
-											}
-										/>
-									</Field>
-								</div>
-							</section>
-							<div className="records cash-records">
-								{filteredCashEntries.length ? (
-									filteredCashEntries.map((item: AnyRecord) => {
-										const quickActions = cashEntryQuickActions(item)
-										return (
-										<FinanceRecordCard
-											amount={{
-												label:
-													item.movement_type === 'income'
-														? 'Ingreso'
-														: 'Egreso',
-												value: item.signed_amount ?? money(item.amount),
-												tone:
-													item.movement_type === 'income'
-														? 'income'
-														: 'expense',
-											}}
-											badges={[
-												{
-													label:
-														item.source_label ??
-														cashSourceKindLabel(item.source_kind),
-													className: 'status',
-												},
-												{
-													label: item.cashflow_effect
-														? 'Impacta caja'
-														: 'Solo resultado',
-													className: 'status',
-												},
-											]}
-											className={cx(
-												recordClass('cash-movement', item.id),
-												'cash-entry',
-												!item.cashflow_effect && 'cash-entry-muted',
-											)}
-											key={cashEntryKey(item)}
-											onContextMenu={(event) =>
-												openQuickActionsFromContext(
-													event,
-													'Acciones de caja',
-													quickActions,
-												)
-											}
-											primaryAction={{
-												label: 'Abrir detalle',
-												icon: <Eye size={15} />,
-												onClick: () => openCashEntryDetail(item),
-												variant: 'primary',
-											}}
-											quickActionsTrigger={renderQuickActionsTrigger(
-												'Acciones de caja',
-												quickActions,
-												'Acciones rapidas de caja',
-											)}
-											stats={[
-												{
-													label: 'Categoria',
-													value: item.category || 'Sin categoria',
-													hint: item.subcategory || 'Sin subcategoria',
-												},
-												{
-													label: 'Fecha',
-													value: item.occurred_at
-														? formatDateTimeLabel(item.occurred_at)
-														: 'Sin fecha',
-													hint: item.created_by_username
-														? `Registrado por ${item.created_by_username}`
-														: 'Origen automatico o manual',
-												},
-											]}
-											subtitle={cashEntryDescription(item)}
-											title={cashEntryTitle(item)}
-										/>
-										)
-									})
-								) : (
-									<Empty
-										text={
-											cashEntries.length
-												? 'Sin entradas para los filtros aplicados.'
-												: 'Sin movimientos para el dia.'
-										}
-										hint={
-											cashEntries.length
-												? 'Ajusta busqueda, origen, categoria o montos.'
-												: cashIsClosed
-													? 'La caja esta cerrada; si falta un movimiento, registra un ajuste para este dia.'
-													: 'Registra un cobro, pago de deuda o movimiento manual para comenzar.'
-										}
-										action={
-											cashEntries.length ? undefined : cashIsClosed ? (
-												<button
-													type="button"
-													className="ghost"
-													onClick={() => openAdjustmentForClosedDay(selectedDay)}
-												>
-													<ReceiptText size={16} />
-													Registrar ajuste hoy
-												</button>
-											) : (
-												<button
-													type="button"
-													className="primary"
-													onClick={() => openFormModal('payment')}
-												>
-													<CreditCard size={16} />
-													Cobrar trabajo
-												</button>
-											)
-										}
-									/>
-								)}
-							</div>
-								</>
-							) : null}
-						</section>
-					</div>
+					<CashPanel
+						cashClosure={cash.closure}
+						cashEntries={cashEntries}
+						cashEntryDescription={cashEntryDescription}
+						cashEntryKey={cashEntryKey}
+						cashEntryQuickActions={cashEntryQuickActions}
+						cashEntryTitle={cashEntryTitle}
+						cashFilterCategoryOptions={selectOptionsFromValues(
+							cashFilterCategoryValues,
+							cashFilters.category,
+						)}
+						cashFilters={cashFilters}
+						cashFiltersActive={cashFiltersActive}
+						cashFilterSubcategoryOptions={selectOptionsFromValues(
+							cashFilterSubcategoryValues,
+							cashFilters.subcategory,
+						)}
+						cashflowTotals={cashflowTotals}
+						cashFlowSummary={cashFlowSummary}
+						cashIsClosed={cashIsClosed}
+						cashSourceKindLabel={cashSourceKindLabel}
+						cashSourceKindOptions={cashSourceKindOptions}
+						cashSummaryMode={cashSummaryMode}
+						economicTotals={economicTotals}
+						filteredCashEntries={filteredCashEntries}
+						loading={loading}
+						loadBlocked={cashLoadBlocked}
+						loadErrorNotice={loadErrorNotice}
+						recordClass={recordClass}
+						renderQuickActionsTrigger={renderQuickActionsTrigger}
+						selectedDay={selectedDay}
+						onCashFilterChange={updateCashFilter}
+						onCashSummaryModeChange={setCashSummaryMode}
+						onClearCashFilters={() => setCashFilters(CASH_FILTER_DEFAULTS)}
+						onCloseDay={closeCashDay}
+						onCollectWork={() => openFormModal('payment')}
+						onCreateMovement={() => openFormModal('cash-movement')}
+						onMoveSelectedDay={moveSelectedCashDay}
+						onOpenCashEntryDetail={openCashEntryDetail}
+						onPayDebt={() => openFormModal('debt-payment')}
+						onQuickActionsContext={openQuickActionsFromContext}
+						onRefresh={() => loadData({ force: true })}
+						onRegisterAdjustment={() =>
+							openAdjustmentForClosedDay(selectedDay)
+						}
+						onSelectedDayChange={setSelectedDay}
+					/>
 				) : null}
 
 				{displayedActive === 'debts' ? (

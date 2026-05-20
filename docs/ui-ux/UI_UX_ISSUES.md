@@ -13,6 +13,7 @@ Fuente viva de deuda UI/UX. Esta version separa deuda vigente de deuda ya cerrad
 - Screenshots locales fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui-audit-2026-05-20\*.png`.
 - Resultado QA: sin blank screens, sin overlay de framework, sin console errors, sin page errors y sin respuestas 4xx/5xx en los flujos auditados.
 - Batch P1 aplicado 2026-05-20: UI-025, UI-021, UI-003, UI-008, UI-012 y UI-016 quedan cerrados en codigo con el corte minimo documentado abajo.
+- Corte UI-009 aplicado 2026-05-20: Caja quedo extraida a `frontend/app/components/cash/CashPanel.tsx` sin cambios intencionales de negocio. `frontend/app/page.tsx` bajo a 17.570 lineas y aprox. 164 coincidencias `render*`; `CashPanel.tsx` concentra 675 lineas presentacionales. QA: `npm run build`, `next start`, `/` y `/?section=cash` en desktop `1440x900` y mobile `390x844`, sin console errors. Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-cash-qa\*.png`.
 
 ## Vigentes P0/P1
 
@@ -20,7 +21,7 @@ No quedaron P0 reproducidos en runtime estable. Como P1/P2 estructural queda la 
 
 | ID | Prioridad | Pantalla | Problema vigente | Evidencia real | Siguiente accion |
 | --- | --- | --- | --- | --- | --- |
-| UI-009 | P1 | App shell / frontend | `frontend/app/page.tsx` sigue concentrando demasiada responsabilidad de UI, estado y render. | Conteo auditado: `frontend/app/page.tsx` tiene 18.679 lineas y aprox. 176 coincidencias `render*`. | Extraer por vertical despues de cerrar deuda visible: agenda, clientes, caja, settings. |
+| UI-009 | P1/P2 | App shell / frontend | Reducido parcialmente: Caja ya no vive como bloque JSX dentro de `frontend/app/page.tsx`, pero el archivo sigue concentrando demasiado estado, calculo y renders de otras verticales. | Conteo post-corte: `frontend/app/page.tsx` tiene 17.570 lineas y aprox. 164 coincidencias `render*`; el primer corte movio Caja a `CashPanel.tsx`. | Continuar extraccion por vertical sin redisenar: deudas, settings o dashboard segun el siguiente cambio funcional. |
 
 ## Cerrados en codigo / QA
 
