@@ -1,29 +1,29 @@
-# Media And Static Files
+# Media Y Archivos Estaticos
 
 ## Media
 
-Persistent uploads must use Supabase Storage in demo/prod. Local filesystem media is only for local development.
+Los uploads persistentes deben usar Supabase Storage en demo/prod. Media en filesystem local es solo para desarrollo local.
 
-Current upload fields:
+Campos actuales de upload:
 
 - `core.BusinessProfile.logo`
 - `core.UserProfile.avatar`
 - `inventory.StockMovement.document_file`
 
-The quote PDF generator reads the business logo through the Django `FileField` API, so it works with both local storage and remote S3-compatible storage.
+El generador de PDF de cotizaciones lee el logo del negocio mediante la API `FileField` de Django, asi que funciona tanto con storage local como con storage remoto compatible con S3.
 
-## Django static files
+## Archivos Estaticos De Django
 
-Production settings use WhiteNoise:
+Settings de produccion usa WhiteNoise:
 
-- `collectstatic` writes assets to `backend/staticfiles`.
-- `STORAGES["staticfiles"]` uses `CompressedManifestStaticFilesStorage`.
-- Vercel build runs `python manage.py collectstatic --noinput`.
+- `collectstatic` escribe assets en `backend/staticfiles`.
+- `STORAGES["staticfiles"]` usa `CompressedManifestStaticFilesStorage`.
+- El build de Vercel ejecuta `python manage.py collectstatic --noinput`.
 
-## Next static assets
+## Assets Estaticos De Next
 
-Next.js assets under `frontend/public` and build output are handled by Vercel's Next.js build.
+Los assets Next.js bajo `frontend/public` y el output de build son manejados por el build Next.js de Vercel.
 
-## Local development
+## Desarrollo Local
 
-`config.settings` keeps local media under `backend/media` and serves it only when `DEBUG=True`. Do not treat that folder as persistent production storage.
+`config.settings` mantiene media local bajo `backend/media` y la sirve solo cuando `DEBUG=True`. No tratar esa carpeta como storage persistente de produccion.

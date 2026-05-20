@@ -59,6 +59,7 @@ def required_business_field(related_name):
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [
         ("core", "0010_businessaccount_multitenancy"),

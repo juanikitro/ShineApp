@@ -4,12 +4,15 @@ backend/db.sqlite3
 backend/media/
 backend/staticfiles/
 backend/.pytest_cache/
+backend/.coverage
 /.pytest_cache/
 backend/**/__pycache__/
 frontend/.next/
+frontend/coverage/
 frontend/node_modules/
 frontend/.env.local
 frontend/tsconfig.tsbuildinfo
+site/
 .env
 .vscode/
 logs/

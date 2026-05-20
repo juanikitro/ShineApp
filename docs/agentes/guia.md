@@ -8,6 +8,9 @@
 - No copiar patrones de SISOC si no existen en este proyecto.
 - Validar primero sobre la capa tocada; para cierre amplio usar `scripts/validate.ps1`.
   - backend: `pytest`, `manage.py check`
-  - frontend: `npm run test`, `npm run build`
+  - frontend: `npm run test`, `npm run test:coverage`, `npm run build`
   - compose: `docker compose config --quiet`
+- Para cambios no triviales o generados por IA, correr tambien `scripts/test-coverage.ps1`.
+- No modificar, relajar ni borrar tests para hacer pasar una implementacion. Si un test falla, diagnosticar causa raiz.
+- Para generar tests con Codex, usar `docs/ia/CODEX_TESTING_PROMPT.md`.
 - Si el checkout no tiene Git inicializado, no inventar pasos de branch, worktree o push.

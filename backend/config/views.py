@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 from pathlib import Path
 
 from django.contrib.auth import authenticate, get_user_model
@@ -6,6 +7,8 @@ from django.contrib.auth.models import Group, update_last_login
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import DisallowedHost
 from django.db import connection, transaction
+from django.utils import timezone
+from django.utils.text import slugify
 from rest_framework import parsers, permissions, serializers, status
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
@@ -13,12 +16,13 @@ from rest_framework.views import APIView
 
 from core.audit import audit_snapshot, record_audit_event
 from core.models import (
+    BusinessAccount,
     BusinessProfile,
     UserProfile,
     normalize_expense_category_tree,
     normalize_income_category_tree,
 )
-from core.permissions import EMPLOYEE_ROLE, EmployerOnly, can_view_economy, user_context_payload
+from core.permissions import EMPLOYEE_ROLE, EMPLOYER_ROLE, EmployerOnly, can_view_economy, user_context_payload
 from core.permissions import business_for_user, business_from_request
 
 
@@ -60,6 +64,138 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField()
 
 
+def unique_business_slug(name):
+    base = slugify(name).strip("-") or "negocio"
+    max_length = BusinessAccount._meta.get_field("slug").max_length
+    base = base[:max_length].strip("-") or "negocio"
+    candidate = base
+    counter = 2
+    while BusinessAccount.objects.filter(slug=candidate).exists():
+        suffix = f"-{counter}"
+        candidate = f"{base[: max_length - len(suffix)].strip('-')}{suffix}"
+        counter += 1
+    return candidate
+
+
+def unique_username_from_email(email):
+    user_model = get_user_model()
+    max_length = user_model._meta.get_field("username").max_length
+    base = email[:max_length] or "usuario"
+    candidate = base
+    counter = 2
+    while user_model.objects.filter(username__iexact=candidate).exists():
+        suffix = f"-{counter}"
+        candidate = f"{base[: max_length - len(suffix)]}{suffix}"
+        counter += 1
+    return candidate
+
+
+def split_owner_name(owner_name):
+    parts = owner_name.split()
+    if not parts:
+        return "", ""
+    return parts[0], " ".join(parts[1:])
+
+
+class TrialSignupSerializer(serializers.Serializer):
+    business_name = serializers.CharField(max_length=160)
+    industry = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    business_industry = serializers.CharField(max_length=120, required=False, allow_blank=True, write_only=True)
+    owner_name = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    phone = serializers.CharField(max_length=60)
+    city = serializers.CharField(max_length=120)
+    country = serializers.CharField(max_length=120)
+    password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_business_name(self, value):
+        name = value.strip()
+        if not name:
+            raise serializers.ValidationError("El negocio es obligatorio.")
+        return name
+
+    def validate_owner_name(self, value):
+        name = value.strip()
+        if not name:
+            raise serializers.ValidationError("El responsable es obligatorio.")
+        return name
+
+    def validate_email(self, value):
+        email = get_user_model().objects.normalize_email(value).strip().lower()
+        if get_user_model().objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError("Ya existe una cuenta con ese email.")
+        return email
+
+    def validate_phone(self, value):
+        phone = value.strip()
+        if not phone:
+            raise serializers.ValidationError("El telefono es obligatorio.")
+        return phone
+
+    def validate_city(self, value):
+        city = value.strip()
+        if not city:
+            raise serializers.ValidationError("La ciudad es obligatoria.")
+        return city
+
+    def validate_country(self, value):
+        country = value.strip()
+        if not country:
+            raise serializers.ValidationError("El pais es obligatorio.")
+        return country
+
+    def validate_password(self, value):
+        validate_password(value)
+        return value
+
+    def validate(self, attrs):
+        industry = (attrs.get("industry") or attrs.get("business_industry") or "").strip()
+        if not industry:
+            raise serializers.ValidationError({"industry": "El rubro es obligatorio."})
+        attrs["industry"] = industry
+        attrs.pop("business_industry", None)
+        return attrs
+
+    def create(self, validated_data):
+        user_model = get_user_model()
+        now = timezone.now()
+        trial_ends_at = now + timedelta(days=30)
+        first_name, last_name = split_owner_name(validated_data["owner_name"])
+        with transaction.atomic():
+            business = BusinessAccount.objects.create(
+                name=validated_data["business_name"],
+                slug=unique_business_slug(validated_data["business_name"]),
+                is_active=True,
+            )
+            BusinessProfile.objects.create(
+                business=business,
+                name=validated_data["business_name"],
+                industry=validated_data["industry"],
+                contact_phone=validated_data["phone"],
+                contact_email=validated_data["email"],
+                city=validated_data["city"],
+                country=validated_data["country"],
+                subscription_type=BusinessProfile.SubscriptionType.TRIAL,
+                trial_started_at=now,
+                trial_ends_at=trial_ends_at,
+            )
+            user = user_model.objects.create_user(
+                username=unique_username_from_email(validated_data["email"]),
+                email=validated_data["email"],
+                password=validated_data["password"],
+                first_name=first_name,
+                last_name=last_name,
+            )
+            employer_group, _ = Group.objects.get_or_create(name=EMPLOYER_ROLE)
+            user.groups.set([employer_group])
+            UserProfile.objects.create(
+                user=user,
+                business=business,
+                phone_number=validated_data["phone"],
+            )
+        return user
+
+
 class HealthCheckView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
@@ -96,7 +232,7 @@ class EmployeeUserSerializer(serializers.ModelSerializer):
 class EmployeeUserCreateSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
     email = serializers.EmailField(required=False, allow_blank=True)
-    password = serializers.CharField(write_only=True, min_length=4)
+    password = serializers.CharField(write_only=True, min_length=8)
 
     def validate_username(self, value):
         username = value.strip()
@@ -172,6 +308,8 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
         source="get_subscription_type_display",
         read_only=True,
     )
+    trial_started_at = serializers.DateTimeField(read_only=True)
+    trial_ends_at = serializers.DateTimeField(read_only=True)
     vat_condition_label = serializers.CharField(
         source="get_vat_condition_display",
         read_only=True,
@@ -188,9 +326,14 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "vat_condition_label",
             "subscription_type",
             "subscription_type_label",
+            "industry",
             "contact_phone",
             "contact_email",
+            "city",
+            "country",
             "address",
+            "trial_started_at",
+            "trial_ends_at",
             "default_quote_validity_days",
             "default_quote_tax_rate",
             "default_quote_discount_rate",
@@ -231,6 +374,15 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
         if digits and len(digits) != 11:
             raise serializers.ValidationError("El CUIT debe tener 11 digitos.")
         return digits
+
+    def validate_industry(self, value):
+        return value.strip()
+
+    def validate_city(self, value):
+        return value.strip()
+
+    def validate_country(self, value):
+        return value.strip()
 
     def validate_address(self, value):
         return value.strip()
@@ -313,6 +465,25 @@ class LoginView(APIView):
                 "token": token.key,
                 "user": user_context_payload(user, request=request),
             }
+        )
+
+
+class TrialSignupView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = TrialSignupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        update_last_login(None, user)
+        token, _ = Token.objects.get_or_create(user=user)
+        return Response(
+            {
+                "token": token.key,
+                "user": user_context_payload(user, request=request),
+            },
+            status=status.HTTP_201_CREATED,
         )
 
 

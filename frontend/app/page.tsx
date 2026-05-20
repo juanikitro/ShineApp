@@ -26,10 +26,10 @@ import {
 	FileText,
 	Hammer,
 	History,
-	Info,
 	LockKeyhole,
 	LogOut,
 	Menu,
+	MoreHorizontal,
 	Package,
 	Pencil,
 	Plus,
@@ -48,6 +48,7 @@ import {
 	type CSSProperties,
 	type FormEvent,
 	type KeyboardEvent,
+	type MouseEvent,
 	type ReactNode,
 	useEffect,
 	useMemo,
@@ -58,6 +59,21 @@ import {
 import { AnimatedLabelSwap } from '@/app/components/motion/AnimatedLabelSwap'
 import { AgendaBoardToolbar } from '@/app/components/agenda/AgendaBoardToolbar'
 import { AgendaReservationCard } from '@/app/components/agenda/AgendaReservationCard'
+import {
+	CashPanel,
+	type CashFilterState,
+	type CashFlowSummary,
+	type CashSummaryGroup,
+	type CashSummaryLine,
+	type CashSummaryMode,
+} from '@/app/components/cash/CashPanel'
+import {
+	DebtPanel,
+	type DebtFilterState,
+	type DebtSummary,
+} from '@/app/components/debts/DebtPanel'
+import { DashboardPanel } from '@/app/components/dashboard/DashboardPanel'
+import { BusinessSettingsPanel } from '@/app/components/settings/BusinessSettingsPanel'
 import {
 	CustomerDashboardShell,
 	type CustomerDashboardMetric,
@@ -84,6 +100,10 @@ import { MetricCard } from '@/app/components/ui/MetricCard'
 import { ModalFrame as Modal } from '@/app/components/ui/ModalFrame'
 import { Panel } from '@/app/components/ui/Panel'
 import {
+	QuickActionsMenu,
+	type QuickAction,
+} from '@/app/components/ui/QuickActionsMenu'
+import {
 	RecordCard,
 	RecordCardHeader,
 } from '@/app/components/ui/RecordCard'
@@ -93,12 +113,27 @@ import { ServiceIconPicker } from '@/app/components/ui/ServiceIconPicker'
 import { StatusPill } from '@/app/components/ui/StatusPill'
 import { cx } from '@/app/components/utils'
 import {
+	focusElementIfAvailable,
+	focusFirstElement,
+	trapFocusWithin,
+} from '@/lib/a11y'
+import {
 	apiFetch,
 	apiList,
 	clearStoredToken,
 	downloadApiFile,
 	getStoredToken,
 } from '@/lib/api'
+import {
+	applyAppDataEntry,
+	type AppDataAppliers,
+	dataSetCacheKey,
+	loadAppDataSets,
+} from '@/lib/app-data'
+import {
+	dataSetKeysForSection,
+	type DataSetKey,
+} from '@/lib/data-loading'
 import {
 	type ApiErrorNotice,
 	createValidationNotice,
@@ -108,6 +143,7 @@ import {
 	isPdfAssetName,
 	isPdfAssetSource,
 	renderPdfPreviewDataUrl,
+	safeImageAssetSource,
 } from '@/lib/pdf-preview'
 import {
 	auditActorLabel,
@@ -149,6 +185,12 @@ import {
 	agendaSlideWindowsOverlap,
 } from '@/lib/motion-spec'
 import {
+	navigationUrlForState,
+	readNavigationStateFromUrl,
+	type NavigationConfig,
+	type NavigationState,
+} from '@/lib/navigation-state'
+import {
 	vehicleBrandOptions,
 	vehicleModelOptionsForBrand,
 } from '@/lib/vehicle-options'
@@ -159,6 +201,7 @@ import {
 } from '@/lib/vehicle-display'
 import { serviceDisplayName } from '@/lib/service-display'
 import { serviceDetailPayloadFields } from '@/lib/service-detail-payload'
+import { shouldHandleUndoShortcut } from '@/lib/undo-shortcut'
 
 import {
 	type ActionMessage,
@@ -189,7 +232,6 @@ import {
 	agendaPhaseLabels,
 	apiErrorToast,
 	asPayload,
-	businessVatConditionOptions,
 	birthdayText,
 	blankAgendaPaymentForm,
 	blankBusinessForm,
@@ -234,6 +276,7 @@ import {
 	sectionMeta,
 	sectionRequiresEmployer,
 	serviceTypeLabels,
+	successToastDescription,
 	toIsoDate,
 	today,
 	toolStatusLabels,
@@ -247,6 +290,40 @@ import {
 	useFlashTarget,
 	useNoticeToasts,
 } from '@/lib/page-support'
+
+type QuickActionsMenuState = {
+	title: string
+	actions: QuickAction[]
+	anchorPoint: { x: number; y: number }
+}
+
+type UndoAction<T> = {
+	label?: ActionMessage<T>
+	description?: ActionMessage<T>
+	execute: (result: T) => Promise<void>
+	successTitle?: ActionMessage<T>
+	successDescription?: ActionMessage<T>
+}
+
+type RunActionOptions<T> = {
+	flashTarget?: string | null | ((result: T) => string | null | undefined)
+	successTitle?: ActionMessage<T>
+	successDescription?: ActionMessage<T>
+	undo?: UndoAction<T>
+}
+
+type PendingUndoAction = {
+	id: number
+	toastId: number | null
+	expiresAt: number
+	busy: boolean
+	execute: () => Promise<void>
+	successTitle: string
+	successDescription?: string
+}
+
+const SIDEBAR_NAV_ID = 'app-sidebar-navigation'
+const UNDO_WINDOW_MS = 7000
 
 const agendaServiceBuckets: Array<{
 	value: AgendaServiceBucket
@@ -357,6 +434,22 @@ const settingsSectionOptions: Array<{
 	{ value: 'users', label: 'Usuarios', icon: Users },
 	{ value: 'history', label: 'Historial', icon: History },
 ]
+const navigationConfig = {
+	sections: Object.keys(sectionMeta),
+	settingsSections: settingsSectionOptions.map((option) => option.value),
+	defaultSection: 'dashboard',
+	defaultSettingsSection: 'business',
+} satisfies NavigationConfig
+
+function initialNavigationState(): NavigationState {
+	if (typeof window === 'undefined') {
+		return {
+			section: navigationConfig.defaultSection,
+			settingsSection: navigationConfig.defaultSettingsSection,
+		}
+	}
+	return readNavigationStateFromUrl(window.location.href, navigationConfig)
+}
 const auditActionLabels: Record<string, string> = {
 	create: 'Creacion',
 	update: 'Edicion',
@@ -396,38 +489,6 @@ const publicRequestStatusLabels: Record<string, string> = {
 	converted: 'Convertida',
 	archived: 'Archivada',
 }
-type CashSummaryMode = 'cashflow' | 'economic'
-type CashFilterState = {
-	query: string
-	movementType: string
-	sourceKind: string
-	category: string
-	subcategory: string
-	effect: string
-	amountMin: string
-	amountMax: string
-}
-type CashSummaryLine = {
-	key: string
-	label: string
-	count: number
-	amount: number
-	percent: number
-}
-type CashSummaryGroup = {
-	key: string
-	label: string
-	count: number
-	amount: number
-	lines: CashSummaryLine[]
-}
-type CashFlowSummary = {
-	groups: CashSummaryGroup[]
-	commercialBalance: number
-	financialBalance: number
-	netFlow: number
-}
-
 const CASH_FILTER_DEFAULTS: CashFilterState = {
 	query: '',
 	movementType: '',
@@ -439,23 +500,10 @@ const CASH_FILTER_DEFAULTS: CashFilterState = {
 	amountMax: '',
 }
 
-const cashSummaryModeOptions: Array<{
-	value: CashSummaryMode
-	label: string
-}> = [
-	{ value: 'cashflow', label: 'Caja real' },
-	{ value: 'economic', label: 'Resultado economico' },
-]
-
-const cashMovementTypeOptions = [
-	{ value: 'income', label: 'Ingresos' },
-	{ value: 'expense', label: 'Egresos' },
-]
-
-const cashEffectOptions = [
-	{ value: 'cashflow', label: 'Caja real' },
-	{ value: 'economic_only', label: 'Solo economico' },
-]
+const DEBT_FILTER_DEFAULTS: DebtFilterState = {
+	status: '',
+	balance: '',
+}
 
 const cashSummaryGroupDefinitions = [
 	{ key: 'charges', label: 'Cobros' },
@@ -647,21 +695,10 @@ function buildCashFlowSummary(
 	}
 }
 
-function cashSummaryAmountClass(amount: number) {
-	if (amount > 0) return 'positive'
-	if (amount < 0) return 'negative'
-	return 'neutral'
-}
-
-function formatCashPercent(value: number) {
-	return value.toLocaleString('es-AR', {
-		maximumFractionDigits: value >= 1 ? 0 : 2,
-		style: 'percent',
-	})
-}
-
 function normalizedCashFilterAmount(value: any) {
-	const amount = Number(String(value ?? '').replace(',', '.'))
+	const rawValue = String(value ?? '').trim()
+	if (!rawValue) return null
+	const amount = Number(rawValue.replace(',', '.'))
 	return Number.isFinite(amount) ? amount : null
 }
 
@@ -715,6 +752,42 @@ function cashEntryMatchesFilters(item: AnyRecord, filters: CashFilterState) {
 }
 
 function hasCashFilters(filters: CashFilterState) {
+	return Object.values(filters).some((value) => String(value ?? '').trim())
+}
+
+function debtMatchesFilters(
+	item: AnyRecord,
+	filters: DebtFilterState,
+	query: string,
+) {
+	if (filters.status && String(item.status ?? '') !== filters.status) {
+		return false
+	}
+	const balanceDue = numberValue(item.balance_due)
+	if (filters.balance === 'open' && balanceDue <= 0) return false
+	if (filters.balance === 'settled' && balanceDue > 0) return false
+
+	const term = normalizedCashText(query)
+	if (!term) return true
+	const haystack = normalizedCashText(
+		[
+			item.concept,
+			item.creditor,
+			item.supplier_name,
+			debtStatusLabels[item.status],
+			item.status,
+			item.expense_category,
+			item.expense_subcategory,
+			item.notes,
+			item.principal_amount,
+			item.total_paid,
+			item.balance_due,
+		].join(' '),
+	)
+	return haystack.includes(term)
+}
+
+function hasDebtFilters(filters: DebtFilterState) {
 	return Object.values(filters).some((value) => String(value ?? '').trim())
 }
 
@@ -847,6 +920,14 @@ function profileActiveText(user?: AnyRecord | null) {
 	return user?.is_active === false ? 'Inactivo' : 'Activo'
 }
 
+function profileTrialText(user?: AnyRecord | null) {
+	if (user?.trial_expired) return 'Prueba vencida'
+	if (user?.trial_ends_at) {
+		return `Prueba activa hasta ${formatDateLabel(user.trial_ends_at)}`
+	}
+	return null
+}
+
 function usePdfThumbnailPreview(
 	source: string | null,
 	enabled: boolean,
@@ -899,16 +980,31 @@ export default function Home() {
 
 	const [token, setToken] = useState<string | null>(null)
 	const [currentUser, setCurrentUser] = useState<AnyRecord | null>(null)
-	const [active, setActive] = useState<Section>('dashboard')
+	const [active, setActive] = useState<Section>(
+		() => initialNavigationState().section as Section,
+	)
 	const [themeMode, setThemeMode] = useState<ThemeMode>('light')
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 	const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
+	const sidebarMobileToggleRef = useRef<HTMLButtonElement>(null)
+	const sidebarReturnFocusRef = useRef<HTMLElement | null>(null)
 	const [settingsSection, setSettingsSection] =
-		useState<SettingsSection>('business')
+		useState<SettingsSection>(
+			() => initialNavigationState().settingsSection as SettingsSection,
+		)
+	const navigationHistoryModeRef = useRef<'pushState' | 'replaceState'>(
+		'replaceState',
+	)
 	const [loading, setLoading] = useState(false)
 	const [agendaLoadError, setAgendaLoadError] =
 		useState<ApiErrorNotice | null>(null)
+	const [loadErrorNotice, setLoadErrorNotice] =
+		useState<ApiErrorNotice | null>(null)
 	const { toasts, showToast, dismissToast } = useNoticeToasts()
+	const undoTimerRef = useRef<number | null>(null)
+	const pendingUndoRef = useRef<PendingUndoAction | null>(null)
+	const executeUndoRef = useRef<(id?: number) => void>(() => undefined)
+	const nextUndoIdRef = useRef(0)
 	const [search, setSearch] = useState('')
 	const [customerCardFilter, setCustomerCardFilter] =
 		useState<CustomerCardFilter>('all')
@@ -922,6 +1018,8 @@ export default function Home() {
 		useState<CashSummaryMode>('cashflow')
 	const [cashFilters, setCashFilters] =
 		useState<CashFilterState>(CASH_FILTER_DEFAULTS)
+	const [debtFilters, setDebtFilters] =
+		useState<DebtFilterState>(DEBT_FILTER_DEFAULTS)
 	const cashMovementDateTimeFor = (day: string) => `${day}T12:00`
 	const blankMovementForm = (
 		day = selectedDay,
@@ -966,6 +1064,8 @@ export default function Home() {
 	const [employees, setEmployees] = useState<AnyRecord[]>([])
 	const [auditLogs, setAuditLogs] = useState<AnyRecord[]>([])
 	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>({})
+	const auditLogsLoadedRef = useRef(false)
+	const loadedDataCacheRef = useRef<Set<string>>(new Set())
 	const [expandedAuditLogId, setExpandedAuditLogId] = useState<string | null>(
 		null,
 	)
@@ -1102,6 +1202,9 @@ export default function Home() {
 		editData: AnyRecord
 		editing: boolean
 	} | null>(null)
+	const [quickActionsMenu, setQuickActionsMenu] =
+		useState<QuickActionsMenuState | null>(null)
+	const quickActionsReturnFocusRef = useRef<HTMLElement | null>(null)
 	const [customerHistory, setCustomerHistory] = useState<AnyRecord | null>(null)
 	const [customerHistoryLoading, setCustomerHistoryLoading] = useState(false)
 	const [customerDashboard, setCustomerDashboard] = useState<AnyRecord | null>(
@@ -1216,6 +1319,40 @@ export default function Home() {
 	}, [])
 
 	useEffect(() => {
+		document.documentElement.dataset.theme = themeMode
+	}, [themeMode])
+
+	useEffect(() => {
+		const handlePopState = () => {
+			const nextNavigation = readNavigationStateFromUrl(
+				window.location.href,
+				navigationConfig,
+			)
+			navigationHistoryModeRef.current = 'replaceState'
+			setActive(nextNavigation.section as Section)
+			setSettingsSection(nextNavigation.settingsSection as SettingsSection)
+			setSidebarMobileOpen(false)
+		}
+		window.addEventListener('popstate', handlePopState)
+		return () => {
+			window.removeEventListener('popstate', handlePopState)
+		}
+	}, [])
+
+	useEffect(() => {
+		const nextUrl = navigationUrlForState(
+			window.location.href,
+			{ section: active, settingsSection },
+			navigationConfig,
+		)
+		const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`
+		if (nextUrl !== currentUrl) {
+			window.history[navigationHistoryModeRef.current](null, '', nextUrl)
+		}
+		navigationHistoryModeRef.current = 'pushState'
+	}, [active, settingsSection])
+
+	useEffect(() => {
 		if (!canViewEconomy && customerCardFilter === 'with_balance') {
 			setCustomerCardFilter('all')
 		}
@@ -1225,15 +1362,25 @@ export default function Home() {
 		if (!sidebarMobileOpen) return
 
 		const previousOverflow = document.body.style.overflow
+		const sidebar = document.getElementById(SIDEBAR_NAV_ID)
+		const focusFrame = window.requestAnimationFrame(() => {
+			focusFirstElement(sidebar)
+		})
+		const focusTimer = window.setTimeout(() => {
+			focusFirstElement(document.getElementById(SIDEBAR_NAV_ID))
+		}, 220)
 		const closeOnDesktop = () => {
 			if (window.innerWidth > 980) {
-				setSidebarMobileOpen(false)
+				closeSidebarMobileMenu({ restoreFocus: false })
 			}
 		}
 		const handleKeyDown = (event: globalThis.KeyboardEvent) => {
 			if (event.key === 'Escape') {
-				setSidebarMobileOpen(false)
+				event.preventDefault()
+				closeSidebarMobileMenu()
+				return
 			}
+			trapFocusWithin(event, sidebar)
 		}
 
 		document.body.style.overflow = 'hidden'
@@ -1241,6 +1388,8 @@ export default function Home() {
 		window.addEventListener('resize', closeOnDesktop)
 		window.addEventListener('keydown', handleKeyDown)
 		return () => {
+			window.cancelAnimationFrame(focusFrame)
+			window.clearTimeout(focusTimer)
 			document.body.style.overflow = previousOverflow
 			window.removeEventListener('resize', closeOnDesktop)
 			window.removeEventListener('keydown', handleKeyDown)
@@ -1267,6 +1416,111 @@ export default function Home() {
 			showToast(apiErrorToast(notice))
 		}
 	}
+
+	function clearPendingUndo(options: { dismissToast?: boolean } = {}) {
+		const pending = pendingUndoRef.current
+		if (undoTimerRef.current) {
+			window.clearTimeout(undoTimerRef.current)
+			undoTimerRef.current = null
+		}
+		pendingUndoRef.current = null
+		if (options.dismissToast !== false && pending?.toastId) {
+			dismissToast(pending.toastId)
+		}
+	}
+
+	function registerUndoAction<T>(
+		result: T,
+		undo: UndoAction<T>,
+		successTitle: string,
+		successDescription?: string,
+	) {
+		clearPendingUndo()
+		const id = nextUndoIdRef.current + 1
+		nextUndoIdRef.current = id
+		const pending: PendingUndoAction = {
+			id,
+			toastId: null,
+			expiresAt: Date.now() + UNDO_WINDOW_MS,
+			busy: false,
+			execute: () => undo.execute(result),
+			successTitle:
+				resolveActionMessage(undo.successTitle, result) ?? 'Cambio deshecho',
+			successDescription:
+				resolveActionMessage(undo.successDescription, result) ?? undefined,
+		}
+		pendingUndoRef.current = pending
+		const undoDescription =
+			resolveActionMessage(undo.description, result) ??
+			successDescription ??
+			'Tenes unos segundos para arrepentirte.'
+		pending.toastId = showToast({
+			tone: 'success',
+			title: successTitle,
+			description: undoDescription,
+			visibleMs: UNDO_WINDOW_MS,
+			action: {
+				label: resolveActionMessage(undo.label, result) ?? 'Deshacer',
+				title: 'Deshacer la ultima accion (Ctrl+Z)',
+				onClick: () => executePendingUndo(id),
+			},
+		})
+		undoTimerRef.current = window.setTimeout(() => {
+			if (pendingUndoRef.current?.id === id) {
+				clearPendingUndo({ dismissToast: false })
+			}
+		}, UNDO_WINDOW_MS)
+	}
+
+	async function executePendingUndo(expectedId?: number) {
+		const pending = pendingUndoRef.current
+		if (!pending || (expectedId && pending.id !== expectedId) || pending.busy) {
+			return
+		}
+		if (Date.now() > pending.expiresAt) {
+			clearPendingUndo()
+			return
+		}
+		pending.busy = true
+		setError(null)
+		try {
+			await loadData({ force: true })
+			const successTitle = pending.successTitle
+			const successDescription = pending.successDescription
+			clearPendingUndo()
+			showToast({
+				tone: 'success',
+				title: successTitle,
+				description: successDescription,
+			})
+		} catch (err: any) {
+			pending.busy = false
+			setError(formatApiError(err))
+		}
+	}
+
+	executeUndoRef.current = (id?: number) => {
+		void executePendingUndo(id)
+	}
+
+	useEffect(() => {
+		function handleUndoShortcut(event: globalThis.KeyboardEvent) {
+			if (!shouldHandleUndoShortcut(event)) return
+			const pending = pendingUndoRef.current
+			if (!pending || pending.busy || Date.now() > pending.expiresAt) return
+			event.preventDefault()
+			executeUndoRef.current(pending.id)
+		}
+
+		window.addEventListener('keydown', handleUndoShortcut)
+		return () => {
+			window.removeEventListener('keydown', handleUndoShortcut)
+			if (undoTimerRef.current) {
+				window.clearTimeout(undoTimerRef.current)
+				undoTimerRef.current = null
+			}
+		}
+	}, [])
 
 	const businessLogoObjectUrlRef = useRef<string | null>(null)
 	const businessLogoInputRef = useRef<HTMLInputElement | null>(null)
@@ -1406,10 +1660,18 @@ export default function Home() {
 
 	const { thumbnail: businessLogoPdfThumbnail, status: businessLogoPdfStatus } =
 		usePdfThumbnailPreview(businessLogoPreview, businessLogoIsPdf, 720)
+	const safeBusinessLogoPreview = safeImageAssetSource(businessLogoPreview)
+	const safeBusinessLogoPdfThumbnail = safeImageAssetSource(
+		businessLogoPdfThumbnail,
+	)
 
 	const {
 		thumbnail: sidebarAvatarPdfThumbnail,
 	} = usePdfThumbnailPreview(currentUser?.avatar_url ?? null, sidebarAvatarIsPdf, 128)
+	const safeSidebarAvatarUrl = safeImageAssetSource(currentUser?.avatar_url)
+	const safeSidebarAvatarPdfThumbnail = safeImageAssetSource(
+		sidebarAvatarPdfThumbnail,
+	)
 
 	useEffect(() => {
 		syncProfileForm(currentUser)
@@ -1693,23 +1955,8 @@ export default function Home() {
 	}, [tools, search])
 
 	const filteredDebts = useMemo(() => {
-		const term = search.toLowerCase()
-		if (!term) return debts
-		return debts.filter((item) =>
-			[
-				item.concept,
-				item.creditor,
-				item.supplier_name,
-				debtStatusLabels[item.status],
-				item.status,
-				item.notes,
-			].some((value) =>
-				String(value ?? '')
-					.toLowerCase()
-					.includes(term),
-			),
-		)
-	}, [debts, search])
+		return debts.filter((item) => debtMatchesFilters(item, debtFilters, search))
+	}, [debtFilters, debts, search])
 
 	const filteredSuppliers = useMemo(() => {
 		const term = search.trim().toLowerCase()
@@ -2027,6 +2274,7 @@ export default function Home() {
 	async function refreshAuditLogs(filters: AuditLogFilters = auditFilters) {
 		if (!canViewEconomy) return
 		const logs = await auditLogListOrEmpty<AnyRecord>(apiList, filters)
+		auditLogsLoadedRef.current = true
 		setAuditLogs(logs)
 	}
 
@@ -2061,102 +2309,70 @@ export default function Home() {
 		}
 	}
 
-	async function loadData() {
+	type LoadDataOptions = {
+		force?: boolean
+		section?: Section
+		settingsSection?: SettingsSection
+	}
+
+	const appDataAppliers: AppDataAppliers = {
+		dashboard: setDashboard,
+		cash: setCash,
+		customers: setCustomers,
+		vehicles: setVehicles,
+		services: setServices,
+		reservations: setReservations,
+		workOrders: setWorkOrders,
+		payments: setPayments,
+		debts: setDebts,
+		debtPayments: setDebtPayments,
+		materials: setMaterials,
+		suppliers: setSuppliers,
+		stockMovements: setStockMovements,
+		materialOpenUnits: setMaterialOpenUnits,
+		purchases: setPurchases,
+		consumptions: setConsumptions,
+		tools: setTools,
+		quotes: setQuotes,
+		publicRequests: setPublicRequests,
+		businessProfile: syncBusinessProfile,
+		employees: setEmployees,
+	}
+
+	async function loadData(options: LoadDataOptions = {}) {
+		const dataScope = { period, selectedDay }
+		const keys = dataSetKeysForSection({
+			section: options.section ?? displayedActive,
+			settingsSection: options.settingsSection ?? settingsSection,
+			canViewEconomy,
+		})
+		if (options.force) {
+			loadedDataCacheRef.current.clear()
+		}
+		const keysToLoad = options.force
+			? keys
+			: keys.filter(
+					(key) =>
+						!loadedDataCacheRef.current.has(
+							dataSetCacheKey(key, dataScope),
+						),
+				)
+
+		if (!keysToLoad.length) return
+
 		setLoading(true)
 		setError(null)
 		setAgendaLoadError(null)
+		setLoadErrorNotice(null)
 		try {
-			const [
-				dashboardData,
-				cashData,
-				customerData,
-				vehicleData,
-				serviceData,
-				reservationData,
-				workOrderData,
-				paymentData,
-				debtData,
-				debtPaymentData,
-				materialData,
-				supplierData,
-				stockMovementData,
-				materialOpenUnitData,
-				purchaseData,
-				consumptionData,
-				toolData,
-				quoteData,
-				publicRequestData,
-				businessProfileData,
-				employeeData,
-				auditLogData,
-			] = await Promise.all([
-				apiFetch<AnyRecord>(
-					`/dashboard/summary/?from=${period.from}&to=${period.to}`,
-				),
-				canViewEconomy
-					? apiFetch<AnyRecord>(`/cash/daily/?date=${selectedDay}`)
-					: Promise.resolve({}),
-				apiList<AnyRecord>('/customers/'),
-				apiList<AnyRecord>('/vehicles/'),
-				apiList<AnyRecord>('/services/'),
-				apiList<AnyRecord>('/reservations/'),
-				apiList<AnyRecord>('/work-orders/'),
-				canViewEconomy ? apiList<AnyRecord>('/payments/') : Promise.resolve([]),
-				canViewEconomy ? apiList<AnyRecord>('/debts/') : Promise.resolve([]),
-				canViewEconomy
-					? apiList<AnyRecord>('/debt-payments/')
-					: Promise.resolve([]),
-				canViewEconomy ? apiList<AnyRecord>('/materials/') : Promise.resolve([]),
-				canViewEconomy ? apiList<AnyRecord>('/suppliers/') : Promise.resolve([]),
-				canViewEconomy
-					? apiList<AnyRecord>('/stock-movements/')
-					: Promise.resolve([]),
-				canViewEconomy
-					? apiList<AnyRecord>('/material-open-units/')
-					: Promise.resolve([]),
-				canViewEconomy
-					? apiList<AnyRecord>('/material-purchases/')
-					: Promise.resolve([]),
-				canViewEconomy
-					? apiList<AnyRecord>('/material-consumptions/')
-					: Promise.resolve([]),
-				canViewEconomy ? apiList<AnyRecord>('/tools/') : Promise.resolve([]),
-				canViewEconomy ? apiList<AnyRecord>('/quotes/') : Promise.resolve([]),
-				canViewEconomy
-					? apiList<AnyRecord>('/public-requests/')
-					: Promise.resolve([]),
-				canViewEconomy
-					? apiFetch<AnyRecord>('/settings/business-profile/')
-					: Promise.resolve(null),
-				canViewEconomy
-					? apiList<AnyRecord>('/auth/employees/')
-					: Promise.resolve([]),
-				canViewEconomy
-					? auditLogListOrEmpty<AnyRecord>(apiList, auditFilters)
-					: Promise.resolve([]),
-			])
-			setDashboard(dashboardData)
-			setCash(cashData)
-			setCustomers(customerData)
-			setVehicles(vehicleData)
-			setServices(serviceData)
-			setReservations(reservationData)
-			setWorkOrders(workOrderData)
-			setPayments(paymentData)
-			setDebts(debtData)
-			setDebtPayments(debtPaymentData)
-			setMaterials(materialData)
-			setSuppliers(supplierData)
-			setStockMovements(stockMovementData)
-			setMaterialOpenUnits(materialOpenUnitData)
-			setPurchases(purchaseData)
-			setConsumptions(consumptionData)
-			setTools(toolData)
-			setQuotes(quoteData)
-			setPublicRequests(publicRequestData)
-			syncBusinessProfile(businessProfileData)
-			setEmployees(employeeData)
-			setAuditLogs(auditLogData)
+			const entries = await loadAppDataSets(keysToLoad, dataScope, {
+				apiFetch,
+				apiList,
+			})
+			for (const [key, data] of entries) {
+				applyAppDataEntry(key, data, appDataAppliers)
+				loadedDataCacheRef.current.add(dataSetCacheKey(key, dataScope))
+			}
 		} catch (err: any) {
 			const notice = formatApiError(err, {
 				fallbackTitle: 'No se pudieron cargar los datos',
@@ -2164,6 +2380,7 @@ export default function Home() {
 					'Actualiza nuevamente o revisa la conexion con el servidor.',
 			})
 			setAgendaLoadError(notice)
+			setLoadErrorNotice(notice)
 			setError(notice)
 		} finally {
 			setLoading(false)
@@ -2179,9 +2396,11 @@ export default function Home() {
 
 	useEffect(() => {
 		if (!token) {
+			loadedDataCacheRef.current.clear()
 			setCurrentUser(null)
 			syncBusinessProfile(null)
 			setAuditLogs([])
+			auditLogsLoadedRef.current = false
 			setPublicRequests([])
 			return
 		}
@@ -2217,10 +2436,50 @@ export default function Home() {
 		if (token && currentUser) {
 			loadData()
 		}
-	}, [currentUser, selectedDay, token])
+	}, [currentUser, displayedActive, selectedDay, settingsSection, token])
+
+	useEffect(() => {
+		if (
+			!canViewEconomy ||
+			displayedActive !== 'settings' ||
+			settingsSection !== 'history' ||
+			auditLogsLoadedRef.current
+		) {
+			return
+		}
+
+		let ignore = false
+		setLoading(true)
+		auditLogListOrEmpty<AnyRecord>(apiList, auditFilters)
+			.then((logs) => {
+				if (ignore) return
+				auditLogsLoadedRef.current = true
+				setAuditLogs(logs)
+			})
+			.catch((err: any) => {
+				if (ignore) return
+				setError(
+					formatApiError(err, {
+						fallbackTitle: 'No se pudo cargar el historial',
+						fallbackDescription:
+							'Actualiza nuevamente o revisa la conexion con el servidor.',
+					}),
+				)
+			})
+			.finally(() => {
+				if (!ignore) {
+					setLoading(false)
+				}
+			})
+
+		return () => {
+			ignore = true
+		}
+	}, [auditFilters, canViewEconomy, displayedActive, settingsSection])
 
 	useEffect(() => {
 		if (!currentUser || canViewEconomy || !sectionRequiresEmployer(active)) return
+		navigationHistoryModeRef.current = 'replaceState'
 		setActive('agenda')
 	}, [active, canViewEconomy, currentUser])
 
@@ -2556,6 +2815,7 @@ export default function Home() {
 		row: AgendaOperationalRow,
 	) {
 		if (action.kind === 'reservation') {
+			const previousStatus = reservation.status
 			return runAction(
 				() =>
 					apiFetch(`/reservations/${reservation.id}/${action.action}/`, {
@@ -2564,12 +2824,18 @@ export default function Home() {
 				{
 					flashTarget: recordFlashKey('reservation', reservation.id),
 					successTitle: entityFeedbackTitle('reservation', 'updated'),
+					undo: undoPatchRecord(
+						`/reservations/${reservation.id}/`,
+						{ status: previousStatus },
+						'Estado anterior restaurado',
+					),
 				},
 			)
 		}
 
 		if (action.kind === 'work-order-status') {
 			if (!workOrder) return undefined
+			const previousStatus = workOrder.status ?? reservation.status
 			return runAction(
 				() =>
 					apiFetch(`/work-orders/${workOrder.id}/status/`, {
@@ -2581,6 +2847,17 @@ export default function Home() {
 				{
 					flashTarget: agendaCardFlashKey(row.key),
 					successTitle: entityFeedbackTitle('workorder', 'updated'),
+					undo: {
+						execute: async () => {
+							await apiFetch(`/work-orders/${workOrder.id}/status/`, {
+								method: 'POST',
+								body: JSON.stringify({
+									status: previousStatus,
+								}),
+							})
+						},
+						successTitle: 'Estado anterior restaurado',
+					},
 				},
 			)
 		}
@@ -2589,6 +2866,111 @@ export default function Home() {
 			openPaymentForOrder(workOrder)
 		}
 		return undefined
+	}
+
+	function agendaActionIcon(action: AgendaReservationAction) {
+		if (action.kind === 'work-order-charge') return <CreditCard size={15} />
+		if (action.kind === 'reservation' && action.action === 'cancel') {
+			return <Trash2 size={15} />
+		}
+		return <CheckCircle2 size={15} />
+	}
+
+	function agendaActionTone(action: AgendaReservationAction): QuickAction['tone'] {
+		if (action.kind === 'reservation' && action.action === 'cancel') {
+			return 'danger'
+		}
+		return action.variant === 'filled' ? 'primary' : 'default'
+	}
+
+	function agendaReservationQuickActions(
+		reservation: AnyRecord,
+		workOrder: AnyRecord | null | undefined,
+		row: AgendaOperationalRow,
+		actions: AgendaReservationAction[],
+	) {
+		const showWork = reservationShowsWork(reservation, workOrder)
+		const workOrderForDetail: AnyRecord | null = workOrder
+			? { ...workOrder, _agenda_day: row.day }
+			: null
+		const detailData = showWork
+			? { ...reservation, work_order: workOrderForDetail }
+			: reservation
+		const customer = customerForRecord(reservation)
+		const vehicle = vehicleForRecord(reservation)
+		return [
+			{
+				id: `agenda:reservation:detail:${reservation.id}`,
+				label: 'Detalle reserva',
+				icon: <Eye size={15} />,
+				onSelect: () => openDetailModal('Reserva', detailData),
+			},
+			{
+				id: `agenda:workorder:detail:${workOrder?.id ?? reservation.id}`,
+				label: 'Detalle trabajo',
+				icon: <Wrench size={15} />,
+				hidden: !showWork || !workOrder,
+				onSelect: () =>
+					workOrderForDetail &&
+					openDetailModal('Orden de trabajo', workOrderForDetail),
+			},
+			{
+				id: `agenda:customer:${reservation.id}`,
+				label: 'Cliente',
+				icon: <Users size={15} />,
+				hidden: !customer,
+				onSelect: () => customer && openCustomerDashboard(customer),
+			},
+			{
+				id: `agenda:vehicle:${reservation.id}`,
+				label: 'Vehiculo',
+				icon: <Car size={15} />,
+				hidden: !vehicle,
+				onSelect: () => vehicle && openDetailModal('Vehiculo', vehicle),
+			},
+			{
+				id: `agenda:quote:${reservation.id}`,
+				label: 'Abrir cotizacion',
+				icon: <FileText size={15} />,
+				hidden: !canViewEconomy,
+				onSelect: () => createQuoteFromReservation(reservation),
+			},
+			{
+				id: `agenda:quote-pdf:${reservation.id}`,
+				label: 'PDF cotizacion',
+				icon: <FileText size={15} />,
+				hidden: !canViewEconomy,
+				onSelect: () => downloadQuotePdfFromReservation(reservation),
+			},
+			{
+				id: `agenda:consume:${workOrder?.id ?? reservation.id}`,
+				label: 'Consumir productos',
+				icon: <Package size={15} />,
+				hidden: !canViewEconomy || !showWork || !workOrder,
+				onSelect: () => workOrder && openConsumptionForOrder(workOrder, row.day),
+			},
+			...actions.map((action) => ({
+				id: `agenda:action:${reservation.id}:${action.kind}:${
+					action.kind === 'reservation'
+						? action.action
+						: action.kind === 'work-order-status'
+							? action.status
+							: action.label
+				}`,
+				label: action.label,
+				icon: agendaActionIcon(action),
+				tone: agendaActionTone(action),
+				requiresConfirm:
+					action.kind === 'reservation' && action.action === 'cancel',
+				onSelect: () =>
+					runAgendaReservationAction(
+						action,
+						reservation,
+						showWork ? (workOrder as AnyRecord) : null,
+						row,
+					),
+			} satisfies QuickAction)),
+		] satisfies QuickAction[]
 	}
 
 	function reservationWorkOrder(reservation: AnyRecord) {
@@ -2635,12 +3017,19 @@ export default function Home() {
 	}
 
 	function renderWorkFreeQuoteCard(item: AnyRecord) {
+		const quickActions = quoteQuickActions(item)
 		return (
 			<MotionFlashSurface
 				className={recordClass('quote', item.id, 'quote-board-card')}
 				key={`work-free-quote-${item.id}`}
 				{...detailRecordProps('Cotizacion', item)}
+				{...quickActionTargetProps('Acciones de cotizacion', quickActions)}
 			>
+				{renderQuickActionsTrigger(
+					'Acciones de cotizacion',
+					quickActions,
+					'Acciones rapidas de cotizacion',
+				)}
 				{renderQuoteCardContent(item)}
 			</MotionFlashSurface>
 		)
@@ -2748,7 +3137,7 @@ export default function Home() {
 					) : (
 						<Empty
 							text={`Sin trabajos en ${group.label.toLowerCase()}.`}
-							hint="Cuando cambie el estado de una reserva, va a aparecer en esta columna."
+							hint="La columna queda lista para recibir trabajos cuando cambie el avance operativo."
 						/>
 					)}
 				</div>
@@ -2868,18 +3257,32 @@ export default function Home() {
 			reservationStatus: reservation.status,
 			workOrderStatus: showWork ? workOrder?.status : undefined,
 		})
+		const quickActions = agendaReservationQuickActions(
+			reservation,
+			workOrder,
+			row,
+			actions,
+		)
 
 		return (
 			<AgendaReservationCard
 				actions={actions}
-				detailProps={detailRecordProps(
-					'Reserva',
-					showWork
-						? { ...reservation, work_order: workOrderForDetail }
-						: reservation,
-				)}
+				detailProps={{
+					...detailRecordProps(
+						'Reserva',
+						showWork
+							? { ...reservation, work_order: workOrderForDetail }
+							: reservation,
+					),
+					...quickActionTargetProps('Acciones de agenda', quickActions),
+				}}
 				phase={row.phase}
 				phaseLabel={agendaPhaseLabels[row.phase]}
+				quickActionsTrigger={renderQuickActionsTrigger(
+					'Acciones de agenda',
+					quickActions,
+					'Acciones rapidas de agenda',
+				)}
 				rangeLabel={rangeLabel}
 				reservation={reservation}
 				reservationStatusLabel={
@@ -3205,6 +3608,7 @@ export default function Home() {
 		const quoteId = String(item.id ?? '')
 		const laneStatus = quoteLaneStatus(item)
 		const canDrag = laneStatus === 'draft'
+		const quickActions = quoteQuickActions(item)
 		const { listeners, setNodeRef, isDragging } = useDraggable({
 			id: `quote:${quoteId}`,
 			data: {
@@ -3230,7 +3634,13 @@ export default function Home() {
 					),
 				)}
 				{...detailRecordProps('Cotizacion', item)}
+				{...quickActionTargetProps('Acciones de cotizacion', quickActions)}
 			>
+				{renderQuickActionsTrigger(
+					'Acciones de cotizacion',
+					quickActions,
+					'Acciones rapidas de cotizacion',
+				)}
 				{renderQuoteCardContent(item)}
 			</MotionFlashSurface>
 		)
@@ -3328,16 +3738,12 @@ export default function Home() {
 
 	async function runAction<T>(
 		action: () => Promise<T>,
-		options?: {
-			flashTarget?: string | null | ((result: T) => string | null | undefined)
-			successTitle?: ActionMessage<T>
-			successDescription?: ActionMessage<T>
-		},
+		options?: RunActionOptions<T>,
 	) {
 		setError(null)
 		try {
 			const result = await action()
-			await loadData()
+			await loadData({ force: true })
 			const target =
 				typeof options?.flashTarget === 'function'
 					? options.flashTarget(result)
@@ -3347,13 +3753,26 @@ export default function Home() {
 				resolveActionMessage(options?.successTitle, result) ??
 				(target ? 'Cambio guardado' : null)
 			if (successTitle) {
-				showToast({
-					tone: 'success',
-					title: successTitle,
-					description:
-						resolveActionMessage(options?.successDescription, result) ??
-						undefined,
-				})
+				const successDescription =
+					resolveActionMessage(options?.successDescription, result) ??
+					successToastDescription(successTitle)
+				if (options?.undo) {
+					registerUndoAction(
+						result,
+						options.undo,
+						successTitle,
+						successDescription,
+					)
+				} else {
+					clearPendingUndo()
+					showToast({
+						tone: 'success',
+						title: successTitle,
+						description: successDescription,
+					})
+				}
+			} else {
+				clearPendingUndo()
 			}
 			return result
 		} catch (err: any) {
@@ -3361,8 +3780,68 @@ export default function Home() {
 		}
 	}
 
-	async function createQuoteFromReservation(item: AnyRecord) {
-		const createdQuote = await runAction(
+	function apiPathForRecord(kind: string, id: string | number | null | undefined) {
+		if (id === null || id === undefined || id === '') return ''
+		const detailPath = detailEndpoint(kind, id)
+		if (detailPath) return detailPath
+		const paths: Record<string, string> = {
+			payment: `/payments/${id}/`,
+			'stock-movement': `/stock-movements/${id}/`,
+			'material-open-unit': `/material-open-units/${id}/`,
+		}
+		return paths[kind] ?? ''
+	}
+
+	function undoCreatedRecord<T extends AnyRecord = AnyRecord>(
+		kind: string,
+		options: {
+			beforeDelete?: (result: T) => Promise<void>
+		} = {},
+	): UndoAction<T> {
+		return {
+			execute: async (result: T) => {
+				const path = apiPathForRecord(kind, result?.id)
+				if (!path) {
+					throw new Error('No se pudo encontrar el registro para deshacer.')
+				}
+				if (options.beforeDelete) {
+					await options.beforeDelete(result)
+				}
+				await apiFetch(path, { method: 'DELETE' })
+			},
+			successTitle: 'Creacion deshecha',
+		}
+	}
+
+	function undoPatchRecord(
+		path: string,
+		payload: AnyRecord,
+		successTitle = 'Cambio deshecho',
+	): UndoAction<any> {
+		return {
+			execute: async () => {
+				if (!path) {
+					throw new Error('No se pudo encontrar el registro para deshacer.')
+				}
+				await apiFetch(path, {
+					method: 'PATCH',
+					body: JSON.stringify(payload),
+				})
+			},
+			successTitle,
+		}
+	}
+
+	function undoRestoreActiveRecord(kind: string, data: AnyRecord): UndoAction<any> {
+		return undoPatchRecord(
+			apiPathForRecord(kind, data?.id),
+			{ is_active: true },
+			'Registro restaurado',
+		)
+	}
+
+	async function ensureQuoteFromReservation(item: AnyRecord) {
+		return runAction(
 			() =>
 				apiFetch(`/reservations/${item.id}/quote/`, {
 					method: 'POST',
@@ -3372,11 +3851,23 @@ export default function Home() {
 				successTitle: entityFeedbackTitle('quote', 'created'),
 			},
 		)
+	}
+
+	async function createQuoteFromReservation(item: AnyRecord) {
+		const createdQuote = await ensureQuoteFromReservation(item)
 		if (createdQuote) {
 			setActive('quotes')
 			openDetailModal('Cotizacion', createdQuote)
 		}
 		return createdQuote
+	}
+
+	async function downloadQuotePdfFromReservation(item: AnyRecord) {
+		const quote = await ensureQuoteFromReservation(item)
+		if (quote) {
+			await downloadQuotePdf(quote)
+		}
+		return quote
 	}
 
 	function downloadQuotePdf(item: AnyRecord) {
@@ -3400,6 +3891,17 @@ export default function Home() {
 			{
 				flashTarget: recordFlashKey('quote', item.id),
 				successTitle: 'PDF descargado y cotizacion enviada',
+				undo: {
+					execute: async () => {
+						await apiFetch(`/quotes/${item.id}/`, {
+							method: 'PATCH',
+							body: JSON.stringify({
+								status: item.status ?? 'draft',
+							}),
+						})
+					},
+					successTitle: 'Cotizacion restaurada',
+				},
 			},
 		)
 	}
@@ -3566,7 +4068,19 @@ export default function Home() {
 			})
 			setReservations((current) => replaceReservationRecord(current, saved))
 			flash(agendaCardFlashKey(`reservation:${reservationId}`))
-			showToast({ tone: 'success', title: 'Reserva movida' })
+			registerUndoAction(
+				saved,
+				undoPatchRecord(
+					`/reservations/${reservationId}/`,
+					{
+						day: originDay,
+						exit_day: activeReservation.exit_day || null,
+					},
+					'Movimiento deshecho',
+				),
+				'Reserva movida',
+				successToastDescription('Reserva movida'),
+			)
 		} catch (err: any) {
 			setReservations(previousReservations)
 			setError(
@@ -3628,6 +4142,7 @@ export default function Home() {
 		const nextStatus = workStatusDropStatusForColumn(targetColumn)
 		const previousReservations = reservations
 		const previousWorkOrders = workOrders
+		const previousStatus = workOrder?.status ?? activeReservation?.status
 
 		setActiveWorkStatusReservationId(null)
 		setWorkStatusDropStatus(null)
@@ -3693,7 +4208,22 @@ export default function Home() {
 				),
 			)
 			flash(agendaCardFlashKey(`reservation:${reservationId}`))
-			showToast({ tone: 'success', title: 'Estado actualizado' })
+			registerUndoAction(
+				savedWorkOrder,
+				{
+					execute: async () => {
+						await apiFetch(`/work-orders/${workOrderId}/status/`, {
+							method: 'POST',
+							body: JSON.stringify({
+								status: previousStatus,
+							}),
+						})
+					},
+					successTitle: 'Estado anterior restaurado',
+				},
+				'Estado actualizado',
+				successToastDescription('Estado actualizado'),
+			)
 		} catch (err: any) {
 			setReservations(previousReservations)
 			setWorkOrders(previousWorkOrders)
@@ -3771,12 +4301,18 @@ export default function Home() {
 				`/quotes/${quoteId}/pdf-mark-sent/`,
 				`cotizacion-${activeQuote.public_code ?? activeQuote.id}.pdf`,
 			)
-			await loadData()
+			await loadData({ force: true })
 			flash(recordFlashKey('quote', quoteId))
-			showToast({
-				tone: 'success',
-				title: 'PDF descargado y cotizacion enviada',
-			})
+			registerUndoAction(
+				activeQuote,
+				undoPatchRecord(
+					`/quotes/${quoteId}/`,
+					{ status: originStatus },
+					'Cotizacion restaurada',
+				),
+				'PDF descargado y cotizacion enviada',
+				successToastDescription('PDF descargado y cotizacion enviada'),
+			)
 		} catch (err: any) {
 			setQuotes(previousQuotes)
 			setError(
@@ -3821,7 +4357,11 @@ export default function Home() {
 		setSelectedDay(targetDay)
 		setActive('agenda')
 		flash(agendaCardFlashKey(`reservation:${reservationId}`))
-		showToast({ tone: 'success', title: 'Reserva ubicada en agenda' })
+		showToast({
+			tone: 'success',
+			title: 'Reserva ubicada en agenda',
+			description: successToastDescription('Reserva ubicada en agenda'),
+		})
 	}
 
 	async function logout() {
@@ -3845,17 +4385,38 @@ export default function Home() {
 		setCurrentUser(null)
 		setToken(nextToken)
 		if (!user.can_view_economy && sectionRequiresEmployer(active)) {
+			navigationHistoryModeRef.current = 'replaceState'
 			setActive('agenda')
 		}
 	}
 
-	function closeSidebarMobileMenu() {
+	function restoreSidebarMobileFocus() {
+		window.requestAnimationFrame(() => {
+			if (focusElementIfAvailable(sidebarReturnFocusRef.current)) return
+			sidebarMobileToggleRef.current?.focus()
+		})
+	}
+
+	function closeSidebarMobileMenu(
+		options: { restoreFocus?: boolean } = { restoreFocus: true },
+	) {
 		setSidebarMobileOpen(false)
+		if (options.restoreFocus !== false) {
+			restoreSidebarMobileFocus()
+		}
 	}
 
 	function toggleSidebarMobileMenu() {
+		if (sidebarMobileOpen) {
+			closeSidebarMobileMenu()
+			return
+		}
+		sidebarReturnFocusRef.current =
+			document.activeElement instanceof HTMLElement
+				? document.activeElement
+				: sidebarMobileToggleRef.current
 		setSidebarCollapsed(false)
-		setSidebarMobileOpen((current) => !current)
+		setSidebarMobileOpen(true)
 	}
 
 	function handleSectionChange(key: string) {
@@ -3866,10 +4427,10 @@ export default function Home() {
 	const pendingPublicRequestsCount = publicRequests.filter(
 		(item) => item.status === 'pending',
 	).length
-	const businessSlug = String(currentUser?.business?.slug ?? '')
-	const publicLandingUrl = businessSlug
-		? `${typeof window !== 'undefined' ? window.location.origin : ''}/publica/${businessSlug}`
-		: ''
+	const activeEmployeeCount = employees.filter(
+		(item) => item.is_active !== false,
+	).length
+	const inactiveEmployeeCount = employees.length - activeEmployeeCount
 	const title = sectionMeta[displayedActive]
 	const navItems: SidebarNavItem[] = (Object.keys(sectionMeta) as Section[])
 		.filter((key) => canViewEconomy || !sectionRequiresEmployer(key))
@@ -4256,12 +4817,11 @@ export default function Home() {
 	}
 
 	const cashFiltersActive = hasCashFilters(cashFilters)
-	const cashSummaryModeLabel =
-		cashSummaryModeOptions.find((option) => option.value === cashSummaryMode)
-			?.label ?? 'Caja real'
+	const debtFiltersActive = Boolean(search.trim()) || hasDebtFilters(debtFilters)
+	const settingsSectionLabel =
+		settingsSectionOptions.find((option) => option.value === settingsSection)
+			?.label ?? 'Configuracion'
 	const cashIsClosed = cash.is_closed === true
-	const cashStatusLabel = cashIsClosed ? 'Cerrada' : 'Abierta'
-	const cashStatusClass = cashIsClosed ? 'closed' : 'open'
 	const selectedPurchaseMaterial = materials.find(
 		(item) => String(item.id) === String(purchaseForm.material),
 	)
@@ -4286,10 +4846,13 @@ export default function Home() {
 			total + numberValue(line.quantity) * numberValue(line.unit_price),
 		0,
 	)
+	const selectedWorkOrderForPayment = workOrders.find(
+		(item) => String(item.id) === String(paymentForm.work_order),
+	)
 	const selectedDebtForPayment = debts.find(
 		(item) => String(item.id) === String(debtPaymentForm.debt),
 	)
-	const debtSummary = debts.reduce(
+	const debtSummary = debts.reduce<DebtSummary>(
 		(summary, debt) => ({
 			original: summary.original + numberValue(debt.principal_amount),
 			paid: summary.paid + numberValue(debt.total_paid),
@@ -4297,6 +4860,10 @@ export default function Home() {
 			open: summary.open + (numberValue(debt.balance_due) > 0 ? 1 : 0),
 		}),
 		{ original: 0, paid: 0, pending: 0, open: 0 },
+	)
+	const cashLoadBlocked = Boolean(loadErrorNotice && !cashEntries.length)
+	const debtLoadBlocked = Boolean(
+		loadErrorNotice && !debts.length && !debtPayments.length,
 	)
 
 	function materialUsageRows(material: AnyRecord) {
@@ -4424,7 +4991,10 @@ export default function Home() {
 							</MotionFlashSurface>
 						))
 					) : (
-						<Empty text="Sin cumpleanos en los proximos dias." />
+						<Empty
+							text="Sin cumpleanos en los proximos dias."
+							hint="La alerta vuelve a aparecer aca cuando un cliente entre en la ventana configurada."
+						/>
 					)}
 				</div>
 			</Panel>
@@ -6265,72 +6835,52 @@ export default function Home() {
 		}))
 	}
 
+	function updateDebtFilter(key: keyof DebtFilterState, value: string) {
+		setDebtFilters((current) => ({
+			...current,
+			[key]: value,
+		}))
+	}
+
+	function clearDebtFilters() {
+		setSearch('')
+		setDebtFilters(DEBT_FILTER_DEFAULTS)
+	}
+
+	function debtPaymentDetailData(item: AnyRecord) {
+		const sourceId = item.source_id ?? item.id
+		const payment = debtPayments.find(
+			(current) => String(current.id) === String(sourceId),
+		)
+		if (payment) return payment
+		return {
+			...item,
+			id: sourceId,
+			debt: item.debt,
+			paid_at: String(item.occurred_at ?? '').slice(0, 10),
+			notes: item.description ?? '',
+		}
+	}
+
+	function openCashEntryDetail(item: AnyRecord) {
+		if (item.source_kind === 'debt_payment') {
+			openDetailModal('Pago de deuda', debtPaymentDetailData(item))
+			return
+		}
+		openDetailModal('Movimiento de caja', item)
+	}
+
+	function openDebtPaymentForDebt(debt: AnyRecord) {
+		setDebtPaymentForm({
+			...blankDebtPaymentForm(today),
+			debt: String(debt.id),
+			amount: normalizedAmountInput(debt.balance_due),
+		})
+		setFormModal({ kind: 'debt-payment' })
+	}
+
 	function moveSelectedCashDay(offset: number) {
 		setSelectedDay((current) => addDays(current || today, offset))
-	}
-
-	function renderCashSummaryLine(line: CashSummaryLine) {
-		return (
-			<div className="cash-summary-line" key={line.key}>
-				<span className="cash-summary-line-label">
-					{line.amount < 0 ? '↓ ' : ''}
-					{line.label}
-					<small>
-						({line.count}) {formatCashPercent(line.percent)}
-					</small>
-				</span>
-				<span
-					className={`cash-summary-line-amount ${cashSummaryAmountClass(
-						line.amount,
-					)}`}
-				>
-					{money(line.amount)}
-				</span>
-			</div>
-		)
-	}
-
-	function renderCashSummaryGroup(
-		groupKey: string,
-		options: { hideWhenEmpty?: boolean } = {},
-	) {
-		const group = cashFlowSummary.groups.find((item) => item.key === groupKey)
-		if (!group || (options.hideWhenEmpty && group.count === 0)) return null
-		return (
-			<div className="cash-summary-group" key={group.key}>
-				<div className="cash-summary-group-head">
-					<span className="cash-summary-group-title">
-						{group.label}
-						{group.lines.length ? <Eye size={15} aria-hidden="true" /> : null}
-					</span>
-					<strong
-						className={`cash-summary-total ${cashSummaryAmountClass(
-							group.amount,
-						)}`}
-					>
-						{money(group.amount)}
-					</strong>
-				</div>
-				{group.lines.length ? (
-					<div className="cash-summary-lines">
-						{group.lines.map(renderCashSummaryLine)}
-					</div>
-				) : null}
-			</div>
-		)
-	}
-
-	function renderCashSummaryBalance(label: string, amount: number) {
-		return (
-			<div className="cash-summary-balance" key={label}>
-				<span>{label}</span>
-				<strong
-					className={`cash-summary-total ${cashSummaryAmountClass(amount)}`}
-				>
-					{money(amount)}
-				</strong>
-			</div>
-		)
 	}
 
 	function closeCashDay() {
@@ -6583,6 +7133,7 @@ export default function Home() {
 		}, {
 			flashTarget: fieldFlashKey(quickCreate.target),
 			successTitle: entityFeedbackTitle('customer', 'created'),
+			undo: undoCreatedRecord('customer'),
 		})
 	}
 
@@ -6609,6 +7160,7 @@ export default function Home() {
 		}, {
 			flashTarget: fieldFlashKey(quickCreate.target),
 			successTitle: entityFeedbackTitle('vehicle', 'created'),
+			undo: undoCreatedRecord('vehicle'),
 		})
 	}
 
@@ -6635,6 +7187,7 @@ export default function Home() {
 		}, {
 			flashTarget: fieldFlashKey(quickCreate.target),
 			successTitle: entityFeedbackTitle('service', 'created'),
+			undo: undoCreatedRecord('service'),
 		})
 	}
 
@@ -6660,6 +7213,7 @@ export default function Home() {
 		}, {
 			flashTarget: fieldFlashKey(quickCreate.target),
 			successTitle: entityFeedbackTitle('material', 'created'),
+			undo: undoCreatedRecord('material'),
 		})
 	}
 
@@ -6678,6 +7232,7 @@ export default function Home() {
 		}, {
 			flashTarget: fieldFlashKey(quickCreate.target),
 			successTitle: entityFeedbackTitle('supplier', 'created'),
+			undo: undoCreatedRecord('supplier'),
 		})
 	}
 
@@ -6694,6 +7249,7 @@ export default function Home() {
 		}, {
 			flashTarget: fieldFlashKey(target),
 			successTitle: entityFeedbackTitle('supplier', 'created'),
+			undo: undoCreatedRecord('supplier'),
 		})
 	}
 
@@ -6864,7 +7420,11 @@ export default function Home() {
 			})
 			setCurrentUser(saved)
 			syncProfileForm(saved)
-			showToast({ tone: 'success', title: 'Perfil actualizado' })
+			showToast({
+				tone: 'success',
+				title: 'Perfil actualizado',
+				description: successToastDescription('Perfil actualizado'),
+			})
 		} catch (err: any) {
 			setError(
 				formatApiError(err, {
@@ -6939,6 +7499,83 @@ export default function Home() {
 		setSupplierDashboard(supplier)
 	}
 
+	function availableQuickActions(actions: QuickAction[]) {
+		return actions.filter((action) => !action.hidden)
+	}
+
+	function openQuickActionsAt(
+		anchorPoint: { x: number; y: number },
+		title: string,
+		actions: QuickAction[],
+		returnFocusElement?: HTMLElement | null,
+	) {
+		const visibleActions = availableQuickActions(actions)
+		if (!visibleActions.length) return
+		quickActionsReturnFocusRef.current = returnFocusElement ?? null
+		setQuickActionsMenu({
+			title,
+			actions: visibleActions,
+			anchorPoint,
+		})
+	}
+
+	function openQuickActionsFromContext(
+		event: MouseEvent<HTMLElement>,
+		title: string,
+		actions: QuickAction[],
+	) {
+		event.preventDefault()
+		event.stopPropagation()
+		openQuickActionsAt(
+			{ x: event.clientX, y: event.clientY },
+			title,
+			actions,
+			event.currentTarget,
+		)
+	}
+
+	function openQuickActionsFromTrigger(
+		event: MouseEvent<HTMLButtonElement>,
+		title: string,
+		actions: QuickAction[],
+	) {
+		event.preventDefault()
+		event.stopPropagation()
+		const rect = event.currentTarget.getBoundingClientRect()
+		openQuickActionsAt(
+			{ x: rect.right, y: rect.bottom },
+			title,
+			actions,
+			event.currentTarget,
+		)
+	}
+
+	function quickActionTargetProps(title: string, actions: QuickAction[]) {
+		return {
+			onContextMenu: (event: MouseEvent<HTMLElement>) =>
+				openQuickActionsFromContext(event, title, actions),
+		}
+	}
+
+	function renderQuickActionsTrigger(
+		title: string,
+		actions: QuickAction[],
+		ariaLabel = 'Abrir acciones rapidas',
+	) {
+		if (!availableQuickActions(actions).length) return null
+		return (
+			<button
+				type="button"
+				className="ghost icon-button quick-actions-trigger"
+				aria-label={ariaLabel}
+				title={ariaLabel}
+				onClick={(event) => openQuickActionsFromTrigger(event, title, actions)}
+			>
+				<MoreHorizontal size={16} />
+			</button>
+		)
+	}
+
 	function interactiveRecordProps(onOpen: () => void) {
 		return {
 			role: 'button',
@@ -6972,6 +7609,363 @@ export default function Home() {
 			expense_subcategory: 'Compra de materiales',
 		})
 		setFormModal({ kind: 'debt' })
+	}
+
+	function openUnitForMaterial(material: AnyRecord) {
+		setOpenUnitForm({
+			material: String(material.id),
+			opened_at: selectedDay,
+			opened_by_work_order: '',
+			stock_quantity_to_decrement: '1',
+			observations: '',
+		})
+		setFormModal({ kind: 'material-open-unit' })
+	}
+
+	function customerForRecord(record: AnyRecord | null | undefined) {
+		const customerId =
+			record?.customer ?? record?.customer_id ?? record?.customerId ?? null
+		if (customerId === null || customerId === undefined || customerId === '') {
+			return null
+		}
+		return (
+			customers.find((customer) => String(customer.id) === String(customerId)) ??
+			null
+		)
+	}
+
+	function vehicleForRecord(record: AnyRecord | null | undefined) {
+		const vehicleId =
+			record?.vehicle ?? record?.vehicle_id ?? record?.vehicleId ?? null
+		if (vehicleId === null || vehicleId === undefined || vehicleId === '') {
+			return null
+		}
+		return (
+			vehicles.find((vehicle) => String(vehicle.id) === String(vehicleId)) ??
+			null
+		)
+	}
+
+	function deleteRecordQuickAction(
+		kind: string,
+		data: AnyRecord,
+		label = 'Eliminar',
+	): QuickAction {
+		const path = data?.id ? detailEndpoint(kind, data.id) : ''
+		const undo =
+			data && 'is_active' in data ? undoRestoreActiveRecord(kind, data) : null
+		return {
+			id: `${kind}:delete:${data?.id ?? 'new'}`,
+			label,
+			icon: <Trash2 size={15} />,
+			tone: 'danger',
+			requiresConfirm: true,
+			hidden: !path,
+			onSelect: () =>
+				runAction(
+					() =>
+						apiFetch(path, {
+							method: 'DELETE',
+						}),
+					{
+						successTitle: entityFeedbackTitle(kind, 'deleted'),
+						...(undo ? { undo } : {}),
+					},
+				),
+		}
+	}
+
+	function customerQuickActions(customer: AnyRecord): QuickAction[] {
+		const customerName = serviceDisplayName(customer)
+		const actions: QuickAction[] = [
+			{
+				id: `customer:dashboard:${customer.id}`,
+				label: canViewEconomy ? 'Dashboard cliente' : 'Detalle cliente',
+				icon: <Eye size={15} />,
+				onSelect: () => openCustomerDashboard(customer),
+			},
+			{
+				id: `customer:edit:${customer.id}`,
+				label: 'Editar cliente',
+				icon: <Pencil size={15} />,
+				onSelect: () => openDetailModal('Cliente', customer),
+			},
+			deleteRecordQuickAction('customer', customer, 'Baja cliente'),
+		]
+		return actions.map((action) => ({
+			...action,
+			description: action.description ?? customerName,
+		}))
+	}
+
+	function vehicleQuickActions(vehicle: AnyRecord): QuickAction[] {
+		const customer = customerForRecord(vehicle)
+		return [
+			{
+				id: `vehicle:detail:${vehicle.id}`,
+				label: 'Detalle vehiculo',
+				icon: <Eye size={15} />,
+				onSelect: () => openDetailModal('Vehiculo', vehicle),
+			},
+			{
+				id: `vehicle:customer:${vehicle.id}`,
+				label: 'Cliente',
+				icon: <Users size={15} />,
+				hidden: !customer,
+				onSelect: () => customer && openCustomerDashboard(customer),
+			},
+			deleteRecordQuickAction('vehicle', vehicle, 'Baja vehiculo'),
+		]
+	}
+
+	function supplierQuickActions(supplier: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `supplier:dashboard:${supplier.id}`,
+				label: 'Dashboard proveedor',
+				icon: <Eye size={15} />,
+				hidden: !canViewEconomy,
+				onSelect: () => openSupplierDashboard(supplier),
+			},
+			{
+				id: `supplier:purchase:${supplier.id}`,
+				label: 'Nueva compra',
+				icon: <Package size={15} />,
+				hidden: !canViewEconomy,
+				onSelect: () => openStockPurchaseForSupplier(supplier),
+			},
+			{
+				id: `supplier:debt:${supplier.id}`,
+				label: 'Nueva deuda',
+				icon: <ReceiptText size={15} />,
+				hidden: !canViewEconomy,
+				onSelect: () => openDebtForSupplier(supplier),
+			},
+			{
+				id: `supplier:edit:${supplier.id}`,
+				label: 'Editar proveedor',
+				icon: <Pencil size={15} />,
+				onSelect: () => openDetailModal('Proveedor', supplier),
+			},
+			deleteRecordQuickAction('supplier', supplier, 'Inactivar proveedor'),
+		]
+	}
+
+	function serviceQuickActions(service: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `service:dashboard:${service.id}`,
+				label: 'Dashboard servicio',
+				icon: <Eye size={15} />,
+				onSelect: () => openServiceDashboard(service),
+			},
+			{
+				id: `service:edit:${service.id}`,
+				label: 'Editar servicio',
+				icon: <Pencil size={15} />,
+				onSelect: () => openDetailModal('Servicio', service),
+			},
+			deleteRecordQuickAction('service', service, 'Inactivar servicio'),
+		]
+	}
+
+	function materialQuickActions(material: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `material:open-unit:${material.id}`,
+				label: 'Abrir unidad',
+				icon: <Package size={15} />,
+				hidden: !canViewEconomy,
+				onSelect: () => openUnitForMaterial(material),
+			},
+			{
+				id: `material:edit:${material.id}`,
+				label: 'Editar material',
+				icon: <Pencil size={15} />,
+				onSelect: () => openDetailModal('Material', material),
+			},
+			deleteRecordQuickAction('material', material, 'Inactivar material'),
+		]
+	}
+
+	function toolQuickActions(tool: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `tool:edit:${tool.id}`,
+				label: 'Editar herramienta',
+				icon: <Pencil size={15} />,
+				onSelect: () => openDetailModal('Herramienta', tool),
+			},
+			deleteRecordQuickAction('tool', tool, 'Inactivar herramienta'),
+		]
+	}
+
+	function debtQuickActions(debt: AnyRecord): QuickAction[] {
+		const hasBalance = numberValue(debt.balance_due) > 0
+		return [
+			{
+				id: `debt:pay:${debt.id}`,
+				label: 'Registrar pago',
+				icon: <CreditCard size={15} />,
+				hidden: !hasBalance,
+				onSelect: () => openDebtPaymentForDebt(debt),
+			},
+			{
+				id: `debt:detail:${debt.id}`,
+				label: 'Detalle deuda',
+				icon: <Eye size={15} />,
+				onSelect: () => openDetailModal('Deuda', debt),
+			},
+			deleteRecordQuickAction('debt', debt, 'Eliminar deuda'),
+		]
+	}
+
+	function debtPaymentQuickActions(payment: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `debt-payment:detail:${payment.id}`,
+				label: 'Detalle pago',
+				icon: <Eye size={15} />,
+				onSelect: () => openDetailModal('Pago de deuda', payment),
+			},
+			deleteRecordQuickAction('debt-payment', payment, 'Eliminar pago'),
+		]
+	}
+
+	function cashEntryQuickActions(entry: AnyRecord): QuickAction[] {
+		const sourceKind = String(entry.source_kind ?? '')
+		const isDebtPayment = sourceKind === 'debt_payment'
+		const isEditableCashMovement =
+			sourceKind === 'manual' || sourceKind === 'adjustment'
+		const sourceId = entry.source_id ?? entry.id
+		const deleteKind = isDebtPayment ? 'debt-payment' : 'cash-movement'
+		const deleteData = isDebtPayment
+			? debtPaymentDetailData(entry)
+			: { ...entry, id: sourceId }
+		const actions: QuickAction[] = [
+			{
+				id: `cash-entry:detail:${cashEntryKey(entry)}`,
+				label: 'Detalle movimiento',
+				icon: <Eye size={15} />,
+				onSelect: () => openCashEntryDetail(entry),
+			},
+			deleteRecordQuickAction(
+				deleteKind,
+				deleteData,
+				isDebtPayment ? 'Eliminar pago' : 'Eliminar movimiento',
+			),
+		]
+		return actions.map((action) => ({
+			...action,
+			hidden:
+				action.hidden ||
+				(action.id.startsWith(`${deleteKind}:delete:`) &&
+					!isDebtPayment &&
+					!isEditableCashMovement),
+		}))
+	}
+
+	function quoteQuickActions(quote: AnyRecord): QuickAction[] {
+		const customer = customerForRecord(quote)
+		const vehicle = vehicleForRecord(quote)
+		const hasReservation = quoteHasReservation(quote)
+		const isDraft = quoteLaneStatus(quote) === 'draft'
+		return [
+			{
+				id: `quote:detail:${quote.id}`,
+				label: 'Detalle cotizacion',
+				icon: <Eye size={15} />,
+				onSelect: () => openDetailModal('Cotizacion', quote),
+			},
+			{
+				id: `quote:pdf:${quote.id}`,
+				label: 'Bajar PDF',
+				icon: <FileText size={15} />,
+				onSelect: () => downloadQuotePdf(quote),
+			},
+			{
+				id: `quote:send:${quote.id}`,
+				label: 'Bajar y marcar enviada',
+				icon: <FileText size={15} />,
+				hidden: !isDraft,
+				onSelect: () => downloadQuotePdfAndMarkSent(quote),
+			},
+			{
+				id: `quote:agenda:${quote.id}`,
+				label: hasReservation ? 'Ver en agenda' : 'Crear reserva',
+				icon: <CalendarDays size={15} />,
+				onSelect: () =>
+					hasReservation
+						? openQuoteReservationInAgenda(quote)
+						: createReservationFromQuote(quote),
+			},
+			{
+				id: `quote:customer:${quote.id}`,
+				label: 'Cliente',
+				icon: <Users size={15} />,
+				hidden: !customer,
+				onSelect: () => customer && openCustomerDashboard(customer),
+			},
+			{
+				id: `quote:vehicle:${quote.id}`,
+				label: 'Vehiculo',
+				icon: <Car size={15} />,
+				hidden: !vehicle,
+				onSelect: () => vehicle && openDetailModal('Vehiculo', vehicle),
+			},
+			deleteRecordQuickAction('quote', quote, 'Eliminar cotizacion'),
+		]
+	}
+
+	function materialOpenUnitQuickActions(unit: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `material-open-unit:detail:${unit.id}`,
+				label: 'Detalle unidad',
+				icon: <Eye size={15} />,
+				onSelect: () => openDetailModal('Unidad abierta', unit),
+			},
+			{
+				id: `material-open-unit:finish:${unit.id}`,
+				label: 'Finalizar unidad',
+				icon: <CheckCircle2 size={15} />,
+				hidden: unit.status !== 'open',
+				onSelect: () => finishOpenUnit(unit),
+			},
+		]
+	}
+
+	function materialPurchaseQuickActions(purchase: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `material-purchase:detail:${purchase.id}`,
+				label: 'Detalle compra',
+				icon: <Eye size={15} />,
+				onSelect: () => openDetailModal('Compra de material', purchase),
+			},
+			deleteRecordQuickAction(
+				'material-purchase',
+				purchase,
+				'Eliminar compra',
+			),
+		]
+	}
+
+	function materialConsumptionQuickActions(consumption: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `material-consumption:detail:${consumption.id}`,
+				label: 'Detalle consumo',
+				icon: <Eye size={15} />,
+				onSelect: () =>
+					openDetailModal('Consumo de material', consumption),
+			},
+			deleteRecordQuickAction(
+				'material-consumption',
+				consumption,
+				'Eliminar consumo',
+			),
+		]
 	}
 
 	function detailRecordProps(title: string, data: AnyRecord) {
@@ -7412,6 +8406,10 @@ export default function Home() {
 				currentDetail.data.id,
 			),
 			successTitle: entityFeedbackTitle(currentDetail.kind, 'updated'),
+			undo: undoPatchRecord(
+				path,
+				cleanDetailPayload(currentDetail.kind, currentDetail.data),
+			),
 		})
 	}
 
@@ -7425,6 +8423,14 @@ export default function Home() {
 			detailExit.close()
 		}, {
 			successTitle: entityFeedbackTitle(currentDetail.kind, 'deleted'),
+			...('is_active' in currentDetail.data
+				? {
+						undo: undoRestoreActiveRecord(
+							currentDetail.kind,
+							currentDetail.data,
+						),
+				  }
+				: {}),
 		})
 	}
 
@@ -9100,6 +10106,9 @@ export default function Home() {
 	async function saveCustomer(event: FormEvent) {
 		event.preventDefault()
 		const currentId = customerForm.id
+		const previousCustomer = currentId
+			? customers.find((item) => String(item.id) === String(currentId))
+			: null
 		await runAction(async () => {
 			const path = customerForm.id
 				? `/customers/${customerForm.id}/`
@@ -9119,12 +10128,22 @@ export default function Home() {
 				'customer',
 				currentId ? 'updated' : 'created',
 			),
+			undo:
+				currentId && previousCustomer
+					? undoPatchRecord(
+							`/customers/${currentId}/`,
+							cleanDetailPayload('customer', previousCustomer),
+					  )
+					: undoCreatedRecord('customer'),
 		})
 	}
 
 	async function saveVehicle(event: FormEvent) {
 		event.preventDefault()
 		const currentId = vehicleForm.id
+		const previousVehicle = currentId
+			? vehicles.find((item) => String(item.id) === String(currentId))
+			: null
 		await runAction(async () => {
 			const path = vehicleForm.id
 				? `/vehicles/${vehicleForm.id}/`
@@ -9152,12 +10171,22 @@ export default function Home() {
 				'vehicle',
 				currentId ? 'updated' : 'created',
 			),
+			undo:
+				currentId && previousVehicle
+					? undoPatchRecord(
+							`/vehicles/${currentId}/`,
+							cleanDetailPayload('vehicle', previousVehicle),
+					  )
+					: undoCreatedRecord('vehicle'),
 		})
 	}
 
 	async function saveService(event: FormEvent) {
 		event.preventDefault()
 		const currentId = serviceForm.id
+		const previousService = currentId
+			? services.find((item) => String(item.id) === String(currentId))
+			: null
 		await runAction(async () => {
 			const path = serviceForm.id
 				? `/services/${serviceForm.id}/`
@@ -9185,6 +10214,13 @@ export default function Home() {
 				'service',
 				currentId ? 'updated' : 'created',
 			),
+			undo:
+				currentId && previousService
+					? undoPatchRecord(
+							`/services/${currentId}/`,
+							cleanDetailPayload('service', previousService),
+					  )
+					: undoCreatedRecord('service'),
 		})
 	}
 
@@ -9265,6 +10301,7 @@ export default function Home() {
 				flashTarget: (created: AnyRecord) =>
 					recordFlashKey('quote', created?.id),
 				successTitle: entityFeedbackTitle('quote', 'created'),
+				undo: undoCreatedRecord('quote'),
 			})
 			if (createdQuote) {
 				setActive('quotes')
@@ -9288,16 +10325,25 @@ export default function Home() {
 						items: serviceLinePayload(reservationItems),
 					}),
 			})
-			await apiFetch<AnyRecord>(`/reservations/${created.id}/quote/`, {
+			const createdQuote = await apiFetch<AnyRecord>(`/reservations/${created.id}/quote/`, {
 				method: 'POST',
 			})
 			setReservationForm(blankReservationForm())
 			quickReservationExit.close()
-			return created
+			return { ...created, _created_quote_id: createdQuote?.id }
 		}, {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('reservation', created?.id),
 			successTitle: entityFeedbackTitle('reservation', 'created'),
+			undo: undoCreatedRecord('reservation', {
+				beforeDelete: async (created: AnyRecord) => {
+					if (created?._created_quote_id) {
+						await apiFetch(`/quotes/${created._created_quote_id}/`, {
+							method: 'DELETE',
+						})
+					}
+				},
+			}),
 		})
 	}
 
@@ -9327,6 +10373,7 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('payment', created?.id),
 			successTitle: entityFeedbackTitle('payment', 'created'),
+			undo: undoCreatedRecord('payment'),
 		})
 	}
 
@@ -9344,6 +10391,7 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('cash-movement', created?.id),
 			successTitle: entityFeedbackTitle('cash-movement', 'created'),
+			undo: undoCreatedRecord('cash-movement'),
 		})
 	}
 
@@ -9364,6 +10412,7 @@ export default function Home() {
 		}, {
 			flashTarget: (created: AnyRecord) => recordFlashKey('debt', created?.id),
 			successTitle: entityFeedbackTitle('debt', 'created'),
+			undo: undoCreatedRecord('debt'),
 		})
 	}
 
@@ -9381,12 +10430,16 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('debt-payment', created?.id),
 			successTitle: entityFeedbackTitle('debt-payment', 'created'),
+			undo: undoCreatedRecord('debt-payment'),
 		})
 	}
 
 	async function saveMaterial(event: FormEvent) {
 		event.preventDefault()
 		const currentId = materialForm.id
+		const previousMaterial = currentId
+			? materials.find((item) => String(item.id) === String(currentId))
+			: null
 		await runAction(async () => {
 			const path = materialForm.id
 				? `/materials/${materialForm.id}/`
@@ -9413,6 +10466,13 @@ export default function Home() {
 				'material',
 				currentId ? 'updated' : 'created',
 			),
+			undo:
+				currentId && previousMaterial
+					? undoPatchRecord(
+							`/materials/${currentId}/`,
+							cleanDetailPayload('material', previousMaterial),
+					  )
+					: undoCreatedRecord('material'),
 		})
 	}
 
@@ -9429,6 +10489,7 @@ export default function Home() {
 		}, {
 			flashTarget: (created: AnyRecord) => recordFlashKey('supplier', created?.id),
 			successTitle: entityFeedbackTitle('supplier', 'created'),
+			undo: undoCreatedRecord('supplier'),
 		})
 	}
 
@@ -9534,12 +10595,16 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('stock-movement', created?.id),
 			successTitle: entityFeedbackTitle('stock-movement', 'created'),
+			undo: undoCreatedRecord('stock-movement'),
 		})
 	}
 
 	async function saveTool(event: FormEvent) {
 		event.preventDefault()
 		const currentId = toolForm.id
+		const previousTool = currentId
+			? tools.find((item) => String(item.id) === String(currentId))
+			: null
 		await runAction(async () => {
 			const path = toolForm.id ? `/tools/${toolForm.id}/` : '/tools/'
 			const method = toolForm.id ? 'PATCH' : 'POST'
@@ -9568,6 +10633,13 @@ export default function Home() {
 				'tool',
 				currentId ? 'updated' : 'created',
 			),
+			undo:
+				currentId && previousTool
+					? undoPatchRecord(
+							`/tools/${currentId}/`,
+							cleanDetailPayload('tool', previousTool),
+					  )
+					: undoCreatedRecord('tool'),
 		})
 	}
 
@@ -9592,6 +10664,7 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('material-purchase', created?.id),
 			successTitle: entityFeedbackTitle('material-purchase', 'created'),
+			undo: undoCreatedRecord('material-purchase'),
 		})
 	}
 
@@ -9618,6 +10691,7 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('material-open-unit', created?.id),
 			successTitle: entityFeedbackTitle('material-open-unit', 'created'),
+			undo: undoCreatedRecord('material-open-unit'),
 		})
 	}
 
@@ -9676,6 +10750,7 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('material-consumption', created?.id),
 			successTitle: entityFeedbackTitle('material-consumption', 'created'),
+			undo: undoCreatedRecord('material-consumption'),
 		})
 	}
 
@@ -9896,6 +10971,7 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('quote', created?.id),
 			successTitle: entityFeedbackTitle('quote', 'created'),
+			undo: undoCreatedRecord('quote'),
 		})
 	}
 
@@ -9906,6 +10982,7 @@ export default function Home() {
 					label="Cliente"
 					value={reservationForm.customer}
 					options={customerOptions}
+					name="reservation_customer"
 					focusKey="reservation.customer"
 					className={flashClass(fieldFlashKey('reservation.customer'))}
 					onAdd={() =>
@@ -9917,6 +10994,7 @@ export default function Home() {
 					label="Vehiculo"
 					value={reservationForm.vehicle}
 					options={customerVehicleOptions}
+					name="reservation_vehicle"
 					focusKey="reservation.vehicle"
 					className={flashClass(fieldFlashKey('reservation.vehicle'))}
 					onAdd={() =>
@@ -9950,6 +11028,7 @@ export default function Home() {
 										label="Servicio"
 										value={item.service}
 										options={serviceOptions}
+										name={`reservation_items_${index}_service`}
 										focusKey={`reservation.service.${index}`}
 										className={flashClass(
 											fieldFlashKey(`reservation.service.${index}`),
@@ -9971,6 +11050,7 @@ export default function Home() {
 										<Field label="Cantidad">
 											<input
 												data-focus-key={`reservation.item.${index}.quantity`}
+												name={`reservation_items_${index}_quantity`}
 												type="number"
 												min="1"
 												value={item.quantity}
@@ -9987,6 +11067,7 @@ export default function Home() {
 										<Field label="Precio">
 											<input
 												data-focus-key={`reservation.item.${index}.price`}
+												name={`reservation_items_${index}_unit_price`}
 												type="number"
 												min="0"
 												value={item.unit_price}
@@ -10030,6 +11111,7 @@ export default function Home() {
 					<Field label="Fecha de ingreso (opcional)">
 						<input
 							data-focus-key="reservation.day"
+							name="reservation_day"
 							type="date"
 							value={reservationForm.day}
 							onChange={(event) => {
@@ -10045,6 +11127,7 @@ export default function Home() {
 					<Field label="Fecha de egreso">
 						<input
 							data-focus-key="reservation.exit_day"
+							name="reservation_exit_day"
 							type="date"
 							value={reservationForm.exit_day}
 							onChange={(event) => {
@@ -10072,6 +11155,7 @@ export default function Home() {
 						<Field label="Hora de ingreso (opcional)">
 							<input
 								data-focus-key="reservation.start_time"
+								name="reservation_start_time"
 								type="time"
 								value={reservationForm.start_time}
 								onChange={(event) => {
@@ -10087,6 +11171,7 @@ export default function Home() {
 						<Field label="Hora de egreso (opcional)">
 							<input
 								data-focus-key="reservation.exit_time"
+								name="reservation_exit_time"
 								type="time"
 								value={reservationForm.exit_time}
 								onChange={(event) => {
@@ -10104,6 +11189,8 @@ export default function Home() {
 				<Field label="Notas">
 					<textarea
 						data-focus-key="reservation.notes"
+						name="reservation_notes"
+						autoComplete="off"
 						value={reservationForm.notes}
 						onChange={(event) =>
 							setReservationForm({
@@ -10127,6 +11214,8 @@ export default function Home() {
 				<Field label="Nombre">
 					<input
 						data-focus-key="customer.name"
+						name="customer_name"
+						autoComplete="name"
 						required
 						list="customer-name-options"
 						value={customerForm.name}
@@ -10142,6 +11231,9 @@ export default function Home() {
 				<Field label="Telefono">
 					<input
 						data-focus-key="customer.phone"
+						name="customer_phone"
+						autoComplete="tel"
+						inputMode="tel"
 						list="customer-phone-options"
 						value={customerForm.phone}
 						onChange={(event) =>
@@ -10156,7 +11248,9 @@ export default function Home() {
 					<Field label="Email">
 						<input
 							data-focus-key="customer.email"
+							name="customer_email"
 							type="email"
+							autoComplete="email"
 							list="customer-email-options"
 							value={customerForm.email}
 							onChange={(event) =>
@@ -10172,6 +11266,8 @@ export default function Home() {
 						<Field label="CUIT/DNI">
 							<input
 								data-focus-key="customer.tax_id"
+								name="customer_tax_id"
+								autoComplete="off"
 								value={customerForm.tax_id}
 								onChange={(event) =>
 									setCustomerForm({
@@ -10185,6 +11281,8 @@ export default function Home() {
 						<Field label="Domicilio fiscal">
 							<input
 								data-focus-key="customer.billing_address"
+								name="customer_billing_address"
+								autoComplete="street-address"
 								value={customerForm.billing_address}
 								onChange={(event) =>
 									setCustomerForm({
@@ -10199,6 +11297,8 @@ export default function Home() {
 					<BirthdayFields
 						day={customerForm.birthday_day}
 						month={customerForm.birthday_month}
+						dayName="customer_birthday_day"
+						monthName="customer_birthday_month"
 						dayFocusKey="customer.birthday_day"
 						monthFocusKey="customer.birthday_month"
 						onDayChange={(value) =>
@@ -10219,6 +11319,8 @@ export default function Home() {
 				<Field label="Notas">
 					<textarea
 						data-focus-key="customer.notes"
+						name="customer_notes"
+						autoComplete="off"
 						value={customerForm.notes}
 						onChange={(event) =>
 							setCustomerForm({
@@ -10243,6 +11345,7 @@ export default function Home() {
 					label="Cliente"
 					value={vehicleForm.customer}
 					options={customerOptions}
+					name="vehicle_customer"
 					focusKey="vehicle.customer"
 					className={flashClass(fieldFlashKey('vehicle.customer'))}
 					onAdd={() => openQuickCreate('customer', 'vehicle.customer')}
@@ -10253,6 +11356,7 @@ export default function Home() {
 						label="Marca"
 						value={vehicleForm.brand}
 						options={vehicleBrandSelectOptions}
+						name="vehicle_brand"
 						placeholder="Sin marca"
 						focusKey="vehicle.brand"
 						onChange={updateVehicleBrand}
@@ -10263,6 +11367,7 @@ export default function Home() {
 						label="Modelo"
 						value={vehicleForm.model}
 						options={vehicleModelSelectOptions}
+						name="vehicle_model"
 						placeholder={
 							vehicleForm.brand ? 'Sin modelo' : 'Elegir marca'
 						}
@@ -10289,6 +11394,8 @@ export default function Home() {
 					<Field label="Color">
 						<input
 							data-focus-key="vehicle.color"
+							name="vehicle_color"
+							autoComplete="off"
 							list="vehicle-color-options"
 							value={vehicleForm.color}
 							onChange={(event) =>
@@ -10303,6 +11410,8 @@ export default function Home() {
 					<Field label="Patente">
 						<input
 							data-focus-key="vehicle.license_plate"
+							name="vehicle_license_plate"
+							autoComplete="off"
 							list="vehicle-plate-options"
 							value={vehicleForm.license_plate}
 							onChange={(event) =>
@@ -10690,6 +11799,26 @@ export default function Home() {
 						focusField('payment.amount')
 					}}
 				/>
+				{selectedWorkOrderForPayment ? (
+					<div className="finance-form-summary">
+						<div>
+							<span>Saldo a cobrar</span>
+							<strong>
+								{money(
+									selectedWorkOrderForPayment.balance_due ??
+										selectedWorkOrderForPayment.total_amount,
+								)}
+							</strong>
+						</div>
+						<small>
+							{joinDisplayParts([
+								selectedWorkOrderForPayment.customer_name,
+								selectedWorkOrderForPayment.vehicle_label,
+								serviceDisplayName(selectedWorkOrderForPayment),
+							])}
+						</small>
+					</div>
+				) : null}
 				<div className="form-row">
 					<Field label="Importe">
 						<input
@@ -10734,13 +11863,26 @@ export default function Home() {
 						{ value: 'other', label: 'Otro' },
 					]}
 					focusKey="payment.method"
-					onChange={(value) =>
+					onChange={(value) => {
 						setPaymentForm({
 							...paymentForm,
 							method: value || DEFAULT_PAYMENT_METHOD,
 						})
-					}
+						focusField('payment.notes')
+					}}
 				/>
+				<Field label="Notas">
+					<textarea
+						data-focus-key="payment.notes"
+						value={paymentForm.notes}
+						onChange={(event) =>
+							setPaymentForm({
+								...paymentForm,
+								notes: event.target.value,
+							})
+						}
+					/>
+				</Field>
 				<button className="primary" data-focus-key="payment.submit">
 					<CreditCard size={16} />
 					{submitLabel}
@@ -11071,9 +12213,19 @@ export default function Home() {
 					}}
 				/>
 				{selectedDebtForPayment ? (
-					<div className="info-note">
-						Saldo pendiente:{' '}
-						<strong>{money(selectedDebtForPayment.balance_due)}</strong>
+					<div className="finance-form-summary finance-form-summary--debt">
+						<div>
+							<span>Saldo pendiente</span>
+							<strong>{money(selectedDebtForPayment.balance_due)}</strong>
+						</div>
+						<small>
+							{joinDisplayParts([
+								selectedDebtForPayment.creditor || 'Sin acreedor',
+								selectedDebtForPayment.due_date
+									? `Limite ${formatDateLabel(selectedDebtForPayment.due_date)}`
+									: null,
+							])}
+						</small>
 					</div>
 				) : null}
 				<div className="form-row">
@@ -12388,10 +13540,12 @@ export default function Home() {
 						<span>Usuario</span>
 						<strong>{currentUser.username}</strong>
 					</div>
-					<div className="detail-row">
+					<label className="detail-row" htmlFor="profile-email">
 						<span>Email</span>
 						<div className="profile-detail-control">
 							<input
+								id="profile-email"
+								name="profile_email"
 								className="profile-detail-input"
 								type="email"
 								autoComplete="email"
@@ -12404,7 +13558,7 @@ export default function Home() {
 								}
 							/>
 						</div>
-					</div>
+					</label>
 					<div className="detail-row">
 						<span>Rol</span>
 						<strong>{profileRoleLabel(currentUser)}</strong>
@@ -12413,6 +13567,12 @@ export default function Home() {
 						<span>Estado</span>
 						<strong>{profileActiveText(currentUser)}</strong>
 					</div>
+					{profileTrialText(currentUser) ? (
+						<div className="detail-row">
+							<span>Prueba</span>
+							<strong>{profileTrialText(currentUser)}</strong>
+						</div>
+					) : null}
 					<div className="detail-row">
 						<span>Alta</span>
 						<strong>{profileJoinedText(currentUser)}</strong>
@@ -12421,10 +13581,12 @@ export default function Home() {
 						<span>Acceso</span>
 						<strong>{profileLastLoginText(currentUser)}</strong>
 					</div>
-					<div className="detail-row">
-						<span>Plan</span>
+					<label className="detail-row" htmlFor="profile-subscription-type">
+						<span>Plan interno</span>
 						<div className="profile-detail-control">
 							<select
+								id="profile-subscription-type"
+								name="profile_subscription_type"
 								className="profile-detail-input"
 								value={profileForm.subscription_type}
 								onChange={(event) =>
@@ -12442,13 +13604,15 @@ export default function Home() {
 								))}
 							</select>
 						</div>
-					</div>
+					</label>
 					<div className="detail-row">
-						<span>Celular</span>
+						<span id="profile-phone-label">Celular</span>
 						<div className="profile-detail-control">
 							<div className="profile-phone-composite">
 								<select
+									name="profile_phone_country_code"
 									className="profile-country-select"
+									aria-label="Codigo de pais"
 									value={profileForm.phone_country_code}
 									onChange={(event) =>
 										setProfileForm({
@@ -12464,9 +13628,12 @@ export default function Home() {
 									))}
 								</select>
 								<input
+									name="profile_phone_number"
 									className="profile-phone-input"
 									type="tel"
 									inputMode="tel"
+									autoComplete="tel-national"
+									aria-labelledby="profile-phone-label"
 									placeholder="2345 45-5007"
 									value={profileForm.phone_number}
 									onChange={(event) =>
@@ -12482,9 +13649,13 @@ export default function Home() {
 				</div>
 				{!canViewEconomy ? (
 					<div className="record-sub">
-						Solo el empleador puede cambiar el tipo de suscripcion.
+						Solo el empleador puede cambiar esta referencia interna.
 					</div>
-				) : null}
+				) : (
+					<div className="record-sub">
+						Referencia interna de demo; no cobra ni cambia billing real.
+					</div>
+				)}
 				<div className="modal-actions split">
 					<button type="button" className="danger" onClick={handleProfileLogout}>
 						<LogOut size={16} />
@@ -12734,6 +13905,7 @@ export default function Home() {
 									label="Vehiculo"
 									value={quoteReservationForm.vehicle}
 									options={quoteReservationVehicleOptions}
+									name="quote_reservation_vehicle"
 									onChange={(value) =>
 										setQuoteReservationForm({
 											...quoteReservationForm,
@@ -12745,6 +13917,7 @@ export default function Home() {
 							<div className="form-row">
 								<Field label="Fecha de reserva">
 									<input
+										name="quote_reservation_day"
 										required
 										type="date"
 										value={quoteReservationForm.day}
@@ -12762,6 +13935,7 @@ export default function Home() {
 									<Field label="Hora de ingreso">
 										<input
 											type="time"
+											name="quote_reservation_start_time"
 											value={quoteReservationForm.start_time}
 											onChange={(event) =>
 												setQuoteReservationForm({
@@ -12774,6 +13948,7 @@ export default function Home() {
 									<Field label="Hora de egreso">
 										<input
 											type="time"
+											name="quote_reservation_exit_time"
 											value={quoteReservationForm.exit_time}
 											onChange={(event) =>
 												setQuoteReservationForm({
@@ -12829,6 +14004,8 @@ export default function Home() {
 						<form className="form-grid" onSubmit={saveQuickCustomer}>
 							<Field label="Nombre">
 								<input
+									name="quick_customer_name"
+									autoComplete="name"
 									required
 									list="customer-name-options"
 									value={customerForm.name}
@@ -12842,6 +14019,9 @@ export default function Home() {
 							</Field>
 							<Field label="Telefono">
 								<input
+									name="quick_customer_phone"
+									autoComplete="tel"
+									inputMode="tel"
 									list="customer-phone-options"
 									value={customerForm.phone}
 									onChange={(event) =>
@@ -12854,7 +14034,9 @@ export default function Home() {
 							</Field>
 							<Field label="Email">
 								<input
+									name="quick_customer_email"
 									type="email"
+									autoComplete="email"
 									list="customer-email-options"
 									value={customerForm.email}
 									onChange={(event) =>
@@ -12868,6 +14050,8 @@ export default function Home() {
 							<div className="form-row">
 								<Field label="CUIT/DNI">
 									<input
+										name="quick_customer_tax_id"
+										autoComplete="off"
 										value={customerForm.tax_id}
 										onChange={(event) =>
 											setCustomerForm({
@@ -12879,6 +14063,8 @@ export default function Home() {
 								</Field>
 								<Field label="Domicilio fiscal">
 									<input
+										name="quick_customer_billing_address"
+										autoComplete="street-address"
 										value={customerForm.billing_address}
 										onChange={(event) =>
 											setCustomerForm({
@@ -12892,6 +14078,8 @@ export default function Home() {
 							<BirthdayFields
 								day={customerForm.birthday_day}
 								month={customerForm.birthday_month}
+								dayName="quick_customer_birthday_day"
+								monthName="quick_customer_birthday_month"
 								onDayChange={(value) =>
 									setCustomerForm({
 										...customerForm,
@@ -12923,6 +14111,7 @@ export default function Home() {
 								label="Cliente"
 								value={vehicleForm.customer}
 								options={customerOptions}
+								name="quick_vehicle_customer"
 								className={flashClass(fieldFlashKey('vehicle.customer'))}
 								onAdd={() =>
 									openQuickCreate('customer', 'vehicle.customer')
@@ -12939,6 +14128,7 @@ export default function Home() {
 									label="Marca"
 									value={vehicleForm.brand}
 									options={vehicleBrandSelectOptions}
+									name="quick_vehicle_brand"
 									placeholder="Sin marca"
 									onChange={updateVehicleBrand}
 									onCreate={updateVehicleBrand}
@@ -12948,6 +14138,7 @@ export default function Home() {
 									label="Modelo"
 									value={vehicleForm.model}
 									options={vehicleModelSelectOptions}
+									name="quick_vehicle_model"
 									placeholder={
 										vehicleForm.brand ? 'Sin modelo' : 'Elegir marca'
 									}
@@ -12970,6 +14161,8 @@ export default function Home() {
 							<div className="form-row">
 								<Field label="Color">
 									<input
+										name="quick_vehicle_color"
+										autoComplete="off"
 										list="vehicle-color-options"
 										value={vehicleForm.color}
 										onChange={(event) =>
@@ -12982,6 +14175,8 @@ export default function Home() {
 								</Field>
 								<Field label="Patente">
 									<input
+										name="quick_vehicle_license_plate"
+										autoComplete="off"
 										list="vehicle-plate-options"
 										value={vehicleForm.license_plate}
 										onChange={(event) =>
@@ -13260,12 +14455,14 @@ export default function Home() {
 							type="button"
 							className="sidebar-backdrop"
 							aria-label="Cerrar menu lateral"
-							onClick={closeSidebarMobileMenu}
+							aria-controls={SIDEBAR_NAV_ID}
+							onClick={() => closeSidebarMobileMenu()}
 						/>
 					) : null
 				}
 				sidebar={
 					<SidebarNav
+						id={SIDEBAR_NAV_ID}
 						collapsed={sidebarCollapsed}
 						mobileOpen={sidebarMobileOpen}
 						header={
@@ -13279,6 +14476,8 @@ export default function Home() {
 								<button
 									type="button"
 									className="ghost sidebar-collapse-toggle"
+									aria-controls={SIDEBAR_NAV_ID}
+									aria-expanded={sidebarMobileOpen ? true : !sidebarCollapsed}
 									aria-label={
 										sidebarMobileOpen
 											? 'Cerrar menu lateral'
@@ -13350,10 +14549,10 @@ export default function Home() {
 										aria-label={`Abrir perfil de ${profileDisplayName(currentUser)}`}
 									>
 										<span className="sidebar-profile-avatar" aria-hidden="true">
-											{currentUser.avatar_url && !sidebarAvatarIsPdf ? (
-												<img src={currentUser.avatar_url} alt="" />
-											) : sidebarAvatarPdfThumbnail ? (
-												<img src={sidebarAvatarPdfThumbnail} alt="" />
+											{safeSidebarAvatarUrl && !sidebarAvatarIsPdf ? (
+												<img src={encodeURI(safeSidebarAvatarUrl)} alt="" />
+											) : safeSidebarAvatarPdfThumbnail ? (
+												<img src={encodeURI(safeSidebarAvatarPdfThumbnail)} alt="" />
 											) : currentUser.avatar_url ? (
 												<FileText size={18} />
 											) : (
@@ -13363,6 +14562,9 @@ export default function Home() {
 										<span className="sidebar-profile-copy">
 											<strong>{profileDisplayName(currentUser)}</strong>
 											<span>{profileRoleLabel(currentUser)}</span>
+											{profileTrialText(currentUser) ? (
+												<span>{profileTrialText(currentUser)}</span>
+											) : null}
 										</span>
 									</button>
 								</div>
@@ -13372,6 +14574,14 @@ export default function Home() {
 				}
 			>
 				<NoticeToastViewport toasts={toasts} onDismiss={dismissToast} />
+				<QuickActionsMenu
+					open={Boolean(quickActionsMenu)}
+					anchorPoint={quickActionsMenu?.anchorPoint ?? null}
+					actions={quickActionsMenu?.actions ?? []}
+					title={quickActionsMenu?.title ?? ''}
+					returnFocusRef={quickActionsReturnFocusRef}
+					onClose={() => setQuickActionsMenu(null)}
+				/>
 				<AnimatedWorkspaceView viewKey={displayedActive}>
 					<PageHeader
 						title={title.label}
@@ -13393,8 +14603,11 @@ export default function Home() {
 						actions={
 							<div className="record-actions">
 								<button
+									ref={sidebarMobileToggleRef}
 									type="button"
 									className="ghost shell-mobile-toggle"
+									aria-controls={SIDEBAR_NAV_ID}
+									aria-expanded={sidebarMobileOpen}
 									aria-label={
 										sidebarMobileOpen
 											? 'Cerrar menu lateral'
@@ -13425,7 +14638,9 @@ export default function Home() {
 								<button
 									type="button"
 									className="ghost"
-									onClick={loadData}
+									aria-label={`Actualizar ${title.label.toLowerCase()}`}
+									title={`Actualizar ${title.label.toLowerCase()}`}
+									onClick={() => loadData({ force: true })}
 									disabled={loading}
 								>
 									<RefreshCw size={16} />
@@ -13435,108 +14650,19 @@ export default function Home() {
 						}
 					/>
 				{displayedActive === 'dashboard' ? (
-					<div className="grid">
-						{canViewEconomy ? (
-							<>
-								<Panel>
-									<form
-										className="toolbar"
-										onSubmit={(event) => (
-											event.preventDefault(),
-											loadData()
-										)}
-									>
-										<Field label="Desde">
-											<input
-												type="date"
-												value={period.from}
-												onChange={(event) =>
-													setPeriod({
-														...period,
-														from: event.target.value,
-													})
-												}
-											/>
-										</Field>
-										<Field label="Hasta">
-											<input
-												type="date"
-												value={period.to}
-												onChange={(event) =>
-													setPeriod({
-														...period,
-														to: event.target.value,
-													})
-												}
-											/>
-										</Field>
-										<button className="primary">
-											<Search size={16} />
-											Ver periodo
-										</button>
-									</form>
-								</Panel>
-								<section className="grid three">
-									<MetricCard
-										label="Ventas"
-										value={money(dashboard.sales_total)}
-									/>
-									<MetricCard
-										label="Reservas con trabajo"
-										value={dashboard.work_orders_count ?? 0}
-									/>
-									<MetricCard
-										label="Ticket promedio"
-										value={money(dashboard.average_ticket)}
-									/>
-									<MetricCard
-										label={
-											<>
-												<span className="cash-term income">Ingresos</span>{' '}
-												del dia
-											</>
-										}
-										value={money(dashboard.today_income)}
-									/>
-									<MetricCard
-										label={
-											<>
-												<span className="cash-term expense">Egresos</span>{' '}
-												del dia
-											</>
-										}
-										value={money(dashboard.today_expense)}
-									/>
-									<MetricCard
-										label="Consumo materiales"
-										value={money(
-											dashboard.material_consumption_estimated,
-										)}
-									/>
-								</section>
-								<Panel title="Trabajo por estado">
-									<div className="records">
-										{Object.entries(orderLabels).map(
-											([key, label]) => (
-												<RecordCard key={key}>
-													<div className="record-head">
-														<span>{label}</span>
-														<strong>
-															{dashboard
-																.work_orders_by_status?.[
-																key
-															] ?? 0}
-														</strong>
-													</div>
-												</RecordCard>
-											),
-										)}
-									</div>
-								</Panel>
-							</>
-						) : null}
-						{renderBirthdayAlerts()}
-					</div>
+					<DashboardPanel
+						birthdayAlerts={renderBirthdayAlerts()}
+						canViewEconomy={canViewEconomy}
+						dashboard={dashboard}
+						loading={loading}
+						period={period}
+						onOpenPaymentForOrder={openPaymentForOrder}
+						onOpenSection={setActive}
+						onPeriodChange={setPeriod}
+						onReloadDashboard={() =>
+							loadData({ force: true, section: 'dashboard' })
+						}
+					/>
 				) : null}
 
 				{displayedActive === 'notifications' ? (
@@ -13606,19 +14732,45 @@ export default function Home() {
 											'customer',
 											'deleted',
 										),
+										undo: undoRestoreActiveRecord('customer', item),
 									},
+								)
+							}
+							onOpenQuickActions={(event, item) =>
+								openQuickActionsFromContext(
+									event,
+									'Acciones de cliente',
+									customerQuickActions(item),
+								)
+							}
+							onOpenQuickActionsFromTrigger={(event, item) =>
+								openQuickActionsFromTrigger(
+									event,
+									'Acciones de cliente',
+									customerQuickActions(item),
 								)
 							}
 						/>
 						<section className="panel hidden-section">
 							<h2>Vehiculos</h2>
 							<div className="records">
-								{filteredVehicles.map((item) => (
+								{filteredVehicles.map((item) => {
+									const quickActions = vehicleQuickActions(item)
+									return (
 									<MotionFlashSurface
 										className={recordClass('vehicle', item.id)}
 										key={`v-${item.id}`}
 										{...detailRecordProps('Vehiculo', item)}
+										{...quickActionTargetProps(
+											'Acciones de vehiculo',
+											quickActions,
+										)}
 									>
+										{renderQuickActionsTrigger(
+											'Acciones de vehiculo',
+											quickActions,
+											'Acciones rapidas de vehiculo',
+										)}
 										<div className="record-head">
 											<div>
 												<div className="record-title">
@@ -13652,6 +14804,10 @@ export default function Home() {
 																	'vehicle',
 																	'deleted',
 																),
+																undo: undoRestoreActiveRecord(
+																	'vehicle',
+																	item,
+																),
 															},
 														)
 													}
@@ -13661,7 +14817,8 @@ export default function Home() {
 											</div>
 										</div>
 									</MotionFlashSurface>
-								))}
+									)
+								})}
 							</div>
 						</section>
 					</div>
@@ -13710,10 +14867,15 @@ export default function Home() {
 								{filteredSuppliers.length ? (
 									filteredSuppliers.map((item) => {
 										const insights = supplierListInsight(item)
+										const quickActions = supplierQuickActions(item)
 										return (
 											<MotionFlashSurface
 												className={recordClass('supplier', item.id)}
 												key={`supplier-page-${item.id}`}
+												{...quickActionTargetProps(
+													'Acciones de proveedor',
+													quickActions,
+												)}
 											>
 												<RecordCardHeader
 													title={item.name}
@@ -13762,12 +14924,21 @@ export default function Home() {
 																			'supplier',
 																			'deleted',
 																		),
+																		undo: undoRestoreActiveRecord(
+																			'supplier',
+																			item,
+																		),
 																	},
 																)
 															}
 														>
 															Inactivar
 														</button>
+														{renderQuickActionsTrigger(
+															'Acciones de proveedor',
+															quickActions,
+															'Acciones rapidas de proveedor',
+														)}
 														</>
 													}
 												>
@@ -13838,12 +15009,23 @@ export default function Home() {
 							</div>
 							<div className="records">
 								{filteredVehicles.length ? (
-									filteredVehicles.map((item) => (
+									filteredVehicles.map((item) => {
+										const quickActions = vehicleQuickActions(item)
+										return (
 										<MotionFlashSurface
 											className={recordClass('vehicle', item.id)}
 											key={`v-page-${item.id}`}
 											{...detailRecordProps('Vehiculo', item)}
+											{...quickActionTargetProps(
+												'Acciones de vehiculo',
+												quickActions,
+											)}
 										>
+											{renderQuickActionsTrigger(
+												'Acciones de vehiculo',
+												quickActions,
+												'Acciones rapidas de vehiculo',
+											)}
 											<div className="record-head">
 												<div>
 													<div className="record-title">
@@ -13878,6 +15060,10 @@ export default function Home() {
 																			'vehicle',
 																			'deleted',
 																		),
+																	undo: undoRestoreActiveRecord(
+																		'vehicle',
+																		item,
+																	),
 																},
 															)
 													}
@@ -13887,7 +15073,8 @@ export default function Home() {
 											</div>
 										</div>
 										</MotionFlashSurface>
-									))
+										)
+									})
 								) : (
 									<Empty
 										text={
@@ -13929,11 +15116,22 @@ export default function Home() {
 							</div>
 							<div className="records">
 								{services.length ? (
-									services.map((item) => (
+									services.map((item) => {
+										const quickActions = serviceQuickActions(item)
+										return (
 										<MotionFlashSurface
 											className={recordClass('service', item.id)}
 											key={item.id}
+											{...quickActionTargetProps(
+												'Acciones de servicio',
+												quickActions,
+											)}
 										>
+											{renderQuickActionsTrigger(
+												'Acciones de servicio',
+												quickActions,
+												'Acciones rapidas de servicio',
+											)}
 											<RecordCardHeader
 												title={serviceDisplayName(item)}
 												subtitle={joinDisplayParts([
@@ -13973,6 +15171,10 @@ export default function Home() {
 																			'service',
 																			'deleted',
 																		),
+																	undo: undoRestoreActiveRecord(
+																		'service',
+																		item,
+																	),
 																},
 															)
 														}
@@ -13983,7 +15185,8 @@ export default function Home() {
 												}
 											/>
 										</MotionFlashSurface>
-									))
+										)
+									})
 								) : (
 									<Empty
 										text="Sin servicios."
@@ -14037,7 +15240,11 @@ export default function Home() {
 									text={agendaLoadError.title}
 									hint={agendaLoadError.description}
 									action={
-										<button type="button" className="ghost" onClick={loadData}>
+										<button
+											type="button"
+											className="ghost"
+											onClick={() => loadData({ force: true })}
+										>
 											<RefreshCw size={16} />
 											Actualizar
 										</button>
@@ -14057,7 +15264,7 @@ export default function Home() {
 							!agendaBoardModel.segments.length ? (
 								<Empty
 									text="Sin reservas en este rango."
-									hint="Usa la columna del dia o el boton Crear para cargar la proxima reserva."
+									hint="Crea una reserva para el dia seleccionado o cambia el filtro de servicio para revisar otra carga."
 									action={
 										<button
 											type="button"
@@ -14197,455 +15404,86 @@ export default function Home() {
 
 
 				{displayedActive === 'cash' ? (
-					<div className="grid">
-						<section className="panel">
-							<div className="panel-head">
-								<div>
-									<h2>Caja</h2>
-									<p>Conciliacion diaria con caja real y resultado economico.</p>
-								</div>
-								<div className="record-actions">
-									<button
-										type="button"
-										className="primary"
-										disabled={cashIsClosed}
-										onClick={closeCashDay}
-									>
-										<LockKeyhole size={16} />
-										Cerrar dia
-									</button>
-									<button
-										type="button"
-										className="ghost"
-										disabled={cashIsClosed}
-										onClick={() => openFormModal('payment')}
-									>
-										<CreditCard size={16} />
-										Registrar pago
-									</button>
-									<button
-										type="button"
-										className="ghost"
-										disabled={cashIsClosed}
-										onClick={() => openFormModal('debt-payment')}
-									>
-										<CreditCard size={16} />
-										Pago de deuda
-									</button>
-									<button
-										type="button"
-										className="ghost"
-										disabled={cashIsClosed}
-										onClick={() => openFormModal('cash-movement')}
-									>
-										<ReceiptText size={16} />
-										Movimiento manual
-									</button>
-									{cashIsClosed ? (
-										<button
-											type="button"
-											className="ghost"
-											onClick={() => openAdjustmentForClosedDay(selectedDay)}
-										>
-											<ReceiptText size={16} />
-											Registrar ajuste hoy
-										</button>
-									) : null}
-								</div>
-							</div>
-							<div className="toolbar toolbar-spaced cash-toolbar">
-								<Field label="Dia">
-									<div className="date-stepper">
-										<button
-											type="button"
-											className="ghost date-stepper-button"
-											onClick={() => moveSelectedCashDay(-1)}
-											aria-label="Ver dia anterior"
-										>
-											<ChevronLeft size={16} />
-										</button>
-										<input
-											type="date"
-											value={selectedDay}
-											onChange={(event) =>
-												setSelectedDay(event.target.value)
-											}
-										/>
-										<button
-											type="button"
-											className="ghost date-stepper-button"
-											onClick={() => moveSelectedCashDay(1)}
-											aria-label="Ver dia siguiente"
-										>
-											<ChevronRight size={16} />
-										</button>
-									</div>
-								</Field>
-								<span className={`cash-status ${cashStatusClass}`}>
-									{cashStatusLabel}
-								</span>
-							</div>
-							<div className="info-note">
-								Caja real muestra cobros, pagos de deuda, compras, movimientos
-								manuales y ajustes. Resultado economico mantiene el criterio de
-								deudas: la deuda original impacta una sola vez y sus pagos no
-								duplican el gasto.
-								{cash.closure
-									? ` Cierre guardado: caja real ${money(cash.closure.cashflow_balance ?? cash.closure.balance)}.`
-									: ''}
-							</div>
-							<section className="grid three section-block-end cash-metrics-primary">
-								<div className="metric cash-metric">
-									<span>
-										<span className="cash-term income">Ingresos</span> caja real
-									</span>
-									<strong>{money(cashflowTotals.income)}</strong>
-								</div>
-								<div className="metric cash-metric">
-									<span>
-										<span className="cash-term expense">Egresos</span> caja real
-									</span>
-									<strong>{money(cashflowTotals.expense)}</strong>
-								</div>
-								<div className="metric cash-metric cash-metric-balance">
-									<span>Saldo caja real</span>
-									<strong>{money(cashflowTotals.balance)}</strong>
-								</div>
-							</section>
-							<section className="cash-economic-panel section-block-end">
-								<div>
-									<span>Resultado economico</span>
-									<strong>{money(economicTotals.balance)}</strong>
-								</div>
-								<p>
-									<span className="cash-term income">Ingresos</span>{' '}
-									{money(economicTotals.income)} -{' '}
-									<span className="cash-term expense">egresos</span>{' '}
-									{money(economicTotals.expense)}. Incluye deudas originales
-									devengadas.
-								</p>
-							</section>
-							<section className="cash-flow-card section-block-end">
-								<div className="cash-flow-head">
-									<div>
-										<h3>
-											Flujo de dinero del dia
-											<Info size={16} aria-hidden="true" />
-										</h3>
-										<p>
-											Resumen completo del dia en modo {cashSummaryModeLabel}.
-											Los filtros de abajo no alteran estos totales.
-										</p>
-									</div>
-									<SegmentedControl
-										ariaLabel="Vista del resumen"
-										className="cash-summary-toggle"
-										options={cashSummaryModeOptions}
-										value={cashSummaryMode}
-										onChange={(nextValue) =>
-											setCashSummaryMode(nextValue as CashSummaryMode)
-										}
-									/>
-								</div>
-								<div className="cash-summary-body">
-									{renderCashSummaryGroup('charges')}
-									{renderCashSummaryGroup('payments')}
-									{renderCashSummaryBalance(
-										'Balance comercial',
-										cashFlowSummary.commercialBalance,
-									)}
-									{renderCashSummaryGroup('partner_contributions')}
-									{renderCashSummaryGroup('investments')}
-									{renderCashSummaryGroup('partner_withdrawals')}
-									{renderCashSummaryGroup('adjustments', {
-										hideWhenEmpty: true,
-									})}
-									{renderCashSummaryBalance(
-										'Balance financiero',
-										cashFlowSummary.financialBalance,
-									)}
-									{renderCashSummaryBalance(
-										'Flujo neto de dinero',
-										cashFlowSummary.netFlow,
-									)}
-								</div>
-							</section>
-							<section className="cash-filters section-block-end">
-								<div className="cash-filters-head">
-									<div>
-										<h3>Filtros del listado</h3>
-										<p>
-											Refina las entradas visibles sin modificar el resumen del
-											dia.
-										</p>
-									</div>
-									<div className="cash-filter-actions">
-										<span className="cash-filter-counter">
-											{filteredCashEntries.length} de {cashEntries.length}
-										</span>
-										<button
-											type="button"
-											className="ghost"
-											disabled={!cashFiltersActive}
-											onClick={() => setCashFilters(CASH_FILTER_DEFAULTS)}
-										>
-											Limpiar filtros
-										</button>
-									</div>
-								</div>
-								<div className="cash-filter-grid">
-									<Field label="Buscar">
-										<input
-											placeholder="Origen, detalle, categoria o monto"
-											value={cashFilters.query}
-											onChange={(event) =>
-												updateCashFilter('query', event.target.value)
-											}
-										/>
-									</Field>
-									<SearchSelect
-										label="Tipo"
-										value={cashFilters.movementType}
-										options={cashMovementTypeOptions}
-										placeholder="Todos"
-										onChange={(value) =>
-											updateCashFilter('movementType', value)
-										}
-									/>
-									<SearchSelect
-										label="Origen"
-										value={cashFilters.sourceKind}
-										options={cashSourceKindOptions}
-										placeholder="Todos los origenes"
-										onChange={(value) =>
-											updateCashFilter('sourceKind', value)
-										}
-									/>
-									<SearchSelect
-										label="Categoria"
-										value={cashFilters.category}
-										options={selectOptionsFromValues(
-											cashFilterCategoryValues,
-											cashFilters.category,
-										)}
-										placeholder="Todas"
-										onChange={(value) =>
-											updateCashFilter('category', value)
-										}
-									/>
-									<SearchSelect
-										label="Subcategoria"
-										value={cashFilters.subcategory}
-										options={selectOptionsFromValues(
-											cashFilterSubcategoryValues,
-											cashFilters.subcategory,
-										)}
-										placeholder="Todas"
-										onChange={(value) =>
-											updateCashFilter('subcategory', value)
-										}
-									/>
-									<SearchSelect
-										label="Efecto"
-										value={cashFilters.effect}
-										options={cashEffectOptions}
-										placeholder="Todos"
-										onChange={(value) =>
-											updateCashFilter('effect', value)
-										}
-									/>
-									<Field label="Monto minimo">
-										<input
-											type="number"
-											min="0"
-											step="0.01"
-											value={cashFilters.amountMin}
-											onChange={(event) =>
-												updateCashFilter('amountMin', event.target.value)
-											}
-										/>
-									</Field>
-									<Field label="Monto maximo">
-										<input
-											type="number"
-											min="0"
-											step="0.01"
-											value={cashFilters.amountMax}
-											onChange={(event) =>
-												updateCashFilter('amountMax', event.target.value)
-											}
-										/>
-									</Field>
-								</div>
-							</section>
-							<div className="records cash-records">
-								{filteredCashEntries.length ? (
-									filteredCashEntries.map((item: AnyRecord) => (
-										<MotionFlashSurface
-											className={cx(
-												recordClass('cash-movement', item.id),
-												'cash-entry',
-												!item.cashflow_effect && 'cash-entry-muted',
-											)}
-											key={cashEntryKey(item)}
-											{...(item.source_kind === 'debt_payment'
-												? {}
-												: detailRecordProps('Movimiento de caja', item))}
-										>
-											<div className="record-head">
-												<div>
-													<div className="cash-entry-badges">
-														<span className="status">{item.source_label}</span>
-														<span className="status">
-															{item.cashflow_effect
-																? 'Caja real'
-																: 'Solo economico'}
-														</span>
-													</div>
-													<div className="record-title cash-entry-title">
-														{cashEntryTitle(item)}
-													</div>
-													<div className="record-sub">
-														{cashEntryDescription(item)}
-													</div>
-												</div>
-												<span
-													className={`cash-entry-amount ${item.movement_type}`}
-												>
-													{item.signed_amount ?? money(item.amount)}
-												</span>
-											</div>
-										</MotionFlashSurface>
-									))
-								) : (
-									<Empty
-										text={
-											cashEntries.length
-												? 'Sin entradas para los filtros aplicados.'
-												: 'Sin movimientos para el dia.'
-										}
-									/>
-								)}
-							</div>
-						</section>
-					</div>
+					<CashPanel
+						cashClosure={cash.closure}
+						cashEntries={cashEntries}
+						cashEntryDescription={cashEntryDescription}
+						cashEntryKey={cashEntryKey}
+						cashEntryQuickActions={cashEntryQuickActions}
+						cashEntryTitle={cashEntryTitle}
+						cashFilterCategoryOptions={selectOptionsFromValues(
+							cashFilterCategoryValues,
+							cashFilters.category,
+						)}
+						cashFilters={cashFilters}
+						cashFiltersActive={cashFiltersActive}
+						cashFilterSubcategoryOptions={selectOptionsFromValues(
+							cashFilterSubcategoryValues,
+							cashFilters.subcategory,
+						)}
+						cashflowTotals={cashflowTotals}
+						cashFlowSummary={cashFlowSummary}
+						cashIsClosed={cashIsClosed}
+						cashSourceKindLabel={cashSourceKindLabel}
+						cashSourceKindOptions={cashSourceKindOptions}
+						cashSummaryMode={cashSummaryMode}
+						economicTotals={economicTotals}
+						filteredCashEntries={filteredCashEntries}
+						loading={loading}
+						loadBlocked={cashLoadBlocked}
+						loadErrorNotice={loadErrorNotice}
+						recordClass={recordClass}
+						renderQuickActionsTrigger={renderQuickActionsTrigger}
+						selectedDay={selectedDay}
+						onCashFilterChange={updateCashFilter}
+						onCashSummaryModeChange={setCashSummaryMode}
+						onClearCashFilters={() => setCashFilters(CASH_FILTER_DEFAULTS)}
+						onCloseDay={closeCashDay}
+						onCollectWork={() => openFormModal('payment')}
+						onCreateMovement={() => openFormModal('cash-movement')}
+						onMoveSelectedDay={moveSelectedCashDay}
+						onOpenCashEntryDetail={openCashEntryDetail}
+						onPayDebt={() => openFormModal('debt-payment')}
+						onQuickActionsContext={openQuickActionsFromContext}
+						onRefresh={() => loadData({ force: true })}
+						onRegisterAdjustment={() =>
+							openAdjustmentForClosedDay(selectedDay)
+						}
+						onSelectedDayChange={setSelectedDay}
+					/>
 				) : null}
 
 				{displayedActive === 'debts' ? (
-					<div className="grid">
-						<section className="panel">
-							<div className="panel-head">
-								<div>
-									<h2>Deudas</h2>
-									<p>Saldos pendientes y pagos parciales sin duplicar egresos.</p>
-								</div>
-								<div className="record-actions">
-									<button
-										type="button"
-										className="primary"
-										onClick={() => openFormModal('debt')}
-									>
-										<ReceiptText size={16} />
-										Nueva deuda
-									</button>
-									<button
-										type="button"
-										className="ghost"
-										onClick={() => openFormModal('debt-payment')}
-									>
-										<CreditCard size={16} />
-										Registrar pago
-									</button>
-								</div>
-							</div>
-							<section className="grid three section-block-end">
-								<div className="metric">
-									<span>Deuda original</span>
-									<strong>{money(debtSummary.original)}</strong>
-								</div>
-								<div className="metric">
-									<span>Total pagado</span>
-									<strong>{money(debtSummary.paid)}</strong>
-								</div>
-								<div className="metric">
-									<span>Saldo pendiente</span>
-									<strong>{money(debtSummary.pending)}</strong>
-								</div>
-							</section>
-							<div className="info-note">
-								Deudas abiertas: <strong>{debtSummary.open}</strong>.
-								El reporte economico cuenta el egreso al crear la
-								deuda; los pagos no duplican ese gasto.
-							</div>
-							<div className="records">
-								{filteredDebts.length ? (
-									filteredDebts.map((item) => (
-										<MotionFlashSurface
-											className={recordClass('debt', item.id)}
-											key={item.id}
-											{...detailRecordProps('Deuda', item)}
-										>
-											<div className="record-head">
-												<div>
-													<div className="record-title">
-														{item.concept}
-													</div>
-													<div className="record-sub">
-														{item.creditor || 'Sin acreedor'} - origen{' '}
-														{item.origin_date}
-														{item.due_date
-															? ` - limite ${item.due_date}`
-															: ''}
-													</div>
-													<div className="record-sub">
-														Original {money(item.principal_amount)} -
-														pagado {money(item.total_paid)} - saldo{' '}
-														{money(item.balance_due)}
-													</div>
-												</div>
-												<span className={`status ${item.status}`}>
-													{debtStatusLabels[item.status] ?? item.status}
-												</span>
-											</div>
-										</MotionFlashSurface>
-									))
-								) : (
-									<Empty text="Sin deudas registradas." />
-								)}
-							</div>
-							<h2 className="subsection-title">Pagos recientes</h2>
-							<div className="records">
-								{debtPayments.slice(0, 5).map((item) => (
-									<MotionFlashSurface
-										className={recordClass('debt-payment', item.id)}
-										key={item.id}
-										{...detailRecordProps('Pago de deuda', item)}
-									>
-										<div className="record-head">
-											<div>
-												<div className="record-title">
-													{item.debt_concept}
-												</div>
-												<div className="record-sub">
-													{item.paid_at} -{' '}
-													{debtPaymentMethodLabels[item.method] ??
-														item.method}
-												</div>
-											</div>
-											<span className="status payment">
-												{money(item.amount)}
-											</span>
-										</div>
-									</MotionFlashSurface>
-								))}
-								{debtPayments.length ? null : (
-									<Empty text="Sin pagos de deuda registrados." />
-								)}
-							</div>
-						</section>
-					</div>
+					<DebtPanel
+						debtFilters={debtFilters}
+						debtFiltersActive={debtFiltersActive}
+						debtOptions={debtOptions}
+						debtPaymentQuickActions={debtPaymentQuickActions}
+						debtPayments={debtPayments}
+						debtQuickActions={debtQuickActions}
+						debtSummary={debtSummary}
+						debts={debts}
+						filteredDebts={filteredDebts}
+						loading={loading}
+						loadBlocked={debtLoadBlocked}
+						loadErrorNotice={loadErrorNotice}
+						recordClass={recordClass}
+						renderQuickActionsTrigger={renderQuickActionsTrigger}
+						search={search}
+						onClearDebtFilters={clearDebtFilters}
+						onCreateDebt={() => openFormModal('debt')}
+						onCreateDebtPayment={() => openFormModal('debt-payment')}
+						onDebtFilterChange={updateDebtFilter}
+						onOpenDebtDetail={(item) => openDetailModal('Deuda', item)}
+						onOpenDebtPaymentDetail={(item) =>
+							openDetailModal('Pago de deuda', item)
+						}
+						onOpenDebtPaymentForDebt={openDebtPaymentForDebt}
+						onQuickActionsContext={openQuickActionsFromContext}
+						onRefresh={() => loadData({ force: true })}
+						onSearchChange={setSearch}
+					/>
 				) : null}
-
 				{displayedActive === 'inventory' ? (
 					<div className="grid">
 						<section className="panel">
@@ -14739,12 +15577,18 @@ export default function Home() {
 								{stockMovements.length ? null : (
 									<Empty text="Sin movimientos de stock." />
 								)}
-								{suppliers.slice(0, 5).map((item) => (
+								{suppliers.slice(0, 5).map((item) => {
+									const quickActions = supplierQuickActions(item)
+									return (
 									<MotionFlashSurface
 										className={recordClass('supplier', item.id)}
 										key={`supplier-${item.id}`}
 										{...interactiveRecordProps(() =>
 											openSupplierDashboard(item)
+										)}
+										{...quickActionTargetProps(
+											'Acciones de proveedor',
+											quickActions,
 										)}
 									>
 										<div className="record-head">
@@ -14769,12 +15613,21 @@ export default function Home() {
 													compras
 												</div>
 											</div>
+											<div className="record-actions">
+												{renderQuickActionsTrigger(
+													'Acciones de proveedor',
+													quickActions,
+													'Acciones rapidas de proveedor',
+												)}
+											</div>
 										</div>
 									</MotionFlashSurface>
-								))}
+									)
+								})}
 								{materials.length ? (
 									materials.map((item) => {
 										const usage = materialUsageSummary(item)
+										const quickActions = materialQuickActions(item)
 										return (
 											<MotionFlashSurface
 												className={recordClass('material', item.id)}
@@ -14782,6 +15635,10 @@ export default function Home() {
 												{...detailRecordProps(
 													'Material',
 													item,
+												)}
+												{...quickActionTargetProps(
+													'Acciones de material',
+													quickActions,
 												)}
 											>
 												<div className="record-head">
@@ -14847,16 +15704,7 @@ export default function Home() {
 														<button
 															type="button"
 															className="ghost"
-															onClick={() => {
-																setOpenUnitForm({
-																	material: String(item.id),
-																	opened_at: selectedDay,
-																	opened_by_work_order: '',
-																	stock_quantity_to_decrement: '1',
-																	observations: '',
-																})
-																setFormModal({ kind: 'material-open-unit' })
-															}}
+															onClick={() => openUnitForMaterial(item)}
 														>
 															Abrir unidad
 														</button>
@@ -14886,12 +15734,21 @@ export default function Home() {
 																				'material',
 																				'deleted',
 																			),
+																		undo: undoRestoreActiveRecord(
+																			'material',
+																			item,
+																		),
 																	},
 																)
 															}
 														>
 															Inactivar
 														</button>
+														{renderQuickActionsTrigger(
+															'Acciones de material',
+															quickActions,
+															'Acciones rapidas de material',
+														)}
 													</div>
 												</div>
 											</MotionFlashSurface>
@@ -14905,6 +15762,7 @@ export default function Home() {
 										(materialItem) =>
 											String(materialItem.id) === String(item.material),
 									)
+									const quickActions = materialOpenUnitQuickActions(item)
 									return (
 										<MotionFlashSurface
 											className={recordClass(
@@ -14913,6 +15771,10 @@ export default function Home() {
 											)}
 											key={`ou-${item.id}`}
 											{...detailRecordProps('Unidad abierta', item)}
+											{...quickActionTargetProps(
+												'Acciones de unidad',
+												quickActions,
+											)}
 										>
 											<div className="record-head">
 												<div>
@@ -14941,21 +15803,31 @@ export default function Home() {
 														)}
 													</div>
 												</div>
-												{item.status === 'open' ? (
+												{item.status === 'open' ||
+												availableQuickActions(quickActions).length ? (
 													<div className="record-actions">
-														<button
-															className="primary"
-															onClick={() => finishOpenUnit(item)}
-														>
-															Finalizar
-														</button>
+														{item.status === 'open' ? (
+															<button
+																className="primary"
+																onClick={() => finishOpenUnit(item)}
+															>
+																Finalizar
+															</button>
+														) : null}
+														{renderQuickActionsTrigger(
+															'Acciones de unidad',
+															quickActions,
+															'Acciones rapidas de unidad',
+														)}
 													</div>
 												) : null}
 											</div>
 										</MotionFlashSurface>
 									)
 								})}
-								{purchases.slice(0, 5).map((item) => (
+								{purchases.slice(0, 5).map((item) => {
+									const quickActions = materialPurchaseQuickActions(item)
+									return (
 									<MotionFlashSurface
 										className={recordClass(
 											'material-purchase',
@@ -14963,6 +15835,10 @@ export default function Home() {
 										)}
 										key={`p-${item.id}`}
 										{...detailRecordProps('Compra de material', item)}
+										{...quickActionTargetProps(
+											'Acciones de compra',
+											quickActions,
+										)}
 									>
 										<div className="record-head">
 											<div>
@@ -14980,10 +15856,20 @@ export default function Home() {
 													])}
 												</div>
 												</div>
+											<div className="record-actions">
+												{renderQuickActionsTrigger(
+													'Acciones de compra',
+													quickActions,
+													'Acciones rapidas de compra',
+												)}
+											</div>
 											</div>
 									</MotionFlashSurface>
-								))}
-								{consumptions.slice(0, 5).map((item) => (
+									)
+								})}
+								{consumptions.slice(0, 5).map((item) => {
+									const quickActions = materialConsumptionQuickActions(item)
+									return (
 									<MotionFlashSurface
 										className={recordClass(
 											'material-consumption',
@@ -14991,6 +15877,10 @@ export default function Home() {
 										)}
 										key={`c-${item.id}`}
 										{...detailRecordProps('Consumo de material', item)}
+										{...quickActionTargetProps(
+											'Acciones de consumo',
+											quickActions,
+										)}
 									>
 										<div className="record-head">
 											<div>
@@ -15008,9 +15898,17 @@ export default function Home() {
 													)}
 												</div>
 												</div>
+											<div className="record-actions">
+												{renderQuickActionsTrigger(
+													'Acciones de consumo',
+													quickActions,
+													'Acciones rapidas de consumo',
+												)}
+											</div>
 											</div>
 									</MotionFlashSurface>
-								))}
+									)
+								})}
 							</div>
 						</section>
 					</div>
@@ -15058,13 +15956,19 @@ export default function Home() {
 							</div>
 							<div className="records">
 								{filteredTools.length ? (
-									filteredTools.map((item) => (
+									filteredTools.map((item) => {
+										const quickActions = toolQuickActions(item)
+										return (
 										<MotionFlashSurface
 											className={recordClass('tool', item.id)}
 											key={item.id}
 											{...detailRecordProps(
 												'Herramienta',
 												item,
+											)}
+											{...quickActionTargetProps(
+												'Acciones de herramienta',
+												quickActions,
 											)}
 										>
 											<div className="record-head">
@@ -15124,16 +16028,26 @@ export default function Home() {
 																			'tool',
 																			'deleted',
 																		),
+																	undo: undoRestoreActiveRecord(
+																		'tool',
+																		item,
+																	),
 																},
 															)
 														}
 														>
 															Inactivar
 														</button>
+														{renderQuickActionsTrigger(
+															'Acciones de herramienta',
+															quickActions,
+															'Acciones rapidas de herramienta',
+														)}
 													</div>
 												</div>
 										</MotionFlashSurface>
-									))
+										)
+									})
 								) : (
 									<Empty text="Sin herramientas." />
 								)}
@@ -15205,227 +16119,59 @@ export default function Home() {
 								setSettingsSection(nextValue as SettingsSection)
 							}
 						/>
-						<div className="grid settings-grid">
+						<div
+							className="grid settings-grid"
+							role="tabpanel"
+							aria-label={`Panel de configuracion: ${settingsSectionLabel}`}
+						>
 						{settingsSection === 'business' ? (
-							<section className="panel">
-							<div className="panel-head">
-								<div>
-									<h2>Negocio</h2>
-									<p>
-										Nombre comercial, logo y datos de contacto que
-										identifican la operacion.
-									</p>
-								</div>
-							</div>
-							<div className="business-profile-card">
-								<button
-									type="button"
-									className="business-profile-preview image-upload-trigger"
-									onClick={openBusinessLogoPicker}
-									aria-label={
-										businessLogoPreview
-											? 'Cambiar logo del negocio'
-											: 'Cargar logo del negocio'
-									}
-								>
-									{businessLogoPreview && !businessLogoIsPdf ? (
-										<img
-											src={businessLogoPreview}
-											alt={`Logo de ${businessForm.name || 'tu negocio'}`}
-										/>
-									) : businessLogoPdfThumbnail ? (
-										<img
-											src={businessLogoPdfThumbnail}
-											alt={`Preview del PDF de ${businessForm.name || 'tu negocio'}`}
-										/>
-									) : businessLogoPreview ? (
-										<div className="file-preview-placeholder">
-											<FileText size={48} />
-											<span>
-												{businessLogoPdfStatus === 'loading'
-													? 'Generando preview del PDF...'
-													: 'No se pudo generar el preview del PDF'}
-											</span>
-										</div>
-									) : (
-										<div className="business-profile-placeholder">
-											<Building2 size={28} />
-											<span>Sin imagen cargada</span>
-										</div>
-									)}
-								</button>
-								<input
-									ref={businessLogoInputRef}
-									key={`business-logo-${businessLogoInputKey}`}
-									className="visually-hidden-input"
-									type="file"
-									accept="image/png,image/jpeg,image/webp,image/svg+xml,application/pdf,.pdf"
-									onChange={handleBusinessLogoChange}
-									tabIndex={-1}
-								/>
-								<div className="record-sub">
-									{businessLogoFile
-										? `Nuevo archivo listo para guardar: ${businessLogoFile.name}`
-										: businessProfile?.logo_url
-											? 'Hace click en el archivo para reemplazar el logo actual.'
-											: 'Hace click en la imagen para cargar un logo. Acepta JPG, PNG, WEBP, SVG o PDF.'}
-								</div>
-							</div>
-							<form className="form-grid" onSubmit={saveBusinessProfile}>
-								<Field label="Nombre">
-									<input
-										required
-										value={businessForm.name}
-										onChange={(event) =>
-											patchBusinessForm({
-												name: event.target.value,
-											})
-										}
-									/>
-								</Field>
-								<div className="form-row">
-									<Field label="CUIT">
-										<input
-											inputMode="numeric"
-											placeholder="20304050607"
-											value={businessForm.cuit}
-											onChange={(event) =>
-												patchBusinessForm({
-													cuit: event.target.value,
-												})
-											}
-										/>
-									</Field>
-									<Field label="Condicion frente a IVA">
-										<select
-											value={businessForm.vat_condition}
-											onChange={(event) =>
-												patchBusinessForm({
-													vat_condition: event.target.value,
-												})
-											}
-										>
-											<option value="">Seleccionar</option>
-											{businessVatConditionOptions.map((option) => (
-												<option key={option.value} value={option.value}>
-													{option.label}
-												</option>
-											))}
-										</select>
-									</Field>
-								</div>
-								<div className="form-row">
-									<Field label="Celular de contacto">
-										<input
-											inputMode="tel"
-											value={businessForm.contact_phone}
-											onChange={(event) =>
-												patchBusinessForm({
-													contact_phone: event.target.value,
-												})
-											}
-										/>
-									</Field>
-									<Field label="Mail de contacto">
-										<input
-											type="email"
-											value={businessForm.contact_email}
-											onChange={(event) =>
-												patchBusinessForm({
-													contact_email: event.target.value,
-												})
-											}
-										/>
-									</Field>
-								</div>
-								<Field label="Direccion comercial">
-									<input
-										value={businessForm.address}
-										onChange={(event) =>
-											patchBusinessForm({
-												address: event.target.value,
-											})
-										}
-									/>
-								</Field>
-								<div className="landing-config">
-									<Field label="URL publica">
-										<input
-											readOnly
-											value={publicLandingUrl}
-											placeholder="Disponible al iniciar sesion con negocio"
-										/>
-									</Field>
-									<label>
-										<input
-											type="checkbox"
-											checked={businessForm.public_landing_enabled !== false}
-											onChange={(event) =>
-												patchBusinessForm({
-													public_landing_enabled: event.target.checked,
-												})
-											}
-										/>
-										Landing publica activa
-									</label>
-									<div className="form-row">
-										<label>
-											<input
-												type="checkbox"
-												checked={businessForm.allow_public_booking_requests !== false}
-												onChange={(event) =>
-													patchBusinessForm({
-														allow_public_booking_requests: event.target.checked,
-													})
-												}
-											/>
-											Recibir pedidos de turno
-										</label>
-										<label>
-											<input
-												type="checkbox"
-												checked={businessForm.allow_public_quote_requests !== false}
-												onChange={(event) =>
-													patchBusinessForm({
-														allow_public_quote_requests: event.target.checked,
-													})
-												}
-											/>
-											Recibir pedidos de cotizacion
-										</label>
-									</div>
-									<Field label="Texto corto para la landing">
-										<textarea
-											maxLength={240}
-											rows={3}
-											value={businessForm.public_landing_intro}
-											onChange={(event) =>
-												patchBusinessForm({
-													public_landing_intro: event.target.value,
-												})
-											}
-										/>
-									</Field>
-								</div>
-								<button className="primary">
-									<Building2 size={16} />
-									Guardar datos del negocio
-								</button>
-							</form>
-						</section>
+							<BusinessSettingsPanel
+								businessForm={businessForm}
+								businessLogoFile={businessLogoFile}
+								businessLogoInputKey={businessLogoInputKey}
+								businessLogoInputRef={businessLogoInputRef}
+								businessLogoIsPdf={businessLogoIsPdf}
+								businessLogoPdfStatus={businessLogoPdfStatus}
+								businessLogoPreview={businessLogoPreview}
+								businessProfile={businessProfile}
+								businessSlug={String(currentUser?.business?.slug ?? '')}
+								safeBusinessLogoPdfThumbnail={safeBusinessLogoPdfThumbnail}
+								safeBusinessLogoPreview={safeBusinessLogoPreview}
+								onBusinessLogoChange={handleBusinessLogoChange}
+								onOpenBusinessLogoPicker={openBusinessLogoPicker}
+								onPatchBusinessForm={patchBusinessForm}
+								onSaveBusinessProfile={saveBusinessProfile}
+							/>
 						) : null}
 						{settingsSection === 'quotes' ? (
 						<section className="panel">
 							<div className="panel-head">
 								<div>
+									<span className="panel-kicker">Venta y documentos</span>
 									<h2>Cotizaciones</h2>
 									<p>
 										Define los valores comerciales que se cargan por defecto
 										en nuevas cotizaciones y sus PDF.
 									</p>
 								</div>
+								<div className="settings-action-rail">
+									<div className="settings-primary-actions">
+										<button
+											type="submit"
+											className="primary"
+											form="settings-quotes-form"
+										>
+											<FileText size={16} />
+											Guardar defaults
+										</button>
+									</div>
+								</div>
 							</div>
-							<form className="form-grid" onSubmit={saveBusinessProfile}>
+							<form
+								className="form-grid"
+								id="settings-quotes-form"
+								onSubmit={saveBusinessProfile}
+							>
 								<div className="form-row">
 									<Field label="Validez dias">
 										<input
@@ -15488,10 +16234,6 @@ export default function Home() {
 										}
 									/>
 								</Field>
-								<button className="primary">
-									<FileText size={16} />
-									Guardar defaults de cotizacion
-								</button>
 							</form>
 						</section>
 						) : null}
@@ -15499,6 +16241,7 @@ export default function Home() {
 						<section className="panel">
 							<div className="panel-head">
 								<div>
+									<span className="panel-kicker">Caja y resultado</span>
 									<h2>Categorias de caja</h2>
 									<p>
 										Define las categorias y subcategorias que Caja sugiere
@@ -15508,19 +16251,36 @@ export default function Home() {
 										y movimientos automaticos.
 									</p>
 								</div>
-								<div className="record-actions">
-									<button
-										type="button"
-										className="primary"
-										onClick={() => openFormModal('expense-classification')}
-									>
-										<Plus size={16} />
-										Nueva clasificacion
-									</button>
+								<div className="settings-action-rail">
+									<div className="settings-primary-actions">
+										<button
+											type="button"
+											className="primary"
+											onClick={() => openFormModal('expense-classification')}
+										>
+											<Plus size={16} />
+											Nueva clasificacion
+										</button>
+									</div>
 								</div>
 							</div>
+							<section className="settings-operational-metrics section-block-end">
+								<MetricCard
+									label="Ingresos configurados"
+									value={incomeClassificationPairs.length}
+								/>
+								<MetricCard
+									label="Egresos configurados"
+									value={expenseClassificationPairs.length}
+								/>
+								<MetricCard
+									label="Total de sugerencias"
+									value={cashClassificationPairs.length}
+								/>
+							</section>
 							<div className="records compact-records settings-classification-list">
-								{cashClassificationPairs.map((item) => (
+								{cashClassificationPairs.length ? (
+									cashClassificationPairs.map((item) => (
 									<RecordCard
 										className="settings-classification-card"
 										key={`${item.movement_type}-${item.category}-${item.subcategory}`}
@@ -15567,7 +16327,23 @@ export default function Home() {
 											}
 										/>
 									</RecordCard>
-								))}
+									))
+								) : (
+									<Empty
+										text="Sin clasificaciones configuradas."
+										hint="Carga categorias de ingreso y egreso para que Caja sugiera valores consistentes."
+										action={
+											<button
+												type="button"
+												className="primary"
+												onClick={() => openFormModal('expense-classification')}
+											>
+												<Plus size={16} />
+												Nueva clasificacion
+											</button>
+										}
+									/>
+								)}
 							</div>
 						</section>
 						) : null}
@@ -15575,14 +16351,31 @@ export default function Home() {
 						<section className="panel">
 							<div className="panel-head">
 								<div>
+									<span className="panel-kicker">Operacion diaria</span>
 									<h2>Agenda y reservas</h2>
 									<p>
 										Define si la operacion usa horarios y como se ve la
 										permanencia de reservas multidia.
 									</p>
 								</div>
+								<div className="settings-action-rail">
+									<div className="settings-primary-actions">
+										<button
+											type="submit"
+											className="primary"
+											form="settings-agenda-form"
+										>
+											<CalendarDays size={16} />
+											Guardar agenda
+										</button>
+									</div>
+								</div>
 							</div>
-							<form className="form-grid" onSubmit={saveBusinessProfile}>
+							<form
+								className="form-grid"
+								id="settings-agenda-form"
+								onSubmit={saveBusinessProfile}
+							>
 								<div className="records compact-records">
 									<RecordCard>
 										<RecordCardHeader
@@ -15635,10 +16428,6 @@ export default function Home() {
 									Si ocultas las horas, los datos historicos se conservan pero
 									dejan de mostrarse y las nuevas reservas se guardan sin horario.
 								</div>
-								<button className="primary">
-									<Building2 size={16} />
-									Guardar configuracion operativa
-								</button>
 							</form>
 						</section>
 						) : null}
@@ -15646,24 +16435,41 @@ export default function Home() {
 						<section className="panel">
 							<div className="panel-head">
 								<div>
+									<span className="panel-kicker">Equipo y permisos</span>
 									<h2>Empleados activos</h2>
-									<p>{employees.length} usuarios con rol empleado.</p>
+									<p>
+										Usuarios operativos que acceden al CRM con permisos de
+										empleado.
+									</p>
 								</div>
-								<div className="record-actions">
-									<button
-										type="button"
-										className="primary"
-										onClick={() => openFormModal('employee')}
-									>
-										<Plus size={16} />
-										Nuevo empleado
-									</button>
-									<button type="button" className="ghost" onClick={loadData}>
-										<RefreshCw size={16} />
-										Actualizar
-									</button>
+								<div className="settings-action-rail">
+									<div className="settings-primary-actions">
+										<button
+											type="button"
+											className="primary"
+											onClick={() => openFormModal('employee')}
+										>
+											<Plus size={16} />
+											Nuevo empleado
+										</button>
+									</div>
+									<div className="settings-secondary-actions">
+										<button
+											type="button"
+											className="ghost"
+											onClick={() => loadData({ force: true })}
+										>
+											<RefreshCw size={16} />
+											Actualizar
+										</button>
+									</div>
 								</div>
 							</div>
+							<section className="settings-operational-metrics section-block-end">
+								<MetricCard label="Empleados" value={employees.length} />
+								<MetricCard label="Activos" value={activeEmployeeCount} />
+								<MetricCard label="Inactivos" value={inactiveEmployeeCount} />
+							</section>
 							<div className="records">
 								{employees.length ? (
 									employees.map((item) => (
@@ -15682,7 +16488,20 @@ export default function Home() {
 										</RecordCard>
 									))
 								) : (
-									<Empty text="Sin empleados creados." />
+									<Empty
+										text="Sin empleados creados."
+										hint="Agrega empleados cuando necesites separar accesos de operacion."
+										action={
+											<button
+												type="button"
+												className="primary"
+												onClick={() => openFormModal('employee')}
+											>
+												<Plus size={16} />
+												Nuevo empleado
+											</button>
+										}
+									/>
 								)}
 							</div>
 						</section>
@@ -15691,21 +16510,24 @@ export default function Home() {
 						<section className="panel audit-log-panel">
 							<div className="panel-head">
 								<div>
+									<span className="panel-kicker">Control operativo</span>
 									<h2>Historial de acciones</h2>
 									<p>
 										Cambios registrados desde la activacion de la auditoria,
 										con usuario, fecha y valores antes/despues.
 									</p>
 								</div>
-								<div className="record-actions">
-									<button
-										type="button"
-										className="ghost"
-										onClick={() => refreshAuditLogs()}
-									>
-										<RefreshCw size={16} />
-										Actualizar
-									</button>
+								<div className="settings-action-rail">
+									<div className="settings-secondary-actions">
+										<button
+											type="button"
+											className="ghost"
+											onClick={() => refreshAuditLogs()}
+										>
+											<RefreshCw size={16} />
+											Actualizar
+										</button>
+									</div>
 								</div>
 							</div>
 							<form className="audit-filter-grid" onSubmit={applyAuditFilters}>
@@ -15792,13 +16614,33 @@ export default function Home() {
 								</div>
 							</form>
 							<DataList id="audit-actor-options" values={auditActorOptions} />
-							<div className="records audit-log-list">
-								{auditLogs.length ? (
-									auditLogs.map(renderAuditLogCard)
-								) : (
-									<Empty text="Sin acciones registradas para estos filtros." />
-								)}
-							</div>
+							{loading && !auditLogs.length ? (
+								<LoadingState
+									text="Cargando historial de acciones..."
+									hint="Estamos trayendo los eventos auditados para esta operacion."
+								/>
+							) : (
+								<div className="records audit-log-list">
+									{auditLogs.length ? (
+										auditLogs.map(renderAuditLogCard)
+									) : (
+										<Empty
+											text="Sin acciones registradas para estos filtros."
+											hint="Cambia los filtros o actualiza el historial para revisar eventos recientes."
+											action={
+												<button
+													type="button"
+													className="ghost"
+													onClick={() => refreshAuditLogs()}
+												>
+													<RefreshCw size={16} />
+													Actualizar
+												</button>
+											}
+										/>
+									)}
+								</div>
+							)}
 						</section>
 						) : null}
 						</div>

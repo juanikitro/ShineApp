@@ -1,23 +1,25 @@
 'use client'
 
 import {
-	CalendarDays,
+	Armchair,
 	CheckCircle2,
 	Clock,
 	FileText,
+	Layers,
 	Mail,
 	MapPin,
 	Phone,
 	Send,
+	ShieldCheck,
+	Sparkles,
 	Wrench,
 } from 'lucide-react'
-import { type FormEvent, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 
 import { publicApiFetch } from '@/lib/api'
 import { formatApiError } from '@/lib/api-errors'
 import { joinDisplayParts } from '@/lib/display-text'
-
-type PublicRequestType = 'booking' | 'quote'
+import { isPdfAssetSource, renderPdfPreviewDataUrl } from '@/lib/pdf-preview'
 
 type PublicService = {
 	id: number
@@ -46,7 +48,6 @@ type PublicLandingPayload = {
 }
 
 type PublicRequestForm = {
-	request_type: PublicRequestType
 	customer_name: string
 	customer_phone: string
 	customer_email: string
@@ -61,7 +62,6 @@ type PublicRequestForm = {
 }
 
 const blankForm: PublicRequestForm = {
-	request_type: 'booking',
 	customer_name: '',
 	customer_phone: '',
 	customer_email: '',
@@ -93,6 +93,64 @@ function errorMessage(error: unknown) {
 	return joinDisplayParts([notice.title, notice.description])
 }
 
+type ServiceIconComponent = typeof Wrench
+
+const publicServiceIconMap: Record<string, ServiceIconComponent> = {
+	combo: Layers,
+	polish: Sparkles,
+	seat: Armchair,
+	shield: ShieldCheck,
+}
+
+function PublicServiceIcon({ service }: { service: PublicService }) {
+	const Icon = publicServiceIconMap[service.icon?.trim().toLowerCase() ?? '']
+	if (Icon) {
+		return <Icon aria-hidden="true" size={22} strokeWidth={1.9} />
+	}
+	const fallback = service.name.trim().charAt(0).toUpperCase() || 'S'
+	return <span aria-hidden="true">{fallback}</span>
+}
+
+function usePdfPreview(source: string | null, enabled: boolean, maxWidth: number) {
+	const [thumbnail, setThumbnail] = useState<string | null>(null)
+	const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(
+		'idle',
+	)
+
+	useEffect(() => {
+		if (!enabled || !source) {
+			setThumbnail(null)
+			setStatus('idle')
+			return
+		}
+
+		const abortController = new AbortController()
+		setThumbnail(null)
+		setStatus('loading')
+
+		renderPdfPreviewDataUrl(source, {
+			maxWidth,
+			signal: abortController.signal,
+		})
+			.then((nextThumbnail) => {
+				if (abortController.signal.aborted) return
+				setThumbnail(nextThumbnail)
+				setStatus('ready')
+			})
+			.catch(() => {
+				if (abortController.signal.aborted) return
+				setThumbnail(null)
+				setStatus('error')
+			})
+
+		return () => {
+			abortController.abort()
+		}
+	}, [enabled, maxWidth, source])
+
+	return { thumbnail, status }
+}
+
 export function PublicLandingClient({ slug }: { slug: string }) {
 	const [landing, setLanding] = useState<PublicLandingPayload | null>(null)
 	const [form, setForm] = useState<PublicRequestForm>(blankForm)
@@ -100,6 +158,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	const [submitting, setSubmitting] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [success, setSuccess] = useState(false)
+	const [logoLoadFailed, setLogoLoadFailed] = useState(false)
 
 	useEffect(() => {
 		let mounted = true
@@ -112,10 +171,6 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 				)
 				if (!mounted) return
 				setLanding(payload)
-				setForm((current) => ({
-					...current,
-					request_type: payload.actions.booking_requests ? 'booking' : 'quote',
-				}))
 			} catch (err) {
 				if (!mounted) return
 				setError(errorMessage(err))
@@ -129,21 +184,19 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		}
 	}, [slug])
 
-	const requestTypeOptions = useMemo(() => {
-		if (!landing) return []
-		return [
-			landing.actions.booking_requests
-				? { value: 'booking' as const, label: 'Turno', icon: CalendarDays }
-				: null,
-			landing.actions.quote_requests
-				? { value: 'quote' as const, label: 'Cotizacion', icon: FileText }
-				: null,
-		].filter(Boolean) as Array<{
-			value: PublicRequestType
-			label: string
-			icon: typeof CalendarDays
-		}>
-	}, [landing])
+	const logoSource = landing?.business.logo_url ?? null
+	const logoIsPdf = isPdfAssetSource(logoSource)
+	const { thumbnail: logoPdfThumbnail, status: logoPdfStatus } = usePdfPreview(
+		logoSource,
+		logoIsPdf,
+		960,
+	)
+	const businessImageSource = logoIsPdf ? logoPdfThumbnail : logoSource
+	const canShowBusinessImage = Boolean(businessImageSource && !logoLoadFailed)
+
+	useEffect(() => {
+		setLogoLoadFailed(false)
+	}, [logoPdfThumbnail, logoSource])
 
 	function patchForm(patch: Partial<PublicRequestForm>) {
 		setSuccess(false)
@@ -164,6 +217,36 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	async function submitRequest(event: FormEvent) {
 		event.preventDefault()
 		if (!landing || submitting) return
+		const hasCustomerName = Boolean(form.customer_name.trim())
+		const hasContact = Boolean(
+			form.customer_phone.trim() || form.customer_email.trim(),
+		)
+		if (!hasCustomerName) {
+			setError('Ingresa tu nombre.')
+			setSuccess(false)
+			return
+		}
+		if (!hasContact) {
+			setError('Deja un celular o un email de contacto.')
+			setSuccess(false)
+			return
+		}
+		if (!form.service_ids.length) {
+			setError('Selecciona al menos un servicio.')
+			setSuccess(false)
+			return
+		}
+		const requestType = form.preferred_day ? 'booking' : 'quote'
+		if (requestType === 'booking' && !landing.actions.booking_requests) {
+			setError('El negocio no acepta solicitudes de reserva.')
+			setSuccess(false)
+			return
+		}
+		if (requestType === 'quote' && !landing.actions.quote_requests) {
+			setError('Carga una fecha para solicitar una reserva.')
+			setSuccess(false)
+			return
+		}
 		setSubmitting(true)
 		setError(null)
 		setSuccess(false)
@@ -172,14 +255,12 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 				method: 'POST',
 				body: JSON.stringify({
 					...form,
+					request_type: requestType,
 					service_ids: form.service_ids.map(Number),
 				}),
 			})
 			setSuccess(true)
-			setForm({
-				...blankForm,
-				request_type: requestTypeOptions[0]?.value ?? 'booking',
-			})
+			setForm(blankForm)
 		} catch (err) {
 			setError(errorMessage(err))
 		} finally {
@@ -218,10 +299,37 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		<main className="public-landing">
 			<section className="public-landing-shell">
 				<div className="public-business">
+					{business.logo_url ? (
+						<div
+							className="public-business-media"
+							data-empty={canShowBusinessImage ? 'false' : 'true'}
+						>
+							{canShowBusinessImage ? (
+								<img
+									src={businessImageSource ?? ''}
+									alt={`Imagen de ${business.name}`}
+									onError={() => setLogoLoadFailed(true)}
+								/>
+							) : (
+								<div className="public-business-media-placeholder">
+									<FileText size={34} />
+									<span>
+										{logoIsPdf && logoPdfStatus === 'loading'
+											? 'Preparando imagen...'
+											: 'No se pudo mostrar la imagen del negocio.'}
+									</span>
+								</div>
+							)}
+						</div>
+					) : null}
 					<div className="public-brand">
 						<div className="public-brand-mark">
-							{business.logo_url ? (
-								<img src={business.logo_url} alt="" />
+							{canShowBusinessImage ? (
+								<img
+									src={businessImageSource ?? ''}
+									alt=""
+									onError={() => setLogoLoadFailed(true)}
+								/>
 							) : (
 								<span>{business.name.slice(0, 1).toUpperCase()}</span>
 							)}
@@ -264,7 +372,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 										onClick={() => toggleService(service.id)}
 									>
 										<span className="public-service-icon">
-											{service.icon || 'S'}
+											<PublicServiceIcon service={service} />
 										</span>
 										<span>
 											<strong>{service.name}</strong>
@@ -285,28 +393,16 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 				</div>
 
 				<form className="public-request-form" onSubmit={submitRequest}>
-					<div className="public-section-head">
-						<Send size={18} />
-						<h2>Solicitud</h2>
-					</div>
-					{requestTypeOptions.length > 1 ? (
-						<div className="public-request-type" role="tablist" aria-label="Tipo de solicitud">
-							{requestTypeOptions.map((option) => {
-								const Icon = option.icon
-								return (
-									<button
-										key={option.value}
-										type="button"
-										data-selected={form.request_type === option.value ? 'true' : 'false'}
-										onClick={() => patchForm({ request_type: option.value })}
-									>
-										<Icon size={16} />
-										{option.label}
-									</button>
-								)
-							})}
+					<div>
+						<div className="public-section-head">
+							<Send size={18} />
+							<h2>Solicitud</h2>
 						</div>
-					) : null}
+						<p className="public-form-note">
+							Nombre, un servicio y al menos un celular o email. Sin fecha se
+							solicita una cotizacion; con fecha se solicita una reserva.
+						</p>
+					</div>
 					<input
 						className="public-honeypot"
 						tabIndex={-1}
@@ -318,6 +414,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 						Nombre
 						<input
 							required
+							autoComplete="name"
 							value={form.customer_name}
 							onChange={(event) => patchForm({ customer_name: event.target.value })}
 						/>
@@ -327,6 +424,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							Celular
 							<input
 								inputMode="tel"
+								autoComplete="tel"
 								value={form.customer_phone}
 								onChange={(event) => patchForm({ customer_phone: event.target.value })}
 							/>
@@ -335,6 +433,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							Email
 							<input
 								type="email"
+								autoComplete="email"
 								value={form.customer_email}
 								onChange={(event) => patchForm({ customer_email: event.target.value })}
 							/>
@@ -366,27 +465,30 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							onChange={(event) => patchForm({ vehicle_model: event.target.value })}
 						/>
 					</label>
-					{form.request_type === 'booking' ? (
-						<div className="public-form-row">
-							<label>
-								Fecha preferida
-								<input
-									required
-									type="date"
-									value={form.preferred_day}
-									onChange={(event) => patchForm({ preferred_day: event.target.value })}
-								/>
-							</label>
-							<label>
-								Hora preferida
-								<input
-									type="time"
-									value={form.preferred_time}
-									onChange={(event) => patchForm({ preferred_time: event.target.value })}
-								/>
-							</label>
-						</div>
-					) : null}
+					<div className="public-form-row">
+						<label>
+							Fecha preferida
+							<input
+								type="date"
+								value={form.preferred_day}
+								onChange={(event) =>
+									patchForm({
+										preferred_day: event.target.value,
+										preferred_time: event.target.value ? form.preferred_time : '',
+									})
+								}
+							/>
+						</label>
+						<label>
+							Hora preferida
+							<input
+								type="time"
+								disabled={!form.preferred_day}
+								value={form.preferred_time}
+								onChange={(event) => patchForm({ preferred_time: event.target.value })}
+							/>
+						</label>
+					</div>
 					<label>
 						Mensaje
 						<textarea
@@ -405,7 +507,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 					<button
 						type="submit"
 						className="primary"
-						disabled={submitting || form.service_ids.length === 0}
+						disabled={submitting}
 					>
 						<Send size={16} />
 						{submitting ? 'Enviando...' : 'Enviar solicitud'}

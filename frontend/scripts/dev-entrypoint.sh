@@ -15,4 +15,4 @@ if [ ! -d node_modules/pdfjs-dist ] || [ "$CURRENT_HASH" != "$INSTALLED_HASH" ];
 	printf '%s' "$CURRENT_HASH" > "$LOCKFILE_HASH_PATH"
 fi
 
-exec npm run dev -- --hostname 0.0.0.0 --port 3000
+exec npm run dev:docker

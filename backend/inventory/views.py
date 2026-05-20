@@ -16,7 +16,16 @@ from finance.cash import ensure_cash_day_open
 from finance.models import CashMovement
 from finance.serializers import CashMovementSerializer
 
-from .models import Material, MaterialConsumption, MaterialOpenUnit, MaterialPurchase, StockMovement, Supplier, Tool
+from .models import (
+    Material,
+    MaterialConsumption,
+    MaterialOpenUnit,
+    MaterialPurchase,
+    StockMovement,
+    StockMovementLine,
+    Supplier,
+    Tool,
+)
 from .serializers import (
     MaterialConsumptionSerializer,
     MaterialOpenUnitSerializer,
@@ -32,10 +41,141 @@ from .serializers import (
 )
 
 
+ZERO = Decimal("0.00")
+
+
+def material_list_metrics_defaults():
+    return {
+        "last_purchase_unit_cost": None,
+        "last_purchase_date": None,
+        "usage_count": 0,
+        "total_consumed_quantity": ZERO,
+        "total_consumed_estimated_cost": ZERO,
+        "last_consumed_at": None,
+        "open_units_active_count": 0,
+        "open_units_finished_count": 0,
+        "average_jobs_per_finished_unit": ZERO,
+        "average_days_per_finished_unit": ZERO,
+    }
+
+
+def average_decimal(total, count):
+    if not count:
+        return ZERO
+    return Decimal(total) / Decimal(count)
+
+
+def build_material_list_metrics(rows):
+    material_ids = [row.id for row in rows]
+    metrics = {
+        material_id: material_list_metrics_defaults()
+        for material_id in material_ids
+    }
+    if not material_ids:
+        return metrics
+
+    seen_purchase_materials = set()
+    latest_purchases = (
+        MaterialPurchase.objects.filter(material_id__in=material_ids)
+        .order_by("material_id", "-purchased_at", "-id")
+        .only("material_id", "purchased_at", "quantity", "total_cost")
+    )
+    for purchase in latest_purchases:
+        if purchase.material_id in seen_purchase_materials:
+            continue
+        seen_purchase_materials.add(purchase.material_id)
+        bucket = metrics[purchase.material_id]
+        bucket["last_purchase_date"] = purchase.purchased_at
+        if purchase.quantity > 0:
+            bucket["last_purchase_unit_cost"] = purchase.total_cost / purchase.quantity
+
+    legacy_consumptions = (
+        MaterialConsumption.objects.filter(material_id__in=material_ids)
+        .values("material_id")
+        .annotate(
+            usage_count=Count("id"),
+            total_quantity=Sum("quantity"),
+            total_cost=Sum("estimated_total_cost"),
+            last_consumed_at=Max("consumed_at"),
+        )
+    )
+    for row in legacy_consumptions:
+        bucket = metrics[row["material_id"]]
+        bucket["usage_count"] = row["usage_count"] or 0
+        bucket["total_consumed_quantity"] += row["total_quantity"] or ZERO
+        bucket["total_consumed_estimated_cost"] += row["total_cost"] or ZERO
+        bucket["last_consumed_at"] = row["last_consumed_at"]
+
+    stock_consumptions = (
+        StockMovementLine.objects.filter(
+            material_id__in=material_ids,
+            movement__movement_type=StockMovement.MovementType.CONSUMPTION,
+        )
+        .values("material_id")
+        .annotate(
+            total_quantity=Sum("quantity"),
+            total_cost=Sum("estimated_total_cost"),
+            last_consumed_at=Max("movement__occurred_on"),
+        )
+    )
+    for row in stock_consumptions:
+        bucket = metrics[row["material_id"]]
+        bucket["total_consumed_quantity"] += row["total_quantity"] or ZERO
+        bucket["total_consumed_estimated_cost"] += row["total_cost"] or ZERO
+        movement_last = row["last_consumed_at"]
+        if movement_last and (
+            bucket["last_consumed_at"] is None
+            or movement_last > bucket["last_consumed_at"]
+        ):
+            bucket["last_consumed_at"] = movement_last
+
+    open_units = (
+        MaterialOpenUnit.objects.filter(material_id__in=material_ids)
+        .prefetch_related("consumptions")
+        .only("id", "material_id", "status", "opened_at", "finished_at")
+    )
+    finished_jobs_by_material = {material_id: 0 for material_id in material_ids}
+    finished_durations_by_material = {material_id: [] for material_id in material_ids}
+    for unit in open_units:
+        bucket = metrics[unit.material_id]
+        if unit.status == MaterialOpenUnit.Status.OPEN:
+            bucket["open_units_active_count"] += 1
+            continue
+        if unit.status != MaterialOpenUnit.Status.FINISHED:
+            continue
+        bucket["open_units_finished_count"] += 1
+        finished_jobs_by_material[unit.material_id] += len(
+            {consumption.work_order_id for consumption in unit.consumptions.all()}
+        )
+        if unit.duration_days is not None:
+            finished_durations_by_material[unit.material_id].append(unit.duration_days)
+
+    for material_id, bucket in metrics.items():
+        finished_count = bucket["open_units_finished_count"]
+        bucket["average_jobs_per_finished_unit"] = average_decimal(
+            finished_jobs_by_material[material_id],
+            finished_count,
+        )
+        durations = finished_durations_by_material[material_id]
+        bucket["average_days_per_finished_unit"] = average_decimal(
+            sum(durations),
+            len(durations),
+        )
+
+    return metrics
+
+
 class MaterialViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     queryset = Material.objects.all()
     serializer_class = MaterialSerializer
     permission_classes = [CanViewEconomy]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        metrics_map = getattr(self, "_material_list_metrics_map", None)
+        if metrics_map is not None:
+            context["material_list_metrics_map"] = metrics_map
+        return context
 
     def get_queryset(self):
         queryset = self.queryset
@@ -45,6 +185,17 @@ class MaterialViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         if search:
             queryset = queryset.filter(Q(name__icontains=search) | Q(unit__icontains=search))
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        rows = page if page is not None else list(queryset)
+        self._material_list_metrics_map = build_material_list_metrics(rows)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(rows, many=True)
+        return response.Response(serializer.data)
 
     def perform_destroy(self, instance):
         instance.delete()

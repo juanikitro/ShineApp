@@ -4,6 +4,8 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -164,6 +166,83 @@ def test_public_request_create_validates_services_honeypot_and_rate_limit():
 
 
 @pytest.mark.django_db
+def test_public_request_create_requires_service_and_derives_type_from_date():
+    business = create_business()
+    service = create_service(business)
+    client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    missing_service = client.post(
+        url,
+        {
+            "customer_name": "Ana Lopez",
+            "customer_phone": "11 9999-8888",
+            "customer_email": "",
+            "service_ids": [],
+            "preferred_day": "",
+            "website": "",
+        },
+        format="json",
+    )
+    quote_request = client.post(
+        url,
+        {
+            "request_type": PublicRequest.RequestType.BOOKING,
+            "customer_name": "Luis Gomez",
+            "customer_phone": "",
+            "customer_email": "luis@example.com",
+            "service_ids": [service.id],
+            "preferred_time": "11:30:00",
+            "website": "",
+        },
+        format="json",
+    )
+    booking_request = client.post(
+        url,
+        {
+            "request_type": PublicRequest.RequestType.QUOTE,
+            "customer_name": "Maria Gomez",
+            "customer_phone": "11 2222-3333",
+            "customer_email": "",
+            "service_ids": [service.id],
+            "preferred_day": "2026-05-24",
+            "preferred_time": "11:30:00",
+            "website": "",
+        },
+        format="json",
+    )
+    missing_contact = client.post(
+        url,
+        {
+            "request_type": PublicRequest.RequestType.QUOTE,
+            "customer_name": "Sin contacto",
+            "customer_phone": "",
+            "customer_email": "",
+            "service_ids": [service.id],
+            "website": "",
+        },
+        format="json",
+    )
+
+    assert missing_service.status_code == 400
+    assert "service_ids" in missing_service.data
+    assert quote_request.status_code == 201, quote_request.data
+    quote = PublicRequest.objects.get(pk=quote_request.data["id"])
+    assert quote.request_type == PublicRequest.RequestType.QUOTE
+    assert quote.preferred_day is None
+    assert quote.preferred_time is None
+    assert quote.items.get().service == service
+    assert booking_request.status_code == 201, booking_request.data
+    booking = PublicRequest.objects.get(pk=booking_request.data["id"])
+    assert booking.request_type == PublicRequest.RequestType.BOOKING
+    assert booking.preferred_day.isoformat() == "2026-05-24"
+    assert booking.preferred_time.isoformat() == "11:30:00"
+    assert booking.items.get().service == service
+    assert missing_contact.status_code == 400
+    assert "telefono o un email" in str(missing_contact.data)
+
+
+@pytest.mark.django_db
 def test_internal_public_requests_are_employer_only_and_business_scoped(employee_client):
     business_a = employee_client.user.profile.business
     business_b = create_business("Negocio B", "negocio-b")
@@ -233,6 +312,45 @@ def test_public_request_exposes_duplicate_suggestions_and_archives(api_client):
     assert archived.status_code == 200
     public_request.refresh_from_db()
     assert public_request.status == PublicRequest.Status.ARCHIVED
+
+
+@pytest.mark.django_db
+def test_public_request_list_batches_duplicate_suggestions(api_client):
+    business = api_client.user.profile.business
+    service = create_service(business)
+    for index in range(10):
+        customer = Customer.objects.create(
+            business=business,
+            name=f"Cliente {index}",
+            phone=f"110000{index:04d}",
+            email=f"cliente{index}@example.com",
+        )
+        Vehicle.objects.create(
+            business=business,
+            customer=customer,
+            license_plate=f"AA{index:03d}AA",
+            brand="Ford",
+            model="Focus",
+        )
+        public_request = PublicRequest.objects.create(
+            business=business,
+            request_type=PublicRequest.RequestType.BOOKING,
+            customer_name=customer.name,
+            customer_phone=customer.phone,
+            customer_email=customer.email,
+            vehicle_license_plate=f"aa{index:03d}aa",
+            preferred_day=date(2026, 5, 22),
+        )
+        public_request.items.create(service=service, description=service.name)
+
+    with CaptureQueriesContext(connection) as queries:
+        response = api_client.get(reverse("publicrequest-list"))
+
+    assert response.status_code == 200, response.data
+    assert len(queries) <= 8
+    first = response.data["results"][0]
+    assert first["suggestions"]["customers"]
+    assert first["suggestions"]["vehicles"]
 
 
 @pytest.mark.django_db

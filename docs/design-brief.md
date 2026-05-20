@@ -1,94 +1,94 @@
-# Design Brief
+# Resumen De Diseno
 
-## Product summary
+## Resumen Del Producto
 
-ShineApp is an operational management app for car wash and detailing centers. It behaves more like a compact CRM than a showcase site: the user needs to move quickly between customers, vehicles, bookings, work orders, cash, inventory, and quotes without stopping to decode the interface.
+ShineApp es una app de gestion operativa para centros de lavado y detailing vehicular. Se comporta mas como un CRM compacto que como un sitio vidriera: el usuario necesita moverse rapido entre clientes, vehiculos, reservas, ordenes de trabajo, caja, inventario y cotizaciones sin detenerse a decodificar la interfaz.
 
-The current frontend is a practical Next.js app with one main shell and a dense work surface. Future UI work should improve clarity and consistency inside that operating model instead of forcing a full visual reset. The current visual reference is a light operational CRM: white sidebar, soft gray app canvas, white work panels, dark text, blue primary actions, and red destructive actions. A navy dark mode is also supported as an alternate working theme, preserving the previous `#0B2447` direction for low-light use without replacing the light CRM default.
+El frontend actual es una app Next.js practica con una shell principal y una superficie de trabajo densa. El trabajo futuro de UI debe mejorar claridad y consistencia dentro de ese modelo operativo, en vez de forzar un reset visual completo. La referencia visual actual es un CRM operativo claro: sidebar blanco, canvas gris suave, paneles blancos, texto oscuro, acciones primarias azules y acciones destructivas rojas. Tambien se soporta un dark mode navy como tema alternativo de trabajo, preservando la direccion previa `#0B2447` para uso con poca luz sin reemplazar el default claro de CRM.
 
-## Target user
+## Usuario Objetivo
 
-- Skilled tradesperson or shop operator.
-- Comfortable with the business domain, not necessarily comfortable with software.
-- Needs fast recognition over exploration.
-- Benefits from clear labels, predictable actions, and low-friction forms.
+- Profesional del oficio u operador del local.
+- Conoce el dominio del negocio, pero no necesariamente se siente comodo con software.
+- Necesita reconocimiento rapido mas que exploracion.
+- Se beneficia con etiquetas claras, acciones predecibles y formularios de baja friccion.
 
-## Desired emotional tone
+## Tono Emocional Deseado
 
-The app should feel:
+La app debe sentirse:
 
-- Simple
-- Clear
-- Professional
-- Fast
-- Trustworthy
-- Modern, but not over-designed
-- Calm, focused, and serious
+- simple
+- clara
+- profesional
+- rapida
+- confiable
+- moderna, pero no sobrediseniada
+- calma, enfocada y seria
 
-The UI should feel like a reliable workshop tool, not a consumer app or a marketing site.
-It should feel like a clean CRM workspace for real shop work: light, orderly, direct, and easy to scan.
-In dark mode it should keep the same discipline, but with a serious navy shell, white text, restrained accents, and no glossy effects.
+La UI debe sentirse como una herramienta confiable de taller, no como una app de consumo ni como un sitio de marketing.
+Debe sentirse como un workspace CRM limpio para trabajo real del local: claro, ordenado, directo y facil de escanear.
+En dark mode debe mantener la misma disciplina, pero con una shell navy seria, texto blanco, acentos contenidos y sin efectos brillantes.
 
-## Design principles
+## Principios De Diseno
 
-1. Reduce friction first.
-   Every screen should help the user finish the task with minimal interpretation.
+1. Reducir friccion primero.
+   Cada pantalla debe ayudar al usuario a terminar la tarea con minima interpretacion.
 
-2. Make hierarchy obvious.
-   Primary action, current context, key metrics, and state should be visible at a glance.
+2. Hacer obvia la jerarquia.
+   La accion primaria, el contexto actual, las metricas clave y el estado deben verse de un vistazo.
 
-3. Reuse patterns aggressively.
-   Similar data and similar actions should look and behave the same across sections.
+3. Reutilizar patrones agresivamente.
+   Datos similares y acciones similares deben verse y comportarse igual entre secciones.
 
-4. Prefer calm density over empty polish.
-   This is a work tool. It can be information-rich, but it must stay readable.
+4. Preferir densidad calma antes que polish vacio.
+   Esto es una herramienta de trabajo. Puede ser rica en informacion, pero debe seguir siendo legible.
 
-5. Keep forms out of the main workspace.
-   Creation and editing should happen in popups/modals, not in a permanent form column that competes with the list, agenda, or dashboard.
+5. Mantener los formularios fuera del workspace principal.
+   La creacion y edicion deben ocurrir en popups/modales, no en una columna permanente de formulario que compita con la lista, agenda o dashboard.
 
-6. Keep interaction feedback immediate.
-   Loading, empty, success, warning, and error states should never feel ambiguous.
+6. Mantener feedback de interaccion inmediato.
+   Los estados de carga, vacio, exito, advertencia y error nunca deben sentirse ambiguos.
 
-7. Preserve operational trust.
-   Dangerous actions, money, status, and schedule changes should be explicit and easy to verify.
+7. Preservar confianza operativa.
+   Las acciones peligrosas, dinero, estados y cambios de agenda deben ser explicitos y faciles de verificar.
 
-8. Avoid visual noise.
-   Use color, radius, elevation, and motion with restraint.
+8. Evitar ruido visual.
+   Usar color, radio, elevacion y motion con moderacion.
 
-## What the UI should avoid
+## Que Debe Evitar La UI
 
-- Decorative gradients as a default style.
-- Excessive shadows, glassmorphism, or floating cards everywhere.
-- Ambiguous actions with equal visual weight.
-- One-off spacing, one-off colors, and one-off button styles.
-- Permanent form columns beside lists or dashboards.
-- Low-contrast accent text on white backgrounds.
-- A bright canvas without enough gray framing or panel hierarchy.
-- Clever interactions that hide important data or actions.
-- Large empty hero areas that push the real work below the fold.
-- Copying another product's brand language directly.
+- Gradientes decorativos como estilo default.
+- Sombras excesivas, glassmorphism o cards flotantes por todos lados.
+- Acciones ambiguas con el mismo peso visual.
+- Espaciados, colores y estilos de botones one-off.
+- Columnas permanentes de formulario junto a listas o dashboards.
+- Texto de acento con bajo contraste sobre fondos blancos.
+- Un canvas brillante sin suficiente encuadre gris o jerarquia de paneles.
+- Interacciones ingeniosas que oculten datos o acciones importantes.
+- Grandes areas hero vacias que empujen el trabajo real debajo del fold.
+- Copiar directamente el lenguaje de marca de otro producto.
 
-## What "good" means for this app
+## Que Significa "Bueno" Para Esta App
 
-A good ShineApp screen should let an operator answer these questions fast:
+Una buena pantalla de ShineApp debe permitir que un operador responda rapido:
 
-- Where am I?
-- What is the main action here?
-- What changed?
-- What needs attention?
-- What can I safely do next?
+- Donde estoy?
+- Cual es la accion principal aca?
+- Que cambio?
+- Que requiere atencion?
+- Que puedo hacer ahora sin riesgo?
 
-If a screen looks polished but slows that down, it is not a good result for this product.
+Si una pantalla se ve pulida pero ralentiza eso, no es un buen resultado para este producto.
 
-## How the palette supports the desired feeling
+## Como La Paleta Sostiene La Sensacion Deseada
 
-The palette should communicate trust, control, calm, and focused seriousness:
+La paleta debe comunicar confianza, control, calma y seriedad enfocada:
 
-- `#F8FAFC` and `#FFFFFF` carry the sidebar, top surfaces, controls, and cards so the interface feels clear and approachable.
-- `#E5E7EB` to `#EEF1F5` frame the workspace and separate major areas without visual heaviness.
-- `#111827` and `#4B5563` keep text readable and serious.
-- `#0284C7` to `#0EA5E9` is the action/link blue family, matching the clean blue emphasis in the reference screenshot while keeping button contrast stronger.
-- `#E00000` is reserved for destructive or reset actions, matching the visual language of high-risk controls.
-- `#0B2447`, `#19376D`, and `#A5D7E8` are reserved for the dark-mode identity: navy canvas, navy interaction states, and pale-blue focus/accent details.
+- `#F8FAFC` y `#FFFFFF` sostienen el sidebar, superficies superiores, controles y cards para que la interfaz se sienta clara y accesible.
+- `#E5E7EB` a `#EEF1F5` enmarcan el workspace y separan areas principales sin pesadez visual.
+- `#111827` y `#4B5563` mantienen el texto legible y serio.
+- `#0284C7` a `#0EA5E9` es la familia azul para acciones y links, alineada con el enfasis azul limpio de la referencia visual, manteniendo mejor contraste en botones.
+- `#E00000` se reserva para acciones destructivas o de reset, siguiendo el lenguaje visual de controles de alto riesgo.
+- `#0B2447`, `#19376D` y `#A5D7E8` se reservan para la identidad dark mode: canvas navy, estados de interaccion navy y detalles de foco/acento celeste palido.
 
-Used correctly, the palette produces a professional light SaaS/CRM feel with workshop-level practicality. The key is restraint: most surfaces stay white or soft gray, blue marks the main path, red marks risk, and borders/shadows remain subtle.
+Usada correctamente, la paleta produce una sensacion SaaS/CRM clara y profesional con practicidad de taller. La clave es la moderacion: la mayoria de superficies quedan blancas o gris suave, el azul marca el camino principal, el rojo marca riesgo y los bordes/sombras quedan sutiles.

@@ -633,6 +633,16 @@
   overflow: hidden;
 }
 
+.agenda-entry-tools {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.agenda-entry-tools .quick-actions-trigger {
+  --button-height-icon: 30px;
+}
+
 .agenda-entry-copy {
   display: grid;
   gap: 6px;
@@ -1116,11 +1126,40 @@
     overflow-y: hidden;
     overscroll-behavior-x: contain;
     padding-bottom: 8px;
+    padding-top: 34px;
+    position: relative;
     scrollbar-width: thin;
+    scroll-snap-type: x proximity;
+  }
+
+  .agenda-slide-viewport--board::after {
+    background: var(--color-workspace-surface);
+    border: 1px solid var(--color-workspace-border);
+    border-radius: 999px;
+    bottom: auto;
+    color: var(--shop-ink-soft);
+    content: 'Mas dias ->';
+    display: inline-flex;
+    font-size: 11px;
+    font-weight: 800;
+    height: max-content;
+    left: 12px;
+    line-height: 1;
+    margin: 0;
+    padding: 6px 9px;
+    pointer-events: none;
+    position: absolute;
+    top: 8px;
+    width: max-content;
+    z-index: 2;
   }
 
   .week-board {
     min-width: 840px;
+  }
+
+  .day-row {
+    scroll-snap-align: start;
   }
 }
 

@@ -1,4 +1,6 @@
 const PDF_ASSET_PATTERN = /\.pdf(?:$|[?#])/i
+const SAFE_IMAGE_DATA_URL_PATTERN =
+	/^data:image\/(?:png|jpe?g|gif|webp);base64,[a-z0-9+/=\s]+$/i
 
 export function isPdfAssetName(value: string | null | undefined) {
 	return typeof value === 'string' && PDF_ASSET_PATTERN.test(value.trim())
@@ -6,6 +8,28 @@ export function isPdfAssetName(value: string | null | undefined) {
 
 export function isPdfAssetSource(value: string | null | undefined) {
 	return typeof value === 'string' && PDF_ASSET_PATTERN.test(value)
+}
+
+export function safeImageAssetSource(value: string | null | undefined) {
+	if (typeof value !== 'string') return null
+	const source = value.trim()
+	if (!source) return null
+	if (SAFE_IMAGE_DATA_URL_PATTERN.test(source)) return source
+
+	const base =
+		typeof window !== 'undefined' && window.location?.origin
+			? window.location.origin
+			: 'http://localhost'
+
+	try {
+		const parsed = new URL(source, base)
+		if (['http:', 'https:', 'blob:'].includes(parsed.protocol)) {
+			return source
+		}
+	} catch {
+		return null
+	}
+	return null
 }
 
 type RenderPdfPreviewOptions = {

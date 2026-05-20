@@ -18,7 +18,7 @@ from core.permissions import CanViewEconomy
 from core.permissions import business_for_user, business_from_request
 from debts.models import DebtPayment
 
-from .cash import decimal_total, ensure_cash_day_open, signed_amount_for, totals_payload
+from .cash import cash_day, decimal_total, ensure_cash_day_open, signed_amount_for, totals_payload
 from .models import CashClosure, CashMovement, Payment
 from .serializers import CashClosureSerializer, CashMovementSerializer, PaymentSerializer
 
@@ -142,11 +142,24 @@ def sync_past_cash_closures(reference_day=None, user=None, business=None):
         sync_cash_closure_for_day(day, user=user, business=business)
 
 
-class PaymentViewSet(AuditedModelViewSetMixin, mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+class PaymentViewSet(
+    AuditedModelViewSetMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
     audit_side_effects = ("cash_movement",)
-    queryset = Payment.objects.select_related("work_order").all()
+    queryset = Payment.objects.select_related("work_order", "work_order__customer").all()
     serializer_class = PaymentSerializer
     permission_classes = [CanViewEconomy]
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        ensure_cash_day_open(cash_day(instance.paid_at), field="paid_at", business=instance.business)
+        CashMovement.objects.filter(payment=instance).delete()
+        instance.delete()
 
 
 class CashMovementViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):

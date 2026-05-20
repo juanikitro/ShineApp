@@ -53,6 +53,8 @@ No inventes endpoints, payloads, permisos, modelos, migraciones, capas `services
 
 ## Validacion
 
+Restriccion frontend: antes de correr comandos Node/Vitest/Next, revisa `docs/ia/TESTING.md#restriccion-de-recursos-frontend`. No ejecutes tests, coverage, build o dev server frontend en paralelo.
+
 Comando recomendado desde la raiz:
 
 ```powershell
@@ -84,13 +86,14 @@ Regla local de ramas:
 - `main` queda reservada como branch de publicacion.
 - No crees ramas nuevas ni worktrees salvo que el usuario lo pida explicitamente. Si aparece un bloqueo tecnico que realmente lo requiera, explicalo antes de actuar.
 
-Solo si la tarea implica versionar/publicar:
-- verifica si este checkout tiene Git inicializado,
-- si hay Git, respeta la regla local de ramas y no aisles en otra rama/worktree salvo pedido explicito o bloqueo tecnico explicado,
-- no hagas push a ramas protegidas,
-- si no hay Git, no inventes ramas, commits ni PRs.
+Versionado durante las tareas:
+- Si este checkout tiene Git inicializado, commitea y pushea sistematicamente a `origin/development` a medida que avances.
+- Usa commits chicos por unidades coherentes y validadas; no acumules cambios locales grandes si ya hay un bloque listo para publicar.
+- Antes de cada commit revisa el diff y ejecuta la validacion minima relevante; si no podes validar, dejalo explicito en el mensaje de entrega.
+- Si el push directo a `development` esta bloqueado por permisos, protecciones o conflictos remotos, no improvises otra rama: reporta el bloqueo y pedi confirmacion de la ruta de publicacion.
+- Si no hay Git inicializado, no inventes ramas, commits ni PRs.
 
-Si la tarea no implica versionar/publicar, no gastes contexto en Git.
+Si la tarea es solo lectura o el usuario pide explicitamente no versionar, no hagas commit ni push.
 
 ## Checklist final
 

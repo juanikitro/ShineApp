@@ -256,7 +256,8 @@ textarea:focus-visible,
 .record-card[role="button"]:focus-visible,
 .nav button:focus-visible,
 .day-row-head:focus-visible,
-.day-pill:focus-visible {
+.day-pill:focus-visible,
+.inline-link-button:focus-visible {
   box-shadow: 0 0 0 4px var(--color-focus-ring);
   outline: none;
 }
@@ -362,6 +363,8 @@ label {
   gap: 10px;
   isolation: isolate;
   left: 0;
+  min-width: min(100%, 260px);
+  overscroll-behavior: contain;
   padding: 10px;
   position: absolute;
   right: 0;
@@ -406,12 +409,14 @@ label {
 
 .combo-menu input {
   background: var(--color-surface-raised);
+  min-width: 0;
 }
 
 .combo-options {
   display: grid;
   gap: 4px;
-  max-height: min(240px, 44vh);
+  max-height: min(240px, calc(100vh - 220px));
+  overscroll-behavior: contain;
   overflow: auto;
 }
 
@@ -454,6 +459,18 @@ label {
 
 .combo-empty {
   padding: 8px;
+}
+
+@media (max-width: 620px) {
+  .combo-menu {
+    margin-top: 6px;
+    position: static;
+    width: 100%;
+  }
+
+  .combo-options {
+    max-height: min(220px, 40vh);
+  }
 }
 
 .login-screen {
@@ -520,6 +537,10 @@ label {
   width: 100%;
 }
 
+.login-card--trial {
+  max-width: 560px;
+}
+
 .login-card h1 {
   color: var(--shop-ink);
   font-size: 30px;
@@ -529,5 +550,37 @@ label {
 .login-card p {
   color: var(--shop-ink-soft);
   margin: 0 0 22px;
+}
+
+.login-trial-note {
+  font-size: 13px;
+  grid-column: 1 / -1;
+  line-height: 1.45;
+  margin-top: -8px;
+}
+
+.login-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.login-actions button {
+  flex: 1 1 160px;
+}
+
+.login-trial-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.login-trial-grid .login-actions {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 620px) {
+  .login-trial-grid {
+    grid-template-columns: 1fr;
+  }
 }
 

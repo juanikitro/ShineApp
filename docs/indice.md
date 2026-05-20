@@ -2,6 +2,27 @@
 
 Mapa de fuentes de verdad para asistentes y desarrolladores. No reemplaza la lectura del codigo tocado.
 
+## Documentacion navegable
+
+El sitio navegable usa MkDocs Material sobre este mismo directorio `docs/`. No migra ni duplica la fuente de verdad: `docs/indice.md` sigue siendo el mapa canonico.
+
+Comandos:
+
+```powershell
+py -3 -m pip install -r requirements-docs.txt
+py -3 -m mkdocs serve
+py -3 scripts/check_docs.py --check
+py -3 -m mkdocs build --strict
+```
+
+Para regenerar indices automaticos:
+
+```powershell
+py -3 scripts/check_docs.py --write --skip-build
+```
+
+El build docs debe fallar si hay links rotos, nav invalida o archivos canonicos faltantes.
+
 ## Entradas principales
 
 - `AGENTS.md`: reglas raiz para cualquier asistente.
@@ -20,6 +41,7 @@ Mapa de fuentes de verdad para asistentes y desarrolladores. No reemplaza la lec
 
 - `docs/ia/CONTEXT_HYGIENE.md`: que leer y cuando expandir contexto.
 - `docs/ia/TESTING.md`: comandos de validacion y criterio de tests.
+- `docs/ia/CODEX_TESTING_PROMPT.md`: prompt copy/paste para generar tests sin maquillar coverage.
 - `docs/ia/UI_CONTEXT.md`: entrada corta para cambios de UI.
 - `docs/ia/ARCHITECTURE.md`: boundaries y cambios full-stack.
 - `docs/ia/STYLE_GUIDE.md`: convenciones de codigo.
@@ -40,17 +62,26 @@ Wrappers por herramienta:
 
 - `docs/registro/README.md`: convencion spec-as-source.
 - `docs/registro/cambios/`: cambios funcionales o visibles ya registrados.
+- `docs/registro/cambios/index.md`: indice generado de cambios. No editar manualmente.
 - `docs/registro/decisiones/`: decisiones de arquitectura, negocio o contrato.
+- `docs/registro/decisiones/index.md`: indice generado de decisiones. No editar manualmente.
 - `docs/plans/`: planes y disenos historicos. Usalos como contexto solo si el cambio actual lo requiere.
+- `docs/plans/index.md`: indice generado de planes. No editar manualmente.
 
-## Deployment
+Reglas vivas:
+- Todo cambio funcional visible va a `docs/registro/cambios/`.
+- Toda decision de arquitectura, contrato o negocio va a `docs/registro/decisiones/`.
+- `docs/indice.md` sigue siendo el mapa canonico.
+- GitHub Pages, Vercel o Read the Docs son opciones futuras; no hay deploy automatico de docs.
+
+## Deploy
 
 - `docs/deployment/architecture.md`: arquitectura demo y camino a produccion.
 - `docs/deployment/env-vars.md`: variables privadas/publicas y placeholders.
 - `docs/deployment/vercel.md`: configuracion de proyectos Vercel.
 - `docs/deployment/github-actions.md`: deploy demo manual desde GitHub Actions.
 - `docs/deployment/supabase.md`: Postgres y Storage.
-- `docs/deployment/media-static.md`: media persistente y static files.
+- `docs/deployment/media-static.md`: media persistente y archivos estaticos.
 - `docs/deployment/manual-steps.md`: pasos manuales obligatorios antes de deploy.
 - `docs/deployment/demo-readiness.md`: estado real de recursos demo y bloqueadores.
 
@@ -69,5 +100,6 @@ Wrappers por herramienta:
 - API autenticada por defecto con `TokenAuthentication` y `SessionAuthentication`.
 - Frontend principal: `frontend/app/page.tsx`, `frontend/lib/page-support.tsx` y partials en `frontend/app/styles/`.
 - Tests backend: `backend/tests/`.
-- Tests frontend: `frontend/lib/*.test.mjs`.
+- Tests frontend: `frontend/lib/*.test.mjs` y `frontend/app/components/**/*.test.{ts,tsx}`.
 - Validacion raiz: `scripts/validate.ps1`.
+- Coverage raiz: `scripts/test-coverage.ps1` con gate 90 backend/frontend.

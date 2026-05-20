@@ -1,103 +1,63 @@
-# UI / UX Improvement Backlog - ShineApp
+# Backlog De Mejoras UI/UX - ShineApp
 
-## Criterio de priorizacion
+Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins historicos cerrados salen de "Ahora" para que el siguiente batch refleje deuda vigente real.
 
-1. Facilitar el uso diario.
-2. Hacer que el producto se vea mas serio y vendible.
-3. Reducir inconsistencias visibles.
-4. Bajar deuda visual/arquitectonica.
-5. No romper contratos ni flujos backend.
+## Ahora - siguiente batch recomendado
 
-## Quick wins
+| Orden | ID | Prioridad | Area | Objetivo | Evidencia | Resultado esperado |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | UI-009 | P1/P2 | Arquitectura frontend | Continuar extraccion por vertical de `frontend/app/page.tsx` sin mezclar redisenos. | Cortes aplicados: Caja en `components/cash/CashPanel.tsx`, Deudas en `components/debts/DebtPanel.tsx`, Dashboard en `components/dashboard/DashboardPanel.tsx` y Configuracion > Negocio en `components/settings/BusinessSettingsPanel.tsx`; `page.tsx` sigue grande con 16.654 lineas y aprox. 161 `render*`. | Menos riesgo de regresion y cambios UI mas faciles de validar. |
+| 2 | UI-015 | P2 | Dashboard | Mejorar siguiente accion y priorizacion de datos. | QA dashboard estable; queda deuda de producto, no bloqueo. | Dashboard mas accionable sin cambiar contratos. |
+| 3 | UI-017 | P2 | Clientes | Pulir low-data/empty states y CTA operativo. | QA clientes estable con busqueda; queda polish operativo. | Mejor guia cuando hay pocos datos o resultados. |
+| 4 | UI-018 | P2 | Estados transversales | Consolidar loading/empty/error states por modulo. | Existen primitives, pero el uso no es homogeneo. | Feedback mas consistente entre pantallas. |
+| 5 | UI-014 | P2 | Configuracion branding | Mejorar densidad/card de logo y negocio. | Settings funciona en dark y mobile; queda deuda visual diferible. | Configuracion mas escaneable sin redisenar. |
+| 6 | UI-024 | P2 | Segmented controls | Revalidar visualmente el corte de tokens cuando Browser/local runtime permitan QA completa. | Tokens y estados `--segmented-*` ya aplicados; build 2026-05-20 paso limpio. QA visual quedo bloqueada por `next start` con `EADDRINUSE` en `9000` y Browser con `net::ERR_BLOCKED_BY_CLIENT` en `localhost`/`127.0.0.1`. | Cerrar deuda residual de evidencia, no de implementacion. |
 
-| ID | Mejora | Impacto | Archivos probables | Esfuerzo | Prioridad |
-|---|---|---|---|---|---|
-| QW-01 | Eliminar o cablear el buscador muerto del sidebar. | Sube confianza inmediata. | `frontend/app/page.tsx`, `frontend/app/styles/shell.css` | bajo | ahora |
-| QW-02 | Corregir strings con `Â·` y revisar copy roto. | Mejora polish de demo al instante. | `frontend/app/page.tsx` | bajo | ahora |
-| QW-03 | Renombrar `Trabajos` para alinear la IA con `Agenda`/flujo real. | Baja friccion cognitiva. | `frontend/lib/page-support.tsx`, `frontend/app/page.tsx` | bajo | ahora |
-| QW-04 | Compactar el bloque de logo en `Configuracion > Negocio`. | Gana densidad util. | `frontend/app/page.tsx`, `frontend/app/styles/shell.css`, `frontend/app/styles/forms.css` | bajo | ahora |
-| QW-05 | Ajustar empty states con CTA contextual simple. | Menos pantallas "muertas". | `frontend/app/components/ui/Empty.tsx`, `frontend/app/page.tsx`, `frontend/app/styles/shell.css` | bajo | ahora |
-| QW-06 | Agregar `autocomplete` correcto en login y forms auth. | Mejor accesibilidad y percepcion de calidad. | `frontend/lib/page-support.tsx` | bajo | ahora |
+## Cerrado por batch P1 2026-05-20
 
-## Mejoras de alto impacto
+| ID | Area | Resultado |
+| --- | --- | --- |
+| UI-025 | Landing publica | Iconos de servicios mapeados a Lucide y fallback inicial seguro; sin claves crudas visibles. |
+| UI-021 | Dark mode / configuracion | Estados dark de `.mode-toggle` con texto, hover/focus y selected legibles. |
+| UI-003 | Agenda mobile | Tablero ancho queda como scroll horizontal contenido, con snap y affordance visible. |
+| UI-008 | Formularios | `SearchSelect` sin `autoFocus`, con combobox/listbox ids activos y estado live en vacio. |
+| UI-012 | Login | Modo normal sin credenciales prellenadas; demo solo por env flag y sin password. |
+| UI-016 | Caja | Jerarquia visual de metricas, filtros y listado reforzada por CSS sin tocar negocio. |
+| UI-009 | Caja + Deudas + Dashboard + Settings negocio / arquitectura frontend | Parcialmente reducido: renders de Caja, Deudas, Dashboard y Configuracion > Negocio extraidos a `CashPanel.tsx`, `DebtPanel.tsx`, `DashboardPanel.tsx` y `BusinessSettingsPanel.tsx`; estado, callbacks, payloads y reglas siguen en `page.tsx`. |
+| UI-024 | Segmented controls | Reducido: `.mode-toggle` consume tokens `--segmented-*`, usa `--segmented-count` y comparte estados hover/focus/selected light/dark. |
 
-| ID | Mejora | Impacto | Archivos probables | Esfuerzo | Prioridad |
-|---|---|---|---|---|---|
-| HI-01 | Rehacer shell mobile con drawer y topbar compacta. | Es el mayor salto de UX perceptible. | `frontend/app/page.tsx`, `frontend/app/components/layout/AppShell.tsx`, `SidebarNav.tsx`, `frontend/app/styles/shell.css`, `frontend/app/styles/forms.css` | medio | ahora |
-| HI-02 | Resolver agenda mobile con patron propio. | Mejora la principal superficie operativa. | `frontend/app/page.tsx`, `frontend/app/styles/agenda.css`, `frontend/app/styles/forms.css` | alto | ahora |
-| HI-03 | Separar cards navegables de acciones secundarias. | Corrige UX y accesibilidad a la vez. | `frontend/app/page.tsx`, `frontend/app/components/ui/RecordCard.tsx`, `frontend/app/styles/shell.css` | medio | ahora |
-| HI-04 | Reordenar `Caja` por bloques claros: resumen, accion, filtro, listado. | Sube legibilidad en un modulo critico. | `frontend/app/page.tsx`, `frontend/app/styles/shell.css` | medio | despues |
-| HI-05 | Crear variante compacta para dashboards de entidad con poco historial. | Evita grillas vacias y mejora storytelling. | `frontend/app/page.tsx`, `MetricCard.tsx`, `Panel.tsx`, `frontend/app/styles/shell.css` | medio | despues |
-| HI-06 | Sincronizar secciones con URL. | Mejora navegacion, shareability y seriedad de producto. | `frontend/app/page.tsx`, `frontend/lib/page-support.tsx` | medio | despues |
+## Cerrado por auditoria 2026-05-20
 
-## Refactors visuales necesarios
+| Item historico | Estado | Evidencia |
+| --- | --- | --- |
+| Shell mobile / drawer | Cerrado | Drawer mobile abre/cierra con `data-mobile-open`; QA mobile dark sin body overflow ni overlay bloqueante. |
+| Settings mobile tabs | Cerrado | CSS responsive convierte tabs a grid/columna; QA no reprodujo overflow. |
+| Sidebar search muerto | Cerrado | `SidebarNav` ya no tiene input de busqueda; search real en clientes funciona. |
+| Agenda naming | Cerrado | IA principal usa `Agenda`; `Trabajos` queda como concepto de dominio dentro de la agenda. |
+| Modal accesible base | Cerrado | `ModalFrame` incluye semantica de dialog, Escape y test de foco. |
+| Deep-linking | Cerrado | Navegacion por `?section=...` funciona en QA y codigo. |
+| Encoding `Â·` | Cerrado | No quedan ocurrencias en `frontend/app` ni `frontend/lib`. |
+| Acciones de cards/listas en superficies auditadas | Cerrado | `RecordCard` y `CustomerListPanel` separan accion primaria/secundarias. |
+| Runtime visual productivo | Cerrado para auditoria | `npm run build` + `npm run start` renderizaron flujos principales y landing publica. |
 
-| ID | Refactor | Motivo | Archivos probables | Esfuerzo | Prioridad |
-|---|---|---|---|---|---|
-| RV-01 | Cortar `page.tsx` en vistas por seccion. | Hoy es cuello de botella para consistencia. | `frontend/app/page.tsx`, `frontend/app/components/**`, `frontend/lib/**` | alto | despues |
-| RV-02 | Extraer toolbar/filter header comun. | Muchas secciones repiten el mismo patron con variantes. | `frontend/app/components/ui/*`, `frontend/app/page.tsx` | medio | despues |
-| RV-03 | Unificar tabs/segmented controls. | Hoy `agenda`, `settings`, `cashflow` no se sienten un mismo sistema. | `frontend/app/components/ui/*`, `frontend/app/styles/shell.css` | medio | despues |
-| RV-04 | Unificar layout de dashboards de entidad. | Clientes/servicios/proveedores comparten estructura conceptual. | `frontend/app/page.tsx`, `Panel.tsx`, `MetricCard.tsx` | alto | despues |
+## Despues - deuda diferible
 
-## Mejoras de design system
+| ID | Prioridad | Area | Motivo |
+| --- | --- | --- | --- |
+| UI-009 | P1/P2 | Arquitectura frontend | Cortes aplicados en Caja, Deudas, Dashboard y Settings negocio; quedan otras verticales, estado, formularios y calculos todavia concentrados en `page.tsx`. |
+| UI-010 | P2 | Theme switch | Outlier de estilos y hex directos; no bloqueo QA. |
+| UI-014 | P2 | Configuracion branding | Mejorar densidad/card de logo sin redisenar el flujo. |
+| UI-015 | P2 | Dashboard | Reforzar siguiente accion y low-data guidance. |
+| UI-017 | P2 | Clientes | Pulir low-data/empty states y CTA operativo. |
+| UI-018 | P2 | Estados transversales | Consolidar loading/empty/error states por modulo. |
+| UI-019 | P2 | Vehiculos ocultos | Eliminar o formalizar `hidden-section` para reducir deuda de mantenimiento. |
+| UI-022 | P2 | Sidebar footer mobile | Compactar perfil/footer sin tocar el drawer ya cerrado. |
+| UI-023 | P2 | Bulk workflows | Homogeneizar feedback de acciones masivas. |
+| UI-024 | P2 | Segmented controls | Implementacion de tokens aplicada; build limpio. Queda revalidacion visual autenticada cuando Browser/local runtime no bloqueen el acceso. |
 
-| ID | Mejora | Motivo | Archivos probables | Esfuerzo | Prioridad |
-|---|---|---|---|---|---|
-| DS-01 | Consolidar tokens y eliminar hex sueltos visibles. | El sistema ya existe, pero no gobierna todo. | `frontend/app/styles/tokens.css`, `base.css`, `shell.css`, `agenda.css` | medio | ahora |
-| DS-02 | Normalizar Button/Input/Tabs/Card/Empty/Modal como primitives reales. | Son las piezas que mas impactan la consistencia. | `frontend/app/components/ui/*`, `frontend/app/styles/base.css`, `shell.css` | alto | despues |
-| DS-03 | Redisenar theme switch para que responda al sistema. | Hoy es un outlier visual. | `frontend/app/page.tsx`, `frontend/app/styles/shell.css` | bajo | despues |
-| DS-04 | Definir patrones de estado: loading, empty, error, success. | Hoy son heterogeneos y muy textuales. | `frontend/app/components/ui/*`, `frontend/lib/page-support.tsx`, `frontend/app/styles/shell.css` | medio | ahora |
+## Notas de ejecucion
 
-## Mejoras para demo comercial
-
-| ID | Mejora | Motivo | Archivos probables | Esfuerzo | Prioridad |
-|---|---|---|---|---|---|
-| DEMO-01 | Limpiar encoding, copy y labels ambiguos. | Son fallos chicos con impacto grande en percepcion. | `frontend/app/page.tsx`, `frontend/lib/page-support.tsx` | bajo | ahora |
-| DEMO-02 | Dejar login en modo demo mas explicito o neutro. | Evita sensacion de "credenciales hardcodeadas". | `frontend/lib/page-support.tsx`, `frontend/app/styles/base.css` | bajo | despues |
-| DEMO-03 | Crear smoke visual estable en runtime productivo. | Evita que `next dev` arruine demos internas. | scripts/harness, no UX visible | medio | despues |
-| DEMO-04 | Pulir dashboard con modulo de atencion/proximas acciones. | Sube mucho el efecto "producto inteligente". | `frontend/app/page.tsx`, `frontend/app/styles/shell.css` | medio | despues |
-
-## Mejoras para producto escalable
-
-| ID | Mejora | Motivo | Archivos probables | Esfuerzo | Prioridad |
-|---|---|---|---|---|---|
-| SCALE-01 | Rutas o query params por seccion y por dashboards de entidad. | Hace shareable y trazable la UI. | `frontend/app/page.tsx` | medio | despues |
-| SCALE-02 | Separar estado local por modulo y reducir acoplamiento cruzado. | Evita regresiones al crecer. | `frontend/app/page.tsx`, `frontend/lib/*` | alto | mas adelante |
-| SCALE-03 | Componentizar filtros/listados/metricas por dominio. | Permite evolucionar cada modulo sin tocar todo. | `frontend/app/components/**` | alto | mas adelante |
-| SCALE-04 | Incorporar acciones masivas en listas operativas. | Necesario cuando crezca el volumen. | `frontend/app/page.tsx`, `RecordCard.tsx`, `shell.css` | medio | mas adelante |
-
-## Que hacer ahora / despues / mas adelante
-
-### Ahora
-
-- QW-01 a QW-06
-- HI-01
-- UI-006 / UI-007 / UI-011 / UI-018
-- DS-01 y DS-04
-
-### Despues
-
-- HI-02 a HI-06
-- RV-01 a RV-04
-- DS-02 y DS-03
-- DEMO-02 a DEMO-04
-
-### Mas adelante
-
-- SCALE-01 a SCALE-04
-- refinamiento fino de dashboards y reporting
-- variantes mas ricas por rol/permiso
-
-## Primer batch recomendado
-
-Si el objetivo es una **Fase 1 visible, de bajo riesgo y con impacto real**, el primer lote deberia ser:
-
-1. Shell mobile nuevo.
-2. Sidebar sin control muerto.
-3. Renombre/IA de `Trabajos` -> flujo real.
-4. Fix de cards navegables + acciones.
-5. Fix de settings mobile tabs.
-6. Copy/encoding polish.
-7. Empty/loading/error base.
-
-Ese lote no requiere tocar contratos backend y cambia mucho la percepcion general.
+- No agregar tests si el siguiente cambio es solo docs.
+- Si se toca codigo UI, validar al menos `cd frontend && npm run build` y un smoke browser del flujo afectado.
+- Guardar screenshots fuera del repo salvo que se pida evidencia versionada.
+- No reabrir como P0 ningun item que no pueda reproducirse en runtime estable.

@@ -1,4 +1,4 @@
-# UI / UX Implementation Plan - ShineApp
+# Plan De Implementacion UI/UX - ShineApp
 
 ## Enfoque
 
@@ -7,6 +7,61 @@ Plan incremental, sin rehacer la app ni tocar contratos backend salvo necesidad 
 1. mejorar la experiencia visible rapido,
 2. construir base reutilizable,
 3. intervenir pantallas criticas despues de estabilizar primitives.
+
+## Auditoria 2026-05-20 - estado del plan
+
+La re-auditoria sobre `development` confirmo que varios P0/P1 historicos ya estan cerrados en codigo y QA: drawer mobile, settings mobile tabs, sidebar search, modal accesible, deep-linking, Agenda naming principal, encoding `Â·` en fuente UI y runtime productivo basico.
+
+El batch P1 posterior a la auditoria queda aplicado el 2026-05-20 con fixes minimos para landing publica, dark settings, agenda mobile, `SearchSelect`, login demo y caja. No se agrego Fase 6: el siguiente trabajo vive en `UI_UX_IMPROVEMENT_BACKLOG.md`.
+
+Estado por fase:
+
+| Fase | Estado actual | Evidencia / ajuste |
+| --- | --- | --- |
+| Fase 1 | Mayormente cerrada | Shell mobile, sidebar search, settings mobile y naming no se reprodujeron como deuda vigente. Quedan solo deudas visibles nuevas o residuales documentadas en issues/backlog. |
+| Fase 2 | Cerrada para deuda P1 visible | `ModalFrame`, `RecordCard` y estados base estan mejorados; `SearchSelect` recibio semantica/foco minimo defendible. |
+| Fase 3A | Cerrada para desktop y mobile usable | Agenda desktop carga y navega bien; Agenda mobile conserva tablero horizontal, ahora con scroll contenido explicito y snap. |
+| Fase 4 | Cerrada para batch P1 | Deep-linking, modal base, dark mode tabs, login demo, caja y landing publica tienen cortes minimos aplicados. |
+| Fase 5 | Cerrada como hito local | Se preserva la nota local de cierre de Fase 5. La auditoria no requiere inventar una Fase 6; el siguiente batch vive en backlog. |
+
+Siguiente batch recomendado: continuar `UI-009` por otra vertical cuando el siguiente cambio sea tecnico, luego P2 visuales priorizados en backlog.
+
+Primer corte UI-009 aplicado 2026-05-20:
+
+- Caja se movio desde `frontend/app/page.tsx` a `frontend/app/components/cash/CashPanel.tsx`.
+- `page.tsx` conserva estado, datos, callbacks, endpoints y reglas; el componente nuevo recibe props explicitas.
+- Conteo post-corte Caja: `page.tsx` tiene 17.570 lineas y aprox. 164 coincidencias `render*`.
+- Validacion: `cd frontend && npm run build`, `next start`, `/` y `/?section=cash` en desktop `1440x900` y mobile `390x844`.
+
+Segundo corte UI-009 aplicado 2026-05-20:
+
+- Deudas se movio desde `frontend/app/page.tsx` a `frontend/app/components/debts/DebtPanel.tsx`.
+- `page.tsx` conserva estado, datos, filtros, callbacks, endpoints, payloads, permisos y reglas; el componente nuevo recibe props explicitas.
+- Conteo post-corte Deudas: `page.tsx` tiene 17.232 lineas y aprox. 161 coincidencias `render*`; `DebtPanel.tsx` concentra 450 lineas presentacionales.
+- Validacion: `cd frontend && npm run build`; `next start` sirvio `/` y `/?section=debts` con HTTP 200. QA visual/screenshot quedo bloqueada por Codex Browser `net::ERR_BLOCKED_BY_CLIENT`.
+
+Tercer corte UI-009 aplicado 2026-05-20:
+
+- Dashboard se movio desde `frontend/app/page.tsx` a `frontend/app/components/dashboard/DashboardPanel.tsx`.
+- `page.tsx` conserva estado, fetch, callbacks, permisos y routing; el componente nuevo concentra render y calculos presentacionales del tablero.
+- Conteo post-corte Dashboard: `page.tsx` tiene 16.929 lineas y aprox. 161 coincidencias `render*`; `DashboardPanel.tsx` concentra 906 lineas presentacionales.
+- Validacion: `cd frontend && npm run build`; build adicional con `NEXT_PUBLIC_API_URL=http://localhost:8000/api`; `next start` en `9000` sirvio `/` con HTTP 200.
+- QA visual autenticada normal quedo bloqueada por CORS del backend local: `OPTIONS http://localhost:8000/api/auth/me/` desde `http://localhost:9000` respondio 200 sin `Access-Control-Allow-Origin`. Como workaround solo visual, Chrome headless con `--disable-web-security` cargo `/?section=dashboard` en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay, sin errores de consola/runtime/red. Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-dashboard-qa-2026-05-20T15-22-57-401Z\*.png`.
+
+Cuarto corte UI-009 aplicado 2026-05-20:
+
+- Configuracion > Negocio se movio desde `frontend/app/page.tsx` a `frontend/app/components/settings/BusinessSettingsPanel.tsx`.
+- `page.tsx` conserva estado, guardado, logo picker y callbacks; el componente nuevo concentra la card de negocio, logo y formulario publico.
+- Conteo post-corte Settings negocio: `page.tsx` tiene 16.654 lineas y aprox. 161 coincidencias `render*`; `BusinessSettingsPanel.tsx` concentra 351 lineas presentacionales.
+- Validacion: `cd frontend && npm run build`; build adicional con `NEXT_PUBLIC_API_URL=http://localhost:9001/api`; `next start` en `9000` sirvio `/` con HTTP 200.
+- QA visual autenticada normal: backend/db levantados con `docker compose up -d db backend`; `/?section=settings&settings=business` cargo en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay, sin errores de consola/runtime/red. Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-settings-business-qa-2026-05-20T17-24-07-396Z\*.png`.
+
+Corte UI-024 aplicado 2026-05-20:
+
+- `frontend/app/styles/tokens.css` define tokens `--segmented-*` para light/dark.
+- `frontend/app/styles/shell.css` hace que `.mode-toggle` use esos tokens y `--segmented-count`.
+- Validacion: `cd frontend && npm run build`.
+- QA visual autenticada de UI-024 sigue bloqueada por entorno: `next start` no pudo tomar `9000` por `EADDRINUSE` de un `npm run dev` externo, y Codex Browser bloqueo `localhost`/`127.0.0.1` con `net::ERR_BLOCKED_BY_CLIENT`. El build de tokens paso limpio.
 
 ## Fase 1 - Mejoras visibles de bajo riesgo
 
@@ -63,7 +118,7 @@ Subir percepcion profesional y reducir friccion sin tocar dominio ni endpoints.
 - reglas de negocio de agenda/caja,
 - dark-mode redesign completo.
 
-## Fase 2 - Componentes base / design system
+## Fase 2 - Componentes Base / Sistema De Diseno
 
 ### Objetivo
 
@@ -269,6 +324,31 @@ Dejar la experiencia utilizable y defendible en teclado y mobile real.
 - copy comercial amplio.
 
 ## Fase 5 - Pulido premium / demo vendible
+
+Estado: implementada y validada localmente en `development`.
+
+Alcance entregado:
+
+- microcopy operativo reforzado en dashboard, clientes, agenda, caja, deudas y configuracion,
+- estados vacios y low-data con CTA mas claros,
+- dashboard con lectura de periodo, prioridad operativa y estados de trabajo mas escaneables,
+- consistencia fina de foco visible, nombres accesibles, spacing y densidad en superficies principales,
+- ajustes frontend-only reutilizando componentes y tokens existentes.
+
+Validacion ejecutada:
+
+- `cd frontend && npm run test`
+- `cd frontend && npm run build`
+- `docker compose config --quiet`
+- QA browser en 390px, 768px, laptop y desktop
+- smoke manual: login, dashboard, clientes, agenda, caja, deudas y configuracion
+- chequeo de foco visible, teclado, nombres accesibles y ausencia de overflow horizontal/clipping.
+
+Notas de cierre:
+
+- no se tocaron endpoints, payloads, permisos, reglas de negocio ni backend,
+- los cambios quedaron incorporados en `development`,
+- este plan no declara una Fase 6; cualquier siguiente trabajo deberia salir de hallazgos puntuales de QA/demo o backlog nuevo.
 
 ### Objetivo
 

@@ -1,5 +1,7 @@
 - No inventes APIs, modelos, endpoints, permisos, settings ni dependencias. Si falta info, dejalo explicito.
 - Preserva comportamiento por defecto: si cambias logica o contratos, actualiza tests y callers.
+- No cambies, relajes, borres ni saltees tests para hacer pasar implementaciones. Diagnostica causa raiz.
+- Cambios no triviales: corre `scripts/validate.ps1` y `scripts/test-coverage.ps1`; coverage minimo 90 backend/frontend.
 - Cambios minimos primero: preferi patches incrementales y evita refactors grandes fuera de alcance.
 - Valida con comandos reales del repo o explica exactamente que no pudiste validar.
 - Seguridad por defecto: valida inputs, respeta auth, no expongas secretos ni datos sensibles.

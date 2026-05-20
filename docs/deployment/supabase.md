@@ -1,24 +1,24 @@
-# Supabase Setup
+# Configuracion De Supabase
 
 ## Postgres
 
-1. Create a Supabase project for the demo.
-2. In Project Settings or Connect, copy a Postgres connection string.
-3. For Vercel serverless, prefer the pooler URL. Use transaction pooler for short request/response workloads unless you need session features.
-4. Store it in the API project as `DATABASE_URL`.
-5. Set `DATABASE_SSL_REQUIRE=1`.
+1. Crear un proyecto Supabase para la demo.
+2. En Project Settings o Connect, copiar una connection string de Postgres.
+3. Para Vercel serverless, preferir la URL del pooler. Usar transaction pooler para cargas cortas request/response salvo que necesites funcionalidades de sesion.
+4. Guardarla en el proyecto API como `DATABASE_URL`.
+5. Setear `DATABASE_SSL_REQUIRE=1`.
 
-Current demo project:
+Proyecto demo actual:
 
-- Name: `shineapp-demo`
+- Nombre: `shineapp-demo`
 - Project ref: `cdzqcpwbsfyeeigecqwr`
 - Region: `sa-east-1`
 - API URL: `https://cdzqcpwbsfyeeigecqwr.supabase.co`
 - DB host: `db.cdzqcpwbsfyeeigecqwr.supabase.co`
 
-The MCP does not expose the database password or complete pooler URL. For the public demo, `DATABASE_URL` was copied manually from the Supabase Dashboard Connect screen and stored in the Vercel API project plus the GitHub `demo-production` environment for automated migrations.
+El MCP no expone el password de base de datos ni la URL pooler completa. Para la demo publica, `DATABASE_URL` se copio manualmente desde la pantalla Connect del Supabase Dashboard y se guardo en el proyecto Vercel API mas el entorno GitHub `demo-production` para migraciones automatizadas.
 
-Validate locally with production settings import before deploying:
+Validar localmente con import de configuracion de produccion antes de desplegar:
 
 ```powershell
 cd backend
@@ -28,13 +28,13 @@ $env:DJANGO_SETTINGS_MODULE="config.settings_production"
 
 ## Storage
 
-1. Create a bucket, for example `shineapp-media`.
-2. Decide access mode:
-   - Public bucket for a low-friction demo.
-   - Private bucket with signed URLs if uploaded files are sensitive.
-3. Enable S3 access for Storage.
-4. Create an access key and secret for server-side use only.
-5. Configure:
+1. Crear un bucket, por ejemplo `shineapp-media`.
+2. Decidir modo de acceso:
+   - Bucket publico para una demo de baja friccion.
+   - Bucket privado con URLs firmadas si los archivos subidos son sensibles.
+3. Habilitar acceso S3 para Storage.
+4. Crear access key y secret para uso server-side solamente.
+5. Configurar:
    - `SUPABASE_STORAGE_ENABLED=1`
    - `SUPABASE_STORAGE_BUCKET=shineapp-media`
    - `SUPABASE_S3_ENDPOINT_URL=https://<project-ref>.storage.supabase.co/storage/v1/s3`
@@ -42,22 +42,22 @@ $env:DJANGO_SETTINGS_MODULE="config.settings_production"
    - `SUPABASE_S3_ACCESS_KEY_ID=<key-id>`
    - `SUPABASE_S3_SECRET_ACCESS_KEY=<secret>`
 
-Do not expose S3 access keys in Next.js.
+No exponer access keys S3 en Next.js.
 
-Current demo storage:
+Storage demo actual:
 
 - Bucket: `shineapp-media`
-- Access: private
-- Recommended backend setting: `SUPABASE_STORAGE_QUERYSTRING_AUTH=1`
+- Acceso: privado
+- Setting backend recomendado: `SUPABASE_STORAGE_QUERYSTRING_AUTH=1`
 - Endpoint: `https://cdzqcpwbsfyeeigecqwr.storage.supabase.co/storage/v1/s3`
-- Public URL base: leave unset while the bucket is private.
-- Validation on 2026-05-18: Django `migrate --check` against the transaction pooler returned clean.
-- Validation on 2026-05-18: S3 `head_bucket` returned OK for `shineapp-media`.
-- Validation on 2026-05-18: public API healthcheck returned `database=ok`.
+- Base URL publica: dejar sin setear mientras el bucket sea privado.
+- Validacion el 2026-05-18: Django `migrate --check` contra el transaction pooler termino limpio.
+- Validacion el 2026-05-18: S3 `head_bucket` retorno OK para `shineapp-media`.
+- Validacion el 2026-05-18: healthcheck publico de API retorno `database=ok`.
 
-S3 access keys are not exposed by the MCP. Create them manually in Supabase Dashboard, then store them only in Vercel backend env vars.
+Las access keys S3 no son expuestas por el MCP. Crearlas manualmente en Supabase Dashboard y guardarlas solo en env vars del backend en Vercel.
 
-Migration command once `DATABASE_URL` is available:
+Comando de migracion una vez disponible `DATABASE_URL`:
 
 ```powershell
 cd backend
@@ -68,6 +68,6 @@ $env:DATABASE_SSL_REQUIRE="1"
 .\.venv\Scripts\python.exe manage.py migrate
 ```
 
-Do not run `seed_demo` until the target database is confirmed.
+No ejecutar `seed_demo` hasta confirmar la base de datos destino.
 
-Seed status: demo seed was applied to Supabase on 2026-05-18 with explicit confirmation flags for a demo target. The run did not create a Django admin superadmin.
+Estado de seed: el seed demo se aplico a Supabase el 2026-05-18 con flags de confirmacion explicitos para un destino demo. La corrida no creo un superadmin de Django admin.

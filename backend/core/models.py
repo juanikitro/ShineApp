@@ -254,9 +254,14 @@ class BusinessProfile(models.Model):
         choices=SubscriptionType.choices,
         default=SubscriptionType.TRIAL,
     )
+    industry = models.CharField(max_length=120, blank=True)
     contact_phone = models.CharField(max_length=60, blank=True)
     contact_email = models.EmailField(blank=True)
+    city = models.CharField(max_length=120, blank=True)
+    country = models.CharField(max_length=120, blank=True)
     address = models.CharField(max_length=220, blank=True)
+    trial_started_at = models.DateTimeField(null=True, blank=True)
+    trial_ends_at = models.DateTimeField(null=True, blank=True)
     default_quote_validity_days = models.PositiveSmallIntegerField(default=7)
     default_quote_tax_rate = models.DecimalField(
         max_digits=5,

@@ -712,6 +712,11 @@ button.primary.quote-action-button--filled {
     padding: 14px;
   }
 
+  .toast-action {
+    grid-column: 2;
+    justify-self: start;
+  }
+
   .toast-close {
     position: absolute;
     right: 8px;

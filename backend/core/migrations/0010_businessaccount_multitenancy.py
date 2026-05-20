@@ -57,6 +57,7 @@ def backfill_core_business(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [
         ("core", "0009_auditlog"),

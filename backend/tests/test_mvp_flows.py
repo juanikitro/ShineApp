@@ -17,6 +17,7 @@ from catalog.models import Service
 from core.models import BusinessProfile
 from customers.models import Customer, Vehicle
 from customers.serializers import VehicleSerializer
+from debts.models import Debt
 from finance.models import CashClosure, CashMovement, Payment
 from inventory.models import Material, MaterialConsumption, MaterialOpenUnit, MaterialPurchase
 from quotes.models import Quote, QuoteItem
@@ -508,6 +509,10 @@ def test_employee_can_access_dashboard_birthdays_without_economy(employee_client
     assert response.status_code == 200
     assert "sales_total" not in response.data
     assert "today_income" not in response.data
+    assert "comparison" not in response.data
+    assert "rankings" not in response.data
+    assert "receivables_aging" not in response.data
+    assert "debt_timing" not in response.data
     assert response.data["birthday_alert_days"] == 3
     assert response.data["birthday_alerts"][0]["id"] == customer.id
     assert response.data["birthday_alerts"][0]["days_until_birthday"] == 2
@@ -1654,6 +1659,37 @@ def test_payment_creates_cash_income_and_updates_debt(api_client, base_data):
     movement = CashMovement.objects.get(payment_id=response.data["id"])
     assert movement.movement_type == CashMovement.MovementType.INCOME
     assert movement.amount == Decimal("5000.00")
+
+
+@pytest.mark.django_db
+def test_payment_delete_removes_cash_income_and_restores_balance(api_client, base_data):
+    customer, vehicle, service = base_data
+    order = create_work_order(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        total_amount=Decimal("15000.00"),
+    )
+    response = api_client.post(
+        reverse("payment-list"),
+        {
+            "work_order": order.id,
+            "amount": "5000.00",
+            "payment_type": "deposit",
+            "method": "cash",
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+
+    delete_response = api_client.delete(reverse("payment-detail", args=[response.data["id"]]))
+
+    assert delete_response.status_code == 204
+    assert not Payment.objects.filter(id=response.data["id"]).exists()
+    assert not CashMovement.objects.filter(payment_id=response.data["id"]).exists()
+    order.refresh_from_db()
+    assert order.paid_amount == Decimal("0.00")
+    assert order.balance_due == Decimal("15000.00")
 
 
 @pytest.mark.django_db
@@ -2843,3 +2879,224 @@ def test_dashboard_summary_exposes_operational_metrics(api_client, base_data):
     assert response.data["work_orders_count"] == 1
     assert Decimal(response.data["average_ticket"]) == Decimal("15000.00")
     assert response.data["work_orders_by_status"]["delivered"] == 1
+
+
+@pytest.mark.django_db
+def test_dashboard_summary_exposes_economic_direction_metrics(api_client, base_data):
+    customer, vehicle, service = base_data
+    material = Material.objects.create(
+        name="Shampoo",
+        unit="ml",
+        stock_quantity=Decimal("1000.00"),
+        estimated_unit_cost=Decimal("10.00"),
+    )
+    metric_day = date(2026, 4, 10)
+    previous_day = date(2026, 3, 10)
+    current_order = create_work_order(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        status=WorkOrder.Status.DELIVERED,
+        total_amount=Decimal("20000.00"),
+    )
+    previous_order = create_work_order(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        status=WorkOrder.Status.DELIVERED,
+        total_amount=Decimal("10000.00"),
+        day=previous_day,
+    )
+    WorkOrder.objects.filter(pk=current_order.pk).update(
+        created_at=timezone.make_aware(datetime.combine(metric_day, time(10, 0)))
+    )
+    WorkOrder.objects.filter(pk=previous_order.pk).update(
+        created_at=timezone.make_aware(datetime.combine(previous_day, time(10, 0)))
+    )
+    MaterialConsumption.objects.create(
+        work_order=current_order,
+        material=material,
+        consumed_at=date(2026, 4, 12),
+        quantity=Decimal("300.00"),
+        estimated_unit_cost=Decimal("10.00"),
+        estimated_total_cost=Decimal("3000.00"),
+    )
+    MaterialConsumption.objects.create(
+        work_order=previous_order,
+        material=material,
+        consumed_at=date(2026, 3, 12),
+        quantity=Decimal("100.00"),
+        estimated_unit_cost=Decimal("10.00"),
+        estimated_total_cost=Decimal("1000.00"),
+    )
+    MaterialPurchase.objects.create(
+        material=material,
+        purchased_at=date(2026, 4, 16),
+        quantity=Decimal("50.00"),
+        total_cost=Decimal("2500.00"),
+    )
+    api_client.post(
+        reverse("payment-list"),
+        {
+            "work_order": current_order.id,
+            "amount": "15000.00",
+            "payment_type": "payment",
+            "method": "card",
+            "paid_at": timezone.make_aware(datetime.combine(metric_day, time(11, 0))).isoformat(),
+        },
+        format="json",
+    )
+    api_client.post(
+        reverse("payment-list"),
+        {
+            "work_order": previous_order.id,
+            "amount": "7000.00",
+            "payment_type": "payment",
+            "method": "transfer",
+            "paid_at": timezone.make_aware(datetime.combine(previous_day, time(11, 0))).isoformat(),
+        },
+        format="json",
+    )
+    CashMovement.objects.create(
+        movement_type=CashMovement.MovementType.EXPENSE,
+        category="Servicios",
+        subcategory="Otros",
+        amount=Decimal("500.00"),
+        occurred_at=timezone.make_aware(datetime.combine(date(2026, 4, 13), time(12, 0))),
+    )
+    CashMovement.objects.create(
+        movement_type=CashMovement.MovementType.EXPENSE,
+        category="Servicios",
+        subcategory="Otros",
+        amount=Decimal("300.00"),
+        occurred_at=timezone.make_aware(datetime.combine(date(2026, 3, 13), time(12, 0))),
+    )
+    debt_response = api_client.post(
+        reverse("debt-list"),
+        {
+            "concept": "Alquiler taller",
+            "creditor": "Propietario",
+            "principal_amount": "4000.00",
+            "origin_date": "2026-04-14",
+            "due_date": "2026-04-20",
+            "expense_category": "Servicios",
+            "expense_subcategory": "Alquiler",
+        },
+        format="json",
+    )
+    api_client.post(
+        reverse("debtpayment-list"),
+        {
+            "debt": debt_response.data["id"],
+            "amount": "1000.00",
+            "paid_at": "2026-04-15",
+            "method": "cash",
+        },
+        format="json",
+    )
+    due_soon = Debt.objects.create(
+        concept="Seguro taller",
+        creditor="Aseguradora",
+        principal_amount=Decimal("2500.00"),
+        origin_date=date.today(),
+        due_date=date.today() + timedelta(days=3),
+    )
+
+    response = api_client.get(reverse("dashboard-summary"), {"from": "2026-04-01", "to": "2026-04-30"})
+    expected_receivable_age = (date.today() - metric_day).days
+
+    assert response.status_code == 200
+    assert Decimal(response.data["sales_total"]) == Decimal("15000.00")
+    assert Decimal(response.data["collected_total"]) == Decimal("15000.00")
+    assert Decimal(response.data["billed_total"]) == Decimal("20000.00")
+    assert Decimal(response.data["balance_due_total"]) == Decimal("5000.00")
+    assert response.data["work_orders_with_balance_due_count"] == 1
+    assert Decimal(response.data["material_cost_total"]) == Decimal("3000.00")
+    assert Decimal(response.data["estimated_margin_total"]) == Decimal("17000.00")
+    assert Decimal(response.data["cashflow_income_total"]) == Decimal("15000.00")
+    assert Decimal(response.data["cashflow_expense_total"]) == Decimal("1500.00")
+    assert Decimal(response.data["cashflow_balance"]) == Decimal("13500.00")
+    assert Decimal(response.data["material_purchases_total"]) == Decimal("2500.00")
+    assert Decimal(response.data["overdue_debts_total"]) == Decimal("3000.00")
+    assert response.data["overdue_debts_count"] == 1
+    assert response.data["has_activity"] is True
+    top_receivable = response.data["top_receivables"][0]
+    assert top_receivable["customer_id"] == customer.id
+    assert top_receivable["customer_name"] == "Juan Perez"
+    assert Decimal(top_receivable["balance_due_total"]) == Decimal("5000.00")
+    assert top_receivable["work_orders_count"] == 1
+    assert top_receivable["oldest_balance_days"] == expected_receivable_age
+    assert top_receivable["work_orders"][0]["id"] == current_order.id
+    assert top_receivable["work_orders"][0]["created_on"] == "2026-04-10"
+    assert top_receivable["work_orders"][0]["customer_name"] == "Juan Perez"
+    assert top_receivable["work_orders"][0]["vehicle_label"] == "AB123CD - Ford Focus"
+    assert top_receivable["work_orders"][0]["service_name"] == "Lavado premium"
+    assert Decimal(top_receivable["work_orders"][0]["total_amount"]) == Decimal("20000.00")
+    assert Decimal(top_receivable["work_orders"][0]["paid_amount"]) == Decimal("15000.00")
+    assert Decimal(top_receivable["work_orders"][0]["balance_due"]) == Decimal("5000.00")
+    assert top_receivable["work_orders"][0]["age_days"] == expected_receivable_age
+    receivable_aging = {bucket["id"]: bucket for bucket in response.data["receivables_aging"]}
+    assert Decimal(receivable_aging["31_plus"]["amount"]) == Decimal("5000.00")
+    assert receivable_aging["31_plus"]["count"] == 1
+    assert Decimal(receivable_aging["0_7"]["amount"]) == Decimal("0.00")
+    alerts_by_id = {alert["id"]: alert for alert in response.data["economic_alerts"]}
+    assert alerts_by_id["receivables"]["severity"] == "warning"
+    assert alerts_by_id["receivables"]["action_label"] == "Cobrar trabajos"
+    assert Decimal(alerts_by_id["receivables"]["amount"]) == Decimal("5000.00")
+    assert alerts_by_id["overdue_debts"]["severity"] == "danger"
+    assert alerts_by_id["overdue_debts"]["action_label"] == "Ver deudas"
+    assert Decimal(alerts_by_id["overdue_debts"]["amount"]) == Decimal("3000.00")
+    assert response.data["debt_timing"]["overdue"]["count"] == 1
+    assert Decimal(response.data["debt_timing"]["overdue"]["amount"]) == Decimal("3000.00")
+    assert response.data["debt_timing"]["due_soon"]["count"] == 1
+    assert Decimal(response.data["debt_timing"]["due_soon"]["amount"]) == Decimal("2500.00")
+    assert response.data["debt_timing"]["due_soon"]["debts"][0]["id"] == due_soon.id
+    assert response.data["debt_timing"]["due_soon"]["debts"][0]["days_until_due"] == 3
+    assert response.data["margin_basis"]["mode"] == "materials_only"
+    assert response.data["margin_basis"]["included_costs"] == ["Materiales consumidos imputados a trabajos"]
+    assert "Mano de obra" in response.data["margin_basis"]["excluded_costs"]
+    assert response.data["data_quality"]["state"] == "ready"
+    assert response.data["data_quality"]["has_current_activity"] is True
+    assert response.data["data_quality"]["has_previous_activity"] is True
+    assert Decimal(response.data["cost_breakdown"]["billed_total"]) == Decimal("20000.00")
+    assert Decimal(response.data["cost_breakdown"]["collected_total"]) == Decimal("15000.00")
+    assert Decimal(response.data["cost_breakdown"]["cashflow_expense_total"]) == Decimal("1500.00")
+    comparison = response.data["comparison"]
+    assert Decimal(comparison["billed_total"]["delta"]) == Decimal("10000.00")
+    assert Decimal(comparison["billed_total"]["delta_percent"]) == Decimal("100.00")
+    assert comparison["billed_total"]["polarity"] == "higher-is-good"
+    assert Decimal(comparison["balance_due_total"]["delta"]) == Decimal("2000.00")
+    assert comparison["balance_due_total"]["polarity"] == "higher-is-bad"
+    rankings = response.data["rankings"]
+    assert rankings["top_customers_by_billed"][0]["customer_id"] == customer.id
+    assert Decimal(rankings["top_customers_by_billed"][0]["billed_total"]) == Decimal("20000.00")
+    assert rankings["top_services_by_billed"][0]["service_name"] == "Lavado premium"
+    assert rankings["top_work_orders_by_margin"][0]["id"] == current_order.id
+    assert Decimal(rankings["top_work_orders_by_margin"][0]["estimated_margin"]) == Decimal("17000.00")
+    assert rankings["top_materials_by_cost"][0]["material_id"] == material.id
+    assert rankings["top_materials_by_cost"][0]["material_name"] == "Shampoo"
+    assert Decimal(rankings["top_materials_by_cost"][0]["estimated_total_cost"]) == Decimal("3000.00")
+    insight_ids = {insight["id"] for insight in response.data["economic_insights"]}
+    assert {"collection_gap", "cash_vs_economic", "margin_basis"}.issubset(insight_ids)
+    assert response.data["previous_period"]["from"] == "2026-03-02"
+    assert response.data["previous_period"]["to"] == "2026-03-31"
+    assert response.data["previous_period"]["has_activity"] is True
+    assert Decimal(response.data["previous_period"]["billed_total"]) == Decimal("10000.00")
+    assert Decimal(response.data["previous_period"]["collected_total"]) == Decimal("7000.00")
+    assert Decimal(response.data["previous_period"]["balance_due_total"]) == Decimal("3000.00")
+    assert Decimal(response.data["previous_period"]["material_cost_total"]) == Decimal("1000.00")
+    assert Decimal(response.data["previous_period"]["estimated_margin_total"]) == Decimal("9000.00")
+    assert Decimal(response.data["previous_period"]["cashflow_balance"]) == Decimal("6700.00")
+
+
+@pytest.mark.django_db
+def test_dashboard_summary_marks_empty_economic_period_without_false_zero(api_client):
+    response = api_client.get(reverse("dashboard-summary"), {"from": "2026-02-01", "to": "2026-02-28"})
+
+    assert response.status_code == 200
+    assert response.data["has_activity"] is False
+    assert response.data["data_quality"]["state"] == "empty"
+    assert response.data["data_quality"]["message"] == "No hay trabajos, pagos ni movimientos economicos en el periodo."
+    assert response.data["economic_alerts"] == []
+    assert response.data["top_receivables"] == []
+    assert all(Decimal(bucket["amount"]) == Decimal("0.00") for bucket in response.data["receivables_aging"])

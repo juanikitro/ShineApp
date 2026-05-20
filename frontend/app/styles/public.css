@@ -31,6 +31,36 @@
   top: 24px;
 }
 
+.public-business-media {
+  align-items: center;
+  aspect-ratio: 16 / 9;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--shop-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  justify-content: center;
+  min-height: 210px;
+  overflow: hidden;
+}
+
+.public-business-media img {
+  display: block;
+  height: 100%;
+  object-fit: contain;
+  padding: 18px;
+  width: 100%;
+}
+
+.public-business-media-placeholder {
+  align-items: center;
+  color: var(--shop-ink-soft);
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  padding: 20px;
+  text-align: center;
+}
+
 .public-brand {
   align-items: center;
   display: grid;
@@ -222,6 +252,13 @@
   min-width: 0;
 }
 
+.public-form-note {
+  color: var(--shop-ink-soft);
+  font-size: 13px;
+  line-height: 1.35;
+  margin: 6px 0 0;
+}
+
 .public-form-row {
   display: grid;
   gap: 12px;
@@ -298,5 +335,14 @@
   .public-brand-mark {
     height: 62px;
     width: 62px;
+  }
+
+  .public-business-media {
+    border-radius: var(--radius-md);
+    min-height: 160px;
+  }
+
+  .public-business-media img {
+    padding: 12px;
   }
 }

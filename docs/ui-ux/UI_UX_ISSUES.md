@@ -1,33 +1,83 @@
-# UI / UX Issues - ShineApp
+# Incidencias UI/UX - ShineApp
 
-| ID | Pantalla / componente | Problema | Severidad | Impacto en usuario | Impacto comercial | Causa probable | Recomendacion | Esfuerzo | Prioridad |
-|---|---|---|---|---|---|---|---|---|---|
-| UI-001 | Shell mobile / sidebar | En mobile la navegacion ocupa la primera pantalla completa antes del contenido. | critica | Tarda mas en llegar a la tarea principal. | Hace que el producto se vea poco resuelto en mobile. | El breakpoint <=980px convierte la nav en grilla de 2 columnas dentro del flujo normal. | Pasar a header compacto + drawer/sheet. | medio | P0 |
-| UI-002 | Configuracion mobile | Las tabs de settings quedan cortadas y dependen de scroll horizontal poco evidente. | alta | Se pierde descubribilidad de secciones. | Baja percepcion premium en una pantalla clave de configuracion. | `settings-section-toggle` usa overflow horizontal sin affordance suficiente. | Reemplazar por segmented control apilable o tabs con wrap/drawer secundario. | bajo | P0 |
-| UI-003 | Agenda mobile | La agenda fuerza un tablero horizontal ancho y deja mucho espacio muerto visible. | alta | Navegar dias y cards se vuelve incomodo. | La superficie operativa mas importante no vende bien en mobile. | `week-board` mantiene min-width 860/900 en breakpoints chicos. | Definir patron mobile propio para agenda: carrusel real, lista diaria o cards por dia. | alto | P0 |
-| UI-004 | Sidebar search | El buscador del sidebar es un placeholder sin `value` ni `onChange`; no hace nada. | alta | Genera desconfianza inmediata. | Un control muerto degrada calidad percibida. | Se renderizo input visual sin wiring funcional. | Eliminarlo hasta tener alcance o conectarlo a una busqueda global real. | bajo | P0 |
-| UI-005 | IA principal (`Trabajos` vs `Agenda`) | La pantalla operativa principal sigue rotulada como `Trabajos` aunque internamente funciona como agenda. | alta | Aumenta la carga cognitiva y el drift de dominio. | Debilita el posicionamiento del producto. | El contrato de producto evoluciono mas rapido que la nomenclatura del shell. | Renombrar la seccion segun el flujo real y alinear copy, tabs y titulos. | bajo | P0 |
-| UI-006 | Listados de clientes/proveedores/servicios | Tarjetas interactivas con acciones hijas (`Editar`, `Baja`, etc.) mezclan click primario y click secundario. | alta | Puede haber clicks ambiguos y peor experiencia teclado/screen reader. | Se percibe como UI poco pulida. | Outer record con `role='button'` y botones internos. | Separar tarjeta navegable de toolbar de acciones, o usar layout con link/heading + buttons hermanos. | medio | P0 |
-| UI-007 | Modales base | El modal no evidencia cierre por `Escape`, focus trap ni `aria-labelledby`. | alta | Navegacion por teclado incompleta y foco inseguro. | Riesgo en accesibilidad y QA. | `ModalFrame` resuelve backdrop y close button, no ciclo completo de dialogo. | Implementar dialog accesible completo y reutilizable. | medio | P1 |
-| UI-008 | `SearchSelect` | El select custom no expone semantica completa de combobox/listbox y usa `autoFocus` al abrir. | alta | Teclado/lector y mobile pueden comportarse mal. | Afecta un primitive usado muchas veces. | Componente custom hecho con button + menu sin contrato ARIA completo. | Normalizar como combobox accesible o simplificar a patron nativo donde aplique. | alto | P1 |
-| UI-009 | Frontend architecture | `frontend/app/page.tsx` concentra shell, fetch, render y formularios en 15144 lineas. | alta | Cada cambio visual arriesga regresiones. | Hace mas lenta la evolucion del producto. | Crecimiento organico sin corte por vistas/presentational components. | Extraer secciones y componentes de presentacion por dominio. | alto | P1 |
-| UI-010 | Design system / theme switch | El toggle de tema rompe la austeridad del sistema con radios 999px, raw hex y grafica aislada. | media | Se siente ajeno al resto de la app. | Baja coherencia visual. | One-off visual fuera del token system. | Redisenar el switch con tokens, dimensiones y border language del sistema. | bajo | P1 |
-| UI-011 | Texto renderizado | En varias listas aparece `Â·` en vez del separador esperado. | media | Transmite descuido y baja calidad. | Pega directo en demo y ventas. | Strings/encoding inconsistentes en JSX. | Limpiar copy y asegurar UTF-8/render correcto. | bajo | P0 |
-| UI-012 | Login | El login viene prellenado con `admin/admin123` y sin `autocomplete` especifico. | media | Da una sensacion poco profesional fuera de modo demo. | Resta confianza si se muestra a clientes. | Conveniencia de seed/demo no diferenciada visualmente. | Separar modo demo de modo real; agregar `autocomplete` correcto. | bajo | P1 |
-| UI-013 | Deep-linking / navegacion | Las secciones viven en `useState` local y no en URL. No hay bookmark/share real por seccion. | media | Perdes contexto al refrescar y no podes compartir vistas. | Producto menos serio para operacion multiusuario. | Shell tipo SPA local sin sync con query/path. | Sincronizar tabs/secciones clave con URL. | medio | P1 |
-| UI-014 | Settings > Negocio | La tarjeta de logo ocupa demasiado espacio para la cantidad de informacion que entrega. | media | Desplaza campos importantes hacia abajo. | Reduce sensacion de densidad util. | Predominio de preview vacio sobre formulario operativo. | Compactar preview y priorizar datos accionables. | bajo | P2 |
-| UI-015 | Dashboard | El dashboard cumple pero no prioriza alertas/next action; se ve mas como tablero estatico. | media | Menor velocidad de decision. | Menor percepcion de producto inteligente. | KPIs correctos pero sin bloques accionables ni alert-driven design. | Agregar bloques de atencion/proximos pasos/contexto. | medio | P2 |
-| UI-016 | Caja | La pantalla mezcla resumen, acciones y filtros con densidad desigual; requiere mas jerarquia. | media | Cuesta escanear que hacer primero. | Baja claridad en una superficie sensible. | Todo vive en una sola banda larga de paneles y filtros. | Reordenar: resumen > acciones > filtros > listado. | medio | P1 |
-| UI-017 | Customer dashboard | Cuando hay poco historial, el dashboard del cliente se vuelve una grilla de vacios repetitivos. | media | Se siente inflado y poco util. | Hace que la vista "premium" parezca plantilla. | El layout no cambia segun densidad de datos. | Diseñar variante low-data mas compacta y orientada a proxima accion. | medio | P2 |
-| UI-018 | Empty / loading states | Existen, pero son textuales y poco guiados; casi no orientan siguiente paso. | media | El usuario ve "sin X" mas que una accion sugerida. | Reduce percepcion de producto pensado. | `Empty` es demasiado basico y loading suele ser texto plano. | Crear patrones de empty/loading/error con CTA contextual y estructura. | medio | P1 |
-| UI-019 | Codigo dormido | Hay una seccion `hidden-section` de vehiculos dentro de clientes. | baja | No impacta directo si no se ve, pero confunde mantenimiento. | Senal de deuda y producto no consolidado. | Superficie historica no removida del todo. | Eliminar o reactivar con criterio explicito. | bajo | P2 |
-| UI-020 | Runtime visual dev | En `next dev` aparecieron 500/CSS 404/HMR issues que rompieron capturas frescas. | media | Puede bloquear QA manual o demos locales. | Riesgo de demo interna y confianza tecnica. | Inestabilidad de entorno dev / manifest CSS / devtools. | Dejarlo fuera del score visual principal, pero crear smoke prod y smoke dev estables. | medio | P1 |
-| UI-021 | Dark mode QA | El modo oscuro existe, pero la validacion visual quedo parcialmente contaminada por la inestabilidad de `next dev`. | baja | Riesgo de que contraste/polish no este realmente validado. | Puede fallar en demos nocturnas o usuarios que lo usen de verdad. | Falta smoke dedicado de tema oscuro en runtime estable. | Validar dark mode en `next start` o preview productivo, no solo en dev. | bajo | P2 |
-| UI-022 | Sidebar footer / perfil | El bloque de perfil compite con el switch de tema y consume demasiado alto util en mobile. | media | Empuja el contenido real mas abajo. | El shell se siente pesado en pantallas chicas. | Footer fijo como bloque grande dentro del mismo flujo de nav. | Compactar perfil y mover secundarias a menu de cuenta. | medio | P1 |
-| UI-023 | Acciones masivas | Los listados dependen casi siempre de acciones por fila; no hay bulk workflow visible. | media | Operar multiples registros es mas lento. | Producto menos competitivo frente a CRMs maduros. | Patron CRUD por item dominante. | Introducir multiselect y action bar donde tenga sentido. | medio | P2 |
-| UI-024 | Tabs y segmented controls | Hay varios toggles (`agenda`, `settings`, `cashflow`) con patrones similares pero no del todo consistentes. | baja | Aprendizaje acumulado peor de lo necesario. | Se siente sistema "armado por partes". | Falta primitive unica de tabs/segmented control. | Unificar en un solo componente/tokens. | medio | P2 |
+Fuente viva de deuda UI/UX. Esta version separa deuda vigente de deuda ya cerrada en codigo para evitar arrastrar P0/P1 historicos por inercia.
 
-## Notas
+## Auditoria vigente - 2026-05-20
 
-- `UI-020` y `UI-021` son riesgos de QA/runtime, no excusa para bajar el estandar visual.
-- Las prioridades `P0` y `P1` son suficientes para destrabar una Fase 1 visible y defendible.
+- Rama auditada: `development`.
+- Runtime estable: `frontend` con `npm run build` + `npm run start -- -H 127.0.0.1 -p 3000`; backend y Postgres desde Docker local.
+- Build validado: `cd frontend && npm run build` completo con Next.js 15.5.18.
+- Browser QA: Playwright headless porque Codex Browser bloqueo `localhost`/`127.0.0.1` con `net::ERR_BLOCKED_BY_CLIENT`.
+- Viewports: desktop `1440x900` y mobile `390x844`.
+- Rutas/flujos probados: login, dashboard, agenda, clientes, caja, configuracion, dark mode, landing publica `/publica/default` y deep-links con `?section=...`.
+- Screenshots locales fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui-audit-2026-05-20\*.png`.
+- Resultado QA: sin blank screens, sin overlay de framework, sin console errors, sin page errors y sin respuestas 4xx/5xx en los flujos auditados.
+- Batch P1 aplicado 2026-05-20: UI-025, UI-021, UI-003, UI-008, UI-012 y UI-016 quedan cerrados en codigo con el corte minimo documentado abajo.
+- Corte UI-009 aplicado 2026-05-20: Caja quedo extraida a `frontend/app/components/cash/CashPanel.tsx` sin cambios intencionales de negocio. `frontend/app/page.tsx` bajo a 17.570 lineas y aprox. 164 coincidencias `render*`; `CashPanel.tsx` concentra 675 lineas presentacionales. QA: `npm run build`, `next start`, `/` y `/?section=cash` en desktop `1440x900` y mobile `390x844`, sin console errors. Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-cash-qa\*.png`.
+- Segundo corte UI-009 aplicado 2026-05-20: Deudas quedo extraida a `frontend/app/components/debts/DebtPanel.tsx` sin cambios intencionales de negocio. `page.tsx` conserva estado, datos, filtros, callbacks, endpoints, payloads, permisos y reglas; `DebtPanel.tsx` recibe props explicitas y concentra 450 lineas presentacionales. Conteo post-corte: `page.tsx` tiene 17.232 lineas y aprox. 161 coincidencias `render*`. Validacion: `npm run build` paso; `next start` sirvio `/` y `/?section=debts` con HTTP 200. QA visual/screenshot quedo bloqueada por Codex Browser `net::ERR_BLOCKED_BY_CLIENT`; no se agrego tooling Playwright al repo.
+- Tercer corte UI-009 aplicado 2026-05-20: Dashboard quedo extraido a `frontend/app/components/dashboard/DashboardPanel.tsx` sin cambios intencionales de negocio. `page.tsx` conserva estado, fetch, callbacks, permisos y routing; `DashboardPanel.tsx` concentra render y calculos presentacionales del tablero. Conteo post-corte: `page.tsx` tiene 16.929 lineas y aprox. 161 coincidencias `render*`; `DashboardPanel.tsx` concentra 906 lineas. Validacion: `npm run build` paso limpio; build adicional con `NEXT_PUBLIC_API_URL=http://localhost:8000/api` tambien paso para QA local. Runtime QA normal autenticada quedo bloqueada por CORS del backend local: `OPTIONS http://localhost:8000/api/auth/me/` desde `http://localhost:9000` respondio 200 sin `Access-Control-Allow-Origin`. Como workaround solo visual, Chrome headless con `--disable-web-security` cargo `/?section=dashboard` en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay, sin console/runtime/network errors. Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-dashboard-qa-2026-05-20T15-22-57-401Z\*.png`.
+- Cuarto corte UI-009 aplicado 2026-05-20: la seccion `Configuracion > Negocio` quedo extraida a `frontend/app/components/settings/BusinessSettingsPanel.tsx` sin cambios intencionales de UI ni negocio. `page.tsx` conserva estado, guardado, logo picker y callbacks; el componente concentra la card de negocio, logo y formulario publico. Conteo post-corte: `page.tsx` tiene 16.654 lineas y aprox. 161 coincidencias `render*`; `BusinessSettingsPanel.tsx` concentra 351 lineas. Validacion: `npm run build` paso limpio; build adicional con `NEXT_PUBLIC_API_URL=http://localhost:9001/api` paso para QA local. Runtime QA: backend/db levantados con `docker compose up -d db backend`, `next start` en `9000`, `/?section=settings&settings=business` en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay, sin console/runtime/network errors. Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-settings-business-qa-2026-05-20T17-24-07-396Z\*.png`.
+- Corte UI-024 aplicado 2026-05-20 y revalidado 2026-05-20: `.mode-toggle` usa tokens `--segmented-*`, `--segmented-count` y estados hover/focus/selected compartidos light/dark. Validacion: `npm run build` paso limpio despues de cerrar un `next dev` externo de `ShineApp/frontend` y limpiar `.next`; build adicional con `NEXT_PUBLIC_API_URL=http://localhost:8000/api` tambien paso para QA local. QA visual autenticada quedo bloqueada por entorno: `next start` no pudo tomar `9000` por `EADDRINUSE` de un `npm run dev` externo, y Codex Browser bloqueo `http://localhost:9000` y `http://127.0.0.1:9000` con `net::ERR_BLOCKED_BY_CLIENT`.
+
+## Vigentes P0/P1
+
+No quedaron P0 reproducidos en runtime estable. Como P1/P2 estructural queda la extraccion gradual del frontend; no bloquea este batch porque requiere un corte tecnico separado.
+
+| ID | Prioridad | Pantalla | Problema vigente | Evidencia real | Siguiente accion |
+| --- | --- | --- | --- | --- | --- |
+| UI-009 | P1/P2 | App shell / frontend | Reducido parcialmente: Caja, Deudas, Dashboard y Configuracion > Negocio ya no viven como bloques JSX dentro de `frontend/app/page.tsx`, pero el archivo sigue concentrando estado, formularios y renders de otras verticales. | Conteo post-Settings negocio: `frontend/app/page.tsx` tiene 16.654 lineas y aprox. 161 coincidencias `render*`; `CashPanel.tsx` suma 675 lineas, `DebtPanel.tsx` 450, `DashboardPanel.tsx` 906 y `BusinessSettingsPanel.tsx` 351 lineas presentacionales. | Continuar extraccion por vertical sin redisenar: resto de settings, inventario o formularios segun el siguiente cambio funcional. |
+
+## Cerrados en codigo / QA
+
+| ID | Estado | Evidencia |
+| --- | --- | --- |
+| UI-001 Shell mobile / drawer | Cerrado | `SidebarNav` usa `data-mobile-open`; `page.tsx` tiene toggle y backdrop; `shell.css` abre/cierra sidebar fixed en mobile. QA mobile dark confirmo drawer visible, sin blank ni body overflow. |
+| UI-002 Settings mobile tabs | Cerrado | `shell.css` convierte tabs de settings a grid responsive y una columna en ancho chico. La auditoria no reprodujo overflow horizontal de settings. |
+| UI-004 Sidebar search muerto | Cerrado | `SidebarNav` ya no contiene input de busqueda. La busqueda visible vive en clientes, donde QA confirmo interaccion `ana` sin errores. |
+| UI-005 Agenda naming | Cerrado | Navegacion principal y seccion usan `Agenda`. La etiqueta residual `Trabajos` aparece como concepto de dominio dentro de agenda, no como IA principal. |
+| UI-006 Acciones de cards/listas | Cerrado en superficies auditadas | `RecordCard` separa accion primaria de acciones secundarias; `CustomerListPanel` mantiene dashboard/acciones separadas. Mantener vigilancia en nuevas listas. |
+| UI-007 Modal accesible base | Cerrado | `ModalFrame` tiene `role="dialog"`, `aria-modal`, `aria-labelledby`, cierre con Escape y test de foco en `ui.test.tsx`. |
+| UI-011 Encoding `Â·` | Cerrado | `rg -F "Â·" frontend/app frontend/lib` no encontro ocurrencias en fuente UI. Solo queda mencionado en docs historicas. |
+| UI-013 Deep-linking | Cerrado | `navigation-state.ts` define `section` en URL; `page.tsx` sincroniza `pushState`/`popstate`. QA navego `?section=agenda`, `customers`, `cash`, `settings&settings=business`. |
+| UI-020 Runtime visual productivo | Cerrado para auditoria | Build productivo y `next start` cargaron login, app privada y landing publica sin errores de consola. La inestabilidad observada fue de Browser plugin, no de app. |
+| UI-025 Landing publica iconos | Cerrado 2026-05-20 | `PublicLandingClient.tsx` mapea `combo`, `polish`, `shield` y `seat` a iconos Lucide con fallback inicial; ya no se imprime la clave cruda del servicio. |
+| UI-021 Dark settings segmented | Cerrado 2026-05-20 | `shell.css` agrega estados dark para `.mode-toggle`: fondo, texto, hover/focus y selected con contraste legible. |
+| UI-003 Agenda mobile | Cerrado como corte minimo 2026-05-20 | `agenda.css` mantiene tablero horizontal, pero agrega scroll contenido, snap por dia y affordance visible `Mas dias ->`; una vista compacta por dia queda como mejora P2 si se prioriza. |
+| UI-008 SearchSelect accesible | Cerrado 2026-05-20 | `SearchSelect.tsx` elimina `autoFocus`, agrega ids activos para combobox/listbox, `aria-activedescendant` y estado live para resultados vacios. |
+| UI-012 Login demo prefill | Cerrado 2026-05-20 | `loginInitialCredentials` queda vacio en modo normal; el modo demo solo puede prellenar usuario con `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN=1` y no prellena password. |
+| UI-016 Caja hierarchy | Cerrado como corte visual 2026-05-20 | `shell.css` separa jerarquia de metricas, resumen, filtros y listado de caja sin cambiar acciones, filtros ni reglas de negocio. |
+
+## Vigentes P2 / deuda diferible
+
+| ID | Prioridad | Pantalla | Deuda | Evidencia / nota |
+| --- | --- | --- | --- | --- |
+| UI-010 | P2 | Theme switch | El switch de tema sigue como outlier visual con varios hex directos y estados custom. | `frontend/app/styles/shell.css` conserva reglas especificas para `.theme-switch`. |
+| UI-014 | P2 | Configuracion / branding | Card de logo y negocio puede mejorar densidad y lectura, especialmente en dark mode. | QA settings dark no bloqueo flujo, pero la pantalla sigue pesada para configuracion frecuente. |
+| UI-015 | P2 | Dashboard | La pantalla carga estable, pero puede mejorar siguiente accion y priorizacion de datos. | QA dashboard desktop sin errores; mejora de producto, no bloqueo. |
+| UI-017 | P2 | Clientes | El dashboard de clientes funciona, pero low-data/empty guidance puede ser mas accionable. | QA busqueda de cliente sin errores; queda como polish operativo. |
+| UI-018 | P2 | Estados de vacio/carga | Existen primitivos, pero no todos los estados de carga/vacio tienen accion clara o copy consistente. | No se reprodujo blank/loading roto en QA; queda como deuda transversal. |
+| UI-019 | P2 | Vehiculos | Se mantiene seccion oculta por CSS/estado, lo que agrega ruido de mantenimiento. | Codigo conserva `hidden-section` en shell/base. |
+| UI-022 | P2 | Sidebar footer/profile mobile | Drawer resuelto, pero footer/perfil mobile puede compactarse mejor. | QA no bloqueo navegacion; polish visual. |
+| UI-023 | P2 | Bulk workflows | Acciones masivas y feedback pueden ser mas consistentes. | No bloquea flujos QA cubiertos. |
+| UI-024 | P2 | Segmented controls | Reducido como corte tecnico: tokens y estados compartidos ya existen; build 2026-05-20 limpio. | Queda como deuda residual revalidar visualmente settings/agenda cuando Browser/local runtime permitan QA completa; el intento actual quedo bloqueado por `EADDRINUSE` en `next start` y `net::ERR_BLOCKED_BY_CLIENT` en Browser. |
+
+## Evidencia de auditoria
+
+Comando de build validado:
+
+```powershell
+cd frontend
+npm run build
+```
+
+Resumen QA automatizado:
+
+- Login desktop: submit real con `admin/admin123`, redireccion a dashboard.
+- Dashboard desktop: pagina no vacia, sin overlay.
+- Agenda desktop: deep-link `/?section=agenda`, pagina no vacia, sin overlay.
+- Clientes desktop: deep-link `/?section=customers`, busqueda `ana`, sin errores.
+- Caja desktop: deep-link `/?section=cash`, sin errores.
+- Configuracion desktop: deep-link `/?section=settings&settings=business`, sin errores.
+- Dark mode: toggle ejecutado, `data-theme="dark"` confirmado.
+- Mobile: drawer abierto, `data-mobile-open="true"` confirmado.
+- Landing publica: `/publica/default` renderiza, sin errores HTTP, con issue visible UI-025.

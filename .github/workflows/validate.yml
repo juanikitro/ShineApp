@@ -2,14 +2,26 @@ name: Validate
 
 on:
   pull_request:
+    branches:
+      - main
+  merge_group:
   push:
     branches:
       - main
       - development
 
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
+
 jobs:
-  validate:
+  backend:
+    name: backend
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -18,24 +30,173 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
           cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt
+
+      - name: Django system check
+        working-directory: backend
+        run: python manage.py check
+
+      - name: Migration drift check
+        working-directory: backend
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Backend tests with coverage gate
+        working-directory: backend
+        run: python -m pytest --cov --cov-report=term-missing:skip-covered
+
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
-      - name: Install backend dependencies
-        run: python -m pip install -r backend/requirements.txt
 
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
 
-      - name: Validate harness
-        shell: pwsh
-        run: ./scripts/validate.ps1
+      - name: Frontend tests with coverage gate
+        working-directory: frontend
+        run: npm run test:coverage
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Frontend production dependency audit
+        working-directory: frontend
+        run: npm audit --omit=dev
+
+  dependency-audit:
+    name: dependency-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Audit Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pip-audit==2.10.0
+          pip-audit -r backend/requirements.txt
+
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install docs dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-docs.txt
+
+      - name: Check docs drift
+        run: python scripts/check_docs.py --check
+
+      - name: MkDocs strict build
+        run: python -m mkdocs build --strict
+
+  codeql:
+    name: codeql
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - python
+          - javascript-typescript
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  ci-required:
+    name: ci-required
+    runs-on: ubuntu-latest
+    needs:
+      - backend
+      - frontend
+      - dependency-audit
+      - docs
+      - codeql
+    if: always()
+
+    steps:
+      - name: Verify required checks
+        env:
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          DEPENDENCY_AUDIT_RESULT: ${{ needs.dependency-audit.result }}
+          DOCS_RESULT: ${{ needs.docs.result }}
+          CODEQL_RESULT: ${{ needs.codeql.result }}
+        run: |
+          set -euo pipefail
+
+          printf 'backend=%s\n' "$BACKEND_RESULT"
+          printf 'frontend=%s\n' "$FRONTEND_RESULT"
+          printf 'dependency-audit=%s\n' "$DEPENDENCY_AUDIT_RESULT"
+          printf 'docs=%s\n' "$DOCS_RESULT"
+          printf 'codeql=%s\n' "$CODEQL_RESULT"
+
+          failed=0
+          for result in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_AUDIT_RESULT" "$DOCS_RESULT" "$CODEQL_RESULT"; do
+            if [ "$result" != "success" ]; then
+              failed=1
+            fi
+          done
+
+          if [ "$failed" -ne 0 ]; then
+            echo "One or more required CI jobs failed, were cancelled, or were skipped." >&2
+            exit 1
+          fi

@@ -1,154 +1,254 @@
-# Manual Steps After Public Demo
+# Pasos Manuales Despues De La Demo Publica
 
-The public demo is deployed. These manual steps remain before showing media-heavy flows to customers or treating the setup as production.
+La demo publica esta deployada. Estos pasos manuales quedan pendientes antes de mostrar flujos con mucha media a clientes o tratar el setup como produccion.
 
-## 1. Create Supabase project
+## 1. Crear Proyecto Supabase
 
-- What: create a dedicated demo project. Done: `shineapp-demo` / `cdzqcpwbsfyeeigecqwr`.
-- Where: Supabase Dashboard.
-- Why: demo/prod data must not use local SQLite or Docker Postgres.
-- Value to copy: project ref, region, database connection string.
-- Validate: Supabase project dashboard loads and database connection info is available.
+- Que: crear un proyecto demo dedicado. Hecho: `shineapp-demo` / `cdzqcpwbsfyeeigecqwr`.
+- Donde: Supabase Dashboard.
+- Por que: datos demo/prod no deben usar SQLite local ni Docker Postgres.
+- Valor a copiar: project ref, region, connection string de base de datos.
+- Validar: el dashboard del proyecto Supabase carga y la informacion de conexion DB esta disponible.
 
-## 2. Copy `DATABASE_URL`
+## 2. Copiar `DATABASE_URL`
 
-- What: copy the Postgres URL for the API. Done for the public demo.
-- Where: Supabase Dashboard, Connect section.
-- Why: Django production settings require `DATABASE_URL`.
-- Value to copy: pooler connection string, preferably transaction pooler for Vercel.
-- Validate: `https://shineapp-api.vercel.app/api/health/` returns `database=ok`.
+- Que: copiar la URL Postgres para la API. Hecho para la demo publica.
+- Donde: Supabase Dashboard, seccion Connect.
+- Por que: configuracion productiva Django requiere `DATABASE_URL`.
+- Valor a copiar: connection string del pooler, preferentemente transaction pooler para Vercel.
+- Validar: `https://shineapp-api.vercel.app/api/health/` retorna `database=ok`.
 
-## 3. Create Storage bucket
+## 3. Crear Bucket Storage
 
-- What: create `shineapp-media`. Done as a private bucket.
-- Where: Supabase Storage.
-- Why: uploaded logos, avatars, and documents must persist outside the Vercel filesystem.
-- Value to copy: bucket name.
-- Validate: bucket appears in Storage and accepts a test upload.
+- Que: crear `shineapp-media`. Hecho como bucket privado.
+- Donde: Supabase Storage.
+- Por que: logos, avatares y documentos subidos deben persistir fuera del filesystem de Vercel.
+- Valor a copiar: nombre del bucket.
+- Validar: el bucket aparece en Storage y acepta un upload de prueba.
 
-## 4. Enable Storage S3 and create server keys
+## 4. Habilitar Storage S3 Y Crear Claves Server
 
-- What: create S3 access key id and secret. Done manually for the public demo.
-- Where: Supabase Storage S3 settings.
-- Why: Django uses `django-storages` through Supabase's S3-compatible API.
-- Value to copy: endpoint URL, region, access key id, secret key.
-- Validate: Vercel API env vars include all `SUPABASE_S3_*` values.
-- Note: rotate demo secrets before production because initial values were shared through chat during setup.
+- Que: crear S3 access key id y secret. Hecho manualmente para la demo publica.
+- Donde: configuracion de Supabase Storage S3.
+- Por que: Django usa `django-storages` mediante la API compatible con S3 de Supabase.
+- Valor a copiar: endpoint URL, region, access key id, secret key.
+- Validar: las env vars de Vercel API incluyen todos los valores `SUPABASE_S3_*`.
+- Nota: rotar secretos demo antes de produccion porque los valores iniciales se compartieron por chat durante el setup.
 
-## 5. Configure Vercel web project
+## 5. Configurar Proyecto Web Vercel
 
-- What: create `shineapp-web`. Done: `prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ`.
-- Where: Vercel Dashboard.
-- Why: deploy Next.js separately from the Django API.
-- Value to set: Root Directory `frontend`, `NEXT_PUBLIC_API_URL=https://shineapp-api.vercel.app/api`.
-- Validate: `https://shineapp-web.vercel.app` returns 200 and the deployed bundle contains `shineapp-api.vercel.app/api`, not localhost or placeholders.
+- Que: crear `shineapp-web`. Hecho: `prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ`.
+- Donde: Vercel Dashboard.
+- Por que: deployar Next.js separado de la API Django.
+- Valor a setear: Root Directory `frontend`, `NEXT_PUBLIC_API_URL=https://shineapp-api.vercel.app/api`.
+- Validar: `https://shineapp-web.vercel.app` retorna 200 y el bundle deployado contiene `shineapp-api.vercel.app/api`, no localhost ni placeholders.
 
-## 6. Configure Vercel API project
+## 6. Configurar Proyecto API Vercel
 
-- What: create `shineapp-api`. Done: `prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC`.
-- Where: Vercel Dashboard.
-- Why: run Django API as a Python serverless app for demo.
-- Value to set: Root Directory `backend`, `DJANGO_SETTINGS_MODULE=config.settings_production`, database, CORS/CSRF, Supabase Storage, email env vars.
-- Validate: Vercel project settings show root `backend`; `https://shineapp-api.vercel.app/api/health/` returns `status=ok`; no secret is visible in repo files.
+- Que: crear `shineapp-api`. Hecho: `prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC`.
+- Donde: Vercel Dashboard.
+- Por que: correr Django API como app Python serverless para demo.
+- Valor a setear: Root Directory `backend`, `DJANGO_SETTINGS_MODULE=config.settings_production`, database, CORS/CSRF, Supabase Storage, env vars de email.
+- Validar: la configuracion del proyecto Vercel muestra root `backend`; `https://shineapp-api.vercel.app/api/health/` retorna `status=ok`; ningun secreto es visible en archivos del repo.
 
-## 7. Confirm final domains
+## 7. Confirmar Dominios Finales
 
-- What: decide actual web and API domains. Current demo domains are Vercel-provided aliases.
-- Where: Vercel project domains.
-- Why: host allowlists and browser CORS/CSRF depend on exact origins.
-- Values to set:
+- Que: decidir dominios reales de web y API. Los dominios demo actuales son aliases provistos por Vercel.
+- Donde: dominios de proyecto en Vercel.
+- Por que: allowlists de host y CORS/CSRF del navegador dependen de origenes exactos.
+- Valores a setear:
   - `DJANGO_ALLOWED_HOSTS=shineapp-api.vercel.app`
   - `CORS_ALLOWED_ORIGINS=https://shineapp-web.vercel.app`
   - `CSRF_TRUSTED_ORIGINS=https://shineapp-web.vercel.app`
   - `NEXT_PUBLIC_API_URL=https://shineapp-api.vercel.app/api`
-- Validate: no localhost value remains in production Vercel env vars.
+- Validar: no queda ningun valor localhost en env vars productivas de Vercel.
 
-## 7.1 Configure Vercel preview env vars if preview deploys are needed
+## 7.1 Configurar Env Vars Preview De Vercel Si Se Necesitan Preview Deploys
 
-- What: add all preview env vars listed in `docs/deployment/vercel.md`.
-- Where: Vercel Dashboard, project settings, Environment Variables.
-- Why: production demo env vars are configured, but preview writes may require a git branch in Vercel.
-- Value to copy: values from Supabase Dashboard and generated backend secrets. Do not copy secrets into repo files.
-- Validate: `npx vercel env ls --cwd backend` and `npx vercel env ls --cwd frontend` show the required variable names.
+- Que: agregar todas las env vars preview listadas en `docs/deployment/vercel.md`.
+- Donde: Vercel Dashboard, configuracion de proyecto, seccion Environment Variables.
+- Por que: las env vars production demo estan configuradas, pero escrituras preview pueden requerir una branch Git en Vercel.
+- Valor a copiar: valores desde Supabase Dashboard y secretos backend generados. No copiar secretos a archivos del repo.
+- Validar: `npx vercel env ls --cwd backend` y `npx vercel env ls --cwd frontend` muestran los nombres de variables requeridas.
 
-## 7.2 Public demo URLs
+## 7.2 URLs Publicas Demo
 
-- What: public demo aliases are now assigned.
-- Where: Vercel Dashboard, projects `shineapp-api` and `shineapp-web`.
-- Why: customers need an unauthenticated URL.
-- Value to copy: frontend `https://shineapp-web.vercel.app`; API `https://shineapp-api.vercel.app`.
-- Validate: `scripts/deploy/smoke-test.ps1 -WebBaseUrl https://shineapp-web.vercel.app -ApiBaseUrl https://shineapp-api.vercel.app/api` returns OK from a normal unauthenticated request.
-- Risk if changed incorrectly: frontend login can break if `NEXT_PUBLIC_API_URL`, CORS, or CSRF no longer match.
+- Que: los aliases demo publicos ya estan asignados.
+- Donde: Vercel Dashboard, proyectos `shineapp-api` y `shineapp-web`.
+- Por que: clientes necesitan una URL sin autenticacion previa.
+- Valor a copiar: frontend `https://shineapp-web.vercel.app`; API `https://shineapp-api.vercel.app`.
+- Validar: `scripts/deploy/smoke-test.ps1 -WebBaseUrl https://shineapp-web.vercel.app -ApiBaseUrl https://shineapp-api.vercel.app/api` retorna OK desde un request normal no autenticado.
+- Riesgo si se cambia mal: el login frontend puede romperse si `NEXT_PUBLIC_API_URL`, CORS o CSRF dejan de coincidir.
 
-## 7.3 Clean accidental Vercel project
+## 7.3 Limpiar Proyecto Vercel Accidental
 
-- What: remove the unintended Vercel project named `backend` if it is unused.
-- Where: Vercel Dashboard, project `backend`.
-- Why: a first failed CLI deploy linked the backend folder to a new project before it was relinked to `shineapp-api`.
-- Value to copy: none.
-- Validate: Vercel project list only shows `shineapp-api` and `shineapp-web` for this demo.
-- Risk if omitted: operational confusion, but no app data risk was identified.
+- Que: eliminar el proyecto Vercel no intencional llamado `backend` si no se usa.
+- Donde: Vercel Dashboard, proyecto `backend`.
+- Por que: un primer deploy fallido por CLI vinculo la carpeta backend a un proyecto nuevo antes de relinkearlo a `shineapp-api`.
+- Valor a copiar: ninguno.
+- Validar: la lista de proyectos Vercel muestra solo `shineapp-api` y `shineapp-web` para esta demo.
+- Riesgo si se omite: confusion operativa, aunque no se identifico riesgo de datos de app.
 
-## 8. Run migrations and optional demo seed
+## 8. Correr Migraciones Y Seed Demo Opcional
 
-- What: run `migrate`; optionally `seed_demo`. Done for demo DB on 2026-05-18 with `seed_demo --yes --allow-default-passwords`.
-- Where: trusted local shell or approved one-off command with production env.
-- Why: schema and demo data should be created intentionally, not during every serverless cold start.
-- Value to copy: none.
-- Validate: admin/API can authenticate against the Supabase database after public API alias is enabled.
+- Que: correr `migrate`; opcionalmente `seed_demo`. Hecho para DB demo el 2026-05-18 con `seed_demo --yes --allow-default-passwords`.
+- Donde: shell local confiable o comando one-off aprobado con env productivo.
+- Por que: schema y datos demo deben crearse intencionalmente, no en cada cold start serverless.
+- Valor a copiar: ninguno.
+- Validar: admin/API pueden autenticarse contra la base Supabase despues de habilitar el alias publico de API.
 
-## 9. Validate private media
+## 8.1 Refrescar Credenciales Seed Demo Para Walkthroughs Con Clientes
 
-- What: upload a logo/avatar/document after public deploy.
-- Where: ShineApp UI against `https://shineapp-web.vercel.app`.
-- Why: private Supabase bucket uses signed S3 URLs, not public object URLs.
-- Value to copy: none.
-- Validate: uploaded file persists after reload and generated quote PDF can render the business logo.
-- Risk if omitted: the demo may look fine until the first media upload/display flow.
+- Que: si se usan usuarios seed demo en un walkthrough con clientes, rotar `admin`, `empleado` y `recepcion` fuera de los passwords demo default.
+- Donde: shell local confiable con el `DATABASE_URL` demo esperado, o comando one-off aprobado apuntando a la base Supabase demo.
+- Por que: `seed_demo` puede crear datos realistas utiles, pero las credenciales locales default son conocidas de desarrollo y no deben usarse como acceso demo publico de larga vida.
+- Valor a setear: passwords temporales generados fuera del repo.
+- Forma de comando:
 
-## 10. Rotate demo secrets before real production
+  ```powershell
+  cd backend
+  $env:SEED_DEMO_ADMIN_PASSWORD = "<generated-admin-password>"
+  $env:SEED_DEMO_EMPLOYEE_PASSWORD = "<generated-employee-password>"
+  .\.venv\Scripts\python.exe manage.py seed_demo --yes
+  ```
 
-- What: rotate `DJANGO_SECRET_KEY`, Supabase database password if needed, and Supabase S3 access keys.
-- Where: Supabase Dashboard and Vercel Dashboard.
-- Why: initial demo secrets were handled interactively during setup and should not become long-lived production secrets.
-- Value to copy: new values only into Vercel backend env vars.
-- Validate: redeploy API, run healthcheck, login, and media validation.
-- Risk if omitted: avoidable secret exposure risk in a future commercial environment.
+  Si `backend/.venv` no esta disponible, usar `py -3 manage.py seed_demo --yes`.
+- Validar:
+  - `admin` puede loguearse desde la URL web publica.
+  - `empleado` puede loguearse pero no puede ver superficies de economia/settings.
+  - `GET /api/auth/me/` con cada token retorna negocio, rol y `can_view_economy` esperados.
+  - `GET /api/cash/daily/` con token de empleado retorna HTTP 403.
+- Riesgo si se omite: una demo visible a clientes puede mantener passwords demo conocidos.
+- Nota: usar `--allow-default-passwords` solo para corridas smoke descartables locales/demo donde el riesgo es explicito. No usarlo como camino normal para demo con clientes.
 
-## 11. Configure GitHub Actions deploy secrets
+## 9. Validar Media Privada
 
-- What: add the required CI/CD secrets for `.github/workflows/deploy-vercel-demo.yml`.
-- Where: GitHub repository settings, Secrets and variables, Actions; and the `demo-production` environment.
-- Why: GitHub Actions needs Vercel CLI credentials, the two Vercel project ids, and a narrow DB migration credential set.
-- Repository secrets to set:
+- Que: subir un logo/avatar/documento despues del deploy publico.
+- Donde: UI de ShineApp contra `https://shineapp-web.vercel.app`.
+- Por que: el bucket privado Supabase usa URLs S3 firmadas, no URLs publicas de objeto.
+- Valor a copiar: ninguno.
+- Validar: el archivo subido persiste despues de recargar y el PDF de cotizacion generado puede renderizar el logo del negocio.
+- Riesgo si se omite: la demo puede parecer correcta hasta el primer flujo de upload/display de media.
+
+## 10. Rotar Secretos Demo Antes De Produccion Real
+
+- Que: rotar `DJANGO_SECRET_KEY`, password de base Supabase si hace falta y access keys Supabase S3.
+- Donde: Supabase Dashboard y Vercel Dashboard.
+- Por que: los secretos demo iniciales se manejaron interactivamente durante el setup y no deben convertirse en secretos productivos de larga vida.
+- Valor a copiar: valores nuevos solo en env vars backend de Vercel.
+- Validar: redeploy API, healthcheck, login y validacion de media.
+- Riesgo si se omite: riesgo evitable de exposicion de secretos en un futuro entorno comercial.
+
+## 11. Configurar Secretos De Deploy En GitHub Actions
+
+- Que: agregar los secretos CI/CD requeridos para `.github/workflows/deploy-vercel-demo.yml`.
+- Donde: configuracion del repositorio GitHub, Secrets and variables, Actions; y el entorno `demo-production`.
+- Por que: GitHub Actions necesita credenciales Vercel CLI, los dos project ids de Vercel y un set acotado de credenciales DB para migracion.
+- Secretos de repositorio a setear:
   - `VERCEL_TOKEN`
   - `VERCEL_ORG_ID=team_SU2ZYRqjIjG8JhFn2pc1NVxi`
   - `VERCEL_FRONTEND_PROJECT_ID=prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ`
   - `VERCEL_BACKEND_PROJECT_ID=prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC`
-- Environment secrets to set in `demo-production`:
+- Secretos de entorno a setear en `demo-production`:
   - `DATABASE_URL`
   - `DJANGO_MIGRATION_SECRET_KEY`
-- Validate: run the workflow manually with `workflow_dispatch`; it should pass the initial secret check, run local checks, run migrations, deploy both Vercel projects, and pass smoke tests.
-- Risk if omitted: the deploy workflow fails before installing dependencies.
+- Secreto de entorno opcional:
+  - `SMOKE_TEST_TOKEN` si los smoke tests deben verificar un endpoint autenticado.
+- Ramas de deploy del entorno:
+  - solo `main`.
+- Validar: correr el workflow manualmente con `workflow_dispatch`; debe pasar el check inicial de secretos, correr checks locales, correr migraciones, deployar ambos proyectos Vercel y pasar smoke tests.
+- Riesgo si se omite: el workflow de deploy falla antes de instalar dependencias.
 
-Do not add the real `DJANGO_SECRET_KEY`, Supabase S3 keys, or SMTP secrets to GitHub. Those values belong in the Vercel API project production env and are consumed by Vercel during the cloud build/deploy.
+No agregar el `DJANGO_SECRET_KEY` real, claves Supabase S3 ni secretos SMTP a GitHub. Esos valores pertenecen al env productivo del proyecto Vercel API y Vercel los consume durante el build/deploy cloud.
 
-## 12. Make GitHub Actions the only automatic production deploy path
+## 12. Proteger `main`
 
-- What: disable or bypass Vercel built-in Git production deploys for `shineapp-api` and `shineapp-web`, or configure them to skip when GitHub Actions is responsible for production.
-- Where: Vercel Dashboard, project Git settings / ignored build step.
-- Why: the GitHub Actions workflow deploys backend, runs migrations, then deploys frontend. A parallel Vercel Git deploy can publish backend code before the migration gate runs.
-- Value to copy: none.
-- Validate: push a harmless change to a test branch or inspect Vercel project settings before merging to `main`; production deploys should be created by the GitHub Actions CLI workflow, not an independent Vercel Git trigger.
-- Risk if omitted: duplicate deploys, race conditions, or code live before Supabase schema is migrated.
+- Que: forzar cambios solo por PR y requerir el gate CI antes de mergear.
+- Donde: configuracion del repositorio GitHub, Branches o Rulesets.
+- Por que: todo PR a `main` debe pasar el mismo gate completo antes de poder deployar.
+- Valores a setear:
+  - Requerir pull request antes de mergear.
+  - Requerir status checks exitosos antes de mergear: `Validate / ci-required`.
+  - Requerir merge queue, o requerir ramas actualizadas antes de mergear si merge queue no esta disponible.
+  - Requerir resolucion de conversaciones antes de mergear.
+  - No permitir bypass de la configuracion anterior.
+  - Bloquear force pushes y borrado de ramas.
+- Validar: abrir o inspeccionar un PR hacia `main`; GitHub debe bloquear merge hasta que `Validate / ci-required` pase en el ultimo commit o merge queue group.
+- Riesgo si se omite: pushes directos o PRs stale pueden llegar a `main` y disparar deploy productivo sin el gate completo.
 
-## 13. Review migration risk before merging schema changes to `main`
+## 13. Hacer Que GitHub Actions Sea El Unico Camino De Deploy Productivo Automatico
 
-- What: check whether the PR contains schema or data migrations.
-- Where: PR review and `backend/*/migrations/`.
-- Why: the GitHub Actions deploy runs `migrate --plan` and `migrate --noinput` automatically before Vercel production deploy.
-- Value to copy: none.
-- Validate: the workflow migration step succeeds, then `https://shineapp-api.vercel.app/api/health/` returns `database=ok`.
-- Risk if omitted: destructive migrations, renames, large backfills, or unsafe non-null changes can break the public demo automatically.
+- Que: deshabilitar o bypassear los deploys Git productivos built-in de Vercel para `shineapp-api` y `shineapp-web`, o configurarlos para saltearse cuando GitHub Actions sea responsable de produccion.
+- Donde: Vercel Dashboard, configuracion Git del proyecto / ignored build step.
+- Por que: el workflow de GitHub Actions deploya backend, corre migraciones y luego deploya frontend. Un deploy Git paralelo de Vercel puede publicar codigo backend antes de que corra el gate de migracion.
+- Valor a copiar: ninguno.
+- Validar: pushear un cambio inocuo a una branch de prueba o inspeccionar la configuracion del proyecto Vercel antes de mergear a `main`; los deploys productivos deben ser creados por el workflow CLI de GitHub Actions, no por un trigger Git independiente de Vercel.
+- Riesgo si se omite: deploys duplicados, race conditions o codigo vivo antes de que el schema Supabase este migrado.
 
-Forward-compatible migrations are acceptable for the automated demo release path. Destructive migrations need a manual rollout plan and should not be merged into `main` as a routine demo deploy.
+## 14. Revisar Riesgo De Migracion Antes De Mergear Cambios De Schema A `main`
+
+- Que: revisar si el PR contiene migraciones de schema o datos.
+- Donde: review del PR y `backend/*/migrations/`.
+- Por que: el deploy de GitHub Actions corre `migrate --plan` y `migrate --noinput` automaticamente antes del deploy productivo de Vercel.
+- Valor a copiar: ninguno.
+- Validar: el paso de migracion del workflow termina exitosamente y luego `https://shineapp-api.vercel.app/api/health/` retorna `database=ok`.
+- Riesgo si se omite: migraciones destructivas, renombres, backfills grandes o cambios non-null inseguros pueden romper la demo publica automaticamente.
+
+Migraciones forward-compatible son aceptables para el camino de release demo automatizado. Migraciones destructivas necesitan un plan manual de rollout y no deben mergearse a `main` como deploy demo rutinario.
+
+## 15. Separar Staging Y Produccion Real
+
+- Que: crear proyectos web/API Vercel, proyectos Supabase, buckets Storage, entornos Sentry y entornos GitHub separados para `staging` y `production`.
+- Donde: Vercel, Supabase, Sentry y configuracion del repositorio GitHub.
+- Por que: el camino actual `shineapp-web`, `shineapp-api` y `demo-production` son recursos demo y no deben contener datos reales de clientes.
+- Valor a copiar: sin secretos compartidos; cada entorno recibe su propio `DJANGO_SECRET_KEY`, `DATABASE_URL`, claves S3, Sentry DSN y URL de API frontend generados.
+- Validar: `verify-env.ps1 -Production` pasa contra la forma del env productivo, y los dashboards staging/prod muestran project ids, database refs, buckets, dominios y DSNs distintos.
+- Riesgo si se omite: datos test/demo, secretos, observabilidad y evidencia de rollback pueden contaminar clientes reales.
+
+## 16. Configurar Sentry Y WAF Antes De Trafico Real
+
+- Que: crear el proyecto backend en Sentry y configurar reglas de rate-limit de Vercel Firewall/WAF.
+- Donde: configuracion de proyecto Sentry y Vercel Dashboard, seccion Firewall del proyecto API real.
+- Por que: produccion debe capturar excepciones backend y limitar abuso de trafico publico antes del acceso de clientes.
+- Valores a setear:
+  - `SENTRY_DSN=<backend-sentry-dsn>`
+  - `SENTRY_ENVIRONMENT=production`
+  - `SENTRY_TRACES_SAMPLE_RATE=0.05` inicialmente
+  - `SENTRY_SEND_DEFAULT_PII=0`
+  - `WAF_PROVIDER=vercel`
+  - `WAF_STATUS=configured` solo despues de activar reglas
+- Reglas WAF a configurar:
+  - limite mas estricto para `/api/auth/login/`
+  - limite mas estricto para `/api/public/landing/*/requests/`
+  - limite general o politica challenge para `/api/*`
+- Validar: `verify-env.ps1 -Production` rechaza el env hasta que Sentry y WAF esten configurados; Sentry recibe una excepcion de prueba controlada desde un entorno no cliente.
+- Riesgo si se omite: errores productivos quedan invisibles y endpoints publicos siguen siendo mas faciles de abusar.
+
+## 17. Rotar Secretos Para El Cutover Productivo
+
+- Que: rotar toda credencial demo/compartida antes de los primeros datos reales de cliente.
+- Donde: env vars de proyecto Vercel, Supabase Dashboard, entornos GitHub, Sentry y cualquier proveedor de email.
+- Valores a rotar:
+  - `DJANGO_SECRET_KEY`
+  - password de base Supabase o credencial pooler si se compartio durante setup
+  - `SUPABASE_S3_ACCESS_KEY_ID` y `SUPABASE_S3_SECRET_ACCESS_KEY`
+  - passwords de app demo y cualquier password de Django admin
+  - `DJANGO_MIGRATION_SECRET_KEY`
+  - `VERCEL_TOKEN` si tenia scope amplio o se compartio
+- Validar: redeploy/restart del runtime aprobado solo despues de rotar, luego healthcheck, login, smoke autenticado y smoke de media.
+- Riesgo si se omite: credenciales de etapa demo se convierten en credenciales productivas de larga vida.
+
+## 18. Gate De Rollback, Migracion Y Smoke De Media
+
+- Que: antes de cada release productiva, documentar owner de rollback, ultimo deployment bueno conocido, backup/restore point de base de datos y riesgo de migracion.
+- Donde: checklist de release o descripcion de PR antes de mergear al camino de deploy productivo.
+- Checks requeridos:
+  - revisar `python manage.py migrate --plan`
+  - confirmar que las migraciones sean forward-compatible, o escribir un plan manual de rollout/rollback
+  - confirmar que ningun comando seed/demo corre contra produccion
+  - registrar la URL previa de deployment Vercel o tag de imagen de contenedor
+  - correr `scripts/deploy/smoke-test.ps1` con URLs web/API
+  - si existe una URL de media test, incluir `-MediaUrl <signed-or-public-media-url>`
+  - subir manualmente un logo/avatar/documento, recargar y confirmar que el PDF de cotizacion generado renderiza el logo
+- Validar: release notes contienen la decision de migracion/rollback y evidencia smoke antes de apuntar trafico de clientes al deployment.
+- Riesgo si se omite: cambios de schema y regresiones de media pueden descubrirse solo despues de uso de clientes.

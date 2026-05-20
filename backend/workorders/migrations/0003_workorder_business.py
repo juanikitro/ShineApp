@@ -12,6 +12,7 @@ def backfill_workorder_business(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [
         ("core", "0010_businessaccount_multitenancy"),

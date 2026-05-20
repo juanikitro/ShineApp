@@ -10,7 +10,6 @@ import {
 } from 'react'
 
 import { Plus, Search } from 'lucide-react'
-import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
@@ -28,6 +27,7 @@ type SearchSelectProps = {
 	value: string
 	options: SelectOption[]
 	onChange: (value: string) => void
+	name?: string
 	placeholder?: string
 	disabled?: boolean
 	onAdd?: () => void
@@ -43,6 +43,7 @@ export function SearchSelect({
 	value,
 	options,
 	onChange,
+	name,
 	placeholder = 'Seleccionar',
 	disabled = false,
 	onAdd,
@@ -59,6 +60,7 @@ export function SearchSelect({
 	const pendingOptionFocusRef = useRef<'first' | 'last' | null>(null)
 	const fieldId = useId()
 	const optionsId = `${fieldId}-options`
+	const placeholderOptionId = `${fieldId}-option-placeholder`
 	const selected = options.find((option) => option.value === value)
 	const normalizedQuery = query.trim().toLowerCase()
 	const visibleOptions = normalizedQuery
@@ -80,6 +82,14 @@ export function SearchSelect({
 		typeof createLabel === 'function'
 			? createLabel(createValue)
 			: createLabel
+	const selectedVisibleIndex = visibleOptions.findIndex(
+		(option) => option.value === value,
+	)
+	const activeOptionId = !value
+		? placeholderOptionId
+		: selectedVisibleIndex >= 0
+			? `${fieldId}-option-${selectedVisibleIndex}`
+			: undefined
 
 	function getOptionButtons() {
 		return Array.from(
@@ -105,6 +115,7 @@ export function SearchSelect({
 	}
 
 	function closeMenu() {
+		pendingOptionFocusRef.current = null
 		setOpen(false)
 		setQuery('')
 	}
@@ -115,6 +126,16 @@ export function SearchSelect({
 		window.requestAnimationFrame(() => triggerRef.current?.focus())
 	}
 
+	function handleOptionKeyDown(
+		event: KeyboardEvent<HTMLButtonElement>,
+		nextValue: string,
+	) {
+		if (event.key !== 'Enter' && event.key !== ' ') return
+		event.preventDefault()
+		event.stopPropagation()
+		chooseValue(nextValue)
+	}
+
 	useEffect(() => {
 		if (!open || !pendingOptionFocusRef.current) return
 		const edge = pendingOptionFocusRef.current
@@ -123,14 +144,24 @@ export function SearchSelect({
 	}, [open, visibleOptions.length])
 
 	function closeWhenFocusLeaves(event: FocusEvent<HTMLDivElement>) {
+		const currentTarget = event.currentTarget
 		const nextTarget = event.relatedTarget
 		if (
 			nextTarget instanceof Node &&
-			event.currentTarget.contains(nextTarget)
+			currentTarget.contains(nextTarget)
 		) {
 			return
 		}
-		closeMenu()
+		window.requestAnimationFrame(() => {
+			const activeElement = document.activeElement
+			if (
+				activeElement instanceof Node &&
+				currentTarget.contains(activeElement)
+			) {
+				return
+			}
+			closeMenu()
+		})
 	}
 
 	function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
@@ -139,6 +170,7 @@ export function SearchSelect({
 		}
 		if (event.key === 'Escape' && open) {
 			event.preventDefault()
+			event.stopPropagation()
 			closeMenu()
 			return
 		}
@@ -158,6 +190,7 @@ export function SearchSelect({
 	function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
 		if (event.key === 'Escape') {
 			event.preventDefault()
+			event.stopPropagation()
 			closeMenu()
 			triggerRef.current?.focus()
 			return
@@ -200,7 +233,11 @@ export function SearchSelect({
 			<span className="field-label" id={`${fieldId}-label`}>
 				{label}
 			</span>
+			{name ? (
+				<input type="hidden" name={name} value={value} disabled={disabled} />
+			) : null}
 			<button
+				id={`${fieldId}-trigger`}
 				type="button"
 				className="combo-trigger"
 				disabled={disabled}
@@ -213,32 +250,34 @@ export function SearchSelect({
 					}
 				}}
 				onKeyDown={handleTriggerKeyDown}
-				aria-controls={open ? optionsId : undefined}
+				role="combobox"
+				aria-controls={optionsId}
 				aria-expanded={open}
 				aria-haspopup="listbox"
+				aria-activedescendant={open ? activeOptionId : undefined}
 				aria-labelledby={`${fieldId}-label`}
 			>
 				<span>{selected?.label ?? placeholder}</span>
 				<Search size={14} />
 			</button>
-			<AnimatePresence initial={false}>
-				{open ? (
-					<m.div
-						className="combo-menu"
-						ref={menuRef}
-						variants={comboMenuVariants}
-						initial="initial"
-						animate="animate"
-						exit="exit"
-						onKeyDown={handleMenuKeyDown}
-					>
+			{open ? (
+				<m.div
+					id={`${fieldId}-menu`}
+					className="combo-menu"
+					ref={menuRef}
+					aria-labelledby={`${fieldId}-label`}
+					variants={comboMenuVariants}
+					initial="initial"
+					animate="animate"
+					onKeyDown={handleMenuKeyDown}
+				>
 						<input
-							autoFocus
 							className="combo-search-input"
 							placeholder="Buscar..."
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
 							aria-controls={optionsId}
+							aria-activedescendant={activeOptionId}
 							aria-label={`Buscar ${label}`}
 						/>
 						{onAdd ? (
@@ -274,18 +313,22 @@ export function SearchSelect({
 							aria-labelledby={`${fieldId}-label`}
 						>
 							<button
+								id={placeholderOptionId}
 								type="button"
+								data-combo-placeholder
 								data-combo-option
 								role="option"
 								aria-selected={!value}
 								className={!value ? 'selected' : ''}
 								onClick={() => chooseValue('')}
+								onKeyDown={(event) => handleOptionKeyDown(event, '')}
 							>
 								{placeholder}
 							</button>
 							{visibleOptions.length ? (
-								visibleOptions.map((option) => (
+								visibleOptions.map((option, optionIndex) => (
 									<button
+										id={`${fieldId}-option-${optionIndex}`}
 										type="button"
 										key={option.value}
 										data-combo-option
@@ -295,18 +338,22 @@ export function SearchSelect({
 											option.value === value ? 'selected' : ''
 										}
 										onClick={() => chooseValue(option.value)}
+										onKeyDown={(event) =>
+											handleOptionKeyDown(event, option.value)
+										}
 									>
 										<span>{option.label}</span>
 										{option.meta ? <small>{option.meta}</small> : null}
 									</button>
 								))
 							) : (
-								<div className="combo-empty">Sin resultados</div>
+								<div className="combo-empty" role="status" aria-live="polite">
+									Sin resultados
+								</div>
 							)}
 						</div>
-					</m.div>
-				) : null}
-			</AnimatePresence>
+				</m.div>
+			) : null}
 		</MotionFlashSurface>
 	)
 }

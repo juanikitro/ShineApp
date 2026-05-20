@@ -1,46 +1,46 @@
-# Dark-First UI Rollout
+# Rollout UI Dark-First
 
-## Scope
+## Alcance
 
-Apply the documented dark-first direction across the current frontend without changing business logic, endpoints, payloads, or workflows.
+Aplicar la direccion dark-first documentada sobre el frontend actual sin cambiar logica de negocio, endpoints, payloads ni workflows.
 
-## Constraints
+## Restricciones
 
-- Keep Next.js App Router structure.
-- Keep the current single-screen orchestration in `frontend/app/page.tsx`.
-- No new dependencies.
-- Extract presentational components only.
+- Mantener la estructura Next.js App Router.
+- Mantener la orquestacion actual de pantalla unica en `frontend/app/page.tsx`.
+- Sin dependencias nuevas.
+- Extraer solo componentes presentacionales.
 
-## Approved approach
+## Enfoque Aprobado
 
-1. Move repeated visual primitives out of `frontend/app/page.tsx` into `frontend/app/components/`.
-2. Keep all state, API calls, handlers, and business rules inside `page.tsx`.
-3. Rebuild `frontend/app/globals.css` around a dark-first token system:
-   - `#0B2447` as main shell canvas
-   - light text on dark surfaces
-   - `#19376D` for raised/interactive surfaces
-   - `#A5D7E8` for restrained accents and focus
-4. Replace ad hoc inline spacing with class-based styling where touched.
-5. Validate with `npm run build`.
+1. Mover primitives visuales repetidas desde `frontend/app/page.tsx` hacia `frontend/app/components/`.
+2. Mantener todo estado, llamadas API, handlers y reglas de negocio dentro de `page.tsx`.
+3. Reconstruir `frontend/app/globals.css` alrededor de un sistema de tokens dark-first:
+   - `#0B2447` como canvas principal de shell
+   - texto claro sobre superficies oscuras
+   - `#19376D` para superficies elevadas/interactivas
+   - `#A5D7E8` para acentos y foco contenidos
+4. Reemplazar espaciado inline ad hoc por estilos con clases donde se toque.
+5. Validar con `npm run build`.
 
-## Presentational extraction target
+## Objetivo De Extraccion Presentacional
 
 - layout: `AppShell`, `SidebarNav`, `PageHeader`
 - ui: `Field`, `SearchSelect`, `StatusPill`, `Empty`, `ModalFrame`, `DetailModal`, `Panel`, `MetricCard`, `RecordCard`
 
-## Expected outcome
+## Resultado Esperado
 
-- Whole app visually aligned to the new dark direction
-- Better reuse of presentational structure
-- No behavior change
+- App completa visualmente alineada a la nueva direccion dark
+- Mejor reutilizacion de estructura presentacional
+- Sin cambio de comportamiento
 
-## Refinement: sober integrated mode
+## Refinamiento: Modo Sobrio Integrado
 
-After the first dark rollout, the target direction was tightened:
+Despues del primer rollout dark, la direccion objetivo se ajusto:
 
-- less shine
-- fewer gradients
-- fewer shadows
-- fewer isolated boxes
-- lower border radius
-- stronger visual integration between sidebar, workspace, panels, and lists
+- menos brillo
+- menos gradientes
+- menos sombras
+- menos cajas aisladas
+- menor border radius
+- integracion visual mas fuerte entre sidebar, workspace, paneles y listas

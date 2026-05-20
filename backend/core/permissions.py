@@ -1,4 +1,7 @@
+import math
+
 from django.core.exceptions import DisallowedHost
+from django.utils import timezone
 from rest_framework import permissions, serializers
 
 from core.models import BusinessProfile, UserProfile
@@ -93,10 +96,28 @@ def file_url(file_field, request=None):
         return file_field.url
 
 
+def trial_days_remaining(trial_ends_at, *, now=None):
+    if trial_ends_at is None:
+        return None
+    now = now or timezone.now()
+    remaining_seconds = (trial_ends_at - now).total_seconds()
+    if remaining_seconds <= 0:
+        return 0
+    return math.ceil(remaining_seconds / 86_400)
+
+
+def trial_expired(trial_ends_at, *, now=None):
+    if trial_ends_at is None:
+        return False
+    now = now or timezone.now()
+    return trial_ends_at <= now
+
+
 def user_context_payload(user, request=None):
     profile = UserProfile.for_user(user)
     business = profile.business
     business_profile = BusinessProfile.get_solo(business=business)
+    now = timezone.now()
     return {
         "id": user.id,
         "username": user.username,
@@ -118,6 +139,10 @@ def user_context_payload(user, request=None):
         "phone_display": profile.phone_display,
         "subscription_type": business_profile.subscription_type,
         "subscription_type_label": business_profile.get_subscription_type_display(),
+        "trial_started_at": business_profile.trial_started_at,
+        "trial_ends_at": business_profile.trial_ends_at,
+        "trial_days_remaining": trial_days_remaining(business_profile.trial_ends_at, now=now),
+        "trial_expired": trial_expired(business_profile.trial_ends_at, now=now),
     }
 
 

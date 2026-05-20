@@ -52,6 +52,13 @@ function Resolve-Python {
     throw "No Python runtime found. Create backend/.venv or install the Python launcher."
 }
 
+function Assert-LastExitCode {
+    param([string]$CommandName)
+    if ($LASTEXITCODE -ne 0) {
+        throw "$CommandName failed with exit code $LASTEXITCODE"
+    }
+}
+
 $Python = Resolve-Python
 $script:PythonExe = $Python["Exe"]
 $script:PythonPrefix = @($Python["Prefix"])
@@ -63,10 +70,12 @@ function Invoke-Python {
 
     $Prefix = @($script:PythonPrefix)
     & $script:PythonExe @Prefix @PythonArgs
+    Assert-LastExitCode "python $($PythonArgs -join ' ')"
 }
 
 Invoke-Step "Compose config" $RepoRoot {
     docker compose config --quiet
+    Assert-LastExitCode "docker compose config --quiet"
 }
 
 Invoke-Step "Backend tests" $BackendDir {
@@ -79,10 +88,12 @@ Invoke-Step "Backend system check" $BackendDir {
 
 Invoke-Step "Frontend tests" $FrontendDir {
     npm run test
+    Assert-LastExitCode "npm run test"
 }
 
 Invoke-Step "Frontend build" $FrontendDir {
     npm run build
+    Assert-LastExitCode "npm run build"
 }
 
 Write-Host ""

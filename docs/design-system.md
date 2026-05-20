@@ -1,80 +1,80 @@
-# Design System
+# Sistema De Diseno
 
-## Current repo baseline
+## Base Actual Del Repo
 
-This guidance is based on the current repo, not a greenfield assumption.
+Esta guia se basa en el repo actual, no en una suposicion greenfield.
 
-- Frontend framework: Next.js App Router with React 19 and TypeScript.
-- Styling approach: `frontend/app/globals.css` como entrypoint con partials en `frontend/app/styles/`.
-- Component structure: lightweight local React primitives in `frontend/app/components/`, home orchestration in `frontend/app/page.tsx`, and shared home support in `frontend/lib/page-support.tsx`.
-- Current reusable UI primitives already visible in code: `Field`, `StatusPill`, `Empty`, `Modal`, `DetailModal`, `SearchSelect`, `LoginScreen`.
-- Current shell pattern: sidebar navigation plus workspace content area.
-- Current list pattern: cards and record rows are used more often than dense tables.
-- Current design token layer: CSS custom properties under `:root` with semantic `--color-*` names and compatibility `--shop-*` names.
-- Current theme model: light tokens in `:root`, dark-mode overrides scoped to `.app-shell[data-theme='dark']`, with a sidebar toggle persisted in local storage.
-- Current breakpoints: `980px` and `620px`.
+- Framework frontend: Next.js App Router con React 19 y TypeScript.
+- Enfoque de estilos: `frontend/app/globals.css` como entrypoint con partials en `frontend/app/styles/`.
+- Estructura de componentes: primitives React locales livianas en `frontend/app/components/`, orquestacion de home en `frontend/app/page.tsx` y soporte compartido de home en `frontend/lib/page-support.tsx`.
+- Primitives UI reutilizables ya visibles en codigo: `Field`, `StatusPill`, `Empty`, `Modal`, `DetailModal`, `SearchSelect`, `LoginScreen`.
+- Patron actual de shell: navegacion lateral mas area de contenido workspace.
+- Patron actual de listas: se usan cards y filas de registros mas seguido que tablas densas.
+- Capa actual de tokens de diseno: CSS custom properties bajo `:root` con nombres semanticos `--color-*` y nombres de compatibilidad `--shop-*`.
+- Modelo actual de temas: tokens claros en `:root`, overrides dark mode acotados a `.app-shell[data-theme='dark']`, con toggle en el sidebar persistido en local storage.
+- Breakpoints actuales: `980px` y `620px`.
 
-## Current conventions worth preserving
+## Convenciones Actuales Que Vale Preservar
 
-- Keep messages in Spanish.
-- Keep the app fast and direct.
-- Reuse the existing shell, panels, records, and form patterns before inventing new surfaces.
-- Prefer local CSS classes over new styling infrastructure.
-- Preserve backend-driven workflows and current API contracts.
+- Mantener los mensajes en español.
+- Mantener la app rapida y directa.
+- Reutilizar la shell, paneles, registros y patrones de formularios existentes antes de inventar superficies nuevas.
+- Preferir clases CSS locales antes que nueva infraestructura de estilos.
+- Preservar flujos backend-driven y contratos API actuales.
 
-## Current design inconsistencies to stop spreading
+## Inconsistencias Actuales De Diseno Que No Deben Propagarse
 
-- `frontend/app/globals.css` has variables, but spacing and layout values are still mostly hardcoded.
-- `frontend/app/page.tsx` contains repeated inline spacing styles such as `style={{ marginBottom: 12 }}` and `style={{ marginTop: 18 }}`.
-- The current palette should follow the shared reference screenshot: light CRM shell, white panels, soft gray workspace, blue primary actions, and red destructive actions.
-- UI primitives exist, but they live in one large file instead of a more intentional component layer.
-- There is at least one hidden visual branch (`hidden-section`), so future UI work should remove or revive hidden surfaces intentionally instead of stacking more dormant UI.
-- Some strings in `page.tsx` show encoding artifacts, so any UI pass should check rendered text carefully.
+- `frontend/app/globals.css` tiene variables, pero los valores de espaciado y layout siguen mayormente hardcodeados.
+- `frontend/app/page.tsx` contiene estilos inline repetidos como `style={{ marginBottom: 12 }}` y `style={{ marginTop: 18 }}`.
+- La paleta actual debe seguir la captura de referencia compartida: shell CRM clara, paneles blancos, workspace gris suave, acciones primarias azules y acciones destructivas rojas.
+- Existen primitives UI, pero viven en un archivo grande en vez de una capa de componentes mas intencional.
+- Hay al menos una rama visual oculta (`hidden-section`), asi que el trabajo futuro de UI debe eliminar o revivir superficies ocultas intencionalmente en vez de acumular mas UI dormida.
+- Algunas cadenas en `page.tsx` muestran artefactos de encoding, asi que cualquier pasada de UI debe revisar cuidadosamente el texto renderizado.
 
-## Style direction
+## Direccion De Estilo
 
-Target a calm light CRM-style SaaS surface:
+Objetivo: una superficie SaaS calma, clara y estilo CRM:
 
-- strong information hierarchy
-- white sidebar and top-level surfaces
-- soft gray app canvas
-- white work panels and cards
-- dark high-contrast text
-- restrained brand color usage
-- compact but readable records
-- obvious actions
-- clear state communication
-- integrated surfaces with low visual noise
+- jerarquia fuerte de informacion
+- sidebar blanco y superficies superiores blancas
+- canvas gris suave de app
+- paneles y cards de trabajo blancos
+- texto oscuro de alto contraste
+- uso contenido del color de marca
+- registros compactos pero legibles
+- acciones obvias
+- comunicacion clara de estados
+- superficies integradas con bajo ruido visual
 
-Avoid turning the app into a marketing page or a glossy design exercise.
-Do not drift back into a dark-first shell by default. Keep the dark navy design as a supported alternate mode, not the primary direction.
-Avoid shiny gradients, decorative background effects, heavy floating cards, and nested boxes that fragment the workflow.
+Evitar convertir la app en una pagina de marketing o un ejercicio de diseno brillante.
+No volver a una shell dark-first por default. Mantener el diseno dark navy como modo alternativo soportado, no como direccion primaria.
+Evitar gradientes brillantes, efectos decorativos de fondo, cards flotantes pesadas y cajas anidadas que fragmenten el workflow.
 
-## Best place for design tokens
+## Mejor Lugar Para Tokens De Diseno
 
-Use `frontend/app/styles/tokens.css` as the source of truth for tokens, imported from `frontend/app/globals.css`.
+Usar `frontend/app/styles/tokens.css` como fuente de verdad de tokens, importado desde `frontend/app/globals.css`.
 
-Why:
+Por que:
 
-- the repo already uses CSS variables in `:root`
-- there is no Tailwind theme to extend
-- there is no component library theme layer to hook into
-- the current app imports `globals.css` from `frontend/app/layout.tsx`
-- `globals.css` can stay small and delegate by `@import` to surface-specific partials
+- el repo ya usa CSS variables en `:root`
+- no hay tema Tailwind para extender
+- no hay capa de tema de una libreria de componentes para enganchar
+- la app actual importa `globals.css` desde `frontend/app/layout.tsx`
+- `globals.css` puede mantenerse chico y delegar con `@import` a partials por superficie
 
-Recommended approach for future implementation:
+Enfoque recomendado para implementacion futura:
 
-1. Keep semantic light tokens in `frontend/app/styles/tokens.css`.
-2. Keep dark-mode tokens scoped to `.app-shell[data-theme='dark']` in the same token file.
-3. Keep the existing `--shop-*` variables working as compatibility aliases.
-4. Remap touched UI to semantic aliases gradually.
-5. Do not scatter raw hex values through JSX or one-off CSS classes.
+1. Mantener tokens semanticos claros en `frontend/app/styles/tokens.css`.
+2. Mantener tokens dark mode acotados a `.app-shell[data-theme='dark']` en el mismo archivo de tokens.
+3. Mantener funcionando las variables `--shop-*` existentes como aliases de compatibilidad.
+4. Remapear gradualmente la UI tocada hacia aliases semanticos.
+5. No dispersar valores hex raw por JSX o clases CSS one-off.
 
-## Token strategy
+## Estrategia De Tokens
 
-### Required semantic color tokens
+### Tokens Semanticos De Color Requeridos
 
-Document these as the target semantic layer:
+Documentar estos valores como capa semantica objetivo:
 
 ```css
 :root {
@@ -107,9 +107,9 @@ Document these as the target semantic layer:
 }
 ```
 
-### Migration mapping for the current stack
+### Mapeo De Migracion Para El Stack Actual
 
-When the palette is implemented, these are the safest first mappings:
+Cuando se implemente la paleta, estos son los primeros mapeos mas seguros:
 
 - `--shop-action` -> `--color-primary`
 - `--shop-action-strong` -> `--color-primary-hover`
@@ -122,155 +122,155 @@ When the palette is implemented, these are the safest first mappings:
 - `--shop-border` -> `--color-border`
 - `--shop-border-strong` -> `--color-border-strong`
 
-### Theme strategy
+### Estrategia De Temas
 
-The app supports two themes:
+La app soporta dos temas:
 
-- Light mode is the default and should match the shared CRM screenshot direction: white sidebar, gray workspace, white surfaces, dark text, blue primary actions, and red destructive actions.
-- Dark mode preserves the earlier navy design direction: `#0B2447` / `#071A33` canvas, `#19376D` active and primary surfaces, white text, muted pale-blue metadata, and `#A5D7E8` for focus/accent details.
+- Light mode es el default y debe coincidir con la direccion de la captura CRM compartida: sidebar blanco, workspace gris, superficies blancas, texto oscuro, acciones primarias azules y acciones destructivas rojas.
+- Dark mode preserva la direccion navy anterior: canvas `#0B2447` / `#071A33`, superficies activas y primarias `#19376D`, texto blanco, metadata celeste palida apagada y `#A5D7E8` para detalles de foco/acento.
 
-Implementation rules:
+Reglas de implementacion:
 
-- Put theme values in CSS variables, not JSX.
-- Scope dark overrides under `.app-shell[data-theme='dark']`.
-- Keep the sidebar toggle visible in the sidebar footer as a compact pill switch with a moving thumb, not as a full text button.
-- When touching UI, verify both themes for contrast, dropdown readability, focus rings, and status badges.
-- Do not duplicate whole component trees for themes.
+- Poner valores de tema en CSS variables, no en JSX.
+- Acotar overrides dark bajo `.app-shell[data-theme='dark']`.
+- Mantener el toggle de sidebar visible en el footer del sidebar como switch pill compacto con thumb movil, no como boton de texto completo.
+- Al tocar UI, verificar ambos temas por contraste, legibilidad de dropdowns, focus rings y status badges.
+- No duplicar arboles completos de componentes por tema.
 
-## Motion system
+## Sistema De Motion
 
-Motion is now the single runtime for stateful UI animation in the frontend.
+Motion es ahora el runtime unico para animacion de UI con estado en el frontend.
 
-- `motion` owns enter/exit transitions, layout reflow, toast presence, modal presence, directional agenda swaps, and contextual feedback pulses.
-- CSS keeps only simple hover, focus, color, border, shadow, and responsive overflow behavior.
-- The canonical config lives in `frontend/lib/motion-spec.ts`.
-- The global runtime is provided from `frontend/app/components/motion/AppMotionProvider.tsx` through `MotionConfig` with `reducedMotion="user"` and `LazyMotion`.
+- `motion` controla transiciones enter/exit, reflow de layout, presencia de toast, presencia de modal, swaps direccionales de agenda y pulsos de feedback contextual.
+- CSS mantiene solo hover, focus, color, borde, sombra y overflow responsive simples.
+- La configuracion canonica vive en `frontend/lib/motion-spec.ts`.
+- El runtime global se provee desde `frontend/app/components/motion/AppMotionProvider.tsx` con `MotionConfig` usando `reducedMotion="user"` y `LazyMotion`.
 
-### Allowed motion tokens
+### Tokens De Motion Permitidos
 
-Use these timings and curves unless a documented exception is added to the shared spec:
+Usar estos tiempos y curvas salvo que se agregue una excepcion documentada en la spec compartida:
 
-- Fast: `160ms`
+- Rapido: `160ms`
 - Base: `220ms`
-- View: `280ms`
-- Slow: `380ms`
-- Pulse: `880ms`
-- Standard ease: `cubic-bezier(0.22, 1, 0.36, 1)`
-- Emphasis ease: `cubic-bezier(0.16, 1, 0.3, 1)`
-- Agenda ease: `cubic-bezier(0.4, 0, 0.2, 1)`
+- Vista: `280ms`
+- Lento: `380ms`
+- Pulso: `880ms`
+- Ease estandar: `cubic-bezier(0.22, 1, 0.36, 1)`
+- Ease de enfasis: `cubic-bezier(0.16, 1, 0.3, 1)`
+- Ease de agenda: `cubic-bezier(0.4, 0, 0.2, 1)`
 
-Mirror the CSS-side timing variables in `frontend/app/styles/tokens.css`. Do not introduce one-off durations or ad hoc keyframes inside component files.
+Replicar las variables de timing del lado CSS en `frontend/app/styles/tokens.css`. No introducir duraciones one-off ni keyframes ad hoc dentro de archivos de componentes.
 
-### Motion vs CSS
+### Motion Vs CSS
 
-Use Motion when:
+Usar Motion cuando:
 
-- a surface mounts or unmounts
-- a list or card reflows because data changes
-- a modal, toast, dropdown, or workspace view needs presence management
-- the agenda moves directionally between date windows
-- a record or field needs a contextual feedback pulse
+- una superficie monta o desmonta
+- una lista o card hace reflow porque cambian los datos
+- un modal, toast, dropdown o vista workspace necesita manejo de presencia
+- la agenda se mueve direccionalmente entre ventanas de fechas
+- un registro o campo necesita un pulso de feedback contextual
 
-Use CSS when:
+Usar CSS cuando:
 
-- a button, input, or row only changes color, border, or shadow on hover/focus
-- the effect is static and does not depend on presence, sequencing, or layout measurement
+- un boton, input o fila solo cambia color, borde o sombra en hover/focus
+- el efecto es estatico y no depende de presencia, secuencia o medicion de layout
 
-### Reduced motion policy
+### Politica De Reduced Motion
 
-- Respect the OS-level reduced-motion setting through `MotionConfig reducedMotion="user"`.
-- Keep transitions readable without relying on long movement distances.
-- Retain the repo-wide `prefers-reduced-motion` CSS guard for non-Motion transitions.
-- Do not add a second manual reduced-motion switch unless product requirements explicitly ask for it.
+- Respetar el setting del sistema operativo mediante `MotionConfig reducedMotion="user"`.
+- Mantener transiciones legibles sin depender de distancias largas de movimiento.
+- Retener la guarda CSS repo-wide `prefers-reduced-motion` para transiciones que no son Motion.
+- No agregar un segundo switch manual de reduced motion salvo que requisitos de producto lo pidan explicitamente.
 
-### Agenda-specific rules
+### Reglas Especificas De Agenda
 
-- Keep `@dnd-kit/core` as the drag engine.
-- Animate agenda board swaps with Motion presence, not CSS carousel keyframes.
-- Prefer Motion layout animations for card reflow and stack changes.
-- Use a single canonical directional variant for agenda navigation so forward/backward movement stays consistent across Lavado and Detailing.
-- Do not reintroduce timeout-driven cloned frames or measured-height choreography unless a concrete regression forces it and the exception is documented.
+- Mantener `@dnd-kit/core` como motor de drag.
+- Animar swaps del board de agenda con presencia Motion, no con keyframes CSS de carrusel.
+- Preferir animaciones de layout Motion para reflow de cards y cambios de stack.
+- Usar una unica variante direccional canonica para navegacion de agenda, para que el movimiento forward/backward sea consistente en Lavado y Detailing.
+- No reintroducir frames clonados por timeout ni coreografia de altura medida salvo que una regresion concreta lo fuerce y la excepcion quede documentada.
 
-## Exact color usage rules
+## Reglas Exactas De Uso De Color
 
-### `#F8FAFC`, `#FFFFFF`, and `#E8ECF1`
+### `#F8FAFC`, `#FFFFFF` Y `#E8ECF1`
 
-Use for:
+Usar para:
 
-- `#FFFFFF`: sidebar, search/top controls, cards, modals, dropdowns, and major work panels
-- `#F8FAFC`: raised neutral surfaces and hover states
-- `#E8ECF1`: workspace/app canvas behind white work panels
+- `#FFFFFF`: sidebar, busqueda/controles superiores, cards, modales, dropdowns y paneles principales de trabajo
+- `#F8FAFC`: superficies neutras elevadas y estados hover
+- `#E8ECF1`: canvas/workspace de app detras de paneles blancos
 
-Use subtle borders and soft shadows to separate white panels from the gray canvas. Do not use large dark fills as the default shell.
+Usar bordes sutiles y sombras suaves para separar paneles blancos del canvas gris. No usar grandes rellenos oscuros como shell default.
 
 ### `#0284C7` / `#0EA5E9`
 
-Use for:
+Usar para:
 
-- filled primary buttons
-- important links
-- selected states
-- date/week emphasis
-- focus and progress accents
+- botones primarios rellenos
+- links importantes
+- estados seleccionados
+- enfasis de fecha/semana
+- acentos de foco y progreso
 
-Use white text on filled blue buttons, preferring `#0284C7` for contrast and `#0EA5E9` for non-text accents. Do not use blue for every decorative element; it should clearly point to the next action.
+Usar texto blanco sobre botones azules rellenos, prefiriendo `#0284C7` por contraste y `#0EA5E9` para acentos sin texto. No usar azul en cada elemento decorativo; debe apuntar claramente a la siguiente accion.
 
 ### `#E00000`
 
-Use for:
+Usar para:
 
-- reset actions
-- destructive actions
-- high-risk warnings that require attention
+- acciones de reset
+- acciones destructivas
+- advertencias de alto riesgo que requieren atencion
 
-Use white text on red filled actions. Do not use red for normal status decoration.
+Usar texto blanco sobre acciones rojas rellenas. No usar rojo para decoracion de estados normales.
 
-### Dark-mode navy palette
+### Paleta Navy Dark Mode
 
-Use for the alternate dark theme only:
+Usar solo para el tema dark alternativo:
 
-- `#0B2447`: main navy canvas and brand anchor.
-- `#19376D`: active navigation, primary dark action surfaces, hover states, and selected states.
-- `#A5D7E8`: focus rings, subtle accents, informational badges, and low-volume highlights.
+- `#0B2447`: canvas navy principal y ancla de marca.
+- `#19376D`: navegacion activa, superficies primarias dark, hover states y estados seleccionados.
+- `#A5D7E8`: focus rings, acentos sutiles, badges informativos y highlights de bajo volumen.
 
-Do not use `#A5D7E8` as small body text on dark or light surfaces without checking contrast. Prefer white or pale neutral text for important dark-mode copy, and use `#A5D7E8` as a signal rather than a text default.
+No usar `#A5D7E8` como body text pequeno en superficies dark o claras sin revisar contraste. Preferir texto blanco o neutro palido para copy importante en dark mode, y usar `#A5D7E8` como senal antes que como texto default.
 
-## Accessibility and contrast notes
+## Notas De Accesibilidad Y Contraste
 
-Contrast notes for the light reference direction:
+Notas de contraste para la direccion clara de referencia:
 
-- `#111827` on white is safe for primary text.
-- `#4B5563` on white is safe for secondary text.
-- `#8B95A1` should be reserved for metadata and helper text, not long body copy.
-- White text on bright `#0EA5E9` can be weak for small text; filled buttons should prefer `#0284C7` or darker.
-- White text on `#E00000` is safe for destructive buttons.
-- Focus rings should remain blue and visible on white and gray surfaces.
-- In dark mode, white text on `#0B2447` is safe, but muted metadata must stay light enough to remain readable.
-- `#A5D7E8` works well as a focus/accent color in dark mode, but it should not become the main text color.
+- `#111827` sobre blanco es seguro para texto primario.
+- `#4B5563` sobre blanco es seguro para texto secundario.
+- `#8B95A1` debe reservarse para metadata y helper text, no para body copy largo.
+- Texto blanco sobre `#0EA5E9` brillante puede ser debil en texto chico; los botones rellenos deben preferir `#0284C7` o mas oscuro.
+- Texto blanco sobre `#E00000` es seguro para botones destructivos.
+- Los focus rings deben seguir siendo azules y visibles sobre superficies blancas y grises.
+- En dark mode, texto blanco sobre `#0B2447` es seguro, pero la metadata muted debe mantenerse lo bastante clara para ser legible.
+- `#A5D7E8` funciona bien como color de foco/acento en dark mode, pero no debe convertirse en el color principal del texto.
 
-## Layout rules
+## Reglas De Layout
 
-Keep the current shell model and refine it.
+Mantener el modelo actual de shell y refinarlo.
 
-- Desktop sidebar width: `240px` to `256px`.
-- Workspace page padding: `24px` desktop, `16px` mobile.
-- Panel/card padding: `20px` to `24px`.
-- Section spacing inside a page: `32px` to `48px`.
-- Tight record spacing: `12px` to `16px`.
-- Keep one main primary action per panel or toolbar cluster.
+- Ancho de sidebar desktop: `240px` a `256px`.
+- Padding de pagina workspace: `24px` desktop, `16px` mobile.
+- Padding de panel/card: `20px` a `24px`.
+- Espaciado de secciones dentro de una pagina: `32px` a `48px`.
+- Espaciado ajustado de registros: `12px` a `16px`.
+- Mantener una accion primaria principal por panel o cluster de toolbar.
 
-For the current app:
+Para la app actual:
 
-- preserve the sidebar plus workspace shell
-- treat the sidebar as white and the workspace as soft gray
-- keep `.workspace` slightly gray, with white cards and panels separated by shadow, spacing, and subtle borders
-- preserve panel-based sectioning
-- do not create a dedicated form column next to lists or dashboards; primary screens should stay focused on overview, records, and actions
-- place create/edit forms in popups/modals so the workspace does not become split between a permanent form column and operational content
+- preservar la shell con sidebar mas workspace
+- tratar el sidebar como blanco y el workspace como gris suave
+- mantener `.workspace` levemente gris, con cards y paneles blancos separados por sombra, espaciado y bordes sutiles
+- preservar la seccion por paneles
+- no crear una columna dedicada de formulario junto a listas o dashboards; las pantallas primarias deben enfocarse en overview, registros y acciones
+- ubicar formularios de creacion/edicion en popups/modales para que el workspace no quede dividido entre una columna permanente de formulario y contenido operativo
 
-## Spacing scale
+## Escala De Espaciado
 
-Use this scale:
+Usar esta escala:
 
 - `4px`
 - `8px`
@@ -281,202 +281,202 @@ Use this scale:
 - `48px`
 - `64px`
 
-Rules:
+Reglas:
 
-- use `8px`, `12px`, `16px` for component internals
-- use `24px` for page rhythm and card padding
-- use `32px` or `48px` between major sections
-- avoid introducing new one-off values unless a responsive edge case truly needs them
+- usar `8px`, `12px`, `16px` para interiores de componentes
+- usar `24px` para ritmo de pagina y padding de cards
+- usar `32px` o `48px` entre secciones mayores
+- evitar valores one-off nuevos salvo que un borde responsive realmente los necesite
 
-## Typography hierarchy
+## Jerarquia Tipografica
 
-Keep the current system font stack approach for now. Do not add a font dependency just for style.
+Mantener por ahora el enfoque actual de system font stack. No agregar una dependencia de fuente solo por estilo.
 
-Preferred hierarchy:
+Jerarquia preferida:
 
-- Page title `h1`: `28px`, `700`, tight margin
-- Section title `h2`: `20px`, `650` to `700`
-- Subsection title `h3`: `16px`, `650`
-- Body default: `14px` to `16px`, `400` to `500`
-- Secondary text: `13px` to `14px`
-- Labels and metadata: `12px`, `600`
-- KPI value: `24px` to `28px`, `700`
+- Titulo de pagina `h1`: `28px`, `700`, margen ajustado
+- Titulo de seccion `h2`: `20px`, `650` a `700`
+- Titulo de subseccion `h3`: `16px`, `650`
+- Body default: `14px` a `16px`, `400` a `500`
+- Texto secundario: `13px` a `14px`
+- Labels y metadata: `12px`, `600`
+- Valor KPI: `24px` a `28px`, `700`
 
-Rules:
+Reglas:
 
-- keep labels above controls
-- avoid long uppercase labels
-- use weight and spacing before using extra color
-- keep number-heavy values aligned and easy to scan
-- on light surfaces, rely on spacing, type weight, and subtle gray borders before adding extra decoration
+- mantener labels arriba de controles
+- evitar labels largos en mayusculas
+- usar peso y espaciado antes que color extra
+- mantener valores numericos alineados y faciles de escanear
+- en superficies claras, apoyarse en espaciado, peso tipografico y bordes grises sutiles antes de agregar decoracion extra
 
-## Border radius rules
+## Reglas De Border Radius
 
-Use a sharp, sober radius by default:
+Usar un radio sobrio y marcado por default:
 
-- controls, buttons, pills, cards, dropdowns, and modals: `2px`
-- avoid pill-shaped `999px` tags unless the user explicitly asks for that treatment
+- controles, botones, pills, cards, dropdowns y modales: `2px`
+- evitar tags con forma pill `999px` salvo que el usuario pida explicitamente ese tratamiento
 
-Practical rule for this repo:
+Regla practica para este repo:
 
-- keep `--radius-sm`, `--radius-md`, and `--radius-lg` mapped to `2px` in `frontend/app/globals.css`
-- do not introduce rounded one-off styles such as `10px`, `12px`, or `999px`
-- use spacing, border contrast, and typography for hierarchy before radius or shadow
+- mantener `--radius-sm`, `--radius-md` y `--radius-lg` mapeados a `2px` en `frontend/app/globals.css`
+- no introducir estilos redondeados one-off como `10px`, `12px` o `999px`
+- usar espaciado, contraste de borde y tipografia para jerarquia antes que radio o sombra
 
-## Shadow and elevation rules
+## Reglas De Sombra Y Elevacion
 
-Use subtle elevation only.
+Usar elevacion sutil solamente.
 
-Recommended ranges:
+Rangos recomendados:
 
-- cards and menus: `0 8px 24px rgba(0, 0, 0, 0.18)`
+- cards y menus: `0 8px 24px rgba(0, 0, 0, 0.18)`
 - dropdowns: `0 12px 28px rgba(0, 0, 0, 0.24)`
-- modals: `0 20px 48px rgba(0, 0, 0, 0.32)`
+- modales: `0 20px 48px rgba(0, 0, 0, 0.32)`
 
-Rules:
+Reglas:
 
-- avoid heavy floating UI
-- never stack multiple decorative shadows on the same surface
-- use borders first, shadow second
-- prefer continuity between the shell and workspace over isolated card islands
+- evitar UI flotante pesada
+- nunca apilar multiples sombras decorativas en la misma superficie
+- usar bordes primero, sombra despues
+- preferir continuidad entre shell y workspace antes que islas de cards aisladas
 
-## Component principles
+## Principios De Componentes
 
-- Reuse before creating.
-- Prefer extending the current shell and existing local primitives.
-- Extract a shared component only when it clarifies repeated behavior, not only repeated markup.
-- Visual consistency matters more than novelty.
-- A new component should come with a clear reason, a stable name, and token-based styling.
+- Reutilizar antes de crear.
+- Preferir extender la shell actual y las primitives locales existentes.
+- Extraer un componente compartido solo cuando aclare comportamiento repetido, no solo markup repetido.
+- La consistencia visual importa mas que la novedad.
+- Un componente nuevo debe traer una razon clara, nombre estable y estilos basados en tokens.
 
-## Button guidelines
+## Guia De Botones
 
-### Button hierarchy
+### Jerarquia De Botones
 
-- Primary: the main task on the screen or panel.
-- Secondary or ghost: supporting actions.
-- Danger: destructive or high-risk actions only.
+- Primario: tarea principal de la pantalla o panel.
+- Secundario o ghost: acciones de apoyo.
+- Danger: acciones destructivas o de alto riesgo solamente.
 
-### Sizes
+### Tamanos
 
-- Default height: `36px` to `40px`
-- Large/mobile priority action: `44px`
-- Icon button: minimum `36px`, larger if it is a mobile tap target
+- Altura default: `36px` a `40px`
+- Accion prioritaria grande/mobile: `44px`
+- Icon button: minimo `36px`, mayor si es target tactil mobile
 
-### Rules
+### Reglas
 
-- one clear primary action per local area
-- pair icon plus label only when the icon improves scanning
-- do not place primary and danger buttons with equal visual weight unless the decision is intentionally forced
-- hover, focus, and disabled states must be visible
-- default filled actions should use `#0284C7` with white text
-- destructive/reset actions should use `#E00000` with white text
-- secondary actions should usually be white or light gray with dark text
+- una accion primaria clara por area local
+- combinar icono mas label solo cuando el icono mejora el escaneo
+- no ubicar botones primarios y danger con igual peso visual salvo que la decision se fuerce intencionalmente
+- estados hover, focus y disabled deben ser visibles
+- acciones rellenas default deben usar `#0284C7` con texto blanco
+- acciones destructivas/reset deben usar `#E00000` con texto blanco
+- acciones secundarias normalmente deben ser blancas o gris claro con texto oscuro
 
-## Form guidelines
+## Guia De Formularios
 
-- Do not place forms as a permanent left/right column in the main workspace.
-- Use popups/modals for create and edit flows by default.
-- Keep the underlying list, dashboard, or agenda visible as the operational context behind the modal.
-- Main screens may show compact filters, search, quick actions, or read-only summaries, but not a full data-entry column.
-- Keep labels persistent. Do not rely on placeholders as labels.
-- Use two-column rows only when fields are naturally paired.
-- Collapse to one column on narrow screens.
-- Keep input and `SearchSelect` heights aligned.
-- Use helper text or `info-note` style for calculations, assumptions, or stock/cash feedback.
-- Mark destructive or irreversible choices clearly.
-- Default values should reduce typing, not hide decisions.
+- No ubicar formularios como columna permanente izquierda/derecha en el workspace principal.
+- Usar popups/modales por default para flujos de creacion y edicion.
+- Mantener visible la lista, dashboard o agenda subyacente como contexto operativo detras del modal.
+- Las pantallas principales pueden mostrar filtros compactos, busqueda, acciones rapidas o resumenes read-only, pero no una columna completa de carga de datos.
+- Mantener labels persistentes. No depender de placeholders como labels.
+- Usar filas de dos columnas solo cuando los campos esten naturalmente emparejados.
+- Colapsar a una columna en pantallas angostas.
+- Mantener alineadas las alturas de input y `SearchSelect`.
+- Usar helper text o estilo `info-note` para calculos, supuestos o feedback de stock/caja.
+- Marcar con claridad decisiones destructivas o irreversibles.
+- Los valores default deben reducir tipeo, no ocultar decisiones.
 
-## Table and list guidelines
+## Guia De Tablas Y Listas
 
-This repo currently favors records/cards over classic data tables. That is the default until a screen proves otherwise.
+Este repo hoy favorece registros/cards antes que tablas de datos clasicas. Ese es el default hasta que una pantalla demuestre lo contrario.
 
-Use record cards when:
+Usar record cards cuando:
 
-- the item has multiple metadata lines
-- actions are item-level
-- the list is moderate in size
-- the operator needs recognition more than spreadsheet scanning
+- el item tiene multiples lineas de metadata
+- las acciones son por item
+- la lista tiene tamano moderado
+- el operador necesita reconocimiento mas que escaneo tipo planilla
 
-Use a true table only when:
+Usar una tabla real solo cuando:
 
-- many rows and columns need fast comparison
-- the same columns repeat across a large dataset
-- row actions can stay compact without harming readability
+- muchas filas y columnas necesitan comparacion rapida
+- las mismas columnas se repiten en un dataset grande
+- las acciones por fila pueden mantenerse compactas sin danar legibilidad
 
-Rules for lists:
+Reglas para listas:
 
-- keep title first, metadata second, actions last
-- highlight status consistently
-- keep scan lines short
-- avoid mixing more than two text densities inside one record
-- on light screens, separate rows with white surfaces, soft shadows, subtle borders, and spacing before using strong accent fills
+- mantener titulo primero, metadata segundo, acciones al final
+- destacar estados consistentemente
+- mantener lineas de escaneo cortas
+- evitar mezclar mas de dos densidades de texto dentro de un registro
+- en pantallas claras, separar filas con superficies blancas, sombras suaves, bordes sutiles y espaciado antes de usar rellenos fuertes de acento
 
-## Empty state guidelines
+## Guia De Estados Vacios
 
-Every empty state should answer:
+Todo estado vacio debe responder:
 
-- what is empty
-- why it matters
-- what the user can do next
+- que esta vacio
+- por que importa
+- que puede hacer despues el usuario
 
-Use calm messaging. Avoid jokes or decorative filler.
+Usar mensajes calmos. Evitar chistes o relleno decorativo.
 
-## Loading state guidelines
+## Guia De Estados De Carga
 
-- keep layout stable while loading
-- prefer inline loaders or skeleton-like placeholders over blocking the whole page
-- show loading close to the affected area when possible
-- do not hide navigation or context during local loads
+- mantener estable el layout mientras carga
+- preferir loaders inline o placeholders tipo skeleton antes que bloquear toda la pagina
+- mostrar carga cerca del area afectada cuando sea posible
+- no ocultar navegacion o contexto durante cargas locales
 
-## Error state guidelines
+## Guia De Estados De Error
 
-- say what failed in plain Spanish
-- keep the tone operational
-- give the next useful action when possible
-- do not expose technical internals unless the action truly requires them
-- keep error surfaces readable on light backgrounds without collapsing into saturated red blocks
+- decir que fallo en español claro
+- mantener tono operativo
+- dar la siguiente accion util cuando sea posible
+- no exponer internos tecnicos salvo que la accion realmente lo requiera
+- mantener superficies de error legibles sobre fondos claros sin convertirlas en bloques rojos saturados
 
-## Responsive behavior
+## Comportamiento Responsive
 
-Use the current repo breakpoints as the default baseline:
+Usar los breakpoints actuales del repo como baseline default:
 
-- major layout shift around `980px`
-- narrow mobile adjustments around `620px`
+- cambio mayor de layout cerca de `980px`
+- ajustes mobile angostos cerca de `620px`
 
-Rules:
+Reglas:
 
-- sidebar can stack above content on smaller screens
-- forms should become one column on mobile
-- action clusters should wrap cleanly
-- cards and records should preserve readable tap targets
-- horizontal scrolling is acceptable only for clearly bounded content such as agenda lanes when needed
-- the light CRM shell should remain consistent on mobile; do not switch to a separate dark presentation without reason
+- el sidebar puede apilarse arriba del contenido en pantallas menores
+- los formularios deben pasar a una columna en mobile
+- los clusters de acciones deben wrappear limpiamente
+- cards y registros deben preservar targets tactiles legibles
+- el scroll horizontal es aceptable solo para contenido claramente acotado, como carriles de agenda cuando haga falta
+- la shell CRM clara debe permanecer consistente en mobile; no cambiar a una presentacion dark separada sin razon
 
-## Accessibility requirements
+## Requisitos De Accesibilidad
 
-- keyboard focus must always be visible
-- interactive rows must support keyboard behavior, not only click behavior
-- modal dialogs must be dismissible and understandable with keyboard navigation
-- color cannot be the only way to communicate state
-- body text and controls must meet contrast requirements
-- touch targets should aim for `44px` where mobile usage matters
-- screen titles, section headings, and action labels should stay explicit
+- el foco de teclado siempre debe ser visible
+- filas interactivas deben soportar comportamiento de teclado, no solo click
+- modales deben poder cerrarse y entenderse con navegacion de teclado
+- el color no puede ser la unica forma de comunicar estado
+- body text y controles deben cumplir requisitos de contraste
+- targets tactiles deben apuntar a `44px` cuando el uso mobile importa
+- titulos de pantalla, headings de seccion y labels de accion deben permanecer explicitos
 
-## Repo-specific CSS and component conventions
+## Convenciones CSS Y De Componentes Especificas Del Repo
 
-- No Tailwind is present. Do not write docs or prompts that assume a Tailwind theme.
-- No component library is present. Do not assume a theme provider or design-token API.
-- Prefer semantic CSS variables in `frontend/app/globals.css`.
-- Prefer descriptive class names over inline styles.
-- If a style repeats, move it to CSS instead of repeating `style={{}}`.
-- Keep `frontend/app/page.tsx` stable unless there is a clear reason to extract UI into a dedicated component file.
+- No hay Tailwind. No escribir docs o prompts que asuman un tema Tailwind.
+- No hay libreria de componentes. No asumir theme provider ni API de design tokens.
+- Preferir CSS variables semanticas en `frontend/app/globals.css`.
+- Preferir nombres de clase descriptivos antes que estilos inline.
+- Si un estilo se repite, moverlo a CSS en vez de repetir `style={{}}`.
+- Mantener estable `frontend/app/page.tsx` salvo que haya una razon clara para extraer UI a un archivo de componente dedicado.
 
-## Practical implementation rule for the next UI task
+## Regla Practica Para La Proxima Tarea De UI
 
-When a future prompt asks for a visual improvement:
+Cuando un prompt futuro pida una mejora visual:
 
-1. read this file plus `docs/design-brief.md`
-2. inspect the touched area in `frontend/app/page.tsx` and `frontend/app/globals.css`
-3. reuse the current component and class vocabulary first
-4. add semantic tokens in `globals.css` before adding raw hex colors
-5. validate layout, focus, empty/loading/error states, and mobile behavior before calling the work done
+1. leer este archivo mas `docs/design-brief.md`
+2. inspeccionar el area tocada en `frontend/app/page.tsx` y `frontend/app/globals.css`
+3. reutilizar primero el vocabulario actual de componentes y clases
+4. agregar tokens semanticos en `globals.css` antes que colores hex raw
+5. validar layout, foco, estados vacios/carga/error y comportamiento mobile antes de dar el trabajo por terminado

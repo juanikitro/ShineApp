@@ -1,45 +1,45 @@
-# Agenda Operativa Unificada Implementation Plan
+# Plan De Implementacion: Agenda Operativa Unificada
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Para workers agenticos:** SUB-SKILL REQUERIDA: usar `superpowers:subagent-driven-development` (recomendado) o `superpowers:executing-plans` para implementar este plan tarea por tarea. Los pasos usan sintaxis de checkbox (`- [ ]`) para seguimiento.
 
-**Goal:** Convert `Agenda` into the only daily operational surface for reservations and work-order execution, removing the standalone `Trabajos` UI without merging backend domains.
+**Objetivo:** Convertir `Agenda` en la unica superficie operativa diaria para reservas y ejecucion de ordenes de trabajo, eliminando la UI standalone de `Trabajos` sin mezclar dominios backend.
 
-**Architecture:** Keep the existing backend contracts and implement the unification in the current Next.js single-screen surface. Resolve `Reservation -> WorkOrder` in the frontend, enrich agenda cards with work-order summaries, and reuse existing modals/forms for payment, consumption, and editing instead of opening a new route or state machine.
+**Arquitectura:** Mantener los contratos backend existentes e implementar la unificacion en la superficie single-screen actual de Next.js. Resolver `Reservation -> WorkOrder` en el frontend, enriquecer cards de agenda con resumenes de orden de trabajo y reutilizar modales/forms existentes para pagos, consumos y edicion en vez de abrir una ruta o state machine nueva.
 
-**Tech Stack:** Next.js App Router, React 19, TypeScript, global CSS in `frontend/app/globals.css`, existing frontend helpers in `frontend/lib/`, Django/DRF backend consumed via `apiFetch`.
+**Tech Stack:** Next.js App Router, React 19, TypeScript, CSS global en `frontend/app/globals.css`, helpers frontend existentes en `frontend/lib/`, backend Django/DRF consumido mediante `apiFetch`.
 
 ---
 
-## Constraints
+## Restricciones
 
-- The current checkout has no `.git`; do not add plan steps that require commit, branch, or push.
-- Do not add frontend test tooling in this iteration.
-- Preserve the current dark-first shell and panel-based layout.
-- Do not change backend models or API contracts unless implementation reveals a blocker.
+- El checkout actual no tiene `.git`; no agregar pasos de plan que requieran commit, branch o push.
+- No agregar tooling de tests frontend en esta iteracion.
+- Preservar la shell dark-first actual y el layout basado en paneles.
+- No cambiar modelos backend ni contratos API salvo que la implementacion revele un bloqueo.
 
-## File Structure
+## Estructura De Archivos
 
-### Files to modify
+### Archivos A Modificar
 
 - `frontend/app/page.tsx`
-  Responsibility: remove `workorders` from the navigation flow, compute agenda operational rows, render unified cards, wire agenda-local actions, and reuse existing modals for payment/consumption/detail.
+  Responsabilidad: quitar `workorders` del flujo de navegacion, computar filas operativas de agenda, renderizar cards unificadas, cablear acciones locales de agenda y reutilizar modales existentes para pago/consumo/detalle.
 
 - `frontend/app/globals.css`
-  Responsibility: style unified agenda cards, work-order summary blocks, contextual action groups, and responsive behavior without breaking the existing agenda grid.
+  Responsabilidad: estilar cards unificadas de agenda, bloques de resumen de orden de trabajo, grupos de acciones contextuales y comportamiento responsive sin romper la grilla actual de agenda.
 
-### Files to create
+### Archivos A Crear
 
 - `frontend/lib/agenda.ts`
-  Responsibility: keep small pure helpers out of `page.tsx` for joining reservations to work orders and formatting agenda operational rows. This is not a new architecture layer; it is a local readability seam.
+  Responsabilidad: mantener helpers puros pequenos fuera de `page.tsx` para unir reservas con ordenes de trabajo y formatear filas operativas de agenda. No es una nueva capa de arquitectura; es un seam local de legibilidad.
 
-## Task 1: Extract agenda operational selectors
+## Tarea 1: Extraer Selectors Operativos De Agenda
 
-**Files:**
-- Create: `frontend/lib/agenda.ts`
-- Modify: `frontend/app/page.tsx`
-- Verify: `frontend/package.json` scripts via `npm run build`
+**Archivos:**
+- Crear: `frontend/lib/agenda.ts`
+- Modificar: `frontend/app/page.tsx`
+- Verificar: scripts de `frontend/package.json` mediante `npm run build`
 
-- [ ] **Step 1: Create the helper file for agenda composition**
+- [ ] **Paso 1: Crear el archivo helper para composicion de agenda**
 
 ```ts
 export type AnyRecord = Record<string, any>
@@ -85,7 +85,7 @@ export function buildAgendaOperationalRows(
 }
 ```
 
-- [ ] **Step 2: Import the helper into `page.tsx` and replace the reservation-only reducer**
+- [ ] **Paso 2: Importar el helper en `page.tsx` y reemplazar el reducer solo-reservas**
 
 ```ts
 import {
@@ -112,7 +112,7 @@ const agendaRowsByDay = useMemo(
 )
 ```
 
-- [ ] **Step 3: Replace direct `reservationsByDay` reads with `agendaRowsByDay` where agenda cards are rendered**
+- [ ] **Paso 3: Reemplazar lecturas directas de `reservationsByDay` por `agendaRowsByDay` donde se renderizan cards de agenda**
 
 ```ts
 const dayRows = agendaRowsByDay[day] ?? []
@@ -122,28 +122,28 @@ const dayRows = agendaRowsByDay[day] ?? []
 <small>{dayRows.length} turnos</small>
 ```
 
-- [ ] **Step 4: Run the frontend build to catch type/import mistakes early**
+- [ ] **Paso 4: Correr el build frontend para detectar temprano errores de tipos/import**
 
-Run:
+Correr:
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-Expected:
+Esperado:
 
-- `next build` completes successfully.
-- No unresolved import for `@/lib/agenda`.
-- No type errors on `agendaRowsByDay` or `workOrderByReservation`.
+- `next build` completa correctamente.
+- Sin import no resuelto para `@/lib/agenda`.
+- Sin errores de tipo en `agendaRowsByDay` o `workOrderByReservation`.
 
-## Task 2: Remove the standalone `Trabajos` section and move the flow anchor into `Agenda`
+## Tarea 2: Quitar La Seccion Standalone `Trabajos` Y Mover El Ancla De Flujo A `Agenda`
 
-**Files:**
-- Modify: `frontend/app/page.tsx`
-- Verify: `frontend/package.json` scripts via `npm run build`
+**Archivos:**
+- Modificar: `frontend/app/page.tsx`
+- Verificar: scripts de `frontend/package.json` mediante `npm run build`
 
-- [ ] **Step 1: Remove `workorders` from the `Section` union and `sectionMeta`**
+- [ ] **Paso 1: Quitar `workorders` de la union `Section` y `sectionMeta`**
 
 ```ts
 type Section =
@@ -165,7 +165,7 @@ agenda: {
 },
 ```
 
-- [ ] **Step 2: Delete the standalone `active === 'workorders'` render block**
+- [ ] **Paso 2: Borrar el bloque de render standalone `active === 'workorders'`**
 
 ```tsx
 {active === 'workorders' ? (
@@ -173,7 +173,7 @@ agenda: {
 ) : null}
 ```
 
-- [ ] **Step 3: Keep existing work-order creation helpers, but retarget their entry point to agenda cards**
+- [ ] **Paso 3: Mantener helpers existentes de creacion de orden de trabajo, pero redirigir su entry point a cards de agenda**
 
 ```ts
 function createOrderFromReservation(reservation: AnyRecord) {
@@ -186,28 +186,28 @@ function createOrderFromReservation(reservation: AnyRecord) {
 }
 ```
 
-- [ ] **Step 4: Build and confirm the sidebar no longer references `Trabajos`**
+- [ ] **Paso 4: Buildear y confirmar que el sidebar ya no referencia `Trabajos`**
 
-Run:
+Correr:
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-Expected:
+Esperado:
 
-- No JSX branch references `active === 'workorders'`.
-- Sidebar renders only the remaining sections.
+- No quedan ramas JSX que referencien `active === 'workorders'`.
+- El sidebar renderiza solo las secciones restantes.
 
-## Task 3: Replace reservation-only agenda cards with unified operational cards
+## Tarea 3: Reemplazar Cards Solo-Reserva Por Cards Operativas Unificadas
 
-**Files:**
-- Modify: `frontend/app/page.tsx`
-- Modify: `frontend/app/globals.css`
-- Verify: `frontend/package.json` scripts via `npm run build`
+**Archivos:**
+- Modificar: `frontend/app/page.tsx`
+- Modificar: `frontend/app/globals.css`
+- Verificar: scripts de `frontend/package.json` mediante `npm run build`
 
-- [ ] **Step 1: Add a focused render helper for the work-order summary block**
+- [ ] **Paso 1: Agregar un render helper enfocado para el bloque de resumen de orden de trabajo**
 
 ```ts
 function renderAgendaWorkOrderSummary(workOrder: AnyRecord) {
@@ -233,7 +233,7 @@ function renderAgendaWorkOrderSummary(workOrder: AnyRecord) {
 }
 ```
 
-- [ ] **Step 2: Add a focused render helper for the work-order action cluster**
+- [ ] **Paso 2: Agregar un render helper enfocado para el cluster de acciones de orden de trabajo**
 
 ```ts
 function renderAgendaWorkOrderActions(workOrder: AnyRecord) {
@@ -266,7 +266,7 @@ function renderAgendaWorkOrderActions(workOrder: AnyRecord) {
 }
 ```
 
-- [ ] **Step 3: Replace the agenda card mapping with a `reservation + workOrder` render path**
+- [ ] **Paso 3: Reemplazar el mapping de cards de agenda por un render path `reservation + workOrder`**
 
 ```tsx
 {dayRows.map(({ reservation, workOrder }) => (
@@ -294,7 +294,7 @@ function renderAgendaWorkOrderActions(workOrder: AnyRecord) {
 ))}
 ```
 
-- [ ] **Step 4: Update `renderReservationActions` so it does not offer `Crear orden` when the row already has one**
+- [ ] **Paso 4: Actualizar `renderReservationActions` para que no ofrezca `Crear orden` cuando la fila ya tiene una**
 
 ```ts
 function renderReservationActions(item: AnyRecord, workOrder?: AnyRecord | null) {
@@ -320,7 +320,7 @@ function renderReservationActions(item: AnyRecord, workOrder?: AnyRecord | null)
 }
 ```
 
-- [ ] **Step 5: Add the minimum CSS classes for the richer card**
+- [ ] **Paso 5: Agregar las clases CSS minimas para la card enriquecida**
 
 ```css
 .agenda-record {
@@ -351,28 +351,28 @@ function renderReservationActions(item: AnyRecord, workOrder?: AnyRecord | null)
 }
 ```
 
-- [ ] **Step 6: Build after the card replacement**
+- [ ] **Paso 6: Buildear despues de reemplazar la card**
 
-Run:
+Correr:
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-Expected:
+Esperado:
 
-- No duplicate function names.
-- No JSX errors from the new helper calls.
-- The richer card compiles cleanly.
+- Sin nombres de funcion duplicados.
+- Sin errores JSX por las llamadas nuevas a helpers.
+- La card enriquecida compila limpiamente.
 
-## Task 4: Reuse contextual modals for payment and edit flows from agenda
+## Tarea 4: Reutilizar Modales Contextuales Para Pagos Y Edicion Desde Agenda
 
-**Files:**
-- Modify: `frontend/app/page.tsx`
-- Verify: `frontend/package.json` scripts via `npm run build`
+**Archivos:**
+- Modificar: `frontend/app/page.tsx`
+- Verificar: scripts de `frontend/package.json` mediante `npm run build`
 
-- [ ] **Step 1: Add agenda-local opener helpers instead of sending the operator to another section**
+- [ ] **Paso 1: Agregar helpers locales de agenda para abrir modales, en vez de mandar al operador a otra seccion**
 
 ```ts
 function openPaymentForOrder(order: AnyRecord) {
@@ -391,13 +391,13 @@ function openWorkOrderDetail(order: AnyRecord) {
 }
 ```
 
-- [ ] **Step 2: Add state for the payment modal beside the existing consumption modal**
+- [ ] **Paso 2: Agregar estado para el modal de pago junto al modal de consumo existente**
 
 ```ts
 const [payForOrder, setPayForOrder] = useState<AnyRecord | null>(null)
 ```
 
-- [ ] **Step 3: Render a payment modal reusing the existing `savePayment` handler**
+- [ ] **Paso 3: Renderizar un modal de pago reutilizando el handler existente `savePayment`**
 
 ```tsx
 {payForOrder ? (
@@ -426,7 +426,7 @@ const [payForOrder, setPayForOrder] = useState<AnyRecord | null>(null)
 ) : null}
 ```
 
-- [ ] **Step 4: Close the payment modal after a successful save**
+- [ ] **Paso 4: Cerrar el modal de pago despues de guardar exitosamente**
 
 ```ts
 async function savePayment(event: FormEvent) {
@@ -448,7 +448,7 @@ async function savePayment(event: FormEvent) {
 }
 ```
 
-- [ ] **Step 5: Reuse the existing consumption modal opener from agenda cards**
+- [ ] **Paso 5: Reutilizar el opener existente del modal de consumo desde cards de agenda**
 
 ```tsx
 <button className="ghost" onClick={() => openConsumptionForOrder(workOrder)}>
@@ -456,27 +456,27 @@ async function savePayment(event: FormEvent) {
 </button>
 ```
 
-- [ ] **Step 6: Build after modal wiring**
+- [ ] **Paso 6: Buildear despues del wiring de modales**
 
-Run:
+Correr:
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-Expected:
+Esperado:
 
-- `savePayment` still compiles for both the agenda modal and any remaining cash surface.
-- `payForOrder` and `consumeForOrder` close cleanly after save.
+- `savePayment` sigue compilando para el modal de agenda y cualquier superficie de caja restante.
+- `payForOrder` y `consumeForOrder` cierran correctamente despues de guardar.
 
-## Task 5: Responsive polish and verification
+## Tarea 5: Polish Responsive Y Verificacion
 
-**Files:**
-- Modify: `frontend/app/globals.css`
-- Verify: `frontend/package.json` scripts via `npm run build`
+**Archivos:**
+- Modificar: `frontend/app/globals.css`
+- Verificar: scripts de `frontend/package.json` mediante `npm run build`
 
-- [ ] **Step 1: Add responsive guards for the heavier agenda card**
+- [ ] **Paso 1: Agregar guardas responsive para la card de agenda mas pesada**
 
 ```css
 @media (max-width: 980px) {
@@ -501,67 +501,67 @@ Expected:
 }
 ```
 
-- [ ] **Step 2: Run the final build**
+- [ ] **Paso 2: Correr el build final**
 
-Run:
+Correr:
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-Expected:
+Esperado:
 
-- The touched frontend builds successfully with the final CSS and JSX.
+- El frontend tocado buildea correctamente con el CSS y JSX final.
 
-- [ ] **Step 3: Manual smoke test the unified operator flow**
+- [ ] **Paso 3: Smoke manual del flujo operativo unificado**
 
-Run locally through the existing app and verify:
+Correr localmente mediante la app existente y verificar:
 
-1. Open `Agenda`.
-2. Create a reservation.
-3. Confirm it.
-4. Create a work order from the same card.
-5. Change its status from the same card.
-6. Register a payment from the same card.
-7. Register a material consumption from the same card.
-8. Open detail and edit reservation/order.
-9. Confirm the sidebar no longer exposes `Trabajos`.
+1. Abrir `Agenda`.
+2. Crear una reserva.
+3. Confirmarla.
+4. Crear una orden de trabajo desde la misma card.
+5. Cambiar su estado desde la misma card.
+6. Registrar un pago desde la misma card.
+7. Registrar un consumo de material desde la misma card.
+8. Abrir detalle y editar reserva/orden.
+9. Confirmar que el sidebar ya no expone `Trabajos`.
 
-- [ ] **Step 4: Decide whether docs need a follow-up note**
+- [ ] **Paso 4: Decidir si docs necesitan nota follow-up**
 
-If the final implementation changes visible copy or screen behavior beyond this plan, update:
+Si la implementacion final cambia copy visible o comportamiento de pantalla mas alla de este plan, actualizar:
 
 - `docs/plans/2026-05-06-agenda-operativa-unificada-design.md`
 
-If behavior matches the approved design exactly, no extra doc file is needed.
+Si el comportamiento coincide exactamente con el diseno aprobado, no hace falta un doc extra.
 
-## Self-review
+## Self-Review
 
-### Spec coverage
+### Cobertura De Spec
 
-- Single agenda as operational entry point: covered by Tasks 2 and 3.
-- Remove standalone `Trabajos` UI: covered by Task 2.
-- Support create/view/edit/status/payment/consumption from agenda: covered by Tasks 3 and 4.
-- Preserve backend separation: covered by the architecture and by avoiding backend changes.
-- Preserve existing modules for purchases/cash admin: covered by the constraints and by limiting agenda-local actions.
+- Agenda unica como entry point operativo: cubierto por Tareas 2 y 3.
+- Quitar UI standalone de `Trabajos`: cubierto por Tarea 2.
+- Soportar crear/ver/editar/estado/pago/consumo desde agenda: cubierto por Tareas 3 y 4.
+- Preservar separacion backend: cubierto por la arquitectura y por evitar cambios backend.
+- Preservar modulos existentes para compras/admin de caja: cubierto por restricciones y por limitar acciones locales de agenda.
 
-### Placeholder scan
+### Scan De Placeholders
 
-- No `TODO`, `TBD`, or "similar to previous task" placeholders remain.
-- All changed files are named explicitly.
-- All verification commands are concrete and use current repo scripts.
+- No quedan placeholders `TODO`, `TBD` ni "similar to previous task".
+- Todos los archivos cambiados estan nombrados explicitamente.
+- Todos los comandos de verificacion son concretos y usan scripts actuales del repo.
 
-### Type consistency
+### Consistencia De Tipos
 
-- `AgendaOperationalRow`, `workOrderByReservation`, and `agendaRowsByDay` use the same reservation/work-order names throughout.
-- `openPaymentForOrder`, `openConsumptionForOrder`, and `openDetailModal` align with existing naming in `page.tsx`.
+- `AgendaOperationalRow`, `workOrderByReservation` y `agendaRowsByDay` usan los mismos nombres de reserva/orden de trabajo en todo el plan.
+- `openPaymentForOrder`, `openConsumptionForOrder` y `openDetailModal` se alinean con naming existente en `page.tsx`.
 
-## Execution handoff
+## Handoff De Ejecucion
 
-Plan saved to `docs/plans/2026-05-06-agenda-operativa-unificada-implementation-plan.md`.
+Plan guardado en `docs/plans/2026-05-06-agenda-operativa-unificada-implementation-plan.md`.
 
-Two execution options:
+Dos opciones de ejecucion:
 
-1. Subagent-Driven (recommended) - dispatch a fresh subagent per task, review between tasks.
-2. Inline Execution - execute tasks in this session in order, with review checkpoints.
+1. Subagent-Driven (recomendada): despachar un subagente fresco por tarea y revisar entre tareas.
+2. Ejecucion Inline: ejecutar tareas en esta sesion en orden, con checkpoints de review.

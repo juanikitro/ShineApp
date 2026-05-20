@@ -1,4 +1,4 @@
-# UI / UX Audit - ShineApp CRM
+# Auditoria UI/UX - ShineApp CRM
 
 ## Resumen ejecutivo
 
@@ -120,31 +120,31 @@ En comparacion conceptual con SaaS/CRMs modernos:
 - **como Airtable/Monday**: le falta mejor tratamiento del trabajo denso en mobile y en vistas configurables.
 - **como Notion**: le falta calma y economia de elementos en estados vacios y configuracion.
 
-## Score general
+## Puntaje General
 
 **5.2 / 10**
 
-## Score por categoria
+## Puntaje Por Categoria
 
-| Categoria | Score | Lectura |
+| Categoria | Puntaje | Lectura |
 |---|---:|---|
-| UX task flow | 5.5 | Los flujos base existen, pero tienen friccion y nomenclatura irregular. |
-| Visual design | 5.8 | Correcto y sobrio, pero no premium ni totalmente consistente. |
-| Design system | 4.2 | Hay tokens y primitives, pero con fugas, excepciones y patrones mezclados. |
-| Accessibility | 4.3 | Hay foco visible y varios `aria-*`, pero faltan semanticas base, modal completo y patrones robustos. |
+| Flujo de tareas UX | 5.5 | Los flujos base existen, pero tienen friccion y nomenclatura irregular. |
+| Diseno visual | 5.8 | Correcto y sobrio, pero no premium ni totalmente consistente. |
+| Sistema de diseno | 4.2 | Hay tokens y primitives, pero con fugas, excepciones y patrones mezclados. |
+| Accesibilidad | 4.3 | Hay foco visible y varios `aria-*`, pero faltan semanticas base, modal completo y patrones robustos. |
 | Responsive | 3.4 | Es la categoria mas debil. Mobile no esta resuelto como superficie operativa seria. |
-| CRM-specific UX | 5.6 | Buena ambicion operativa, pero falta claridad contextual y velocidad real. |
-| Frontend maintainability | 3.1 | Mucha logica y render en un solo archivo; alto riesgo para consistencia futura. |
-| Demo/sales readiness | 4.4 | Se puede mostrar, pero hoy expone demasiadas aristas de MVP y riesgos de runtime dev. |
+| UX especifica de CRM | 5.6 | Buena ambicion operativa, pero falta claridad contextual y velocidad real. |
+| Mantenibilidad frontend | 3.1 | Mucha logica y render en un solo archivo; alto riesgo para consistencia futura. |
+| Preparacion para demo/venta | 4.4 | Se puede mostrar, pero hoy expone demasiadas aristas de MVP y riesgos de runtime dev. |
 
 ## Principales problemas
 
 1. **Shell mobile deficiente**: la navegacion ocupa la primera pantalla completa y posterga el trabajo real.
-2. **Information architecture ambigua**: el producto apunta a `Agenda`, pero la seccion principal sigue llamandose `Trabajos`.
+2. **Arquitectura de informacion ambigua**: el producto apunta a `Agenda`, pero la seccion principal sigue llamandose `Trabajos`.
 3. **Control muerto**: el buscador del sidebar no hace nada.
 4. **Patron invalido en listas**: tarjetas interactivas con acciones hijas generan HTML/teclado ambiguo.
-5. **Settings no escalan bien**: tabs horizontales y layout de formularios no resisten mobile premium.
-6. **Design system no consolidado**: hay tokens, pero tambien hex sueltos y componentes one-off visibles.
+5. **Configuracion no escala bien**: tabs horizontales y layout de formularios no resisten mobile premium.
+6. **Sistema de diseno no consolidado**: hay tokens, pero tambien hex sueltos y componentes one-off visibles.
 7. **Frontend monolitico**: `frontend/app/page.tsx` concentra demasiadas responsabilidades.
 8. **Accesibilidad incompleta**: modales sin `Escape` ni focus trap; `SearchSelect` sin semantica completa de combobox.
 9. **Percepcion visual irregular**: toggle de tema y algunas superficies rompen el tono sobrio del CRM.
@@ -163,7 +163,7 @@ En comparacion conceptual con SaaS/CRMs modernos:
 
 ## Hallazgos por categoria
 
-### 1. UX task flow
+### 1. Flujo De Tareas UX
 
 Lo bueno:
 
@@ -193,7 +193,7 @@ Lo flojo:
 - Las cards/listas se sienten repetitivas y poco informativas.
 - Las superficies vacias pierden interes visual y jerarquia.
 
-### 3. Design system
+### 3. Sistema De Diseno
 
 Lo bueno:
 
@@ -207,7 +207,7 @@ Lo flojo:
 - Persisten colores hardcodeados y detalles fuera del token layer.
 - La semantica de listas, tabs, filtros y acciones no esta lo bastante normalizada.
 
-### 4. Accessibility
+### 4. Accesibilidad
 
 Lo bueno:
 
@@ -231,7 +231,7 @@ Es la mayor deuda visible.
 - `Configuracion` mantiene tabs horizontales que se cortan y no comunican bien el scroll.
 - El contenido principal arranca demasiado abajo en mobile.
 
-### 6. CRM-specific UX
+### 6. UX Especifica De CRM
 
 Lo bueno:
 
@@ -245,7 +245,7 @@ Lo flojo:
 - Falta velocidad operativa en listados densos: bulk actions, acciones contextuales, filtros mas claros.
 - Falta mejor balance entre overview y accion inmediata.
 
-### 7. Frontend maintainability
+### 7. Mantenibilidad Frontend
 
 - `frontend/app/page.tsx` tiene 15144 lineas.
 - Hay 59 helpers `render*` en el mismo archivo.

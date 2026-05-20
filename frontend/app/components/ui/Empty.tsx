@@ -28,6 +28,7 @@ export function StateNotice({
 			}`}
 			role={isError ? 'alert' : isLoading ? 'status' : undefined}
 			aria-live={isError ? 'assertive' : isLoading ? 'polite' : undefined}
+			aria-atomic={isError || isLoading ? 'true' : undefined}
 		>
 			{isLoading ? <span className="state-notice-spinner" aria-hidden="true" /> : null}
 			<div className="state-notice-copy">

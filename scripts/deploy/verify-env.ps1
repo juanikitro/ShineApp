@@ -60,6 +60,7 @@ function Test-RequiredKey {
 }
 
 $ExpectedKeys = @(
+    "APP_ENVIRONMENT",
     "DJANGO_SETTINGS_MODULE",
     "DJANGO_SECRET_KEY",
     "DJANGO_DEBUG",
@@ -69,6 +70,15 @@ $ExpectedKeys = @(
     "CSRF_TRUSTED_ORIGINS",
     "DATABASE_URL",
     "DATABASE_SSL_REQUIRE",
+    "DJANGO_THROTTLE_ANON_RATE",
+    "DJANGO_THROTTLE_USER_RATE",
+    "SENTRY_DSN",
+    "SENTRY_ENVIRONMENT",
+    "SENTRY_RELEASE",
+    "SENTRY_TRACES_SAMPLE_RATE",
+    "SENTRY_SEND_DEFAULT_PII",
+    "WAF_PROVIDER",
+    "WAF_STATUS",
     "POSTGRES_DB",
     "POSTGRES_USER",
     "POSTGRES_PASSWORD",
@@ -104,6 +114,23 @@ if ($ApiUrl -and -not $ApiUrl.TrimEnd("/").EndsWith("/api")) {
     throw "NEXT_PUBLIC_API_URL must point to the API root and end with /api."
 }
 
+function Test-ProductionNotPlaceholder {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [string]$Value = (Get-EnvValue $Name)
+    )
+
+    if (-not $Production) {
+        return
+    }
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        throw "$Name must be set for production."
+    }
+    if ($Value -match "localhost|127\.0\.0\.1|0\.0\.0\.0|<|>|change-me|placeholder|local-only|shineapp-(api|web)\.vercel\.app") {
+        throw "$Name still looks like a local/demo placeholder."
+    }
+}
+
 $StorageEnabled = (Get-EnvValue "SUPABASE_STORAGE_ENABLED")
 if ($StorageEnabled -in @("1", "true", "True", "TRUE", "yes", "on")) {
     foreach ($Key in @("SUPABASE_STORAGE_BUCKET", "SUPABASE_S3_ENDPOINT_URL", "SUPABASE_S3_REGION_NAME", "SUPABASE_S3_ACCESS_KEY_ID", "SUPABASE_S3_SECRET_ACCESS_KEY")) {
@@ -115,10 +142,42 @@ if ($StorageEnabled -in @("1", "true", "True", "TRUE", "yes", "on")) {
 }
 
 if ($Production) {
+    if ((Get-EnvValue "APP_ENVIRONMENT") -ne "production") {
+        throw "APP_ENVIRONMENT must be production when -Production is used."
+    }
+    if ((Get-EnvValue "DJANGO_SETTINGS_MODULE") -ne "config.settings_production") {
+        throw "DJANGO_SETTINGS_MODULE must be config.settings_production for production."
+    }
+
     $SecretKey = Get-EnvValue "DJANGO_SECRET_KEY"
     if ($SecretKey -match "change-me|dev-only|<|>") {
         throw "DJANGO_SECRET_KEY still looks like a placeholder."
     }
+
+    foreach ($Key in @("DATABASE_URL", "DJANGO_ALLOWED_HOSTS", "CORS_ALLOWED_ORIGINS", "CSRF_TRUSTED_ORIGINS", "NEXT_PUBLIC_API_URL", "SENTRY_DSN", "SUPABASE_S3_ENDPOINT_URL", "SUPABASE_S3_REGION_NAME", "SUPABASE_S3_ACCESS_KEY_ID", "SUPABASE_S3_SECRET_ACCESS_KEY")) {
+        Test-ProductionNotPlaceholder $Key
+    }
+
+    foreach ($Key in @("DJANGO_THROTTLE_ANON_RATE", "DJANGO_THROTTLE_USER_RATE")) {
+        $Value = Get-EnvValue $Key
+        if ($Value -notmatch "^\d+/(s|sec|second|m|min|minute|h|hour|d|day)$") {
+            throw "$Key must use a DRF throttle rate such as 60/min."
+        }
+    }
+
+    if ($StorageEnabled -notin @("1", "true", "True", "TRUE", "yes", "on")) {
+        throw "SUPABASE_STORAGE_ENABLED must be enabled for production media."
+    }
+
+    $QueryStringAuth = Get-EnvValue "SUPABASE_STORAGE_QUERYSTRING_AUTH"
+    if ($QueryStringAuth -notin @("1", "true", "True", "TRUE", "yes", "on")) {
+        Test-ProductionNotPlaceholder "SUPABASE_STORAGE_PUBLIC_URL"
+    }
+
+    if ((Get-EnvValue "WAF_STATUS") -ne "configured") {
+        throw "WAF_STATUS must be configured after manual WAF/rate-limit setup."
+    }
+    Test-ProductionNotPlaceholder "WAF_PROVIDER"
 }
 
 Write-Host "Environment shape OK for $EnvFile"

@@ -1,35 +1,18 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import test from 'node:test'
-import ts from 'typescript'
+import { test } from 'vitest'
 
-function loadWorkOrdersModule() {
-	const sourcePath = resolve('lib/work-orders.ts')
-	const source = readFileSync(sourcePath, 'utf8')
-	const compiled = ts.transpileModule(source, {
-		compilerOptions: {
-			module: ts.ModuleKind.CommonJS,
-			target: ts.ScriptTarget.ES2020,
-		},
-	}).outputText
-	const module = { exports: {} }
-	const loader = new Function('exports', 'module', compiled)
-	loader(module.exports, module)
-	return module.exports
-}
-
-const {
+import {
 	filterFreeQuotesByServiceBucket,
 	filterReservationsByServiceBucket,
 	groupReservationsByEntryDate,
 	groupReservationsByWorkOrderStatus,
 	groupReservationsByWorkOrderStatusColumns,
 	reservationCanMoveWorkStatus,
+	serviceBucketForRecord,
+	workOrderForReservation,
 	workStatusColumnForStatus,
 	workStatusForReservation,
-	workOrderForReservation,
-} = loadWorkOrdersModule()
+} from './work-orders'
 
 test('filters reservations by global service bucket using reservation service data', () => {
 	const serviceTypes = {
@@ -316,4 +299,39 @@ test('groups only reservations with real active work orders by work status', () 
 	assert.equal(reservationCanMoveWorkStatus(reservations[0], workOrders), true)
 	assert.equal(reservationCanMoveWorkStatus(reservations[1], workOrders), false)
 	assert.equal(reservationCanMoveWorkStatus(reservations[2], workOrders), false)
+})
+
+test('service bucket detection accepts direct, primary and object service type sources', () => {
+	const lookup = {
+		1: { service_type: 'detailing' },
+		2: null,
+	}
+
+	assert.equal(serviceBucketForRecord({ service_type: 'detailing' }), 'detailing')
+	assert.equal(serviceBucketForRecord({ primary_service_type: 'wash' }), 'wash')
+	assert.equal(serviceBucketForRecord({ service: { id: 1 } }, lookup), 'detailing')
+	assert.equal(
+		serviceBucketForRecord({ items: [{ service: { service_type: 'detailing' } }] }, lookup),
+		'detailing',
+	)
+	assert.equal(serviceBucketForRecord({ service: 2 }, lookup), 'wash')
+})
+
+test('work-order helpers handle missing ids, unknown columns and reservation flags', () => {
+	assert.equal(workOrderForReservation({ id: '' }, [{ id: 1, reservation: '' }]), null)
+	assert.equal(workStatusForReservation({ id: 1 }, []), null)
+	assert.equal(workStatusColumnForStatus(null, []), null)
+	assert.equal(workStatusColumnForStatus('moved', []), null)
+
+	assert.deepEqual(
+		filterFreeQuotesByServiceBucket(
+			[
+				{ id: 1, reservation: { id: 10 }, items: [{ service_type: 'wash' }] },
+				{ id: 2, reservation: null, has_reservation: false, items: [{ service_type: 'wash' }] },
+			],
+			{},
+			'wash',
+		).map((quote) => quote.id),
+		[2],
+	)
 })

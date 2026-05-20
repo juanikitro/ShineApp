@@ -88,6 +88,21 @@ else:
         }
     }
 
+STANDARD_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+    },
+]
+
 AUTH_PASSWORD_VALIDATORS = []
 
 LANGUAGE_CODE = "es-ar"
@@ -102,10 +117,10 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CORS_ALLOWED_ORIGINS = os.getenv(
-    "CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    "CORS_ALLOWED_ORIGINS", "http://localhost:9000,http://127.0.0.1:9000"
 ).split(",")
 CSRF_TRUSTED_ORIGINS = os.getenv(
-    "CSRF_TRUSTED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    "CSRF_TRUSTED_ORIGINS", "http://localhost:9000,http://127.0.0.1:9000"
 ).split(",")
 CORS_ALLOW_CREDENTIALS = True
 

@@ -38,7 +38,7 @@ Usar antes de considerar completo un cambio UI grande, sensible o que afecte pat
 
 ## Estados y feedback
 
-- [ ] Loading, empty y error states siguen claros si el flujo los tiene.
+- [ ] Estados de carga, vacio y error siguen claros si el flujo los tiene.
 - [ ] Las acciones destructivas estan diferenciadas.
 - [ ] El feedback de exito/error aparece cerca del flujo afectado.
 

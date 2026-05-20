@@ -13,6 +13,7 @@ import {
 	Package,
 	ReceiptText,
 	Settings,
+	Undo2,
 	Users,
 	Wrench,
 	X,
@@ -20,21 +21,30 @@ import {
 import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { AppBrand } from '@/app/components/layout/AppBrand'
 import { Field } from '@/app/components/ui/Field'
-import { apiFetch, setStoredToken } from '@/lib/api'
+import { apiFetch, publicApiFetch, setStoredToken } from '@/lib/api'
 import { type ApiErrorNotice, formatApiError } from '@/lib/api-errors'
 import { type AgendaOperationalPhase } from '@/lib/agenda'
 import { toastIconVariants, toastVariants } from '@/lib/motion-spec'
 
 type AnyRecord = Record<string, any>
 type ToastTone = 'success' | 'error'
+type ToastAction = {
+	label: string
+	title?: string
+	disabled?: boolean
+	onClick: () => void
+}
 type ToastNotice = {
 	id: number
 	tone: ToastTone
 	title: string
 	description?: string
 	fields?: ApiErrorNotice['fields']
+	action?: ToastAction
+	visibleMs?: number
 }
 type ToastDraft = Omit<ToastNotice, 'id'>
 type ActionMessage<T> = string | ((result: T) => string | null | undefined)
@@ -534,7 +544,7 @@ const AGENDA_DRAG_MOUSE_DISTANCE = 8
 const AGENDA_DRAG_TOUCH_DELAY_MS = 180
 const AGENDA_DRAG_TOUCH_TOLERANCE = 10
 const AGENDA_INTERACTIVE_SELECTOR =
-	'button,a,input,textarea,select,.combo-field'
+	'button,a,input,textarea,select,.combo-field,.quick-actions-menu,.quick-actions-trigger'
 
 const entityFeedbackTitles: Record<
 	string,
@@ -628,6 +638,62 @@ const entityFeedbackTitles: Record<
 
 function entityFeedbackTitle(kind: string, action: EntityFeedbackAction) {
 	return entityFeedbackTitles[kind]?.[action] ?? 'Cambio guardado'
+}
+
+function successToastDescription(title: string | null | undefined) {
+	const normalizedTitle = String(title ?? '').toLowerCase()
+	if (!normalizedTitle) return undefined
+
+	if (
+		normalizedTitle.includes('pdf descargado') &&
+		normalizedTitle.includes('enviada')
+	) {
+		return 'El archivo se descargo y la cotizacion quedo marcada como enviada.'
+	}
+	if (normalizedTitle.includes('pdf descargado')) {
+		return 'El archivo se genero y quedo descargado.'
+	}
+	if (normalizedTitle.includes('reserva movida')) {
+		return 'La reserva quedo en el nuevo dia de agenda.'
+	}
+	if (normalizedTitle.includes('reserva ubicada')) {
+		return 'Te llevamos a la fecha donde esta cargada la reserva.'
+	}
+	if (normalizedTitle.includes('estado actualizado')) {
+		return 'El nuevo estado quedo guardado y visible en la agenda.'
+	}
+	if (normalizedTitle.includes('perfil actualizado')) {
+		return 'Los datos de tu cuenta quedaron guardados.'
+	}
+	if (normalizedTitle.includes('caja cerrada')) {
+		return 'El cierre del dia quedo registrado.'
+	}
+	if (normalizedTitle.includes('archivada')) {
+		return 'La solicitud dejo de figurar como pendiente.'
+	}
+	if (
+		normalizedTitle.includes('dado de baja') ||
+		normalizedTitle.includes('inactiv')
+	) {
+		return 'El registro dejo de estar activo en los listados principales.'
+	}
+	if (normalizedTitle.includes('eliminad')) {
+		return 'El registro se elimino y la lista quedo actualizada.'
+	}
+	if (normalizedTitle.includes('cread') || normalizedTitle.includes('registrad')) {
+		return 'El nuevo registro quedo guardado y disponible en la app.'
+	}
+	if (
+		normalizedTitle.includes('editad') ||
+		normalizedTitle.includes('actualizad') ||
+		normalizedTitle.includes('guardad')
+	) {
+		return 'Los cambios quedaron guardados correctamente.'
+	}
+	if (normalizedTitle.includes('finalizad')) {
+		return 'La accion quedo finalizada y registrada.'
+	}
+	return 'La accion se completo correctamente.'
 }
 
 function canStartAgendaDrag(target: EventTarget | null) {
@@ -728,7 +794,7 @@ const sectionMeta: Record<
 	dashboard: {
 		label: 'Dashboard',
 		icon: Gauge,
-		subtitle: 'Indicadores del negocio',
+		subtitle: 'Prioridad comercial y operativa del periodo',
 	},
 	agenda: {
 		label: 'Agenda',
@@ -738,7 +804,7 @@ const sectionMeta: Record<
 	customers: {
 		label: 'Clientes',
 		icon: Users,
-		subtitle: 'Alta y seguimiento de clientes',
+		subtitle: 'Cartera, seguimiento y vehiculos',
 	},
 	suppliers: {
 		label: 'Proveedores',
@@ -753,12 +819,12 @@ const sectionMeta: Record<
 	cash: {
 		label: 'Caja',
 		icon: CreditCard,
-		subtitle: 'Ingresos, egresos y cierre diario',
+		subtitle: 'Flujo diario, ajustes y cierre',
 	},
 	debts: {
 		label: 'Deudas',
 		icon: ReceiptText,
-		subtitle: 'Compras adeudadas y pagos parciales',
+		subtitle: 'Saldos, vencimientos y pagos parciales',
 	},
 	inventory: {
 		label: 'Materiales',
@@ -788,7 +854,7 @@ const sectionMeta: Record<
 	settings: {
 		label: 'Configuracion',
 		icon: Settings,
-		subtitle: 'Negocio, caja, agenda, cotizaciones y usuarios',
+		subtitle: 'Preferencias operativas del negocio',
 	},
 }
 
@@ -1348,12 +1414,14 @@ function useNoticeToasts() {
 		const id = nextIdRef.current + 1
 		nextIdRef.current = id
 		const visibleMs =
-			notice.tone === 'error' ? TOAST_ERROR_VISIBLE_MS : TOAST_VISIBLE_MS
+			notice.visibleMs ??
+			(notice.tone === 'error' ? TOAST_ERROR_VISIBLE_MS : TOAST_VISIBLE_MS)
 		setToasts((current) => [...current.slice(-2), { id, ...notice }])
 		timersRef.current[id] = window.setTimeout(
 			() => dismissToast(id),
 			visibleMs,
 		)
+		return id
 	}
 
 	useEffect(
@@ -1415,6 +1483,18 @@ function NoticeToast({
 					))}
 				</ul>
 			) : null}
+			{toast.action ? (
+				<button
+					type="button"
+					className="toast-action"
+					onClick={toast.action.onClick}
+					disabled={toast.action.disabled}
+					title={toast.action.title}
+				>
+					<Undo2 size={15} />
+					<span>{toast.action.label}</span>
+				</button>
+			) : null}
 			<button
 				type="button"
 				className="toast-close"
@@ -1434,17 +1514,49 @@ function NoticeToastViewport({
 	toasts: ToastNotice[]
 	onDismiss: (id: number) => void
 }) {
-	if (!toasts.length) return null
+	const [mounted, setMounted] = useState(false)
 
-	return (
+	useEffect(() => {
+		setMounted(true)
+	}, [])
+
+	if (!mounted || !toasts.length) return null
+
+	return createPortal(
 		<div className="toast-viewport" aria-label="Notificaciones">
 			<AnimatePresence initial={false}>
 				{toasts.map((toast) => (
 					<NoticeToast key={toast.id} toast={toast} onDismiss={onDismiss} />
 				))}
 			</AnimatePresence>
-		</div>
+		</div>,
+		document.body,
 	)
+}
+
+function loginInitialCredentials() {
+	const demoLoginEnabled =
+		process.env.NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN === '1'
+	const demoUsername =
+		process.env.NEXT_PUBLIC_SHINEAPP_DEMO_USERNAME?.trim() || 'admin'
+
+	return {
+		username: demoLoginEnabled ? demoUsername : '',
+		password: '',
+	}
+}
+
+function trialSignupInitialForm() {
+	return {
+		business_name: '',
+		industry: '',
+		owner_name: '',
+		email: '',
+		phone: '',
+		city: '',
+		country: 'Argentina',
+		password: '',
+	}
 }
 
 function LoginScreen({
@@ -1452,10 +1564,9 @@ function LoginScreen({
 }: {
 	onLogin: (token: string, user: AnyRecord) => void
 }) {
-	const [form, setForm] = useState({
-		username: 'admin',
-		password: 'admin123',
-	})
+	const [mode, setMode] = useState<'login' | 'trial'>('login')
+	const [form, setForm] = useState(loginInitialCredentials)
+	const [trialForm, setTrialForm] = useState(trialSignupInitialForm)
 	const [loading, setLoading] = useState(false)
 	const { toasts, showToast, dismissToast } = useNoticeToasts()
 
@@ -1465,7 +1576,7 @@ function LoginScreen({
 		}
 	}
 
-	async function submit(event: FormEvent) {
+	async function submitLogin(event: FormEvent) {
 		event.preventDefault()
 		setLoading(true)
 		setError(null)
@@ -1492,43 +1603,227 @@ function LoginScreen({
 		}
 	}
 
+	async function submitTrial(event: FormEvent) {
+		event.preventDefault()
+		setLoading(true)
+		setError(null)
+		try {
+			const response = await publicApiFetch<{
+				token: string
+				user: AnyRecord
+			}>('/auth/trial-signup/', {
+				method: 'POST',
+				body: JSON.stringify(trialForm),
+			})
+			setStoredToken(response.token)
+			onLogin(response.token, response.user)
+		} catch (err: any) {
+			setError(
+				formatApiError(err, {
+					fallbackTitle: 'No se pudo solicitar la prueba',
+					fallbackDescription:
+						'Revisa los datos del negocio y vuelve a intentar.',
+				}),
+			)
+		} finally {
+			setLoading(false)
+		}
+	}
+
+	const signupMode = mode === 'trial'
+
 	return (
 		<main className="login-screen">
 			<NoticeToastViewport toasts={toasts} onDismiss={dismissToast} />
-			<form className="login-card" onSubmit={submit}>
+			<form
+				className={signupMode ? 'login-card login-card--trial' : 'login-card'}
+				onSubmit={signupMode ? submitTrial : submitLogin}
+			>
 				<AppBrand
 					className="login-brand"
-					subtitle="Acceso operativo"
+					subtitle={signupMode ? 'Prueba gratuita por 30 dias' : 'Acceso operativo'}
 					titleAs="h1"
 				/>
-				<div className="form-grid">
-					<Field label="Usuario">
-						<input
-							value={form.username}
-							onChange={(event) =>
-								setForm({
-									...form,
-									username: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<Field label="Clave">
-						<input
-							type="password"
-							value={form.password}
-							onChange={(event) =>
-								setForm({
-									...form,
-									password: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<button className="primary" disabled={loading}>
-						Ingresar
-					</button>
-				</div>
+				{signupMode ? (
+					<div className="form-grid login-trial-grid">
+						<p className="login-trial-note">
+							Sin tarjeta ni cobro automatico. Crea un espacio de prueba
+							para operar ShineApp durante 30 dias.
+						</p>
+						<Field label="Negocio">
+							<input
+								name="business_name"
+								autoComplete="organization"
+								required
+								value={trialForm.business_name}
+								onChange={(event) =>
+									setTrialForm({
+										...trialForm,
+										business_name: event.target.value,
+									})
+								}
+							/>
+						</Field>
+						<Field label="Rubro">
+							<input
+								name="industry"
+								autoComplete="organization-title"
+								required
+								value={trialForm.industry}
+								onChange={(event) =>
+									setTrialForm({
+										...trialForm,
+										industry: event.target.value,
+									})
+								}
+							/>
+						</Field>
+						<Field label="Responsable">
+							<input
+								name="owner_name"
+								autoComplete="name"
+								required
+								value={trialForm.owner_name}
+								onChange={(event) =>
+									setTrialForm({
+										...trialForm,
+										owner_name: event.target.value,
+									})
+								}
+							/>
+						</Field>
+						<Field label="Email">
+							<input
+								type="email"
+								name="email"
+								autoComplete="email"
+								required
+								value={trialForm.email}
+								onChange={(event) =>
+									setTrialForm({
+										...trialForm,
+										email: event.target.value,
+									})
+								}
+							/>
+						</Field>
+						<Field label="WhatsApp/telefono">
+							<input
+								type="tel"
+								name="phone"
+								autoComplete="tel"
+								required
+								value={trialForm.phone}
+								onChange={(event) =>
+									setTrialForm({
+										...trialForm,
+										phone: event.target.value,
+									})
+								}
+							/>
+						</Field>
+						<Field label="Ciudad">
+							<input
+								name="city"
+								autoComplete="address-level2"
+								required
+								value={trialForm.city}
+								onChange={(event) =>
+									setTrialForm({
+										...trialForm,
+										city: event.target.value,
+									})
+								}
+							/>
+						</Field>
+						<Field label="Pais">
+							<input
+								name="country"
+								autoComplete="country-name"
+								required
+								value={trialForm.country}
+								onChange={(event) =>
+									setTrialForm({
+										...trialForm,
+										country: event.target.value,
+									})
+								}
+							/>
+						</Field>
+						<Field label="Contrasena">
+							<input
+								type="password"
+								name="password"
+								autoComplete="new-password"
+								required
+								minLength={8}
+								value={trialForm.password}
+								onChange={(event) =>
+									setTrialForm({
+										...trialForm,
+										password: event.target.value,
+									})
+								}
+							/>
+						</Field>
+						<div className="login-actions">
+							<button type="submit" className="primary" disabled={loading}>
+								Crear prueba
+							</button>
+							<button
+								type="button"
+								className="ghost"
+								disabled={loading}
+								onClick={() => setMode('login')}
+							>
+								Ya tengo cuenta
+							</button>
+						</div>
+					</div>
+				) : (
+					<div className="form-grid">
+						<Field label="Usuario">
+							<input
+								name="username"
+								autoComplete="username"
+								value={form.username}
+								onChange={(event) =>
+									setForm({
+										...form,
+										username: event.target.value,
+									})
+								}
+							/>
+						</Field>
+						<Field label="Clave">
+							<input
+								type="password"
+								name="password"
+								autoComplete="current-password"
+								value={form.password}
+								onChange={(event) =>
+									setForm({
+										...form,
+										password: event.target.value,
+									})
+								}
+							/>
+						</Field>
+						<div className="login-actions">
+							<button type="submit" className="primary" disabled={loading}>
+								Ingresar
+							</button>
+							<button
+								type="button"
+								className="ghost"
+								disabled={loading}
+								onClick={() => setMode('trial')}
+							>
+								Solicitar prueba
+							</button>
+						</div>
+					</div>
+				)}
 			</form>
 		</main>
 	)
@@ -1542,6 +1837,7 @@ export type {
 	FormModalKind,
 	Section,
 	ThemeMode,
+	ToastAction,
 	ToastDraft,
 	ToastNotice,
 	ToastTone,
@@ -1572,6 +1868,7 @@ export {
 	asPayload,
 	businessVatConditionOptions,
 	birthdayText,
+	loginInitialCredentials,
 	blankBusinessForm,
 	blankAgendaPaymentForm,
 	blankCustomerForm,
@@ -1589,6 +1886,7 @@ export {
 	defaultCashCategory,
 	detailRequiresEconomy,
 	entityFeedbackTitle,
+	successToastDescription,
 	expenseCategoryPairs,
 	expenseCategoryTreeFromText,
 	expenseCategoryTreeToText,
