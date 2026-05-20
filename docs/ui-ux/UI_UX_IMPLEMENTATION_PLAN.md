@@ -79,7 +79,14 @@ Septimo corte UI-009 aplicado 2026-05-20:
 - Conteo post-corte Herramientas: `page.tsx` tiene 15.024 lineas y aprox. 155 coincidencias `render*`; `ToolsPanel.tsx` concentra 142 lineas presentacionales.
 - Validacion: `cd frontend && npm run build`.
 - QA visual autenticada normal: backend/db ya activos; `next start` en `9000`; `/?section=tools` cargo en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay y sin errores de consola/runtime/red. Screenshots fuera del repo capturados con Chrome headless CDP: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-tools-qa-2026-05-20\desktop-tools.png` y `...\mobile-tools.png`.
-- Estado honesto: UI-009 queda >=75% completo. Quedan como deuda residual Herramientas, Cotizaciones/Servicios, algunos formularios/detail renders y calculos todavia concentrados en `page.tsx`.
+Octavo corte UI-009 aplicado 2026-05-20:
+
+- Cotizaciones se movio desde `frontend/app/page.tsx` a `frontend/app/components/quotes/QuotesPanel.tsx`.
+- `page.tsx` conserva estado, drag handlers, callbacks, descargas PDF, conversion a reserva y helpers; el componente nuevo concentra board, lanes, cards y drag overlay.
+- Conteo post-corte Cotizaciones: `page.tsx` tiene 14.844 lineas y aprox. 149 coincidencias `render*`; `QuotesPanel.tsx` concentra 324 lineas presentacionales.
+- Validacion: `cd frontend && npm run build`.
+- QA visual autenticada normal: backend/db ya activos; `next start` en `9000`; `/?section=quotes` cargo en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay y sin errores de consola/runtime/red. Screenshots fuera del repo capturados con Chrome headless CDP: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-quotes-qa-2026-05-20\desktop-quotes.png` y `...\mobile-quotes.png`.
+- Estado honesto: UI-009 queda ~92% completo. Quedan como deuda residual Servicios, algunos formularios/detail renders y calculos todavia concentrados en `page.tsx`.
 
 Corte UI-024 aplicado 2026-05-20:
 
