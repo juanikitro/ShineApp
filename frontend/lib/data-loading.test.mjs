@@ -6,13 +6,13 @@ import {
 	loadDataSections,
 } from './data-loading'
 
-test('dashboard loads only summary, cash and profile datasets for employers', () => {
+test('dashboard loads summary, cash and shell datasets for employers', () => {
 	assert.deepEqual(
 		dataSetKeysForSection({
 			section: 'dashboard',
 			canViewEconomy: true,
 		}),
-		['dashboard', 'cash', 'businessProfile'],
+		['dashboard', 'cash', 'businessProfile', 'publicRequests'],
 	)
 })
 
@@ -37,8 +37,50 @@ test('agenda keeps operational dependencies and gates economy-only datasets', ()
 			'workOrders',
 			'materials',
 			'materialOpenUnits',
+			'quotes',
+			'businessProfile',
+			'publicRequests',
 		],
 	)
+})
+
+test('shell datasets load with every employer section', () => {
+	for (const section of loadDataSections) {
+		const keys = dataSetKeysForSection({
+			section,
+			canViewEconomy: true,
+		})
+		assert.equal(keys.includes('businessProfile'), true)
+		assert.equal(keys.includes('publicRequests'), true)
+	}
+})
+
+test('customer and service dashboards keep editable linked records hydrated', () => {
+	assert.deepEqual(
+		dataSetKeysForSection({
+			section: 'customers',
+			canViewEconomy: true,
+		}),
+		['customers', 'vehicles', 'services', 'businessProfile', 'publicRequests'],
+	)
+	assert.deepEqual(
+		dataSetKeysForSection({
+			section: 'services',
+			canViewEconomy: true,
+		}),
+		['services', 'customers', 'vehicles', 'businessProfile', 'publicRequests'],
+	)
+})
+
+test('stock movement sections include customer and reservation selectors', () => {
+	for (const section of ['inventory', 'suppliers']) {
+		const keys = dataSetKeysForSection({
+			section,
+			canViewEconomy: true,
+		})
+		assert.equal(keys.includes('customers'), true)
+		assert.equal(keys.includes('reservations'), true)
+	}
 })
 
 test('settings history does not eager-load audit logs', () => {
@@ -48,7 +90,7 @@ test('settings history does not eager-load audit logs', () => {
 		canViewEconomy: true,
 	})
 
-	assert.deepEqual(keys, ['businessProfile', 'employees'])
+	assert.deepEqual(keys, ['businessProfile', 'employees', 'publicRequests'])
 	assert.equal(keys.includes('auditLogs'), false)
 })
 

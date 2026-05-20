@@ -55,9 +55,18 @@ const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 		'workOrders',
 		'materials',
 		'materialOpenUnits',
+		'quotes',
 	],
-	customers: ['customers', 'vehicles'],
-	suppliers: ['suppliers', 'materials', 'stockMovements', 'purchases', 'debts'],
+	customers: ['customers', 'vehicles', 'services'],
+	suppliers: [
+		'suppliers',
+		'materials',
+		'stockMovements',
+		'purchases',
+		'debts',
+		'customers',
+		'reservations',
+	],
 	vehicles: ['vehicles', 'customers'],
 	cash: [
 		'cash',
@@ -80,6 +89,8 @@ const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 		'purchases',
 		'consumptions',
 		'workOrders',
+		'customers',
+		'reservations',
 	],
 	tools: ['tools'],
 	quotes: [
@@ -90,10 +101,12 @@ const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 		'reservations',
 		'businessProfile',
 	],
-	services: ['services'],
+	services: ['services', 'customers', 'vehicles'],
 	notifications: ['publicRequests', 'customers', 'vehicles', 'services'],
 	settings: ['businessProfile', 'employees'],
 }
+
+const shellDataSets: readonly DataSetKey[] = ['businessProfile', 'publicRequests']
 
 const economyOnlyDataSets = new Set<DataSetKey>([
 	'cash',
@@ -122,7 +135,7 @@ export function dataSetKeysForSection({
 	canViewEconomy,
 }: DataLoadingScope): DataSetKey[] {
 	const targetSection = isLoadDataSection(section) ? section : 'dashboard'
-	const keys = sectionDataSets[targetSection]
+	const keys = [...sectionDataSets[targetSection], ...shellDataSets]
 	const allowedKeys = canViewEconomy
 		? keys
 		: keys.filter((key) => !economyOnlyDataSets.has(key))
