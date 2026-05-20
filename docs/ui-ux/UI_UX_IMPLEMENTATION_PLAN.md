@@ -30,8 +30,15 @@ Primer corte UI-009 aplicado 2026-05-20:
 
 - Caja se movio desde `frontend/app/page.tsx` a `frontend/app/components/cash/CashPanel.tsx`.
 - `page.tsx` conserva estado, datos, callbacks, endpoints y reglas; el componente nuevo recibe props explicitas.
-- Conteo post-corte: `page.tsx` tiene 17.570 lineas y aprox. 164 coincidencias `render*`.
+- Conteo post-corte Caja: `page.tsx` tiene 17.570 lineas y aprox. 164 coincidencias `render*`.
 - Validacion: `cd frontend && npm run build`, `next start`, `/` y `/?section=cash` en desktop `1440x900` y mobile `390x844`.
+
+Segundo corte UI-009 aplicado 2026-05-20:
+
+- Deudas se movio desde `frontend/app/page.tsx` a `frontend/app/components/debts/DebtPanel.tsx`.
+- `page.tsx` conserva estado, datos, filtros, callbacks, endpoints, payloads, permisos y reglas; el componente nuevo recibe props explicitas.
+- Conteo post-corte Deudas: `page.tsx` tiene 17.232 lineas y aprox. 161 coincidencias `render*`; `DebtPanel.tsx` concentra 450 lineas presentacionales.
+- Validacion: `cd frontend && npm run build`; `next start` sirvio `/` y `/?section=debts` con HTTP 200. QA visual/screenshot quedo bloqueada por Codex Browser `net::ERR_BLOCKED_BY_CLIENT`.
 
 Corte UI-024 aplicado 2026-05-20:
 

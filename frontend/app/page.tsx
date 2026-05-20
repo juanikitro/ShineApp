@@ -69,6 +69,11 @@ import {
 	type CashSummaryMode,
 } from '@/app/components/cash/CashPanel'
 import {
+	DebtPanel,
+	type DebtFilterState,
+	type DebtSummary,
+} from '@/app/components/debts/DebtPanel'
+import {
 	CustomerDashboardShell,
 	type CustomerDashboardMetric,
 	type CustomerDashboardProfileItem,
@@ -77,7 +82,6 @@ import {
 	CustomerListPanel,
 	type CustomerCardFilter,
 } from '@/app/components/customers/CustomerListPanel'
-import { FinanceRecordCard } from '@/app/components/finance/FinanceRecordCard'
 import { AppBrand } from '@/app/components/layout/AppBrand'
 import { AppShell } from '@/app/components/layout/AppShell'
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
@@ -485,11 +489,6 @@ const publicRequestStatusLabels: Record<string, string> = {
 	converted: 'Convertida',
 	archived: 'Archivada',
 }
-type DebtFilterState = {
-	status: string
-	balance: string
-}
-
 const CASH_FILTER_DEFAULTS: CashFilterState = {
 	query: '',
 	movementType: '',
@@ -505,15 +504,6 @@ const DEBT_FILTER_DEFAULTS: DebtFilterState = {
 	status: '',
 	balance: '',
 }
-
-const debtBalanceFilterOptions = [
-	{ value: 'open', label: 'Con saldo' },
-	{ value: 'settled', label: 'Saldadas' },
-]
-
-const debtStatusFilterOptions = Object.entries(debtStatusLabels).map(
-	([value, label]) => ({ value, label }),
-)
 
 const cashSummaryGroupDefinitions = [
 	{ key: 'charges', label: 'Cobros' },
@@ -4870,7 +4860,7 @@ export default function Home() {
 	const selectedDebtForPayment = debts.find(
 		(item) => String(item.id) === String(debtPaymentForm.debt),
 	)
-	const debtSummary = debts.reduce(
+	const debtSummary = debts.reduce<DebtSummary>(
 		(summary, debt) => ({
 			original: summary.original + numberValue(debt.principal_amount),
 			paid: summary.paid + numberValue(debt.total_paid),
@@ -16305,367 +16295,36 @@ export default function Home() {
 				) : null}
 
 				{displayedActive === 'debts' ? (
-					<div className="grid">
-						<section
-							className="panel finance-panel debt-panel"
-							aria-labelledby="debt-panel-title"
-						>
-							<div className="panel-head finance-panel-head">
-								<div>
-									<span className="panel-kicker">Cobranzas y pagos</span>
-									<h2 id="debt-panel-title">Deudas</h2>
-									<p>
-										Saldos pendientes, pagos parciales y detalle listo para
-										accion.
-									</p>
-								</div>
-								<div className="finance-action-rail">
-									<div className="finance-primary-actions">
-										<button
-											type="button"
-											className="primary"
-											onClick={() => openFormModal('debt-payment')}
-										>
-											<CreditCard size={16} />
-											Registrar pago
-										</button>
-									</div>
-									<div className="finance-secondary-actions">
-									<button
-										type="button"
-										className="ghost"
-										onClick={() => openFormModal('debt')}
-									>
-										<ReceiptText size={16} />
-										Nueva deuda
-									</button>
-									</div>
-								</div>
-							</div>
-							{debtLoadBlocked ? (
-								<ErrorState
-									text={
-										loadErrorNotice?.title ??
-										'No se pudieron cargar los datos de deudas'
-									}
-									hint={loadErrorNotice?.description}
-									action={
-										<button
-											type="button"
-											className="ghost"
-											onClick={() => loadData({ force: true })}
-										>
-											<RefreshCw size={16} />
-											Actualizar
-										</button>
-									}
-								/>
-							) : null}
-							{!debtLoadBlocked &&
-							loading &&
-							!debts.length &&
-							!debtPayments.length ? (
-								<LoadingState
-									text="Cargando deudas..."
-									hint="Estamos preparando saldos, estado y pagos recientes."
-								/>
-							) : null}
-							{!debtLoadBlocked &&
-							(!loading || debts.length || debtPayments.length) ? (
-								<>
-							<section className="grid three section-block-end">
-								<div className="metric">
-									<span>Deuda original</span>
-									<strong>{money(debtSummary.original)}</strong>
-								</div>
-								<div className="metric">
-									<span>Total pagado</span>
-									<strong>{money(debtSummary.paid)}</strong>
-								</div>
-								<div className="metric">
-									<span>Saldo pendiente</span>
-									<strong>{money(debtSummary.pending)}</strong>
-								</div>
-							</section>
-							<div className="info-note">
-								Deudas abiertas: <strong>{debtSummary.open}</strong>.
-								El reporte economico cuenta el egreso al crear la
-								deuda; los pagos no duplican ese gasto.
-							</div>
-							<section
-								className="cash-filters debt-filters section-block-end"
-								aria-labelledby="debt-filters-title"
-							>
-								<div className="cash-filters-head">
-									<div>
-										<h3 id="debt-filters-title">Filtros de deudas</h3>
-										<p>
-											Busca por concepto, acreedor o proveedor y separa lo
-											pendiente de lo saldado.
-										</p>
-									</div>
-									<div className="cash-filter-actions">
-										<span className="cash-filter-counter">
-											{filteredDebts.length} de {debts.length}
-										</span>
-										<button
-											type="button"
-											className="ghost"
-											disabled={!debtFiltersActive}
-											onClick={clearDebtFilters}
-										>
-											Limpiar filtros
-										</button>
-									</div>
-								</div>
-								<div className="debt-filter-grid">
-									<Field label="Buscar">
-										<input
-											placeholder="Concepto, acreedor, proveedor o monto"
-											value={search}
-											onChange={(event) => setSearch(event.target.value)}
-										/>
-									</Field>
-									<SearchSelect
-										label="Estado"
-										value={debtFilters.status}
-										options={debtStatusFilterOptions}
-										placeholder="Todos"
-										onChange={(value) => updateDebtFilter('status', value)}
-									/>
-									<SearchSelect
-										label="Saldo"
-										value={debtFilters.balance}
-										options={debtBalanceFilterOptions}
-										placeholder="Todas"
-										onChange={(value) => updateDebtFilter('balance', value)}
-									/>
-								</div>
-							</section>
-							<div className="records finance-records debt-records">
-								{filteredDebts.length ? (
-									filteredDebts.map((item) => {
-										const quickActions = debtQuickActions(item)
-										return (
-										<FinanceRecordCard
-											amount={{
-												label: 'Saldo',
-												value: money(item.balance_due),
-												tone:
-													numberValue(item.balance_due) > 0
-														? 'warning'
-														: 'payment',
-											}}
-											badges={[
-												{
-													label:
-														debtStatusLabels[item.status] ?? item.status,
-													className: `status ${item.status}`,
-												},
-												{
-													label:
-														numberValue(item.balance_due) > 0
-															? 'Con saldo'
-															: 'Saldada',
-													className:
-														numberValue(item.balance_due) > 0
-															? 'status warning'
-															: 'status paid',
-												},
-											]}
-											className={recordClass(
-												'debt',
-												item.id,
-												'debt-record-card',
-											)}
-											key={item.id}
-											onContextMenu={(event) =>
-												openQuickActionsFromContext(
-													event,
-													'Acciones de deuda',
-													quickActions,
-												)
-											}
-											primaryAction={
-												numberValue(item.balance_due) > 0
-													? {
-															label: 'Registrar pago',
-															icon: <CreditCard size={15} />,
-															onClick: () => openDebtPaymentForDebt(item),
-															variant: 'primary',
-														}
-													: {
-															label: 'Abrir detalle',
-															icon: <Eye size={15} />,
-															onClick: () => openDetailModal('Deuda', item),
-															variant: 'primary',
-														}
-											}
-											secondaryActions={
-												numberValue(item.balance_due) > 0
-													? [
-															{
-																label: 'Detalle',
-																icon: <Eye size={15} />,
-																onClick: () =>
-																	openDetailModal('Deuda', item),
-																variant: 'ghost',
-															},
-														]
-													: []
-											}
-											quickActionsTrigger={renderQuickActionsTrigger(
-												'Acciones de deuda',
-												quickActions,
-												'Acciones rapidas de deuda',
-											)}
-											stats={[
-												{
-													label: 'Original',
-													value: money(item.principal_amount),
-													hint: item.origin_date
-														? `Origen ${formatDateLabel(item.origin_date)}`
-														: 'Sin fecha de origen',
-												},
-												{
-													label: 'Pagado',
-													value: money(item.total_paid),
-													hint: 'Pagos registrados',
-												},
-												{
-													label: 'Vencimiento',
-													value: item.due_date
-														? formatDateLabel(item.due_date)
-														: 'Sin limite',
-													hint: item.expense_subcategory || item.expense_category,
-												},
-											]}
-											subtitle={joinDisplayParts([
-												item.creditor || 'Sin acreedor',
-												item.supplier_name,
-											])}
-											title={item.concept}
-										/>
-										)
-									})
-								) : (
-									<Empty
-										text={
-											debts.length
-												? 'Sin deudas para estos filtros.'
-												: 'Sin deudas registradas.'
-										}
-										hint={
-											debts.length
-												? 'Ajusta la busqueda, estado o saldo.'
-												: 'Crea una deuda para registrar un egreso adeudado y seguir sus pagos sin duplicar caja.'
-										}
-										action={
-											debts.length ? undefined : (
-												<button
-													type="button"
-													className="primary"
-													onClick={() => openFormModal('debt')}
-												>
-													<ReceiptText size={16} />
-													Nueva deuda
-												</button>
-											)
-										}
-									/>
-								)}
-							</div>
-							<h2 className="subsection-title">Pagos recientes</h2>
-							<div className="records finance-records debt-payment-records">
-								{debtPayments.slice(0, 5).map((item) => {
-									const quickActions = debtPaymentQuickActions(item)
-									return (
-									<FinanceRecordCard
-										amount={{
-											label: 'Pago',
-											value: money(item.amount),
-											tone: 'expense',
-										}}
-										badges={[
-											{
-												label:
-													debtPaymentMethodLabels[item.method] ??
-													item.method,
-												className: 'status payment',
-											},
-										]}
-										className={recordClass(
-											'debt-payment',
-											item.id,
-											'debt-payment-record-card',
-										)}
-										key={item.id}
-										onContextMenu={(event) =>
-											openQuickActionsFromContext(
-												event,
-												'Acciones de pago',
-												quickActions,
-											)
-										}
-										primaryAction={{
-											label: 'Abrir detalle',
-											icon: <Eye size={15} />,
-											onClick: () => openDetailModal('Pago de deuda', item),
-											variant: 'primary',
-										}}
-										quickActionsTrigger={renderQuickActionsTrigger(
-											'Acciones de pago',
-											quickActions,
-											'Acciones rapidas de pago',
-										)}
-										stats={[
-											{
-												label: 'Fecha',
-												value: item.paid_at
-													? formatDateLabel(item.paid_at)
-													: 'Sin fecha',
-												hint: item.notes || 'Pago parcial de deuda',
-											},
-										]}
-										subtitle="Pago parcial registrado"
-										title={item.debt_concept}
-									/>
-									)
-								})}
-								{debtPayments.length ? null : (
-									<Empty
-										text="Sin pagos de deuda registrados."
-										hint="Cuando pagues una deuda, queda trazada aca sin duplicar el gasto economico."
-										action={
-											debtOptions.length ? (
-												<button
-													type="button"
-													className="primary"
-													onClick={() => openFormModal('debt-payment')}
-												>
-													<CreditCard size={16} />
-													Registrar pago
-												</button>
-											) : (
-												<button
-													type="button"
-													className="ghost"
-													onClick={() => openFormModal('debt')}
-												>
-													<ReceiptText size={16} />
-													Nueva deuda
-												</button>
-											)
-										}
-									/>
-								)}
-							</div>
-								</>
-							) : null}
-						</section>
-					</div>
+					<DebtPanel
+						debtFilters={debtFilters}
+						debtFiltersActive={debtFiltersActive}
+						debtOptions={debtOptions}
+						debtPaymentQuickActions={debtPaymentQuickActions}
+						debtPayments={debtPayments}
+						debtQuickActions={debtQuickActions}
+						debtSummary={debtSummary}
+						debts={debts}
+						filteredDebts={filteredDebts}
+						loading={loading}
+						loadBlocked={debtLoadBlocked}
+						loadErrorNotice={loadErrorNotice}
+						recordClass={recordClass}
+						renderQuickActionsTrigger={renderQuickActionsTrigger}
+						search={search}
+						onClearDebtFilters={clearDebtFilters}
+						onCreateDebt={() => openFormModal('debt')}
+						onCreateDebtPayment={() => openFormModal('debt-payment')}
+						onDebtFilterChange={updateDebtFilter}
+						onOpenDebtDetail={(item) => openDetailModal('Deuda', item)}
+						onOpenDebtPaymentDetail={(item) =>
+							openDetailModal('Pago de deuda', item)
+						}
+						onOpenDebtPaymentForDebt={openDebtPaymentForDebt}
+						onQuickActionsContext={openQuickActionsFromContext}
+						onRefresh={() => loadData({ force: true })}
+						onSearchChange={setSearch}
+					/>
 				) : null}
-
 				{displayedActive === 'inventory' ? (
 					<div className="grid">
 						<section className="panel">
