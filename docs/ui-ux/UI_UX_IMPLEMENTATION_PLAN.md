@@ -64,6 +64,15 @@ Quinto corte UI-009 aplicado 2026-05-20:
 - Validacion: `cd frontend && npm run build`.
 - QA visual autenticada normal: backend/db levantados con `docker compose up -d db backend`; `next start` en `9000`; `/?section=settings&settings=quotes|cash|agenda|users|history` cargo en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay y sin errores de consola. Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-settings-qa-2026-05-20\desktop-quotes.png` y `...\mobile-history.png`.
 
+Sexto corte UI-009 aplicado 2026-05-20:
+
+- Inventario se movio desde `frontend/app/page.tsx` a `frontend/app/components/inventory/InventoryPanel.tsx`.
+- `page.tsx` conserva calculos, helpers, side effects, callbacks, modales y persistencia; el componente nuevo concentra render de Materiales, metricas, movimientos, proveedores, materiales, unidades abiertas, compras y consumos.
+- Conteo post-corte Inventario: `page.tsx` tiene 15.659 lineas y aprox. 154 coincidencias `render*`; `InventoryPanel.tsx` concentra 429 lineas presentacionales.
+- Validacion: `cd frontend && npm run build`.
+- QA visual autenticada normal: backend/db ya activos; `next start` en `9000`; `/?section=inventory` cargo en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay y sin errores de consola. Browser confirmo runtime pero fallo capturando screenshot con `Page.captureScreenshot`; screenshots fuera del repo capturados con Chrome headless CDP: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-inventory-qa-2026-05-20-cdp\desktop-inventory.png` y `...\mobile-inventory.png`.
+- Estado honesto: UI-009 queda >=75% completo. Quedan como deuda residual Herramientas, Cotizaciones/Servicios, algunos formularios/detail renders y calculos todavia concentrados en `page.tsx`.
+
 Corte UI-024 aplicado 2026-05-20:
 
 - `frontend/app/styles/tokens.css` define tokens `--segmented-*` para light/dark.
