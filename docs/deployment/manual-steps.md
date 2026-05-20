@@ -128,12 +128,31 @@ The public demo is deployed. These manual steps remain before showing media-heav
 - Environment secrets to set in `demo-production`:
   - `DATABASE_URL`
   - `DJANGO_MIGRATION_SECRET_KEY`
+- Optional environment secret:
+  - `SMOKE_TEST_TOKEN` if smoke tests should verify an authenticated endpoint.
+- Environment deployment branches:
+  - only `main`.
 - Validate: run the workflow manually with `workflow_dispatch`; it should pass the initial secret check, run local checks, run migrations, deploy both Vercel projects, and pass smoke tests.
 - Risk if omitted: the deploy workflow fails before installing dependencies.
 
 Do not add the real `DJANGO_SECRET_KEY`, Supabase S3 keys, or SMTP secrets to GitHub. Those values belong in the Vercel API project production env and are consumed by Vercel during the cloud build/deploy.
 
-## 12. Make GitHub Actions the only automatic production deploy path
+## 12. Protect `main`
+
+- What: enforce PR-only changes and require the CI gate before merge.
+- Where: GitHub repository settings, Branches or Rulesets.
+- Why: every PR to `main` must pass the same full gate before it can deploy.
+- Values to set:
+  - Require a pull request before merging.
+  - Require status checks to pass before merging: `Validate / ci-required`.
+  - Require merge queue, or require branches to be up to date before merging if merge queue is unavailable.
+  - Require conversation resolution before merging.
+  - Do not allow bypassing the above settings.
+  - Disallow force pushes and branch deletions.
+- Validate: open or inspect a PR targeting `main`; GitHub should block merge until `Validate / ci-required` succeeds on the latest commit or merge queue group.
+- Risk if omitted: direct pushes or stale PRs can reach `main` and trigger production deploy without the full gate.
+
+## 13. Make GitHub Actions the only automatic production deploy path
 
 - What: disable or bypass Vercel built-in Git production deploys for `shineapp-api` and `shineapp-web`, or configure them to skip when GitHub Actions is responsible for production.
 - Where: Vercel Dashboard, project Git settings / ignored build step.
@@ -142,7 +161,7 @@ Do not add the real `DJANGO_SECRET_KEY`, Supabase S3 keys, or SMTP secrets to Gi
 - Validate: push a harmless change to a test branch or inspect Vercel project settings before merging to `main`; production deploys should be created by the GitHub Actions CLI workflow, not an independent Vercel Git trigger.
 - Risk if omitted: duplicate deploys, race conditions, or code live before Supabase schema is migrated.
 
-## 13. Review migration risk before merging schema changes to `main`
+## 14. Review migration risk before merging schema changes to `main`
 
 - What: check whether the PR contains schema or data migrations.
 - Where: PR review and `backend/*/migrations/`.

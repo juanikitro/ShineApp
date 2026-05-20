@@ -1,0 +1,34 @@
+[run]
+source =
+    catalog
+    config
+    core
+    customers
+    dashboard
+    debts
+    finance
+    inventory
+    notifications
+    quotes
+    scheduling
+    workorders
+omit =
+    */__init__.py
+    */admin.py
+    */apps.py
+    */asgi.py
+    */wsgi.py
+    */settings*.py
+    */management/commands/*
+    */migrations/*
+    */tests/*
+
+[report]
+fail_under = 90
+precision = 2
+skip_covered = True
+show_missing = True
+exclude_lines =
+    pragma: no cover
+    if TYPE_CHECKING:
+    if __name__ == .__main__.:

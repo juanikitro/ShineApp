@@ -73,28 +73,14 @@ function Invoke-Python {
     Assert-LastExitCode "python $($PythonArgs -join ' ')"
 }
 
-Invoke-Step "Compose config" $RepoRoot {
-    docker compose config --quiet
-    Assert-LastExitCode "docker compose config --quiet"
+Invoke-Step "Backend coverage" $BackendDir {
+    Invoke-Python "-m" "pytest" "--cov" "--cov-report=term-missing:skip-covered"
 }
 
-Invoke-Step "Backend tests" $BackendDir {
-    Invoke-Python "-m" "pytest"
-}
-
-Invoke-Step "Backend system check" $BackendDir {
-    Invoke-Python manage.py check
-}
-
-Invoke-Step "Frontend tests" $FrontendDir {
-    npm run test
-    Assert-LastExitCode "npm run test"
-}
-
-Invoke-Step "Frontend build" $FrontendDir {
-    npm run build
-    Assert-LastExitCode "npm run build"
+Invoke-Step "Frontend coverage" $FrontendDir {
+    npm run test:coverage
+    Assert-LastExitCode "npm run test:coverage"
 }
 
 Write-Host ""
-Write-Host "Validation finished."
+Write-Host "Coverage validation finished."

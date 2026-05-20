@@ -1,81 +1,113 @@
-# GitHub Actions Demo Deploy
+# GitHub Actions CI/CD
 
-This repo deploys the public demo through `.github/workflows/deploy-vercel-demo.yml`.
+ShineApp uses GitHub Actions as the only approved automated production-demo path. Pull requests to `main` run without secrets. Merges to `main` run migrations against Supabase and deploy both Vercel projects.
 
-## Trigger
+
+## Pull request gate
+
+Workflow: `.github/workflows/validate.yml`.
+
+Triggers:
+
+- `pull_request` targeting `main`
+- `merge_group`
+- `push` to `main` and `development`
+
+Required branch protection check:
+
+- `Validate / ci-required`
+
+The `ci-required` job is the only check that should be required in branch protection. It waits for the real jobs and fails if any required job fails, is cancelled, or is skipped.
+
+Jobs:
+
+- `backend`: installs Python 3.12 dependencies, runs `manage.py check`, `makemigrations --check --dry-run`, and backend tests with `pytest --cov`.
+- `frontend`: installs Node 22 dependencies with `npm ci`, runs `npm run test:coverage`, `npm run build`, and `npm audit --omit=dev`.
+- `dependency-audit`: installs `pip-audit==2.10.0` and audits `backend/requirements.txt`.
+- `codeql`: runs CodeQL v4 for Python and JavaScript/TypeScript.
+- `ci-required`: summarizes the required jobs and provides the single required status check.
+
+PR jobs do not receive Vercel, Supabase, storage, SMTP, or Django production secrets.
+
+## Main deploy
+
+Workflow: `.github/workflows/deploy-vercel-demo.yml`.
+
+Triggers:
 
 - `push` to `main`
-- manual `workflow_dispatch`
+- `workflow_dispatch`
 
-The workflow is intentionally production-only for the demo aliases:
+Environment:
 
-- Web: `https://shineapp-web.vercel.app`
-- API: `https://shineapp-api.vercel.app/api`
+- `demo-production`
 
-## Required GitHub secrets
+The workflow deploys automatically after merge to `main`. The environment should restrict deployment branches to `main`, but it should not require manual reviewers while the chosen policy is automatic deploy.
 
-Configure these in the GitHub repository before enabling `main` auto-deploy:
+Required GitHub repository secrets:
 
-- `VERCEL_TOKEN`: Vercel token used by the CLI in CI.
-- `VERCEL_ORG_ID`: Vercel team/org id, currently `team_SU2ZYRqjIjG8JhFn2pc1NVxi`.
-- `VERCEL_FRONTEND_PROJECT_ID`: Vercel project id for `shineapp-web`, currently `prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ`.
-- `VERCEL_BACKEND_PROJECT_ID`: Vercel project id for `shineapp-api`, currently `prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC`.
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_FRONTEND_PROJECT_ID`
+- `VERCEL_BACKEND_PROJECT_ID`
 
-Configure these as environment secrets in the GitHub environment `demo-production`:
+Required `demo-production` environment secrets:
 
-- `DATABASE_URL`: Supabase Postgres connection string for the demo database.
-- `DJANGO_MIGRATION_SECRET_KEY`: a dedicated long random key used only by Django management commands in CI.
+- `DATABASE_URL`
+- `DJANGO_MIGRATION_SECRET_KEY`
 
-Do not add Supabase S3 keys or the real `DJANGO_SECRET_KEY` to GitHub. Backend runtime secrets remain in the Vercel API project and are used by Vercel during the cloud build/deploy.
+Optional `demo-production` environment secret:
 
-## Flow
+- `SMOKE_TEST_TOKEN`
 
-1. Checkout repo.
+Backend runtime secrets stay in the Vercel API project. Do not duplicate `DJANGO_SECRET_KEY`, Supabase S3 keys, or SMTP secrets into GitHub unless a future workflow explicitly needs a narrower deploy-time credential.
+
+
+## Deploy order
+
+1. Validate required GitHub secrets.
 2. Install Python 3.12 and Node 22.
-3. Install backend dependencies from `backend/requirements.txt`.
-4. Install frontend dependencies with `npm ci`.
-5. Install `vercel@latest`.
-6. Run backend checks with local-safe settings:
-   - `python -m pytest`
-   - `python manage.py check`
-   - `python manage.py makemigrations --check --dry-run`
-7. Run frontend checks:
-   - `npm run test`
-   - `npm run build`
-8. Run Django migrations against the demo database with `config.settings_migrations`:
-   - `python manage.py migrate --plan`
-   - `python manage.py migrate --noinput`
-9. Pull backend project settings from Vercel using `VERCEL_BACKEND_PROJECT_ID`.
-10. Deploy the backend Vercel project to production with Vercel cloud build.
-11. Pull frontend project settings from Vercel using `VERCEL_FRONTEND_PROJECT_ID`.
-12. Deploy the frontend Vercel project to production with Vercel cloud build.
-13. Run `scripts/deploy/smoke-test.ps1` against the public web and API aliases.
+3. Install backend and frontend dependencies.
+4. Run backend checks: Django system check, migration drift check, backend coverage gate.
+5. Run Python dependency audit with `pip-audit==2.10.0`.
+6. Run frontend coverage gate, Next build, and production dependency audit.
+7. Run Django migration plan against Supabase with `config.settings_migrations`.
+8. Apply Django migrations with `migrate --noinput`.
+9. Install `vercel@54.2.0`.
+10. Pull backend Vercel project settings and deploy `shineapp-api` to production.
+11. Pull frontend Vercel project settings and deploy `shineapp-web` to production.
+12. Smoke test `https://shineapp-web.vercel.app` and `https://shineapp-api.vercel.app/api`.
 
-The migration step runs before backend deploy. A backend check, migration, or deploy failure stops the job before the frontend can be deployed.
+If migrations fail, Vercel deploy does not run. If backend deploy fails, frontend deploy does not run. If smoke tests fail, the workflow fails after deployment and the deployment must be triaged before another production change.
 
 ## Migration policy
 
-The workflow runs migrations automatically through `backend/config/settings_migrations.py`. That settings module requires only `DATABASE_URL` and `DJANGO_MIGRATION_SECRET_KEY`, so the workflow does not need Supabase Storage keys, CORS values, or the real backend runtime `DJANGO_SECRET_KEY`.
-
-Because migrations run before backend deploy, schema changes merged to `main` must still be forward-compatible with the currently live code:
+The deploy workflow runs migrations automatically before Vercel production deploys. Schema changes merged to `main` must be forward-compatible with the currently live code:
 
 - additive tables, fields, indexes, and nullable columns are acceptable;
 - code must tolerate old and new schema during the short deploy window;
-- destructive migrations, large backfills, renames, and non-null additions without defaults require manual review and an explicit rollout plan.
+- destructive migrations, large backfills, renames, and non-null additions without safe defaults require manual review and an explicit rollout plan.
 
 The workflow never runs `seed_demo` and never creates superusers.
 
-## Safeguards
+## Repository settings
 
-- A concurrency group allows only one demo deploy to run at a time.
-- Required GitHub secrets are checked before installing dependencies.
-- Backend runtime secrets stay in Vercel and are not exported into the GitHub job.
-- The GitHub job can access only the demo DB URL and dedicated migration key from `demo-production`.
-- Local backend/frontend checks run before any production deploy.
-- Migrations run before Vercel production deploys.
-- Smoke tests run after both deployments.
-- The workflow does not print secret values and does not commit generated `.vercel` files.
+Protect `main` with:
 
-## Before enabling
+- Require a pull request before merging.
+- Require status checks to pass before merging: `Validate / ci-required`.
+- Require merge queue, or require branches to be up to date before merging if merge queue is unavailable.
+- Require conversation resolution before merging.
+- Do not allow bypassing the above settings.
+- Disallow force pushes and branch deletions.
 
-Confirm that Vercel built-in Git deployments are disabled or configured not to deploy these projects independently on `main`. Otherwise Vercel may deploy from Git in parallel with the GitHub Actions smoke-test path, creating duplicate production deploys and confusing rollout evidence.
+If merge queue is enabled, keep the `merge_group` trigger in `validate.yml`; otherwise queued merges can fail because required checks are never reported.
+
+## Vercel settings
+
+Disable Vercel built-in Git production deploys for both projects, or configure ignored build steps so Git pushes do not create independent production deploys. GitHub Actions is the migration gate; a parallel Vercel Git deploy can publish code before Supabase schema is migrated.
+
+Approved production-demo aliases:
+
+- Web: `https://shineapp-web.vercel.app`
+- API: `https://shineapp-api.vercel.app/api`
