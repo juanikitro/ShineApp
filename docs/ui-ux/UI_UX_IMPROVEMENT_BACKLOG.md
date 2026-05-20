@@ -6,7 +6,7 @@ Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins hi
 
 | Orden | ID | Prioridad | Area | Objetivo | Evidencia | Resultado esperado |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | UI-009 | P1/P2 | Arquitectura frontend | Continuar extraccion por vertical de `frontend/app/page.tsx` sin mezclar redisenos. | Cortes aplicados: Caja en `components/cash/CashPanel.tsx`, Deudas en `components/debts/DebtPanel.tsx` y Dashboard en `components/dashboard/DashboardPanel.tsx`; `page.tsx` sigue grande con 16.929 lineas y aprox. 161 `render*`. | Menos riesgo de regresion y cambios UI mas faciles de validar. |
+| 1 | UI-009 | P1/P2 | Arquitectura frontend | Continuar extraccion por vertical de `frontend/app/page.tsx` sin mezclar redisenos. | Cortes aplicados: Caja en `components/cash/CashPanel.tsx`, Deudas en `components/debts/DebtPanel.tsx`, Dashboard en `components/dashboard/DashboardPanel.tsx` y Configuracion > Negocio en `components/settings/BusinessSettingsPanel.tsx`; `page.tsx` sigue grande con 16.654 lineas y aprox. 161 `render*`. | Menos riesgo de regresion y cambios UI mas faciles de validar. |
 | 2 | UI-015 | P2 | Dashboard | Mejorar siguiente accion y priorizacion de datos. | QA dashboard estable; queda deuda de producto, no bloqueo. | Dashboard mas accionable sin cambiar contratos. |
 | 3 | UI-017 | P2 | Clientes | Pulir low-data/empty states y CTA operativo. | QA clientes estable con busqueda; queda polish operativo. | Mejor guia cuando hay pocos datos o resultados. |
 | 4 | UI-018 | P2 | Estados transversales | Consolidar loading/empty/error states por modulo. | Existen primitives, pero el uso no es homogeneo. | Feedback mas consistente entre pantallas. |
@@ -23,7 +23,7 @@ Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins hi
 | UI-008 | Formularios | `SearchSelect` sin `autoFocus`, con combobox/listbox ids activos y estado live en vacio. |
 | UI-012 | Login | Modo normal sin credenciales prellenadas; demo solo por env flag y sin password. |
 | UI-016 | Caja | Jerarquia visual de metricas, filtros y listado reforzada por CSS sin tocar negocio. |
-| UI-009 | Caja + Deudas + Dashboard / arquitectura frontend | Parcialmente reducido: renders de Caja, Deudas y Dashboard extraidos a `CashPanel.tsx`, `DebtPanel.tsx` y `DashboardPanel.tsx`; estado, callbacks, payloads y reglas siguen en `page.tsx`. |
+| UI-009 | Caja + Deudas + Dashboard + Settings negocio / arquitectura frontend | Parcialmente reducido: renders de Caja, Deudas, Dashboard y Configuracion > Negocio extraidos a `CashPanel.tsx`, `DebtPanel.tsx`, `DashboardPanel.tsx` y `BusinessSettingsPanel.tsx`; estado, callbacks, payloads y reglas siguen en `page.tsx`. |
 | UI-024 | Segmented controls | Reducido: `.mode-toggle` consume tokens `--segmented-*`, usa `--segmented-count` y comparte estados hover/focus/selected light/dark. |
 
 ## Cerrado por auditoria 2026-05-20
@@ -44,7 +44,7 @@ Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins hi
 
 | ID | Prioridad | Area | Motivo |
 | --- | --- | --- | --- |
-| UI-009 | P1/P2 | Arquitectura frontend | Cortes aplicados en Caja, Deudas y Dashboard; quedan otras verticales, estado, formularios y calculos todavia concentrados en `page.tsx`. |
+| UI-009 | P1/P2 | Arquitectura frontend | Cortes aplicados en Caja, Deudas, Dashboard y Settings negocio; quedan otras verticales, estado, formularios y calculos todavia concentrados en `page.tsx`. |
 | UI-010 | P2 | Theme switch | Outlier de estilos y hex directos; no bloqueo QA. |
 | UI-014 | P2 | Configuracion branding | Mejorar densidad/card de logo sin redisenar el flujo. |
 | UI-015 | P2 | Dashboard | Reforzar siguiente accion y low-data guidance. |

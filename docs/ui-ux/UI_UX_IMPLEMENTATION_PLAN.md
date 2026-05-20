@@ -48,6 +48,14 @@ Tercer corte UI-009 aplicado 2026-05-20:
 - Validacion: `cd frontend && npm run build`; build adicional con `NEXT_PUBLIC_API_URL=http://localhost:8000/api`; `next start` en `9000` sirvio `/` con HTTP 200.
 - QA visual autenticada normal quedo bloqueada por CORS del backend local: `OPTIONS http://localhost:8000/api/auth/me/` desde `http://localhost:9000` respondio 200 sin `Access-Control-Allow-Origin`. Como workaround solo visual, Chrome headless con `--disable-web-security` cargo `/?section=dashboard` en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay, sin errores de consola/runtime/red. Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-dashboard-qa-2026-05-20T15-22-57-401Z\*.png`.
 
+Cuarto corte UI-009 aplicado 2026-05-20:
+
+- Configuracion > Negocio se movio desde `frontend/app/page.tsx` a `frontend/app/components/settings/BusinessSettingsPanel.tsx`.
+- `page.tsx` conserva estado, guardado, logo picker y callbacks; el componente nuevo concentra la card de negocio, logo y formulario publico.
+- Conteo post-corte Settings negocio: `page.tsx` tiene 16.654 lineas y aprox. 161 coincidencias `render*`; `BusinessSettingsPanel.tsx` concentra 351 lineas presentacionales.
+- Validacion: `cd frontend && npm run build`; build adicional con `NEXT_PUBLIC_API_URL=http://localhost:9001/api`; `next start` en `9000` sirvio `/` con HTTP 200.
+- QA visual autenticada normal: backend/db levantados con `docker compose up -d db backend`; `/?section=settings&settings=business` cargo en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay, sin errores de consola/runtime/red. Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-settings-business-qa-2026-05-20T17-24-07-396Z\*.png`.
+
 Corte UI-024 aplicado 2026-05-20:
 
 - `frontend/app/styles/tokens.css` define tokens `--segmented-*` para light/dark.
