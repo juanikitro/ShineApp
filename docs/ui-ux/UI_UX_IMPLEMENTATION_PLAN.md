@@ -56,6 +56,14 @@ Cuarto corte UI-009 aplicado 2026-05-20:
 - Validacion: `cd frontend && npm run build`; build adicional con `NEXT_PUBLIC_API_URL=http://localhost:9001/api`; `next start` en `9000` sirvio `/` con HTTP 200.
 - QA visual autenticada normal: backend/db levantados con `docker compose up -d db backend`; `/?section=settings&settings=business` cargo en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay, sin errores de consola/runtime/red. Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-settings-business-qa-2026-05-20T17-24-07-396Z\*.png`.
 
+Quinto corte UI-009 aplicado 2026-05-20:
+
+- Resto de Configuracion se movio desde `frontend/app/page.tsx` a `frontend/app/components/settings/SettingsWorkspace.tsx`.
+- `page.tsx` conserva estado, filtros, guardado, carga de datos, callbacks, permisos y routing; el componente nuevo concentra tabs y paneles de Cotizaciones, Caja, Agenda, Usuarios e Historial, y reutiliza `BusinessSettingsPanel`.
+- Conteo post-corte Settings completo: `page.tsx` tiene 16.040 lineas y aprox. 158 coincidencias `render*`; `SettingsWorkspace.tsx` concentra 890 lineas presentacionales.
+- Validacion: `cd frontend && npm run build`.
+- QA visual autenticada normal: backend/db levantados con `docker compose up -d db backend`; `next start` en `9000`; `/?section=settings&settings=quotes|cash|agenda|users|history` cargo en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay y sin errores de consola. Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-settings-qa-2026-05-20\desktop-quotes.png` y `...\mobile-history.png`.
+
 Corte UI-024 aplicado 2026-05-20:
 
 - `frontend/app/styles/tokens.css` define tokens `--segmented-*` para light/dark.
