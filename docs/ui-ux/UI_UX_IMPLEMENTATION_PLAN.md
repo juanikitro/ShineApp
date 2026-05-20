@@ -24,7 +24,7 @@ Estado por fase:
 | Fase 4 | Cerrada para batch P1 | Deep-linking, modal base, dark mode tabs, login demo, caja y landing publica tienen cortes minimos aplicados. |
 | Fase 5 | Cerrada como hito local | Se preserva la nota local de cierre de Fase 5. La auditoria no requiere inventar una Fase 6; el siguiente batch vive en backlog. |
 
-Siguiente batch recomendado: continuar `UI-009` por otra vertical cuando el siguiente cambio sea tecnico, luego P2 visuales priorizados en backlog.
+Siguiente batch recomendado: continuar `UI-009` por otra vertical cuando el siguiente cambio sea tecnico. El batch no UI-009 del 2026-05-20 cerro los P2 visuales restantes documentados en backlog.
 
 Primer corte UI-009 aplicado 2026-05-20:
 
@@ -71,6 +71,7 @@ Sexto corte UI-009 aplicado 2026-05-20:
 - Conteo post-corte Inventario: `page.tsx` tiene 15.659 lineas y aprox. 154 coincidencias `render*`; `InventoryPanel.tsx` concentra 429 lineas presentacionales.
 - Validacion: `cd frontend && npm run build`.
 - QA visual autenticada normal: backend/db ya activos; `next start` en `9000`; `/?section=inventory` cargo en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay y sin errores de consola. Browser confirmo runtime pero fallo capturando screenshot con `Page.captureScreenshot`; screenshots fuera del repo capturados con Chrome headless CDP: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-inventory-qa-2026-05-20-cdp\desktop-inventory.png` y `...\mobile-inventory.png`.
+
 Septimo corte UI-009 aplicado 2026-05-20:
 
 - Herramientas se movio desde `frontend/app/page.tsx` a `frontend/app/components/tools/ToolsPanel.tsx`.
@@ -78,14 +79,25 @@ Septimo corte UI-009 aplicado 2026-05-20:
 - Conteo post-corte Herramientas: `page.tsx` tiene 15.024 lineas y aprox. 155 coincidencias `render*`; `ToolsPanel.tsx` concentra 142 lineas presentacionales.
 - Validacion: `cd frontend && npm run build`.
 - QA visual autenticada normal: backend/db ya activos; `next start` en `9000`; `/?section=tools` cargo en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay y sin errores de consola/runtime/red. Screenshots fuera del repo capturados con Chrome headless CDP: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-tools-qa-2026-05-20\desktop-tools.png` y `...\mobile-tools.png`.
-- Estado honesto: UI-009 queda ~85% completo. Quedan como deuda residual Cotizaciones/Servicios, algunos formularios/detail renders y calculos todavia concentrados en `page.tsx`.
+- Estado honesto: UI-009 queda >=75% completo. Quedan como deuda residual Herramientas, Cotizaciones/Servicios, algunos formularios/detail renders y calculos todavia concentrados en `page.tsx`.
 
 Corte UI-024 aplicado 2026-05-20:
 
 - `frontend/app/styles/tokens.css` define tokens `--segmented-*` para light/dark.
 - `frontend/app/styles/shell.css` hace que `.mode-toggle` use esos tokens y `--segmented-count`.
 - Validacion: `cd frontend && npm run build`.
-- QA visual autenticada de UI-024 sigue bloqueada por entorno: `next start` no pudo tomar `9000` por `EADDRINUSE` de un `npm run dev` externo, y Codex Browser bloqueo `localhost`/`127.0.0.1` con `net::ERR_BLOCKED_BY_CLIENT`. El build de tokens paso limpio.
+- QA visual autenticada de UI-024 fue revalidada en el batch no UI-009 del 2026-05-20: `Configuracion > Negocio` dark cargo con selected visible, sin overlay ni errores de consola.
+
+Batch no UI-009 aplicado 2026-05-20:
+
+- Alcance cerrado: UI-010, UI-014, UI-015, UI-017, UI-018, UI-019, UI-022, UI-023 y UI-024.
+- Exclusiones respetadas: no se continuo UI-009 ni se extrajeron nuevas verticales de `page.tsx` como objetivo principal.
+- Cambios: tokens del theme switch, densidad de Configuracion > Negocio, card `Siguiente accion` del dashboard, guidance low-data de Clientes, variantes loading/error de `state-notice`, eliminacion de `hidden-section`, footer mobile del sidebar y feedback de solicitudes publicas pendientes/gestionadas.
+- Compatibilidad: sin cambios backend, endpoints, payloads, permisos, modelos ni migraciones.
+- Validacion: sin procesos Node de `ShineApp/frontend` antes de build; `cd frontend && npm run build` paso limpio con Next.js 15.5.18.
+- Runtime QA autenticada: backend/db con Docker, `next start` en `9000`, rutas dashboard, clientes con filtro sin resultados, configuracion negocio dark, notificaciones, vehiculos y sidebar mobile `390x844`; sin overlay y sin errores de consola.
+- Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui-backlog-2026-05-20\desktop-dashboard.png`, `desktop-customers-empty-filter.png`, `desktop-settings-business-dark.png`, `desktop-notifications.png`, `desktop-vehicles.png` y `mobile-sidebar-dashboard.png`.
+- Nota de tooling: Codex Browser cargo DOM/rutas, pero `Page.captureScreenshot` fallo por timeout; las capturas finales se hicieron con Chrome headless CDP.
 
 ## Fase 1 - Mejoras visibles de bajo riesgo
 

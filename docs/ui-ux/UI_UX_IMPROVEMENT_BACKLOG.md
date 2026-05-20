@@ -6,12 +6,9 @@ Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins hi
 
 | Orden | ID | Prioridad | Area | Objetivo | Evidencia | Resultado esperado |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | UI-009 | P1/P2 | Arquitectura frontend | Continuar extraccion por vertical de `frontend/app/page.tsx` sin mezclar redisenos. | Cortes aplicados: Caja en `components/cash/CashPanel.tsx`, Deudas en `components/debts/DebtPanel.tsx`, Dashboard en `components/dashboard/DashboardPanel.tsx`, Configuracion completa en `components/settings/*`, Inventario en `components/inventory/InventoryPanel.tsx` y Herramientas en `components/tools/ToolsPanel.tsx`; `page.tsx` sigue grande con 15.024 lineas y aprox. 155 `render*`. | UI-009 queda ~85% completo; siguiente corte recomendado: Cotizaciones/Servicios. |
-| 2 | UI-015 | P2 | Dashboard | Mejorar siguiente accion y priorizacion de datos. | QA dashboard estable; queda deuda de producto, no bloqueo. | Dashboard mas accionable sin cambiar contratos. |
-| 3 | UI-017 | P2 | Clientes | Pulir low-data/empty states y CTA operativo. | QA clientes estable con busqueda; queda polish operativo. | Mejor guia cuando hay pocos datos o resultados. |
-| 4 | UI-018 | P2 | Estados transversales | Consolidar loading/empty/error states por modulo. | Existen primitives, pero el uso no es homogeneo. | Feedback mas consistente entre pantallas. |
-| 5 | UI-014 | P2 | Configuracion branding | Mejorar densidad/card de logo y negocio. | Settings funciona en dark y mobile; queda deuda visual diferible. | Configuracion mas escaneable sin redisenar. |
-| 6 | UI-024 | P2 | Segmented controls | Revalidar visualmente el corte de tokens cuando Browser/local runtime permitan QA completa. | Tokens y estados `--segmented-*` ya aplicados; build 2026-05-20 paso limpio. QA visual quedo bloqueada por `next start` con `EADDRINUSE` en `9000` y Browser con `net::ERR_BLOCKED_BY_CLIENT` en `localhost`/`127.0.0.1`. | Cerrar deuda residual de evidencia, no de implementacion. |
+| 1 | UI-009 | P1/P2 | Arquitectura frontend | Continuar extraccion por vertical de `frontend/app/page.tsx` sin mezclar redisenos. | Cortes aplicados: Caja en `components/cash/CashPanel.tsx`, Deudas en `components/debts/DebtPanel.tsx`, Dashboard en `components/dashboard/DashboardPanel.tsx`, Configuracion completa en `components/settings/*` e Inventario en `components/inventory/InventoryPanel.tsx`; `page.tsx` sigue grande con 15.659 lineas y aprox. 154 `render*`. | UI-009 queda >=75% completo; siguiente corte recomendado si se sigue: Herramientas o Cotizaciones/Servicios. |
+
+No quedan items no UI-009 en "Ahora". UI-009 queda listado solo como deuda estructural excluida del batch 2026-05-20.
 
 ## Cerrado por batch P1 2026-05-20
 
@@ -23,8 +20,16 @@ Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins hi
 | UI-008 | Formularios | `SearchSelect` sin `autoFocus`, con combobox/listbox ids activos y estado live en vacio. |
 | UI-012 | Login | Modo normal sin credenciales prellenadas; demo solo por env flag y sin password. |
 | UI-016 | Caja | Jerarquia visual de metricas, filtros y listado reforzada por CSS sin tocar negocio. |
-| UI-009 | Caja + Deudas + Dashboard + Settings completo + Inventario + Herramientas / arquitectura frontend | Reducido a ~85%: renders de Caja, Deudas, Dashboard, Configuracion completa, Inventario y Herramientas extraidos a `CashPanel.tsx`, `DebtPanel.tsx`, `DashboardPanel.tsx`, `BusinessSettingsPanel.tsx`, `SettingsWorkspace.tsx`, `InventoryPanel.tsx` y `ToolsPanel.tsx`; estado, callbacks, payloads y reglas siguen en `page.tsx`. |
-| UI-024 | Segmented controls | Reducido: `.mode-toggle` consume tokens `--segmented-*`, usa `--segmented-count` y comparte estados hover/focus/selected light/dark. |
+| UI-009 | Caja + Deudas + Dashboard + Settings completo + Inventario / arquitectura frontend | Reducido a >=75%: renders de Caja, Deudas, Dashboard, Configuracion completa e Inventario extraidos a `CashPanel.tsx`, `DebtPanel.tsx`, `DashboardPanel.tsx`, `BusinessSettingsPanel.tsx`, `SettingsWorkspace.tsx` e `InventoryPanel.tsx`; estado, callbacks, payloads y reglas siguen en `page.tsx`. |
+| UI-024 | Segmented controls | `.mode-toggle` consume tokens `--segmented-*`, usa `--segmented-count`, comparte estados hover/focus/selected light/dark y quedo revalidado visualmente en settings dark. |
+| UI-010 | Theme switch | `.theme-switch` ahora usa tokens `--theme-switch-*` light/dark; se elimino el outlier de hex directos en reglas del switch. |
+| UI-014 | Configuracion branding | Card de logo/negocio mas densa y escaneable en `BusinessSettingsPanel` + CSS, sin cambiar flujo ni persistencia. |
+| UI-015 | Dashboard | Card `Siguiente accion` prioriza cobros, deudas vencidas, ausencia de trabajos o agenda del dia sin tocar contratos. |
+| UI-017 | Clientes | Guidance low-data con CTA para sumar clientes y empty filtrado mantenido para busquedas sin resultados. |
+| UI-018 | Estados transversales | Variantes loading/error de `state-notice` usan tokens de estado y copy/jerarquia consistente. |
+| UI-019 | Vehiculos ocultos | Se elimino `hidden-section`; QA vehiculos confirma que no quedan secciones ocultas por esa clase. |
+| UI-022 | Sidebar footer mobile | Footer mobile separa perfil y switch en grid compacto; QA `390x844` sin solapamiento perfil/switch. |
+| UI-023 | Bulk workflows | Solicitudes publicas pendientes/gestionadas tienen feedback de resolucion y CTA consistente para convertir. |
 
 ## Cerrado por auditoria 2026-05-20
 
@@ -44,16 +49,9 @@ Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins hi
 
 | ID | Prioridad | Area | Motivo |
 | --- | --- | --- | --- |
-| UI-009 | P1/P2 | Arquitectura frontend | Cortes aplicados en Caja, Deudas, Dashboard, Settings completo, Inventario y Herramientas; quedan Cotizaciones/Servicios, estado, formularios y calculos todavia concentrados en `page.tsx`. |
-| UI-010 | P2 | Theme switch | Outlier de estilos y hex directos; no bloqueo QA. |
-| UI-014 | P2 | Configuracion branding | Mejorar densidad/card de logo sin redisenar el flujo. |
-| UI-015 | P2 | Dashboard | Reforzar siguiente accion y low-data guidance. |
-| UI-017 | P2 | Clientes | Pulir low-data/empty states y CTA operativo. |
-| UI-018 | P2 | Estados transversales | Consolidar loading/empty/error states por modulo. |
-| UI-019 | P2 | Vehiculos ocultos | Eliminar o formalizar `hidden-section` para reducir deuda de mantenimiento. |
-| UI-022 | P2 | Sidebar footer mobile | Compactar perfil/footer sin tocar el drawer ya cerrado. |
-| UI-023 | P2 | Bulk workflows | Homogeneizar feedback de acciones masivas. |
-| UI-024 | P2 | Segmented controls | Implementacion de tokens aplicada; build limpio. Queda revalidacion visual autenticada cuando Browser/local runtime no bloqueen el acceso. |
+| UI-009 | P1/P2 | Arquitectura frontend | Cortes aplicados en Caja, Deudas, Dashboard, Settings completo e Inventario; quedan Herramientas, Cotizaciones/Servicios, estado, formularios y calculos todavia concentrados en `page.tsx`. |
+
+No quedan deudas diferibles no UI-009 abiertas en este backlog al cierre del batch.
 
 ## Notas de ejecucion
 
