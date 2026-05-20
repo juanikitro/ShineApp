@@ -112,6 +112,8 @@ import {
 	getStoredToken,
 } from '@/lib/api'
 import {
+	applyAppDataEntry,
+	type AppDataAppliers,
 	dataSetCacheKey,
 	loadAppDataSets,
 } from '@/lib/app-data'
@@ -2364,72 +2366,28 @@ export default function Home() {
 		settingsSection?: SettingsSection
 	}
 
-	function applyLoadedData(key: DataSetKey, data: unknown) {
-		switch (key) {
-			case 'dashboard':
-				setDashboard(data as AnyRecord)
-				break
-			case 'cash':
-				setCash(data as AnyRecord)
-				break
-			case 'customers':
-				setCustomers(data as AnyRecord[])
-				break
-			case 'vehicles':
-				setVehicles(data as AnyRecord[])
-				break
-			case 'services':
-				setServices(data as AnyRecord[])
-				break
-			case 'reservations':
-				setReservations(data as AnyRecord[])
-				break
-			case 'workOrders':
-				setWorkOrders(data as AnyRecord[])
-				break
-			case 'payments':
-				setPayments(data as AnyRecord[])
-				break
-			case 'debts':
-				setDebts(data as AnyRecord[])
-				break
-			case 'debtPayments':
-				setDebtPayments(data as AnyRecord[])
-				break
-			case 'materials':
-				setMaterials(data as AnyRecord[])
-				break
-			case 'suppliers':
-				setSuppliers(data as AnyRecord[])
-				break
-			case 'stockMovements':
-				setStockMovements(data as AnyRecord[])
-				break
-			case 'materialOpenUnits':
-				setMaterialOpenUnits(data as AnyRecord[])
-				break
-			case 'purchases':
-				setPurchases(data as AnyRecord[])
-				break
-			case 'consumptions':
-				setConsumptions(data as AnyRecord[])
-				break
-			case 'tools':
-				setTools(data as AnyRecord[])
-				break
-			case 'quotes':
-				setQuotes(data as AnyRecord[])
-				break
-			case 'publicRequests':
-				setPublicRequests(data as AnyRecord[])
-				break
-			case 'businessProfile':
-				syncBusinessProfile(data as AnyRecord)
-				break
-			case 'employees':
-				setEmployees(data as AnyRecord[])
-				break
-		}
+	const appDataAppliers: AppDataAppliers = {
+		dashboard: setDashboard,
+		cash: setCash,
+		customers: setCustomers,
+		vehicles: setVehicles,
+		services: setServices,
+		reservations: setReservations,
+		workOrders: setWorkOrders,
+		payments: setPayments,
+		debts: setDebts,
+		debtPayments: setDebtPayments,
+		materials: setMaterials,
+		suppliers: setSuppliers,
+		stockMovements: setStockMovements,
+		materialOpenUnits: setMaterialOpenUnits,
+		purchases: setPurchases,
+		consumptions: setConsumptions,
+		tools: setTools,
+		quotes: setQuotes,
+		publicRequests: setPublicRequests,
+		businessProfile: syncBusinessProfile,
+		employees: setEmployees,
 	}
 
 	async function loadData(options: LoadDataOptions = {}) {
@@ -2463,7 +2421,7 @@ export default function Home() {
 				apiList,
 			})
 			for (const [key, data] of entries) {
-				applyLoadedData(key, data)
+				applyAppDataEntry(key, data, appDataAppliers)
 				loadedDataCacheRef.current.add(dataSetCacheKey(key, dataScope))
 			}
 		} catch (err: any) {

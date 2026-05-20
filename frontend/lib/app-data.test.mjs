@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
 import {
+	applyAppDataEntry,
 	dataSetCacheKey,
 	loadAppDataSets,
 } from './app-data'
@@ -101,4 +102,43 @@ test('loadAppDataSets propagates loader failures to the caller', async () => {
 			}),
 		/network down/,
 	)
+})
+
+test('applyAppDataEntry dispatches loaded data to the matching applier only', () => {
+	const calls = []
+	const appliers = Object.fromEntries(
+		[
+			'dashboard',
+			'cash',
+			'customers',
+			'vehicles',
+			'services',
+			'reservations',
+			'workOrders',
+			'payments',
+			'debts',
+			'debtPayments',
+			'materials',
+			'suppliers',
+			'stockMovements',
+			'materialOpenUnits',
+			'purchases',
+			'consumptions',
+			'tools',
+			'quotes',
+			'publicRequests',
+			'businessProfile',
+			'employees',
+		].map((key) => [
+			key,
+			(data) => {
+				calls.push([key, data])
+			},
+		]),
+	)
+	const payload = [{ id: 1 }]
+
+	applyAppDataEntry('customers', payload, appliers)
+
+	assert.deepEqual(calls, [['customers', payload]])
 })

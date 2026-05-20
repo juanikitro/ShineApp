@@ -17,6 +17,8 @@ export type AppDataLoaders = {
 
 export type AppDataEntry = readonly [DataSetKey, unknown]
 
+export type AppDataAppliers = Record<DataSetKey, (data: any) => void>
+
 export function dataSetCacheKey(key: DataSetKey, scope: AppDataScope) {
 	if (key === 'dashboard') {
 		return `${key}:${scope.period.from}:${scope.period.to}`
@@ -91,4 +93,12 @@ export function loadAppDataSets(
 				[key, await loadAppDataSet(key, scope, loaders)] as const,
 		),
 	)
+}
+
+export function applyAppDataEntry(
+	key: DataSetKey,
+	data: unknown,
+	appliers: AppDataAppliers,
+) {
+	appliers[key](data)
 }
