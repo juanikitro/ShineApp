@@ -14917,9 +14917,9 @@ export default function Home() {
 									>
 										<span className="sidebar-profile-avatar" aria-hidden="true">
 											{safeSidebarAvatarUrl && !sidebarAvatarIsPdf ? (
-												<img src={safeSidebarAvatarUrl} alt="" />
+												<img src={encodeURI(safeSidebarAvatarUrl)} alt="" />
 											) : safeSidebarAvatarPdfThumbnail ? (
-												<img src={safeSidebarAvatarPdfThumbnail} alt="" />
+												<img src={encodeURI(safeSidebarAvatarPdfThumbnail)} alt="" />
 											) : currentUser.avatar_url ? (
 												<FileText size={18} />
 											) : (
@@ -17870,12 +17870,12 @@ export default function Home() {
 								>
 									{safeBusinessLogoPreview && !businessLogoIsPdf ? (
 										<img
-											src={safeBusinessLogoPreview}
+											src={encodeURI(safeBusinessLogoPreview)}
 											alt={`Logo de ${businessForm.name || 'tu negocio'}`}
 										/>
 									) : safeBusinessLogoPdfThumbnail ? (
 										<img
-											src={safeBusinessLogoPdfThumbnail}
+											src={encodeURI(safeBusinessLogoPdfThumbnail)}
 											alt={`Preview del PDF de ${businessForm.name || 'tu negocio'}`}
 										/>
 									) : businessLogoPreview ? (
