@@ -175,6 +175,7 @@ import {
 } from '@/lib/vehicle-display'
 import { serviceDisplayName } from '@/lib/service-display'
 import { serviceDetailPayloadFields } from '@/lib/service-detail-payload'
+import { shouldHandleUndoShortcut } from '@/lib/undo-shortcut'
 
 import {
 	type ActionMessage,
@@ -264,7 +265,33 @@ import {
 	useNoticeToasts,
 } from '@/lib/page-support'
 
+type UndoAction<T> = {
+	label?: ActionMessage<T>
+	description?: ActionMessage<T>
+	execute: (result: T) => Promise<void>
+	successTitle?: ActionMessage<T>
+	successDescription?: ActionMessage<T>
+}
+
+type RunActionOptions<T> = {
+	flashTarget?: string | null | ((result: T) => string | null | undefined)
+	successTitle?: ActionMessage<T>
+	successDescription?: ActionMessage<T>
+	undo?: UndoAction<T>
+}
+
+type PendingUndoAction = {
+	id: number
+	toastId: number | null
+	expiresAt: number
+	busy: boolean
+	execute: () => Promise<void>
+	successTitle: string
+	successDescription?: string
+}
+
 const SIDEBAR_NAV_ID = 'app-sidebar-navigation'
+const UNDO_WINDOW_MS = 7000
 
 const agendaServiceBuckets: Array<{
 	value: AgendaServiceBucket
@@ -1010,6 +1037,10 @@ export default function Home() {
 	const [loadErrorNotice, setLoadErrorNotice] =
 		useState<ApiErrorNotice | null>(null)
 	const { toasts, showToast, dismissToast } = useNoticeToasts()
+	const undoTimerRef = useRef<number | null>(null)
+	const pendingUndoRef = useRef<PendingUndoAction | null>(null)
+	const executeUndoRef = useRef<(id?: number) => void>(() => undefined)
+	const nextUndoIdRef = useRef(0)
 	const [search, setSearch] = useState('')
 	const [customerCardFilter, setCustomerCardFilter] =
 		useState<CustomerCardFilter>('all')
@@ -1414,6 +1445,112 @@ export default function Home() {
 			showToast(apiErrorToast(notice))
 		}
 	}
+
+	function clearPendingUndo(options: { dismissToast?: boolean } = {}) {
+		const pending = pendingUndoRef.current
+		if (undoTimerRef.current) {
+			window.clearTimeout(undoTimerRef.current)
+			undoTimerRef.current = null
+		}
+		pendingUndoRef.current = null
+		if (options.dismissToast !== false && pending?.toastId) {
+			dismissToast(pending.toastId)
+		}
+	}
+
+	function registerUndoAction<T>(
+		result: T,
+		undo: UndoAction<T>,
+		successTitle: string,
+		successDescription?: string,
+	) {
+		clearPendingUndo()
+		const id = nextUndoIdRef.current + 1
+		nextUndoIdRef.current = id
+		const pending: PendingUndoAction = {
+			id,
+			toastId: null,
+			expiresAt: Date.now() + UNDO_WINDOW_MS,
+			busy: false,
+			execute: () => undo.execute(result),
+			successTitle:
+				resolveActionMessage(undo.successTitle, result) ?? 'Cambio deshecho',
+			successDescription:
+				resolveActionMessage(undo.successDescription, result) ?? undefined,
+		}
+		pendingUndoRef.current = pending
+		const undoDescription =
+			resolveActionMessage(undo.description, result) ??
+			successDescription ??
+			'Tenes unos segundos para arrepentirte.'
+		pending.toastId = showToast({
+			tone: 'success',
+			title: successTitle,
+			description: undoDescription,
+			visibleMs: UNDO_WINDOW_MS,
+			action: {
+				label: resolveActionMessage(undo.label, result) ?? 'Deshacer',
+				title: 'Deshacer la ultima accion (Ctrl+Z)',
+				onClick: () => executePendingUndo(id),
+			},
+		})
+		undoTimerRef.current = window.setTimeout(() => {
+			if (pendingUndoRef.current?.id === id) {
+				clearPendingUndo({ dismissToast: false })
+			}
+		}, UNDO_WINDOW_MS)
+	}
+
+	async function executePendingUndo(expectedId?: number) {
+		const pending = pendingUndoRef.current
+		if (!pending || (expectedId && pending.id !== expectedId) || pending.busy) {
+			return
+		}
+		if (Date.now() > pending.expiresAt) {
+			clearPendingUndo()
+			return
+		}
+		pending.busy = true
+		setError(null)
+		try {
+			await pending.execute()
+			await loadData()
+			const successTitle = pending.successTitle
+			const successDescription = pending.successDescription
+			clearPendingUndo()
+			showToast({
+				tone: 'success',
+				title: successTitle,
+				description: successDescription,
+			})
+		} catch (err: any) {
+			pending.busy = false
+			setError(formatApiError(err))
+		}
+	}
+
+	executeUndoRef.current = (id?: number) => {
+		void executePendingUndo(id)
+	}
+
+	useEffect(() => {
+		function handleUndoShortcut(event: globalThis.KeyboardEvent) {
+			if (!shouldHandleUndoShortcut(event)) return
+			const pending = pendingUndoRef.current
+			if (!pending || pending.busy || Date.now() > pending.expiresAt) return
+			event.preventDefault()
+			executeUndoRef.current(pending.id)
+		}
+
+		window.addEventListener('keydown', handleUndoShortcut)
+		return () => {
+			window.removeEventListener('keydown', handleUndoShortcut)
+			if (undoTimerRef.current) {
+				window.clearTimeout(undoTimerRef.current)
+				undoTimerRef.current = null
+			}
+		}
+	}, [])
 
 	const businessLogoObjectUrlRef = useRef<string | null>(null)
 	const businessLogoInputRef = useRef<HTMLInputElement | null>(null)
@@ -2794,6 +2931,7 @@ export default function Home() {
 		row: AgendaOperationalRow,
 	) {
 		if (action.kind === 'reservation') {
+			const previousStatus = reservation.status
 			return runAction(
 				() =>
 					apiFetch(`/reservations/${reservation.id}/${action.action}/`, {
@@ -2802,12 +2940,18 @@ export default function Home() {
 				{
 					flashTarget: recordFlashKey('reservation', reservation.id),
 					successTitle: entityFeedbackTitle('reservation', 'updated'),
+					undo: undoPatchRecord(
+						`/reservations/${reservation.id}/`,
+						{ status: previousStatus },
+						'Estado anterior restaurado',
+					),
 				},
 			)
 		}
 
 		if (action.kind === 'work-order-status') {
 			if (!workOrder) return undefined
+			const previousStatus = workOrder.status ?? reservation.status
 			return runAction(
 				() =>
 					apiFetch(`/work-orders/${workOrder.id}/status/`, {
@@ -2819,6 +2963,17 @@ export default function Home() {
 				{
 					flashTarget: agendaCardFlashKey(row.key),
 					successTitle: entityFeedbackTitle('workorder', 'updated'),
+					undo: {
+						execute: async () => {
+							await apiFetch(`/work-orders/${workOrder.id}/status/`, {
+								method: 'POST',
+								body: JSON.stringify({
+									status: previousStatus,
+								}),
+							})
+						},
+						successTitle: 'Estado anterior restaurado',
+					},
 				},
 			)
 		}
@@ -3566,11 +3721,7 @@ export default function Home() {
 
 	async function runAction<T>(
 		action: () => Promise<T>,
-		options?: {
-			flashTarget?: string | null | ((result: T) => string | null | undefined)
-			successTitle?: ActionMessage<T>
-			successDescription?: ActionMessage<T>
-		},
+		options?: RunActionOptions<T>,
 	) {
 		setError(null)
 		try {
@@ -3585,18 +3736,91 @@ export default function Home() {
 				resolveActionMessage(options?.successTitle, result) ??
 				(target ? 'Cambio guardado' : null)
 			if (successTitle) {
-				showToast({
-					tone: 'success',
-					title: successTitle,
-					description:
-						resolveActionMessage(options?.successDescription, result) ??
-						undefined,
-				})
+				const successDescription =
+					resolveActionMessage(options?.successDescription, result) ??
+					undefined
+				if (options?.undo) {
+					registerUndoAction(
+						result,
+						options.undo,
+						successTitle,
+						successDescription,
+					)
+				} else {
+					clearPendingUndo()
+					showToast({
+						tone: 'success',
+						title: successTitle,
+						description: successDescription,
+					})
+				}
+			} else {
+				clearPendingUndo()
 			}
 			return result
 		} catch (err: any) {
 			setError(formatApiError(err))
 		}
+	}
+
+	function apiPathForRecord(kind: string, id: string | number | null | undefined) {
+		if (id === null || id === undefined || id === '') return ''
+		const detailPath = detailEndpoint(kind, id)
+		if (detailPath) return detailPath
+		const paths: Record<string, string> = {
+			payment: `/payments/${id}/`,
+			'stock-movement': `/stock-movements/${id}/`,
+			'material-open-unit': `/material-open-units/${id}/`,
+		}
+		return paths[kind] ?? ''
+	}
+
+	function undoCreatedRecord<T extends AnyRecord = AnyRecord>(
+		kind: string,
+		options: {
+			beforeDelete?: (result: T) => Promise<void>
+		} = {},
+	): UndoAction<T> {
+		return {
+			execute: async (result: T) => {
+				const path = apiPathForRecord(kind, result?.id)
+				if (!path) {
+					throw new Error('No se pudo encontrar el registro para deshacer.')
+				}
+				if (options.beforeDelete) {
+					await options.beforeDelete(result)
+				}
+				await apiFetch(path, { method: 'DELETE' })
+			},
+			successTitle: 'Creacion deshecha',
+		}
+	}
+
+	function undoPatchRecord(
+		path: string,
+		payload: AnyRecord,
+		successTitle = 'Cambio deshecho',
+	): UndoAction<any> {
+		return {
+			execute: async () => {
+				if (!path) {
+					throw new Error('No se pudo encontrar el registro para deshacer.')
+				}
+				await apiFetch(path, {
+					method: 'PATCH',
+					body: JSON.stringify(payload),
+				})
+			},
+			successTitle,
+		}
+	}
+
+	function undoRestoreActiveRecord(kind: string, data: AnyRecord): UndoAction<any> {
+		return undoPatchRecord(
+			apiPathForRecord(kind, data?.id),
+			{ is_active: true },
+			'Registro restaurado',
+		)
 	}
 
 	async function createQuoteFromReservation(item: AnyRecord) {
@@ -3638,6 +3862,17 @@ export default function Home() {
 			{
 				flashTarget: recordFlashKey('quote', item.id),
 				successTitle: 'PDF descargado y cotizacion enviada',
+				undo: {
+					execute: async () => {
+						await apiFetch(`/quotes/${item.id}/`, {
+							method: 'PATCH',
+							body: JSON.stringify({
+								status: item.status ?? 'draft',
+							}),
+						})
+					},
+					successTitle: 'Cotizacion restaurada',
+				},
 			},
 		)
 	}
@@ -3804,7 +4039,18 @@ export default function Home() {
 			})
 			setReservations((current) => replaceReservationRecord(current, saved))
 			flash(agendaCardFlashKey(`reservation:${reservationId}`))
-			showToast({ tone: 'success', title: 'Reserva movida' })
+			registerUndoAction(
+				saved,
+				undoPatchRecord(
+					`/reservations/${reservationId}/`,
+					{
+						day: originDay,
+						exit_day: activeReservation.exit_day || null,
+					},
+					'Movimiento deshecho',
+				),
+				'Reserva movida',
+			)
 		} catch (err: any) {
 			setReservations(previousReservations)
 			setError(
@@ -3866,6 +4112,7 @@ export default function Home() {
 		const nextStatus = workStatusDropStatusForColumn(targetColumn)
 		const previousReservations = reservations
 		const previousWorkOrders = workOrders
+		const previousStatus = workOrder?.status ?? activeReservation?.status
 
 		setActiveWorkStatusReservationId(null)
 		setWorkStatusDropStatus(null)
@@ -3931,7 +4178,21 @@ export default function Home() {
 				),
 			)
 			flash(agendaCardFlashKey(`reservation:${reservationId}`))
-			showToast({ tone: 'success', title: 'Estado actualizado' })
+			registerUndoAction(
+				savedWorkOrder,
+				{
+					execute: async () => {
+						await apiFetch(`/work-orders/${workOrderId}/status/`, {
+							method: 'POST',
+							body: JSON.stringify({
+								status: previousStatus,
+							}),
+						})
+					},
+					successTitle: 'Estado anterior restaurado',
+				},
+				'Estado actualizado',
+			)
 		} catch (err: any) {
 			setReservations(previousReservations)
 			setWorkOrders(previousWorkOrders)
@@ -4011,10 +4272,15 @@ export default function Home() {
 			)
 			await loadData({ force: true })
 			flash(recordFlashKey('quote', quoteId))
-			showToast({
-				tone: 'success',
-				title: 'PDF descargado y cotizacion enviada',
-			})
+			registerUndoAction(
+				activeQuote,
+				undoPatchRecord(
+					`/quotes/${quoteId}/`,
+					{ status: originStatus },
+					'Cotizacion restaurada',
+				),
+				'PDF descargado y cotizacion enviada',
+			)
 		} catch (err: any) {
 			setQuotes(previousQuotes)
 			setError(
@@ -6926,6 +7192,7 @@ export default function Home() {
 		}, {
 			flashTarget: fieldFlashKey(quickCreate.target),
 			successTitle: entityFeedbackTitle('customer', 'created'),
+			undo: undoCreatedRecord('customer'),
 		})
 	}
 
@@ -6952,6 +7219,7 @@ export default function Home() {
 		}, {
 			flashTarget: fieldFlashKey(quickCreate.target),
 			successTitle: entityFeedbackTitle('vehicle', 'created'),
+			undo: undoCreatedRecord('vehicle'),
 		})
 	}
 
@@ -6978,6 +7246,7 @@ export default function Home() {
 		}, {
 			flashTarget: fieldFlashKey(quickCreate.target),
 			successTitle: entityFeedbackTitle('service', 'created'),
+			undo: undoCreatedRecord('service'),
 		})
 	}
 
@@ -7003,6 +7272,7 @@ export default function Home() {
 		}, {
 			flashTarget: fieldFlashKey(quickCreate.target),
 			successTitle: entityFeedbackTitle('material', 'created'),
+			undo: undoCreatedRecord('material'),
 		})
 	}
 
@@ -7021,6 +7291,7 @@ export default function Home() {
 		}, {
 			flashTarget: fieldFlashKey(quickCreate.target),
 			successTitle: entityFeedbackTitle('supplier', 'created'),
+			undo: undoCreatedRecord('supplier'),
 		})
 	}
 
@@ -7037,6 +7308,7 @@ export default function Home() {
 		}, {
 			flashTarget: fieldFlashKey(target),
 			successTitle: entityFeedbackTitle('supplier', 'created'),
+			undo: undoCreatedRecord('supplier'),
 		})
 	}
 
@@ -7755,6 +8027,10 @@ export default function Home() {
 				currentDetail.data.id,
 			),
 			successTitle: entityFeedbackTitle(currentDetail.kind, 'updated'),
+			undo: undoPatchRecord(
+				path,
+				cleanDetailPayload(currentDetail.kind, currentDetail.data),
+			),
 		})
 	}
 
@@ -7768,6 +8044,14 @@ export default function Home() {
 			detailExit.close()
 		}, {
 			successTitle: entityFeedbackTitle(currentDetail.kind, 'deleted'),
+			...('is_active' in currentDetail.data
+				? {
+						undo: undoRestoreActiveRecord(
+							currentDetail.kind,
+							currentDetail.data,
+						),
+				  }
+				: {}),
 		})
 	}
 
@@ -9443,6 +9727,9 @@ export default function Home() {
 	async function saveCustomer(event: FormEvent) {
 		event.preventDefault()
 		const currentId = customerForm.id
+		const previousCustomer = currentId
+			? customers.find((item) => String(item.id) === String(currentId))
+			: null
 		await runAction(async () => {
 			const path = customerForm.id
 				? `/customers/${customerForm.id}/`
@@ -9462,12 +9749,22 @@ export default function Home() {
 				'customer',
 				currentId ? 'updated' : 'created',
 			),
+			undo:
+				currentId && previousCustomer
+					? undoPatchRecord(
+							`/customers/${currentId}/`,
+							cleanDetailPayload('customer', previousCustomer),
+					  )
+					: undoCreatedRecord('customer'),
 		})
 	}
 
 	async function saveVehicle(event: FormEvent) {
 		event.preventDefault()
 		const currentId = vehicleForm.id
+		const previousVehicle = currentId
+			? vehicles.find((item) => String(item.id) === String(currentId))
+			: null
 		await runAction(async () => {
 			const path = vehicleForm.id
 				? `/vehicles/${vehicleForm.id}/`
@@ -9495,12 +9792,22 @@ export default function Home() {
 				'vehicle',
 				currentId ? 'updated' : 'created',
 			),
+			undo:
+				currentId && previousVehicle
+					? undoPatchRecord(
+							`/vehicles/${currentId}/`,
+							cleanDetailPayload('vehicle', previousVehicle),
+					  )
+					: undoCreatedRecord('vehicle'),
 		})
 	}
 
 	async function saveService(event: FormEvent) {
 		event.preventDefault()
 		const currentId = serviceForm.id
+		const previousService = currentId
+			? services.find((item) => String(item.id) === String(currentId))
+			: null
 		await runAction(async () => {
 			const path = serviceForm.id
 				? `/services/${serviceForm.id}/`
@@ -9528,6 +9835,13 @@ export default function Home() {
 				'service',
 				currentId ? 'updated' : 'created',
 			),
+			undo:
+				currentId && previousService
+					? undoPatchRecord(
+							`/services/${currentId}/`,
+							cleanDetailPayload('service', previousService),
+					  )
+					: undoCreatedRecord('service'),
 		})
 	}
 
@@ -9608,6 +9922,7 @@ export default function Home() {
 				flashTarget: (created: AnyRecord) =>
 					recordFlashKey('quote', created?.id),
 				successTitle: entityFeedbackTitle('quote', 'created'),
+				undo: undoCreatedRecord('quote'),
 			})
 			if (createdQuote) {
 				setActive('quotes')
@@ -9631,16 +9946,25 @@ export default function Home() {
 						items: serviceLinePayload(reservationItems),
 					}),
 			})
-			await apiFetch<AnyRecord>(`/reservations/${created.id}/quote/`, {
+			const createdQuote = await apiFetch<AnyRecord>(`/reservations/${created.id}/quote/`, {
 				method: 'POST',
 			})
 			setReservationForm(blankReservationForm())
 			quickReservationExit.close()
-			return created
+			return { ...created, _created_quote_id: createdQuote?.id }
 		}, {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('reservation', created?.id),
 			successTitle: entityFeedbackTitle('reservation', 'created'),
+			undo: undoCreatedRecord('reservation', {
+				beforeDelete: async (created: AnyRecord) => {
+					if (created?._created_quote_id) {
+						await apiFetch(`/quotes/${created._created_quote_id}/`, {
+							method: 'DELETE',
+						})
+					}
+				},
+			}),
 		})
 	}
 
@@ -9670,6 +9994,7 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('payment', created?.id),
 			successTitle: entityFeedbackTitle('payment', 'created'),
+			undo: undoCreatedRecord('payment'),
 		})
 	}
 
@@ -9687,6 +10012,7 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('cash-movement', created?.id),
 			successTitle: entityFeedbackTitle('cash-movement', 'created'),
+			undo: undoCreatedRecord('cash-movement'),
 		})
 	}
 
@@ -9707,6 +10033,7 @@ export default function Home() {
 		}, {
 			flashTarget: (created: AnyRecord) => recordFlashKey('debt', created?.id),
 			successTitle: entityFeedbackTitle('debt', 'created'),
+			undo: undoCreatedRecord('debt'),
 		})
 	}
 
@@ -9724,12 +10051,16 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('debt-payment', created?.id),
 			successTitle: entityFeedbackTitle('debt-payment', 'created'),
+			undo: undoCreatedRecord('debt-payment'),
 		})
 	}
 
 	async function saveMaterial(event: FormEvent) {
 		event.preventDefault()
 		const currentId = materialForm.id
+		const previousMaterial = currentId
+			? materials.find((item) => String(item.id) === String(currentId))
+			: null
 		await runAction(async () => {
 			const path = materialForm.id
 				? `/materials/${materialForm.id}/`
@@ -9756,6 +10087,13 @@ export default function Home() {
 				'material',
 				currentId ? 'updated' : 'created',
 			),
+			undo:
+				currentId && previousMaterial
+					? undoPatchRecord(
+							`/materials/${currentId}/`,
+							cleanDetailPayload('material', previousMaterial),
+					  )
+					: undoCreatedRecord('material'),
 		})
 	}
 
@@ -9772,6 +10110,7 @@ export default function Home() {
 		}, {
 			flashTarget: (created: AnyRecord) => recordFlashKey('supplier', created?.id),
 			successTitle: entityFeedbackTitle('supplier', 'created'),
+			undo: undoCreatedRecord('supplier'),
 		})
 	}
 
@@ -9877,12 +10216,16 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('stock-movement', created?.id),
 			successTitle: entityFeedbackTitle('stock-movement', 'created'),
+			undo: undoCreatedRecord('stock-movement'),
 		})
 	}
 
 	async function saveTool(event: FormEvent) {
 		event.preventDefault()
 		const currentId = toolForm.id
+		const previousTool = currentId
+			? tools.find((item) => String(item.id) === String(currentId))
+			: null
 		await runAction(async () => {
 			const path = toolForm.id ? `/tools/${toolForm.id}/` : '/tools/'
 			const method = toolForm.id ? 'PATCH' : 'POST'
@@ -9911,6 +10254,13 @@ export default function Home() {
 				'tool',
 				currentId ? 'updated' : 'created',
 			),
+			undo:
+				currentId && previousTool
+					? undoPatchRecord(
+							`/tools/${currentId}/`,
+							cleanDetailPayload('tool', previousTool),
+					  )
+					: undoCreatedRecord('tool'),
 		})
 	}
 
@@ -9935,6 +10285,7 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('material-purchase', created?.id),
 			successTitle: entityFeedbackTitle('material-purchase', 'created'),
+			undo: undoCreatedRecord('material-purchase'),
 		})
 	}
 
@@ -9961,6 +10312,7 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('material-open-unit', created?.id),
 			successTitle: entityFeedbackTitle('material-open-unit', 'created'),
+			undo: undoCreatedRecord('material-open-unit'),
 		})
 	}
 
@@ -10019,6 +10371,7 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('material-consumption', created?.id),
 			successTitle: entityFeedbackTitle('material-consumption', 'created'),
+			undo: undoCreatedRecord('material-consumption'),
 		})
 	}
 
@@ -10239,6 +10592,7 @@ export default function Home() {
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('quote', created?.id),
 			successTitle: entityFeedbackTitle('quote', 'created'),
+			undo: undoCreatedRecord('quote'),
 		})
 	}
 
@@ -14109,6 +14463,7 @@ export default function Home() {
 											'customer',
 											'deleted',
 										),
+										undo: undoRestoreActiveRecord('customer', item),
 									},
 								)
 							}
@@ -14155,6 +14510,7 @@ export default function Home() {
 																	'vehicle',
 																	'deleted',
 																),
+																undo: undoRestoreActiveRecord('vehicle', item),
 															},
 														)
 													}
@@ -14265,6 +14621,7 @@ export default function Home() {
 																			'supplier',
 																			'deleted',
 																		),
+																		undo: undoRestoreActiveRecord('supplier', item),
 																	},
 																)
 															}
@@ -14381,6 +14738,7 @@ export default function Home() {
 																			'vehicle',
 																			'deleted',
 																		),
+																	undo: undoRestoreActiveRecord('vehicle', item),
 																},
 															)
 													}
@@ -14476,6 +14834,7 @@ export default function Home() {
 																			'service',
 																			'deleted',
 																		),
+																	undo: undoRestoreActiveRecord('service', item),
 																},
 															)
 														}
@@ -15696,6 +16055,7 @@ export default function Home() {
 																				'material',
 																				'deleted',
 																			),
+																		undo: undoRestoreActiveRecord('material', item),
 																	},
 																)
 															}
@@ -15934,6 +16294,7 @@ export default function Home() {
 																			'tool',
 																			'deleted',
 																		),
+																	undo: undoRestoreActiveRecord('tool', item),
 																},
 															)
 														}

@@ -1657,6 +1657,37 @@ def test_payment_creates_cash_income_and_updates_debt(api_client, base_data):
 
 
 @pytest.mark.django_db
+def test_payment_delete_removes_cash_income_and_restores_balance(api_client, base_data):
+    customer, vehicle, service = base_data
+    order = create_work_order(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        total_amount=Decimal("15000.00"),
+    )
+    response = api_client.post(
+        reverse("payment-list"),
+        {
+            "work_order": order.id,
+            "amount": "5000.00",
+            "payment_type": "deposit",
+            "method": "cash",
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+
+    delete_response = api_client.delete(reverse("payment-detail", args=[response.data["id"]]))
+
+    assert delete_response.status_code == 204
+    assert not Payment.objects.filter(id=response.data["id"]).exists()
+    assert not CashMovement.objects.filter(payment_id=response.data["id"]).exists()
+    order.refresh_from_db()
+    assert order.paid_amount == Decimal("0.00")
+    assert order.balance_due == Decimal("15000.00")
+
+
+@pytest.mark.django_db
 def test_material_purchase_and_consumption_adjust_stock_and_cost(api_client, base_data):
     customer, vehicle, service = base_data
     order = create_work_order(customer=customer, vehicle=vehicle, service=service)

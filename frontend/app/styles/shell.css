@@ -2301,7 +2301,7 @@
   color: var(--shop-ink);
   display: grid;
   gap: 12px;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   min-height: 76px;
   overflow: hidden;
   padding: 16px;
@@ -2348,6 +2348,26 @@
 
 .toast-notice .alert-fields {
   grid-column: 2 / -1;
+}
+
+.toast-action {
+  align-self: start;
+  background: var(--color-surface-raised);
+  border-color: var(--shop-border);
+  color: var(--shop-ink);
+  display: inline-flex;
+  gap: 6px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.toast-action:hover,
+.toast-action:focus-visible {
+  background: var(--shop-primary-soft);
+  border-color: var(--shop-primary);
+  color: var(--shop-primary);
 }
 
 .toast-close {

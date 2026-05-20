@@ -13,6 +13,7 @@ import {
 	Package,
 	ReceiptText,
 	Settings,
+	Undo2,
 	Users,
 	Wrench,
 	X,
@@ -29,12 +30,20 @@ import { toastIconVariants, toastVariants } from '@/lib/motion-spec'
 
 type AnyRecord = Record<string, any>
 type ToastTone = 'success' | 'error'
+type ToastAction = {
+	label: string
+	title?: string
+	disabled?: boolean
+	onClick: () => void
+}
 type ToastNotice = {
 	id: number
 	tone: ToastTone
 	title: string
 	description?: string
 	fields?: ApiErrorNotice['fields']
+	action?: ToastAction
+	visibleMs?: number
 }
 type ToastDraft = Omit<ToastNotice, 'id'>
 type ActionMessage<T> = string | ((result: T) => string | null | undefined)
@@ -1348,12 +1357,14 @@ function useNoticeToasts() {
 		const id = nextIdRef.current + 1
 		nextIdRef.current = id
 		const visibleMs =
-			notice.tone === 'error' ? TOAST_ERROR_VISIBLE_MS : TOAST_VISIBLE_MS
+			notice.visibleMs ??
+			(notice.tone === 'error' ? TOAST_ERROR_VISIBLE_MS : TOAST_VISIBLE_MS)
 		setToasts((current) => [...current.slice(-2), { id, ...notice }])
 		timersRef.current[id] = window.setTimeout(
 			() => dismissToast(id),
 			visibleMs,
 		)
+		return id
 	}
 
 	useEffect(
@@ -1414,6 +1425,18 @@ function NoticeToast({
 						</li>
 					))}
 				</ul>
+			) : null}
+			{toast.action ? (
+				<button
+					type="button"
+					className="toast-action"
+					onClick={toast.action.onClick}
+					disabled={toast.action.disabled}
+					title={toast.action.title}
+				>
+					<Undo2 size={15} />
+					<span>{toast.action.label}</span>
+				</button>
 			) : null}
 			<button
 				type="button"
@@ -1555,6 +1578,7 @@ export type {
 	FormModalKind,
 	Section,
 	ThemeMode,
+	ToastAction,
 	ToastDraft,
 	ToastNotice,
 	ToastTone,
