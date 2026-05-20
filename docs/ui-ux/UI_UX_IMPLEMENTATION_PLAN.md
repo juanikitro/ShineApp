@@ -71,7 +71,14 @@ Sexto corte UI-009 aplicado 2026-05-20:
 - Conteo post-corte Inventario: `page.tsx` tiene 15.659 lineas y aprox. 154 coincidencias `render*`; `InventoryPanel.tsx` concentra 429 lineas presentacionales.
 - Validacion: `cd frontend && npm run build`.
 - QA visual autenticada normal: backend/db ya activos; `next start` en `9000`; `/?section=inventory` cargo en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay y sin errores de consola. Browser confirmo runtime pero fallo capturando screenshot con `Page.captureScreenshot`; screenshots fuera del repo capturados con Chrome headless CDP: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-inventory-qa-2026-05-20-cdp\desktop-inventory.png` y `...\mobile-inventory.png`.
-- Estado honesto: UI-009 queda >=75% completo. Quedan como deuda residual Herramientas, Cotizaciones/Servicios, algunos formularios/detail renders y calculos todavia concentrados en `page.tsx`.
+Septimo corte UI-009 aplicado 2026-05-20:
+
+- Herramientas se movio desde `frontend/app/page.tsx` a `frontend/app/components/tools/ToolsPanel.tsx`.
+- `page.tsx` conserva busqueda, callbacks, delete/undo, modales y helpers de dominio; el componente nuevo concentra render de metricas, toolbar y listado.
+- Conteo post-corte Herramientas: `page.tsx` tiene 15.024 lineas y aprox. 155 coincidencias `render*`; `ToolsPanel.tsx` concentra 142 lineas presentacionales.
+- Validacion: `cd frontend && npm run build`.
+- QA visual autenticada normal: backend/db ya activos; `next start` en `9000`; `/?section=tools` cargo en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay y sin errores de consola/runtime/red. Screenshots fuera del repo capturados con Chrome headless CDP: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-tools-qa-2026-05-20\desktop-tools.png` y `...\mobile-tools.png`.
+- Estado honesto: UI-009 queda ~85% completo. Quedan como deuda residual Cotizaciones/Servicios, algunos formularios/detail renders y calculos todavia concentrados en `page.tsx`.
 
 Corte UI-024 aplicado 2026-05-20:
 

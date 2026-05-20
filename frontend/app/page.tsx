@@ -75,6 +75,7 @@ import {
 import { DashboardPanel } from '@/app/components/dashboard/DashboardPanel'
 import { InventoryPanel } from '@/app/components/inventory/InventoryPanel'
 import { SettingsWorkspace } from '@/app/components/settings/SettingsWorkspace'
+import { ToolsPanel } from '@/app/components/tools/ToolsPanel'
 import {
 	CustomerDashboardShell,
 	type CustomerDashboardMetric,
@@ -15405,145 +15406,33 @@ export default function Home() {
 				) : null}
 
 				{displayedActive === 'tools' ? (
-					<div className="grid">
-						<section className="panel">
-							<div className="panel-head">
-								<div>
-									<h2>Herramientas</h2>
-									<p>Estado, cantidades y valor estimado del equipamiento.</p>
-								</div>
-								<button
-									type="button"
-									className="primary"
-									onClick={() => openFormModal('tool')}
-								>
-									<Hammer size={16} />
-									Nueva herramienta
-								</button>
-							</div>
-							<div className="inventory-metrics">
-								<div className="material-kpi">
-									<span>Herramientas</span>
-									<strong>{toolSummary.records}</strong>
-								</div>
-								<div className="material-kpi">
-									<span>Unidades</span>
-									<strong>{toolSummary.quantity}</strong>
-								</div>
-								<div className="material-kpi">
-									<span>Valor total</span>
-									<strong>{money(toolSummary.value)}</strong>
-								</div>
-							</div>
-							<div className="toolbar toolbar-spaced">
-								<input
-									placeholder="Buscar por nombre, estado o notas"
-									value={search}
-									onChange={(event) =>
-										setSearch(event.target.value)
-									}
-								/>
-							</div>
-							<div className="records">
-								{filteredTools.length ? (
-									filteredTools.map((item) => {
-										const quickActions = toolQuickActions(item)
-										return (
-										<MotionFlashSurface
-											className={recordClass('tool', item.id)}
-											key={item.id}
-											{...detailRecordProps(
-												'Herramienta',
-												item,
-											)}
-											{...quickActionTargetProps(
-												'Acciones de herramienta',
-												quickActions,
-											)}
-										>
-											<div className="record-head">
-												<div>
-													<div className="record-title">
-														{item.name}
-													</div>
-													<div className="record-sub">
-														{toolStatusLabels[
-															item.status
-														] ?? item.status}{' '}
-														- {item.quantity}{' '}
-														unidades -{' '}
-														{money(
-															item.unit_value,
-														)}{' '}
-														c/u - valor{' '}
-														{money(
-															toolTotalValue(
-																item,
-															),
-														)}
-													</div>
-													<div className="record-sub">
-														{item.purchased_at
-															? `Compra ${item.purchased_at}`
-															: 'Sin fecha de compra'}
-														{item.notes
-															? ` - ${item.notes}`
-															: ''}
-													</div>
-												</div>
-												<div className="record-actions">
-													<button
-														type="button"
-														className="ghost"
-														onClick={() =>
-															openDetailModal('Herramienta', item)
-														}
-													>
-														Editar
-													</button>
-													<button
-														className="danger"
-														type="button"
-														onClick={() =>
-															runAction(() =>
-																apiFetch(
-																	`/tools/${item.id}/`,
-																	{
-																		method: 'DELETE',
-																	},
-																),
-																{
-																	successTitle:
-																		entityFeedbackTitle(
-																			'tool',
-																			'deleted',
-																		),
-																	undo: undoRestoreActiveRecord(
-																		'tool',
-																		item,
-																	),
-																},
-															)
-														}
-														>
-															Inactivar
-														</button>
-														{renderQuickActionsTrigger(
-															'Acciones de herramienta',
-															quickActions,
-															'Acciones rapidas de herramienta',
-														)}
-													</div>
-												</div>
-										</MotionFlashSurface>
-										)
-									})
-								) : (
-									<Empty text="Sin herramientas." />
-								)}
-							</div>
-						</section>
-					</div>
+					<ToolsPanel
+						detailRecordProps={detailRecordProps}
+						filteredTools={filteredTools}
+						quickActionTargetProps={quickActionTargetProps}
+						recordClass={recordClass}
+						renderQuickActionsTrigger={renderQuickActionsTrigger}
+						search={search}
+						toolQuickActions={toolQuickActions}
+						toolStatusLabels={toolStatusLabels}
+						toolSummary={toolSummary}
+						toolTotalValue={toolTotalValue}
+						onDeleteTool={(item) =>
+							runAction(
+								() =>
+									apiFetch(`/tools/${item.id}/`, {
+										method: 'DELETE',
+									}),
+								{
+									successTitle: entityFeedbackTitle('tool', 'deleted'),
+									undo: undoRestoreActiveRecord('tool', item),
+								},
+							)
+						}
+						onOpenToolDetail={(item) => openDetailModal('Herramienta', item)}
+						onOpenToolForm={() => openFormModal('tool')}
+						onSearchChange={setSearch}
+					/>
 				) : null}
 
 				{displayedActive === 'quotes' ? (
