@@ -2775,7 +2775,7 @@
 }
 
 .info-note {
-  background: #eff6ff;
+  background: var(--color-ready-bg);
   color: var(--shop-ink-soft);
   font-size: 13px;
   margin-bottom: 12px;

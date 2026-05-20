@@ -1329,6 +1329,10 @@ export default function Home() {
 	}, [])
 
 	useEffect(() => {
+		document.documentElement.dataset.theme = themeMode
+	}, [themeMode])
+
+	useEffect(() => {
 		const handlePopState = () => {
 			const nextNavigation = readNavigationStateFromUrl(
 				window.location.href,

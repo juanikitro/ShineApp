@@ -118,6 +118,7 @@
   --motion-distance-lg: 22px;
 }
 
+:root[data-theme='dark'],
 .app-shell[data-theme='dark'] {
   color-scheme: dark;
 
