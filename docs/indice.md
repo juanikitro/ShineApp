@@ -20,6 +20,7 @@ Mapa de fuentes de verdad para asistentes y desarrolladores. No reemplaza la lec
 
 - `docs/ia/CONTEXT_HYGIENE.md`: que leer y cuando expandir contexto.
 - `docs/ia/TESTING.md`: comandos de validacion y criterio de tests.
+- `docs/ia/CODEX_TESTING_PROMPT.md`: prompt copy/paste para generar tests sin maquillar coverage.
 - `docs/ia/UI_CONTEXT.md`: entrada corta para cambios de UI.
 - `docs/ia/ARCHITECTURE.md`: boundaries y cambios full-stack.
 - `docs/ia/STYLE_GUIDE.md`: convenciones de codigo.
@@ -71,3 +72,4 @@ Wrappers por herramienta:
 - Tests backend: `backend/tests/`.
 - Tests frontend: `frontend/lib/*.test.mjs` y `frontend/app/components/**/*.test.{ts,tsx}`.
 - Validacion raiz: `scripts/validate.ps1`.
+- Coverage raiz: `scripts/test-coverage.ps1` con gate 90 backend/frontend.

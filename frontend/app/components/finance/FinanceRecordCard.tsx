@@ -44,6 +44,8 @@ type FinanceRecordCardProps = {
 	stats?: FinanceRecordStat[]
 	primaryAction?: FinanceRecordAction
 	secondaryActions?: FinanceRecordAction[]
+	quickActionsTrigger?: ReactNode
+	onContextMenu?: MouseEventHandler<HTMLDivElement>
 }
 
 function renderAction(action: FinanceRecordAction, key: string) {
@@ -71,11 +73,21 @@ export function FinanceRecordCard({
 	stats = [],
 	primaryAction,
 	secondaryActions = [],
+	quickActionsTrigger,
+	onContextMenu,
 }: FinanceRecordCardProps) {
-	const hasActions = Boolean(primaryAction || secondaryActions.length || amount)
+	const hasActions = Boolean(
+		primaryAction ||
+			secondaryActions.length ||
+			amount ||
+			quickActionsTrigger,
+	)
 
 	return (
-		<MotionFlashSurface className={cx(className, 'finance-record-card')}>
+		<MotionFlashSurface
+			className={cx(className, 'finance-record-card')}
+			onContextMenu={onContextMenu}
+		>
 			<RecordCardHeader
 				title={title}
 				subtitle={subtitle}
@@ -106,6 +118,7 @@ export function FinanceRecordCard({
 									) : null}
 								</div>
 							) : null}
+							{quickActionsTrigger}
 						</div>
 					) : null
 				}

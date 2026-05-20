@@ -1,6 +1,8 @@
 'use client'
 
-import { Eye, Pencil, Plus, Trash2 } from 'lucide-react'
+import { type MouseEvent } from 'react'
+
+import { Eye, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
 import { Empty } from '@/app/components/ui/Empty'
@@ -44,6 +46,14 @@ type CustomerListPanelProps = {
 	onOpenDashboard: (customer: AnyRecord) => void
 	onEdit: (customer: AnyRecord) => void
 	onDelete: (customer: AnyRecord) => void
+	onOpenQuickActions?: (
+		event: MouseEvent<HTMLElement>,
+		customer: AnyRecord,
+	) => void
+	onOpenQuickActionsFromTrigger?: (
+		event: MouseEvent<HTMLButtonElement>,
+		customer: AnyRecord,
+	) => void
 }
 
 function formatTimeLabel(value: any) {
@@ -186,6 +196,8 @@ export function CustomerListPanel({
 	onOpenDashboard,
 	onEdit,
 	onDelete,
+	onOpenQuickActions,
+	onOpenQuickActionsFromTrigger,
 }: CustomerListPanelProps) {
 	const hasSearch = Boolean(search.trim())
 	const hasActiveFilter = hasSearch || filter !== 'all'
@@ -262,6 +274,9 @@ export function CustomerListPanel({
 									'customer-record-card',
 								)}
 								key={customer.id}
+								onContextMenu={(event) =>
+									onOpenQuickActions?.(event, customer)
+								}
 							>
 								<RecordCardHeader
 									title={customerName}
@@ -302,6 +317,19 @@ export function CustomerListPanel({
 													<Trash2 size={15} />
 													Baja
 												</button>
+												{onOpenQuickActionsFromTrigger ? (
+													<button
+														className="ghost icon-button quick-actions-trigger"
+														type="button"
+														aria-label={`Acciones rapidas de ${customerName}`}
+														title={`Acciones rapidas de ${customerName}`}
+														onClick={(event) =>
+															onOpenQuickActionsFromTrigger(event, customer)
+														}
+													>
+														<MoreHorizontal size={15} />
+													</button>
+												) : null}
 											</div>
 										</div>
 									}

@@ -6,12 +6,23 @@ Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins hi
 
 | Orden | ID | Prioridad | Area | Objetivo | Evidencia | Resultado esperado |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | UI-025 | P1 | Landing publica | Corregir render de iconos de servicios para no mostrar claves crudas (`combo`, `polish`, `shield`, `seat`). | QA `/publica/default` mobile, screenshot `08-public-landing-mobile.png`; `PublicLandingClient.tsx` imprime `service.icon` directo. | Icono/simbolo estable, sin texto partido, sin layout shift. |
-| 2 | UI-021 | P1 | Dark mode / configuracion | Ajustar contraste de tabs/segmented controls en dark mode. | QA screenshot `06-configuracion-desktop-dark.png`; `data-theme="dark"` confirmado. | Estados selected/unselected/focus cumplen contraste y se leen claramente. |
-| 3 | UI-003 | P1 | Agenda mobile | Resolver la dependencia de tablero ancho en mobile. | QA: `boardMinWidth=860px` con viewport interno `358px`; CSS conserva `min-width`. | Experiencia mobile explicita: vista compacta o scroll contenido con affordance clara. |
-| 4 | UI-008 | P1 | Formularios | Completar accesibilidad de `SearchSelect` y revisar `autoFocus`. | Codigo `SearchSelect.tsx`: `role="listbox"`, `aria-haspopup`, `autoFocus`. | Componente usable con teclado/lector y foco predecible. |
-| 5 | UI-012 | P1 | Login | Sacar credenciales demo prellenadas del modo normal. | QA login desktop muestra `admin/admin123` prellenado. | Prefill solo en modo demo/dev o accion explicita. |
-| 6 | UI-016 | P1 | Caja | Reducir densidad y mejorar jerarquia de accion/filtros/listado. | QA `/?section=cash`, screenshot `05-caja-desktop-light.png`. | Pantalla de caja mas escaneable y con accion primaria clara. |
+| 1 | UI-009 | P1/P2 | Arquitectura frontend | Extraer por vertical una superficie de `frontend/app/page.tsx` sin mezclar redisenos. | `page.tsx` sigue concentrando estado/render; conviene cortar despues del batch visible. | Menos riesgo de regresion y cambios UI mas faciles de validar. |
+| 2 | UI-024 | P2 | Segmented controls | Consolidar tokens y estados de segmented/tabs despues del fix dark urgente. | UI-021 cubrio dark de `.mode-toggle`, pero quedan variantes dispersas. | Patron comun reutilizable para tabs/segmented. |
+| 3 | UI-015 | P2 | Dashboard | Mejorar siguiente accion y priorizacion de datos. | QA dashboard estable; queda deuda de producto, no bloqueo. | Dashboard mas accionable sin cambiar contratos. |
+| 4 | UI-017 | P2 | Clientes | Pulir low-data/empty states y CTA operativo. | QA clientes estable con busqueda; queda polish operativo. | Mejor guia cuando hay pocos datos o resultados. |
+| 5 | UI-018 | P2 | Estados transversales | Consolidar loading/empty/error states por modulo. | Existen primitives, pero el uso no es homogeneo. | Feedback mas consistente entre pantallas. |
+| 6 | UI-014 | P2 | Configuracion branding | Mejorar densidad/card de logo y negocio. | Settings funciona en dark y mobile; queda deuda visual diferible. | Configuracion mas escaneable sin redisenar. |
+
+## Cerrado por batch P1 2026-05-20
+
+| ID | Area | Resultado |
+| --- | --- | --- |
+| UI-025 | Landing publica | Iconos de servicios mapeados a Lucide y fallback inicial seguro; sin claves crudas visibles. |
+| UI-021 | Dark mode / configuracion | Estados dark de `.mode-toggle` con texto, hover/focus y selected legibles. |
+| UI-003 | Agenda mobile | Tablero ancho queda como scroll horizontal contenido, con snap y affordance visible. |
+| UI-008 | Formularios | `SearchSelect` sin `autoFocus`, con combobox/listbox ids activos y estado live en vacio. |
+| UI-012 | Login | Modo normal sin credenciales prellenadas; demo solo por env flag y sin password. |
+| UI-016 | Caja | Jerarquia visual de metricas, filtros y listado reforzada por CSS sin tocar negocio. |
 
 ## Cerrado por auditoria 2026-05-20
 

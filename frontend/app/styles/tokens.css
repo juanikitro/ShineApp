@@ -92,6 +92,7 @@
   --z-popover: 120;
   --z-modal-backdrop: 1000;
   --z-modal-panel: 1010;
+  --z-toast: 1100;
   --motion-duration-fast: 160ms;
   --motion-duration-base: 220ms;
   --motion-duration-view: 280ms;

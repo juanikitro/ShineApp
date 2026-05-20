@@ -166,6 +166,83 @@ def test_public_request_create_validates_services_honeypot_and_rate_limit():
 
 
 @pytest.mark.django_db
+def test_public_request_create_requires_service_and_derives_type_from_date():
+    business = create_business()
+    service = create_service(business)
+    client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    missing_service = client.post(
+        url,
+        {
+            "customer_name": "Ana Lopez",
+            "customer_phone": "11 9999-8888",
+            "customer_email": "",
+            "service_ids": [],
+            "preferred_day": "",
+            "website": "",
+        },
+        format="json",
+    )
+    quote_request = client.post(
+        url,
+        {
+            "request_type": PublicRequest.RequestType.BOOKING,
+            "customer_name": "Luis Gomez",
+            "customer_phone": "",
+            "customer_email": "luis@example.com",
+            "service_ids": [service.id],
+            "preferred_time": "11:30:00",
+            "website": "",
+        },
+        format="json",
+    )
+    booking_request = client.post(
+        url,
+        {
+            "request_type": PublicRequest.RequestType.QUOTE,
+            "customer_name": "Maria Gomez",
+            "customer_phone": "11 2222-3333",
+            "customer_email": "",
+            "service_ids": [service.id],
+            "preferred_day": "2026-05-24",
+            "preferred_time": "11:30:00",
+            "website": "",
+        },
+        format="json",
+    )
+    missing_contact = client.post(
+        url,
+        {
+            "request_type": PublicRequest.RequestType.QUOTE,
+            "customer_name": "Sin contacto",
+            "customer_phone": "",
+            "customer_email": "",
+            "service_ids": [service.id],
+            "website": "",
+        },
+        format="json",
+    )
+
+    assert missing_service.status_code == 400
+    assert "service_ids" in missing_service.data
+    assert quote_request.status_code == 201, quote_request.data
+    quote = PublicRequest.objects.get(pk=quote_request.data["id"])
+    assert quote.request_type == PublicRequest.RequestType.QUOTE
+    assert quote.preferred_day is None
+    assert quote.preferred_time is None
+    assert quote.items.get().service == service
+    assert booking_request.status_code == 201, booking_request.data
+    booking = PublicRequest.objects.get(pk=booking_request.data["id"])
+    assert booking.request_type == PublicRequest.RequestType.BOOKING
+    assert booking.preferred_day.isoformat() == "2026-05-24"
+    assert booking.preferred_time.isoformat() == "11:30:00"
+    assert booking.items.get().service == service
+    assert missing_contact.status_code == 400
+    assert "telefono o un email" in str(missing_contact.data)
+
+
+@pytest.mark.django_db
 def test_internal_public_requests_are_employer_only_and_business_scoped(employee_client):
     business_a = employee_client.user.profile.business
     business_b = create_business("Negocio B", "negocio-b")

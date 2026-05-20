@@ -12,17 +12,19 @@ Plan incremental, sin rehacer la app ni tocar contratos backend salvo necesidad 
 
 La re-auditoria sobre `development` confirmo que varios P0/P1 historicos ya estan cerrados en codigo y QA: drawer mobile, settings mobile tabs, sidebar search, modal accesible, deep-linking, Agenda naming principal, encoding `Â·` en fuente UI y runtime productivo basico.
 
+El batch P1 posterior a la auditoria queda aplicado el 2026-05-20 con fixes minimos para landing publica, dark settings, agenda mobile, `SearchSelect`, login demo y caja. No se agrego Fase 6: el siguiente trabajo vive en `UI_UX_IMPROVEMENT_BACKLOG.md`.
+
 Estado por fase:
 
 | Fase | Estado actual | Evidencia / ajuste |
 | --- | --- | --- |
 | Fase 1 | Mayormente cerrada | Shell mobile, sidebar search, settings mobile y naming no se reprodujeron como deuda vigente. Quedan solo deudas visibles nuevas o residuales documentadas en issues/backlog. |
-| Fase 2 | Parcialmente cerrada | `ModalFrame`, `RecordCard` y estados base estan mejorados; `SearchSelect` sigue P1 por semantica/foco. |
-| Fase 3A | Cerrada para desktop | Agenda desktop carga y navega bien; Agenda mobile conserva deuda P1 por ancho minimo del tablero. |
-| Fase 4 | Parcialmente cerrada | Deep-linking y modal base estan cerrados; quedan dark mode tabs, login demo, caja y landing publica. |
+| Fase 2 | Cerrada para deuda P1 visible | `ModalFrame`, `RecordCard` y estados base estan mejorados; `SearchSelect` recibio semantica/foco minimo defendible. |
+| Fase 3A | Cerrada para desktop y mobile usable | Agenda desktop carga y navega bien; Agenda mobile conserva tablero horizontal, ahora con scroll contenido explicito y snap. |
+| Fase 4 | Cerrada para batch P1 | Deep-linking, modal base, dark mode tabs, login demo, caja y landing publica tienen cortes minimos aplicados. |
 | Fase 5 | Cerrada como hito local | Se preserva la nota local de cierre de Fase 5. La auditoria no requiere inventar una Fase 6; el siguiente batch vive en backlog. |
 
-Siguiente batch recomendado: landing publica iconos de servicios, contraste dark de settings tabs, agenda mobile, `SearchSelect`, login demo prellenado y jerarquia de caja.
+Siguiente batch recomendado: `UI-009` extraccion gradual de `page.tsx`, `UI-024` consolidacion de segmented controls y P2 visuales priorizados en backlog.
 
 ## Fase 1 - Mejoras visibles de bajo riesgo
 

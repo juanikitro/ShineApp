@@ -151,6 +151,10 @@ class PublicRequestItemSerializer(serializers.ModelSerializer):
 
 
 class PublicLandingRequestSerializer(serializers.ModelSerializer):
+    request_type = serializers.ChoiceField(
+        choices=PublicRequest.RequestType.choices,
+        required=False,
+    )
     service_ids = serializers.ListField(
         child=serializers.IntegerField(min_value=1),
         write_only=True,
@@ -182,6 +186,13 @@ class PublicLandingRequestSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "status", "created_at"]
+
+    def to_internal_value(self, data):
+        data = data.copy()
+        for field_name in ("preferred_day", "preferred_time"):
+            if data.get(field_name) == "":
+                data[field_name] = None
+        return super().to_internal_value(data)
 
     def validate_customer_name(self, value):
         name = value.strip()
@@ -215,15 +226,21 @@ class PublicLandingRequestSerializer(serializers.ModelSerializer):
         profile = self.context["profile"]
         if attrs.pop("website", ""):
             raise serializers.ValidationError({"website": "No se pudo enviar la solicitud."})
-        request_type = attrs.get("request_type")
+        preferred_day = attrs.get("preferred_day")
+        request_type = (
+            PublicRequest.RequestType.BOOKING
+            if preferred_day
+            else PublicRequest.RequestType.QUOTE
+        )
+        attrs["request_type"] = request_type
+        if not preferred_day:
+            attrs["preferred_time"] = None
         if request_type == PublicRequest.RequestType.BOOKING and not profile.allow_public_booking_requests:
             raise serializers.ValidationError({"request_type": "El negocio no acepta solicitudes de turno."})
         if request_type == PublicRequest.RequestType.QUOTE and not profile.allow_public_quote_requests:
             raise serializers.ValidationError({"request_type": "El negocio no acepta solicitudes de cotizacion."})
         if not attrs.get("customer_phone") and not attrs.get("customer_email"):
             raise serializers.ValidationError("Deja un telefono o un email de contacto.")
-        if request_type == PublicRequest.RequestType.BOOKING and not attrs.get("preferred_day"):
-            raise serializers.ValidationError({"preferred_day": "La fecha preferida es obligatoria para pedir turno."})
 
         service_ids = attrs.pop("service_ids", [])
         if not service_ids:

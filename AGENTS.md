@@ -53,6 +53,8 @@ No inventes endpoints, payloads, permisos, modelos, migraciones, capas `services
 
 ## Validacion
 
+Restriccion frontend: antes de correr comandos Node/Vitest/Next, revisa `docs/ia/TESTING.md#restriccion-de-recursos-frontend`. No ejecutes tests, coverage, build o dev server frontend en paralelo.
+
 Comando recomendado desde la raiz:
 
 ```powershell

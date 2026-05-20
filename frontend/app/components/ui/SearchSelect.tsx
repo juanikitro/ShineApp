@@ -60,6 +60,7 @@ export function SearchSelect({
 	const pendingOptionFocusRef = useRef<'first' | 'last' | null>(null)
 	const fieldId = useId()
 	const optionsId = `${fieldId}-options`
+	const placeholderOptionId = `${fieldId}-option-placeholder`
 	const selected = options.find((option) => option.value === value)
 	const normalizedQuery = query.trim().toLowerCase()
 	const visibleOptions = normalizedQuery
@@ -81,6 +82,14 @@ export function SearchSelect({
 		typeof createLabel === 'function'
 			? createLabel(createValue)
 			: createLabel
+	const selectedVisibleIndex = visibleOptions.findIndex(
+		(option) => option.value === value,
+	)
+	const activeOptionId = !value
+		? placeholderOptionId
+		: selectedVisibleIndex >= 0
+			? `${fieldId}-option-${selectedVisibleIndex}`
+			: undefined
 
 	function getOptionButtons() {
 		return Array.from(
@@ -241,9 +250,11 @@ export function SearchSelect({
 					}
 				}}
 				onKeyDown={handleTriggerKeyDown}
+				role="combobox"
 				aria-controls={optionsId}
 				aria-expanded={open}
 				aria-haspopup="listbox"
+				aria-activedescendant={open ? activeOptionId : undefined}
 				aria-labelledby={`${fieldId}-label`}
 			>
 				<span>{selected?.label ?? placeholder}</span>
@@ -261,12 +272,12 @@ export function SearchSelect({
 					onKeyDown={handleMenuKeyDown}
 				>
 						<input
-							autoFocus
 							className="combo-search-input"
 							placeholder="Buscar..."
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
 							aria-controls={optionsId}
+							aria-activedescendant={activeOptionId}
 							aria-label={`Buscar ${label}`}
 						/>
 						{onAdd ? (
@@ -302,6 +313,7 @@ export function SearchSelect({
 							aria-labelledby={`${fieldId}-label`}
 						>
 							<button
+								id={placeholderOptionId}
 								type="button"
 								data-combo-placeholder
 								data-combo-option
@@ -314,8 +326,9 @@ export function SearchSelect({
 								{placeholder}
 							</button>
 							{visibleOptions.length ? (
-								visibleOptions.map((option) => (
+								visibleOptions.map((option, optionIndex) => (
 									<button
+										id={`${fieldId}-option-${optionIndex}`}
 										type="button"
 										key={option.value}
 										data-combo-option
@@ -334,7 +347,9 @@ export function SearchSelect({
 									</button>
 								))
 							) : (
-								<div className="combo-empty">Sin resultados</div>
+								<div className="combo-empty" role="status" aria-live="polite">
+									Sin resultados
+								</div>
 							)}
 						</div>
 				</m.div>

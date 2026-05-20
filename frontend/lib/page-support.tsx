@@ -21,6 +21,7 @@ import {
 import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { AppBrand } from '@/app/components/layout/AppBrand'
 import { Field } from '@/app/components/ui/Field'
 import { apiFetch, setStoredToken } from '@/lib/api'
@@ -543,7 +544,7 @@ const AGENDA_DRAG_MOUSE_DISTANCE = 8
 const AGENDA_DRAG_TOUCH_DELAY_MS = 180
 const AGENDA_DRAG_TOUCH_TOLERANCE = 10
 const AGENDA_INTERACTIVE_SELECTOR =
-	'button,a,input,textarea,select,.combo-field'
+	'button,a,input,textarea,select,.combo-field,.quick-actions-menu,.quick-actions-trigger'
 
 const entityFeedbackTitles: Record<
 	string,
@@ -637,6 +638,62 @@ const entityFeedbackTitles: Record<
 
 function entityFeedbackTitle(kind: string, action: EntityFeedbackAction) {
 	return entityFeedbackTitles[kind]?.[action] ?? 'Cambio guardado'
+}
+
+function successToastDescription(title: string | null | undefined) {
+	const normalizedTitle = String(title ?? '').toLowerCase()
+	if (!normalizedTitle) return undefined
+
+	if (
+		normalizedTitle.includes('pdf descargado') &&
+		normalizedTitle.includes('enviada')
+	) {
+		return 'El archivo se descargo y la cotizacion quedo marcada como enviada.'
+	}
+	if (normalizedTitle.includes('pdf descargado')) {
+		return 'El archivo se genero y quedo descargado.'
+	}
+	if (normalizedTitle.includes('reserva movida')) {
+		return 'La reserva quedo en el nuevo dia de agenda.'
+	}
+	if (normalizedTitle.includes('reserva ubicada')) {
+		return 'Te llevamos a la fecha donde esta cargada la reserva.'
+	}
+	if (normalizedTitle.includes('estado actualizado')) {
+		return 'El nuevo estado quedo guardado y visible en la agenda.'
+	}
+	if (normalizedTitle.includes('perfil actualizado')) {
+		return 'Los datos de tu cuenta quedaron guardados.'
+	}
+	if (normalizedTitle.includes('caja cerrada')) {
+		return 'El cierre del dia quedo registrado.'
+	}
+	if (normalizedTitle.includes('archivada')) {
+		return 'La solicitud dejo de figurar como pendiente.'
+	}
+	if (
+		normalizedTitle.includes('dado de baja') ||
+		normalizedTitle.includes('inactiv')
+	) {
+		return 'El registro dejo de estar activo en los listados principales.'
+	}
+	if (normalizedTitle.includes('eliminad')) {
+		return 'El registro se elimino y la lista quedo actualizada.'
+	}
+	if (normalizedTitle.includes('cread') || normalizedTitle.includes('registrad')) {
+		return 'El nuevo registro quedo guardado y disponible en la app.'
+	}
+	if (
+		normalizedTitle.includes('editad') ||
+		normalizedTitle.includes('actualizad') ||
+		normalizedTitle.includes('guardad')
+	) {
+		return 'Los cambios quedaron guardados correctamente.'
+	}
+	if (normalizedTitle.includes('finalizad')) {
+		return 'La accion quedo finalizada y registrada.'
+	}
+	return 'La accion se completo correctamente.'
 }
 
 function canStartAgendaDrag(target: EventTarget | null) {
@@ -1457,16 +1514,23 @@ function NoticeToastViewport({
 	toasts: ToastNotice[]
 	onDismiss: (id: number) => void
 }) {
-	if (!toasts.length) return null
+	const [mounted, setMounted] = useState(false)
 
-	return (
+	useEffect(() => {
+		setMounted(true)
+	}, [])
+
+	if (!mounted || !toasts.length) return null
+
+	return createPortal(
 		<div className="toast-viewport" aria-label="Notificaciones">
 			<AnimatePresence initial={false}>
 				{toasts.map((toast) => (
 					<NoticeToast key={toast.id} toast={toast} onDismiss={onDismiss} />
 				))}
 			</AnimatePresence>
-		</div>
+		</div>,
+		document.body,
 	)
 }
 
@@ -1627,6 +1691,7 @@ export {
 	defaultCashCategory,
 	detailRequiresEconomy,
 	entityFeedbackTitle,
+	successToastDescription,
 	expenseCategoryPairs,
 	expenseCategoryTreeFromText,
 	expenseCategoryTreeToText,

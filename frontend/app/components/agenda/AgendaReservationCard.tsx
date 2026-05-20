@@ -31,6 +31,7 @@ type AgendaReservationCardProps = {
 	vehicleModel?: string
 	rangeLabel?: string
 	workDebt?: ReactNode
+	quickActionsTrigger?: ReactNode
 	actions: AgendaReservationAction[]
 	onAction: (action: AgendaReservationAction) => void
 }
@@ -50,6 +51,7 @@ export function AgendaReservationCard({
 	vehicleModel,
 	rangeLabel,
 	workDebt,
+	quickActionsTrigger,
 	actions,
 	onAction,
 }: AgendaReservationCardProps) {
@@ -96,6 +98,9 @@ export function AgendaReservationCard({
 						<div className="agenda-range-label">{rangeLabel}</div>
 					) : null}
 				</div>
+				{quickActionsTrigger ? (
+					<div className="agenda-entry-tools">{quickActionsTrigger}</div>
+				) : null}
 			</div>
 			{workDebt}
 			<AgendaReservationActionBar

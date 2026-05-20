@@ -229,17 +229,17 @@ test('SearchSelect filters, creates and clears selections from the current surfa
 		/>,
 	)
 
-	await user.click(screen.getByRole('button', { name: 'Cliente' }))
+	await user.click(screen.getByRole('combobox', { name: 'Cliente' }))
 	await user.type(screen.getByLabelText('Buscar Cliente'), 'Ana')
 	assert.ok(screen.getByRole('option', { name: /Ana Lopez/ }))
 	await user.click(screen.getByRole('option', { name: /Ana Lopez/ }))
 	await waitFor(() => assert.equal(changes.at(-1), '1'))
 
-	await user.click(screen.getByRole('button', { name: 'Cliente' }))
+	await user.click(screen.getByRole('combobox', { name: 'Cliente' }))
 	await user.click(screen.getByRole('button', { name: 'Nuevo cliente' }))
 	assert.equal(added.mock.calls.length, 1)
 
-	await user.click(screen.getByRole('button', { name: 'Cliente' }))
+	await user.click(screen.getByRole('combobox', { name: 'Cliente' }))
 	await user.type(screen.getByLabelText('Buscar Cliente'), 'Nuevo')
 	await user.click(screen.getByRole('button', { name: 'Crear "Nuevo"' }))
 	assert.deepEqual(created, ['Nuevo'])
@@ -265,7 +265,7 @@ test('SearchSelect supports selected labels, disabled hidden inputs and trigger 
 	)
 
 	const hiddenInput = container.querySelector<HTMLInputElement>('input[name="vehicle"]')
-	const trigger = screen.getByRole('button', { name: 'Vehiculo' })
+	const trigger = screen.getByRole('combobox', { name: 'Vehiculo' })
 	assert.equal(hiddenInput?.value, '2')
 	assert.equal(hiddenInput?.disabled, true)
 	assert.equal(trigger.hasAttribute('disabled'), true)
@@ -287,9 +287,9 @@ test('SearchSelect supports selected labels, disabled hidden inputs and trigger 
 		/>,
 	)
 
-	await user.click(screen.getByRole('button', { name: 'Vehiculo' }))
+	await user.click(screen.getByRole('combobox', { name: 'Vehiculo' }))
 	assert.ok(screen.getByRole('listbox'))
-	await user.click(screen.getByRole('button', { name: 'Vehiculo' }))
+	await user.click(screen.getByRole('combobox', { name: 'Vehiculo' }))
 	await waitFor(() => assert.equal(screen.queryByRole('listbox'), null))
 })
 
@@ -308,7 +308,7 @@ test('SearchSelect supports keyboard opening, roving focus and escape close', as
 		/>,
 	)
 
-	const trigger = screen.getByRole('button', { name: 'Cliente' })
+	const trigger = screen.getByRole('combobox', { name: 'Cliente' })
 	trigger.focus()
 	await user.keyboard('{ArrowDown}')
 	await waitFor(() =>
@@ -347,7 +347,7 @@ test('SearchSelect handles menu keyboard events from the search input and placeh
 		/>,
 	)
 
-	const trigger = screen.getByRole('button', { name: 'Cliente' })
+	const trigger = screen.getByRole('combobox', { name: 'Cliente' })
 	await user.click(trigger)
 	await user.keyboard('{ArrowDown}')
 	assert.equal(document.activeElement, screen.getByRole('option', { name: 'Seleccionar' }))
@@ -381,7 +381,7 @@ test('SearchSelect blocks duplicate creates and exposes empty results', async ()
 		/>,
 	)
 
-	await user.click(screen.getByRole('button', { name: 'Cliente' }))
+	await user.click(screen.getByRole('combobox', { name: 'Cliente' }))
 	const search = screen.getByLabelText('Buscar Cliente')
 	await user.type(search, 'Ana Lopez')
 	assert.equal(screen.queryByRole('button', { name: 'Crear cliente' }), null)

@@ -30,6 +30,7 @@ import {
 	LockKeyhole,
 	LogOut,
 	Menu,
+	MoreHorizontal,
 	Package,
 	Pencil,
 	Plus,
@@ -48,6 +49,7 @@ import {
 	type CSSProperties,
 	type FormEvent,
 	type KeyboardEvent,
+	type MouseEvent,
 	type ReactNode,
 	useEffect,
 	useMemo,
@@ -84,6 +86,10 @@ import { Field } from '@/app/components/ui/Field'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { ModalFrame as Modal } from '@/app/components/ui/ModalFrame'
 import { Panel } from '@/app/components/ui/Panel'
+import {
+	QuickActionsMenu,
+	type QuickAction,
+} from '@/app/components/ui/QuickActionsMenu'
 import {
 	RecordCard,
 	RecordCardHeader,
@@ -251,6 +257,7 @@ import {
 	sectionMeta,
 	sectionRequiresEmployer,
 	serviceTypeLabels,
+	successToastDescription,
 	toIsoDate,
 	today,
 	toolStatusLabels,
@@ -264,6 +271,12 @@ import {
 	useFlashTarget,
 	useNoticeToasts,
 } from '@/lib/page-support'
+
+type QuickActionsMenuState = {
+	title: string
+	actions: QuickAction[]
+	anchorPoint: { x: number; y: number }
+}
 
 type UndoAction<T> = {
 	label?: ActionMessage<T>
@@ -1238,6 +1251,9 @@ export default function Home() {
 		editData: AnyRecord
 		editing: boolean
 	} | null>(null)
+	const [quickActionsMenu, setQuickActionsMenu] =
+		useState<QuickActionsMenuState | null>(null)
+	const quickActionsReturnFocusRef = useRef<HTMLElement | null>(null)
 	const [customerHistory, setCustomerHistory] = useState<AnyRecord | null>(null)
 	const [customerHistoryLoading, setCustomerHistoryLoading] = useState(false)
 	const [customerDashboard, setCustomerDashboard] = useState<AnyRecord | null>(
@@ -1513,8 +1529,7 @@ export default function Home() {
 		pending.busy = true
 		setError(null)
 		try {
-			await pending.execute()
-			await loadData()
+			await loadData({ force: true })
 			const successTitle = pending.successTitle
 			const successDescription = pending.successDescription
 			clearPendingUndo()
@@ -2984,6 +2999,111 @@ export default function Home() {
 		return undefined
 	}
 
+	function agendaActionIcon(action: AgendaReservationAction) {
+		if (action.kind === 'work-order-charge') return <CreditCard size={15} />
+		if (action.kind === 'reservation' && action.action === 'cancel') {
+			return <Trash2 size={15} />
+		}
+		return <CheckCircle2 size={15} />
+	}
+
+	function agendaActionTone(action: AgendaReservationAction): QuickAction['tone'] {
+		if (action.kind === 'reservation' && action.action === 'cancel') {
+			return 'danger'
+		}
+		return action.variant === 'filled' ? 'primary' : 'default'
+	}
+
+	function agendaReservationQuickActions(
+		reservation: AnyRecord,
+		workOrder: AnyRecord | null | undefined,
+		row: AgendaOperationalRow,
+		actions: AgendaReservationAction[],
+	) {
+		const showWork = reservationShowsWork(reservation, workOrder)
+		const workOrderForDetail: AnyRecord | null = workOrder
+			? { ...workOrder, _agenda_day: row.day }
+			: null
+		const detailData = showWork
+			? { ...reservation, work_order: workOrderForDetail }
+			: reservation
+		const customer = customerForRecord(reservation)
+		const vehicle = vehicleForRecord(reservation)
+		return [
+			{
+				id: `agenda:reservation:detail:${reservation.id}`,
+				label: 'Detalle reserva',
+				icon: <Eye size={15} />,
+				onSelect: () => openDetailModal('Reserva', detailData),
+			},
+			{
+				id: `agenda:workorder:detail:${workOrder?.id ?? reservation.id}`,
+				label: 'Detalle trabajo',
+				icon: <Wrench size={15} />,
+				hidden: !showWork || !workOrder,
+				onSelect: () =>
+					workOrderForDetail &&
+					openDetailModal('Orden de trabajo', workOrderForDetail),
+			},
+			{
+				id: `agenda:customer:${reservation.id}`,
+				label: 'Cliente',
+				icon: <Users size={15} />,
+				hidden: !customer,
+				onSelect: () => customer && openCustomerDashboard(customer),
+			},
+			{
+				id: `agenda:vehicle:${reservation.id}`,
+				label: 'Vehiculo',
+				icon: <Car size={15} />,
+				hidden: !vehicle,
+				onSelect: () => vehicle && openDetailModal('Vehiculo', vehicle),
+			},
+			{
+				id: `agenda:quote:${reservation.id}`,
+				label: 'Abrir cotizacion',
+				icon: <FileText size={15} />,
+				hidden: !canViewEconomy,
+				onSelect: () => createQuoteFromReservation(reservation),
+			},
+			{
+				id: `agenda:quote-pdf:${reservation.id}`,
+				label: 'PDF cotizacion',
+				icon: <FileText size={15} />,
+				hidden: !canViewEconomy,
+				onSelect: () => downloadQuotePdfFromReservation(reservation),
+			},
+			{
+				id: `agenda:consume:${workOrder?.id ?? reservation.id}`,
+				label: 'Consumir productos',
+				icon: <Package size={15} />,
+				hidden: !canViewEconomy || !showWork || !workOrder,
+				onSelect: () => workOrder && openConsumptionForOrder(workOrder, row.day),
+			},
+			...actions.map((action) => ({
+				id: `agenda:action:${reservation.id}:${action.kind}:${
+					action.kind === 'reservation'
+						? action.action
+						: action.kind === 'work-order-status'
+							? action.status
+							: action.label
+				}`,
+				label: action.label,
+				icon: agendaActionIcon(action),
+				tone: agendaActionTone(action),
+				requiresConfirm:
+					action.kind === 'reservation' && action.action === 'cancel',
+				onSelect: () =>
+					runAgendaReservationAction(
+						action,
+						reservation,
+						showWork ? (workOrder as AnyRecord) : null,
+						row,
+					),
+			} satisfies QuickAction)),
+		] satisfies QuickAction[]
+	}
+
 	function reservationWorkOrder(reservation: AnyRecord) {
 		return workOrderForReservation(reservation, workOrderByReservation)
 	}
@@ -3028,12 +3148,19 @@ export default function Home() {
 	}
 
 	function renderWorkFreeQuoteCard(item: AnyRecord) {
+		const quickActions = quoteQuickActions(item)
 		return (
 			<MotionFlashSurface
 				className={recordClass('quote', item.id, 'quote-board-card')}
 				key={`work-free-quote-${item.id}`}
 				{...detailRecordProps('Cotizacion', item)}
+				{...quickActionTargetProps('Acciones de cotizacion', quickActions)}
 			>
+				{renderQuickActionsTrigger(
+					'Acciones de cotizacion',
+					quickActions,
+					'Acciones rapidas de cotizacion',
+				)}
 				{renderQuoteCardContent(item)}
 			</MotionFlashSurface>
 		)
@@ -3261,18 +3388,32 @@ export default function Home() {
 			reservationStatus: reservation.status,
 			workOrderStatus: showWork ? workOrder?.status : undefined,
 		})
+		const quickActions = agendaReservationQuickActions(
+			reservation,
+			workOrder,
+			row,
+			actions,
+		)
 
 		return (
 			<AgendaReservationCard
 				actions={actions}
-				detailProps={detailRecordProps(
-					'Reserva',
-					showWork
-						? { ...reservation, work_order: workOrderForDetail }
-						: reservation,
-				)}
+				detailProps={{
+					...detailRecordProps(
+						'Reserva',
+						showWork
+							? { ...reservation, work_order: workOrderForDetail }
+							: reservation,
+					),
+					...quickActionTargetProps('Acciones de agenda', quickActions),
+				}}
 				phase={row.phase}
 				phaseLabel={agendaPhaseLabels[row.phase]}
+				quickActionsTrigger={renderQuickActionsTrigger(
+					'Acciones de agenda',
+					quickActions,
+					'Acciones rapidas de agenda',
+				)}
 				rangeLabel={rangeLabel}
 				reservation={reservation}
 				reservationStatusLabel={
@@ -3598,6 +3739,7 @@ export default function Home() {
 		const quoteId = String(item.id ?? '')
 		const laneStatus = quoteLaneStatus(item)
 		const canDrag = laneStatus === 'draft'
+		const quickActions = quoteQuickActions(item)
 		const { listeners, setNodeRef, isDragging } = useDraggable({
 			id: `quote:${quoteId}`,
 			data: {
@@ -3623,7 +3765,13 @@ export default function Home() {
 					),
 				)}
 				{...detailRecordProps('Cotizacion', item)}
+				{...quickActionTargetProps('Acciones de cotizacion', quickActions)}
 			>
+				{renderQuickActionsTrigger(
+					'Acciones de cotizacion',
+					quickActions,
+					'Acciones rapidas de cotizacion',
+				)}
 				{renderQuoteCardContent(item)}
 			</MotionFlashSurface>
 		)
@@ -3738,7 +3886,7 @@ export default function Home() {
 			if (successTitle) {
 				const successDescription =
 					resolveActionMessage(options?.successDescription, result) ??
-					undefined
+					successToastDescription(successTitle)
 				if (options?.undo) {
 					registerUndoAction(
 						result,
@@ -3823,8 +3971,8 @@ export default function Home() {
 		)
 	}
 
-	async function createQuoteFromReservation(item: AnyRecord) {
-		const createdQuote = await runAction(
+	async function ensureQuoteFromReservation(item: AnyRecord) {
+		return runAction(
 			() =>
 				apiFetch(`/reservations/${item.id}/quote/`, {
 					method: 'POST',
@@ -3834,11 +3982,23 @@ export default function Home() {
 				successTitle: entityFeedbackTitle('quote', 'created'),
 			},
 		)
+	}
+
+	async function createQuoteFromReservation(item: AnyRecord) {
+		const createdQuote = await ensureQuoteFromReservation(item)
 		if (createdQuote) {
 			setActive('quotes')
 			openDetailModal('Cotizacion', createdQuote)
 		}
 		return createdQuote
+	}
+
+	async function downloadQuotePdfFromReservation(item: AnyRecord) {
+		const quote = await ensureQuoteFromReservation(item)
+		if (quote) {
+			await downloadQuotePdf(quote)
+		}
+		return quote
 	}
 
 	function downloadQuotePdf(item: AnyRecord) {
@@ -4050,6 +4210,7 @@ export default function Home() {
 					'Movimiento deshecho',
 				),
 				'Reserva movida',
+				successToastDescription('Reserva movida'),
 			)
 		} catch (err: any) {
 			setReservations(previousReservations)
@@ -4192,6 +4353,7 @@ export default function Home() {
 					successTitle: 'Estado anterior restaurado',
 				},
 				'Estado actualizado',
+				successToastDescription('Estado actualizado'),
 			)
 		} catch (err: any) {
 			setReservations(previousReservations)
@@ -4280,6 +4442,7 @@ export default function Home() {
 					'Cotizacion restaurada',
 				),
 				'PDF descargado y cotizacion enviada',
+				successToastDescription('PDF descargado y cotizacion enviada'),
 			)
 		} catch (err: any) {
 			setQuotes(previousQuotes)
@@ -4325,7 +4488,11 @@ export default function Home() {
 		setSelectedDay(targetDay)
 		setActive('agenda')
 		flash(agendaCardFlashKey(`reservation:${reservationId}`))
-		showToast({ tone: 'success', title: 'Reserva ubicada en agenda' })
+		showToast({
+			tone: 'success',
+			title: 'Reserva ubicada en agenda',
+			description: successToastDescription('Reserva ubicada en agenda'),
+		})
 	}
 
 	async function logout() {
@@ -4854,12 +5021,224 @@ export default function Home() {
 		numberValue(dashboard.work_orders_count),
 		dashboardWorkStatusTotal,
 	)
+	const dashboardPreviousPeriod = dashboard.previous_period ?? {}
+	const dashboardBilledTotal = numberValue(
+		dashboard.billed_total ?? dashboard.sales_total,
+	)
+	const dashboardCollectedTotal = numberValue(
+		dashboard.collected_total ?? dashboard.sales_total,
+	)
+	const dashboardBalanceDueTotal = numberValue(dashboard.balance_due_total)
+	const dashboardBalanceDueWorkOrdersCount = numberValue(
+		dashboard.work_orders_with_balance_due_count,
+	)
+	const dashboardMaterialCostTotal = numberValue(
+		dashboard.material_cost_total ??
+			dashboard.material_consumption_estimated,
+	)
+	const dashboardEstimatedMarginTotal = numberValue(
+		dashboard.estimated_margin_total,
+	)
+	const dashboardCashflowIncomeTotal = numberValue(
+		dashboard.cashflow_income_total ?? dashboard.today_income,
+	)
+	const dashboardCashflowExpenseTotal = numberValue(
+		dashboard.cashflow_expense_total ?? dashboard.today_expense,
+	)
+	const dashboardCashflowBalance = numberValue(
+		dashboard.cashflow_balance ?? dashboard.today_balance,
+	)
+	const dashboardOverdueDebtsTotal = numberValue(dashboard.overdue_debts_total)
+	const dashboardOverdueDebtsCount = numberValue(dashboard.overdue_debts_count)
+	const dashboardMaterialPurchasesTotal = numberValue(
+		dashboard.material_purchases_total,
+	)
+	const dashboardEconomicAlerts = Array.isArray(dashboard.economic_alerts)
+		? dashboard.economic_alerts
+		: []
+	const dashboardEconomicInsights = Array.isArray(dashboard.economic_insights)
+		? dashboard.economic_insights
+		: []
+	const dashboardTopReceivables = Array.isArray(dashboard.top_receivables)
+		? dashboard.top_receivables
+		: []
+	const dashboardReceivablesAging = Array.isArray(dashboard.receivables_aging)
+		? dashboard.receivables_aging
+		: []
+	const dashboardDebtTiming =
+		dashboard.debt_timing && typeof dashboard.debt_timing === 'object'
+			? dashboard.debt_timing
+			: {}
+	const dashboardDebtOverdue = dashboardDebtTiming.overdue ?? {}
+	const dashboardDebtDueSoon = dashboardDebtTiming.due_soon ?? {}
+	const dashboardMarginBasis =
+		dashboard.margin_basis && typeof dashboard.margin_basis === 'object'
+			? dashboard.margin_basis
+			: {}
+	const dashboardDataQuality =
+		dashboard.data_quality && typeof dashboard.data_quality === 'object'
+			? dashboard.data_quality
+			: {}
+	const dashboardComparison =
+		dashboard.comparison && typeof dashboard.comparison === 'object'
+			? dashboard.comparison
+			: {}
+	const dashboardRankings =
+		dashboard.rankings && typeof dashboard.rankings === 'object'
+			? dashboard.rankings
+			: {}
+	const dashboardTopCustomersByBilled = Array.isArray(
+		dashboardRankings.top_customers_by_billed,
+	)
+		? dashboardRankings.top_customers_by_billed
+		: []
+	const dashboardTopServicesByBilled = Array.isArray(
+		dashboardRankings.top_services_by_billed,
+	)
+		? dashboardRankings.top_services_by_billed
+		: []
+	const dashboardTopWorkOrdersByMargin = Array.isArray(
+		dashboardRankings.top_work_orders_by_margin,
+	)
+		? dashboardRankings.top_work_orders_by_margin
+		: []
+	const dashboardTopMaterialsByCost = Array.isArray(
+		dashboardRankings.top_materials_by_cost,
+	)
+		? dashboardRankings.top_materials_by_cost
+		: []
+	const dashboardPreviousHasActivity =
+		dashboardPreviousPeriod.has_activity === true ||
+		(dashboardPreviousPeriod.has_activity !== false &&
+			[
+				'billed_total',
+				'collected_total',
+				'balance_due_total',
+				'material_cost_total',
+				'cashflow_balance',
+			].some((field) => numberValue(dashboardPreviousPeriod[field]) !== 0))
 	const dashboardHasBusinessActivity =
+		dashboard.has_activity === true ||
 		dashboardWorkOrdersTotal > 0 ||
-		numberValue(dashboard.sales_total) > 0 ||
-		numberValue(dashboard.today_income) > 0 ||
-		numberValue(dashboard.today_expense) > 0 ||
-		numberValue(dashboard.material_consumption_estimated) > 0
+		dashboardBilledTotal > 0 ||
+		dashboardCollectedTotal > 0 ||
+		dashboardBalanceDueTotal > 0 ||
+		dashboardMaterialCostTotal > 0 ||
+		dashboardMaterialPurchasesTotal > 0 ||
+		dashboardCashflowIncomeTotal > 0 ||
+		dashboardCashflowExpenseTotal > 0 ||
+		dashboardOverdueDebtsTotal > 0 ||
+		dashboardEconomicAlerts.length > 0
+	const dashboardEmptyPeriod =
+		String(dashboardDataQuality.state ?? '') === 'empty' &&
+		!dashboardHasBusinessActivity
+
+	function dashboardDeltaHint(
+		current: any,
+		previous: any,
+		options: {
+			label?: string
+			polarity?: 'higher-is-good' | 'higher-is-bad' | 'neutral'
+			hasPreviousActivity?: boolean
+			metricKey?: string
+		} = {},
+	) {
+		const {
+			label = 'vs periodo anterior',
+			polarity = 'higher-is-good',
+			hasPreviousActivity = dashboardPreviousHasActivity,
+			metricKey,
+		} = options
+		const comparisonMetric =
+			metricKey && dashboardComparison[metricKey]
+				? dashboardComparison[metricKey]
+				: null
+		const metricHasPreviousActivity =
+			comparisonMetric?.has_previous_activity ?? hasPreviousActivity
+		const metricPolarity =
+			comparisonMetric?.polarity === 'higher-is-bad' ||
+			comparisonMetric?.polarity === 'neutral' ||
+			comparisonMetric?.polarity === 'higher-is-good'
+				? comparisonMetric.polarity
+				: polarity
+		if (metricHasPreviousActivity === false) {
+			return <span className="dashboard-delta">Sin actividad previa</span>
+		}
+		const previousInput = comparisonMetric?.previous ?? previous
+		if (
+			previousInput === undefined ||
+			previousInput === null ||
+			previousInput === ''
+		) {
+			return <span className="dashboard-delta">Sin comparacion previa</span>
+		}
+		const currentValue = numberValue(comparisonMetric?.current ?? current)
+		const previousValue = numberValue(previousInput)
+		const delta =
+			comparisonMetric && comparisonMetric.delta !== undefined
+				? numberValue(comparisonMetric.delta)
+				: currentValue - previousValue
+		if (previousValue === 0 && delta === 0) {
+			return <span className="dashboard-delta">Sin variacion {label}</span>
+		}
+		const semanticDirection =
+			metricPolarity === 'neutral'
+				? 'flat'
+				: metricPolarity === 'higher-is-bad'
+					? delta > 0
+						? 'down'
+						: delta < 0
+							? 'up'
+							: 'flat'
+					: delta > 0
+						? 'up'
+						: delta < 0
+							? 'down'
+							: 'flat'
+		if (previousValue === 0) {
+			return (
+				<span
+					className={cx(
+						'dashboard-delta',
+						`dashboard-delta--${semanticDirection}`,
+					)}
+				>
+					Nuevo {label}
+				</span>
+			)
+		}
+		const percentValue =
+			comparisonMetric?.delta_percent !== undefined &&
+			comparisonMetric?.delta_percent !== null
+				? Math.abs(numberValue(comparisonMetric.delta_percent))
+				: Math.abs((delta / previousValue) * 100)
+		const percent = percentValue.toLocaleString('es-AR', {
+			maximumFractionDigits: 1,
+		})
+		const prefix = delta > 0 ? '+' : delta < 0 ? '-' : ''
+		return (
+			<span
+				className={cx('dashboard-delta', `dashboard-delta--${semanticDirection}`)}
+			>
+				{prefix}
+				{percent}% {label}
+			</span>
+		)
+	}
+
+	function dashboardCountText(count: number, singular: string, plural: string) {
+		return `${count} ${count === 1 ? singular : plural}`
+	}
+
+	function dashboardAlertTarget(alert: AnyRecord): Section | null {
+		const section = String(alert.action_section ?? '')
+		return section in sectionMeta ? (section as Section) : null
+	}
+
+	function dashboardInsightTarget(insight: AnyRecord): Section | null {
+		const section = String(insight.action_section ?? '')
+		return section in sectionMeta ? (section as Section) : null
+	}
 
 	function materialUsageRows(material: AnyRecord) {
 		const legacyRows = consumptions.filter(
@@ -7479,7 +7858,11 @@ export default function Home() {
 			})
 			setCurrentUser(saved)
 			syncProfileForm(saved)
-			showToast({ tone: 'success', title: 'Perfil actualizado' })
+			showToast({
+				tone: 'success',
+				title: 'Perfil actualizado',
+				description: successToastDescription('Perfil actualizado'),
+			})
 		} catch (err: any) {
 			setError(
 				formatApiError(err, {
@@ -7554,6 +7937,83 @@ export default function Home() {
 		setSupplierDashboard(supplier)
 	}
 
+	function availableQuickActions(actions: QuickAction[]) {
+		return actions.filter((action) => !action.hidden)
+	}
+
+	function openQuickActionsAt(
+		anchorPoint: { x: number; y: number },
+		title: string,
+		actions: QuickAction[],
+		returnFocusElement?: HTMLElement | null,
+	) {
+		const visibleActions = availableQuickActions(actions)
+		if (!visibleActions.length) return
+		quickActionsReturnFocusRef.current = returnFocusElement ?? null
+		setQuickActionsMenu({
+			title,
+			actions: visibleActions,
+			anchorPoint,
+		})
+	}
+
+	function openQuickActionsFromContext(
+		event: MouseEvent<HTMLElement>,
+		title: string,
+		actions: QuickAction[],
+	) {
+		event.preventDefault()
+		event.stopPropagation()
+		openQuickActionsAt(
+			{ x: event.clientX, y: event.clientY },
+			title,
+			actions,
+			event.currentTarget,
+		)
+	}
+
+	function openQuickActionsFromTrigger(
+		event: MouseEvent<HTMLButtonElement>,
+		title: string,
+		actions: QuickAction[],
+	) {
+		event.preventDefault()
+		event.stopPropagation()
+		const rect = event.currentTarget.getBoundingClientRect()
+		openQuickActionsAt(
+			{ x: rect.right, y: rect.bottom },
+			title,
+			actions,
+			event.currentTarget,
+		)
+	}
+
+	function quickActionTargetProps(title: string, actions: QuickAction[]) {
+		return {
+			onContextMenu: (event: MouseEvent<HTMLElement>) =>
+				openQuickActionsFromContext(event, title, actions),
+		}
+	}
+
+	function renderQuickActionsTrigger(
+		title: string,
+		actions: QuickAction[],
+		ariaLabel = 'Abrir acciones rapidas',
+	) {
+		if (!availableQuickActions(actions).length) return null
+		return (
+			<button
+				type="button"
+				className="ghost icon-button quick-actions-trigger"
+				aria-label={ariaLabel}
+				title={ariaLabel}
+				onClick={(event) => openQuickActionsFromTrigger(event, title, actions)}
+			>
+				<MoreHorizontal size={16} />
+			</button>
+		)
+	}
+
 	function interactiveRecordProps(onOpen: () => void) {
 		return {
 			role: 'button',
@@ -7587,6 +8047,363 @@ export default function Home() {
 			expense_subcategory: 'Compra de materiales',
 		})
 		setFormModal({ kind: 'debt' })
+	}
+
+	function openUnitForMaterial(material: AnyRecord) {
+		setOpenUnitForm({
+			material: String(material.id),
+			opened_at: selectedDay,
+			opened_by_work_order: '',
+			stock_quantity_to_decrement: '1',
+			observations: '',
+		})
+		setFormModal({ kind: 'material-open-unit' })
+	}
+
+	function customerForRecord(record: AnyRecord | null | undefined) {
+		const customerId =
+			record?.customer ?? record?.customer_id ?? record?.customerId ?? null
+		if (customerId === null || customerId === undefined || customerId === '') {
+			return null
+		}
+		return (
+			customers.find((customer) => String(customer.id) === String(customerId)) ??
+			null
+		)
+	}
+
+	function vehicleForRecord(record: AnyRecord | null | undefined) {
+		const vehicleId =
+			record?.vehicle ?? record?.vehicle_id ?? record?.vehicleId ?? null
+		if (vehicleId === null || vehicleId === undefined || vehicleId === '') {
+			return null
+		}
+		return (
+			vehicles.find((vehicle) => String(vehicle.id) === String(vehicleId)) ??
+			null
+		)
+	}
+
+	function deleteRecordQuickAction(
+		kind: string,
+		data: AnyRecord,
+		label = 'Eliminar',
+	): QuickAction {
+		const path = data?.id ? detailEndpoint(kind, data.id) : ''
+		const undo =
+			data && 'is_active' in data ? undoRestoreActiveRecord(kind, data) : null
+		return {
+			id: `${kind}:delete:${data?.id ?? 'new'}`,
+			label,
+			icon: <Trash2 size={15} />,
+			tone: 'danger',
+			requiresConfirm: true,
+			hidden: !path,
+			onSelect: () =>
+				runAction(
+					() =>
+						apiFetch(path, {
+							method: 'DELETE',
+						}),
+					{
+						successTitle: entityFeedbackTitle(kind, 'deleted'),
+						...(undo ? { undo } : {}),
+					},
+				),
+		}
+	}
+
+	function customerQuickActions(customer: AnyRecord): QuickAction[] {
+		const customerName = serviceDisplayName(customer)
+		const actions: QuickAction[] = [
+			{
+				id: `customer:dashboard:${customer.id}`,
+				label: canViewEconomy ? 'Dashboard cliente' : 'Detalle cliente',
+				icon: <Eye size={15} />,
+				onSelect: () => openCustomerDashboard(customer),
+			},
+			{
+				id: `customer:edit:${customer.id}`,
+				label: 'Editar cliente',
+				icon: <Pencil size={15} />,
+				onSelect: () => openDetailModal('Cliente', customer),
+			},
+			deleteRecordQuickAction('customer', customer, 'Baja cliente'),
+		]
+		return actions.map((action) => ({
+			...action,
+			description: action.description ?? customerName,
+		}))
+	}
+
+	function vehicleQuickActions(vehicle: AnyRecord): QuickAction[] {
+		const customer = customerForRecord(vehicle)
+		return [
+			{
+				id: `vehicle:detail:${vehicle.id}`,
+				label: 'Detalle vehiculo',
+				icon: <Eye size={15} />,
+				onSelect: () => openDetailModal('Vehiculo', vehicle),
+			},
+			{
+				id: `vehicle:customer:${vehicle.id}`,
+				label: 'Cliente',
+				icon: <Users size={15} />,
+				hidden: !customer,
+				onSelect: () => customer && openCustomerDashboard(customer),
+			},
+			deleteRecordQuickAction('vehicle', vehicle, 'Baja vehiculo'),
+		]
+	}
+
+	function supplierQuickActions(supplier: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `supplier:dashboard:${supplier.id}`,
+				label: 'Dashboard proveedor',
+				icon: <Eye size={15} />,
+				hidden: !canViewEconomy,
+				onSelect: () => openSupplierDashboard(supplier),
+			},
+			{
+				id: `supplier:purchase:${supplier.id}`,
+				label: 'Nueva compra',
+				icon: <Package size={15} />,
+				hidden: !canViewEconomy,
+				onSelect: () => openStockPurchaseForSupplier(supplier),
+			},
+			{
+				id: `supplier:debt:${supplier.id}`,
+				label: 'Nueva deuda',
+				icon: <ReceiptText size={15} />,
+				hidden: !canViewEconomy,
+				onSelect: () => openDebtForSupplier(supplier),
+			},
+			{
+				id: `supplier:edit:${supplier.id}`,
+				label: 'Editar proveedor',
+				icon: <Pencil size={15} />,
+				onSelect: () => openDetailModal('Proveedor', supplier),
+			},
+			deleteRecordQuickAction('supplier', supplier, 'Inactivar proveedor'),
+		]
+	}
+
+	function serviceQuickActions(service: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `service:dashboard:${service.id}`,
+				label: 'Dashboard servicio',
+				icon: <Eye size={15} />,
+				onSelect: () => openServiceDashboard(service),
+			},
+			{
+				id: `service:edit:${service.id}`,
+				label: 'Editar servicio',
+				icon: <Pencil size={15} />,
+				onSelect: () => openDetailModal('Servicio', service),
+			},
+			deleteRecordQuickAction('service', service, 'Inactivar servicio'),
+		]
+	}
+
+	function materialQuickActions(material: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `material:open-unit:${material.id}`,
+				label: 'Abrir unidad',
+				icon: <Package size={15} />,
+				hidden: !canViewEconomy,
+				onSelect: () => openUnitForMaterial(material),
+			},
+			{
+				id: `material:edit:${material.id}`,
+				label: 'Editar material',
+				icon: <Pencil size={15} />,
+				onSelect: () => openDetailModal('Material', material),
+			},
+			deleteRecordQuickAction('material', material, 'Inactivar material'),
+		]
+	}
+
+	function toolQuickActions(tool: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `tool:edit:${tool.id}`,
+				label: 'Editar herramienta',
+				icon: <Pencil size={15} />,
+				onSelect: () => openDetailModal('Herramienta', tool),
+			},
+			deleteRecordQuickAction('tool', tool, 'Inactivar herramienta'),
+		]
+	}
+
+	function debtQuickActions(debt: AnyRecord): QuickAction[] {
+		const hasBalance = numberValue(debt.balance_due) > 0
+		return [
+			{
+				id: `debt:pay:${debt.id}`,
+				label: 'Registrar pago',
+				icon: <CreditCard size={15} />,
+				hidden: !hasBalance,
+				onSelect: () => openDebtPaymentForDebt(debt),
+			},
+			{
+				id: `debt:detail:${debt.id}`,
+				label: 'Detalle deuda',
+				icon: <Eye size={15} />,
+				onSelect: () => openDetailModal('Deuda', debt),
+			},
+			deleteRecordQuickAction('debt', debt, 'Eliminar deuda'),
+		]
+	}
+
+	function debtPaymentQuickActions(payment: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `debt-payment:detail:${payment.id}`,
+				label: 'Detalle pago',
+				icon: <Eye size={15} />,
+				onSelect: () => openDetailModal('Pago de deuda', payment),
+			},
+			deleteRecordQuickAction('debt-payment', payment, 'Eliminar pago'),
+		]
+	}
+
+	function cashEntryQuickActions(entry: AnyRecord): QuickAction[] {
+		const sourceKind = String(entry.source_kind ?? '')
+		const isDebtPayment = sourceKind === 'debt_payment'
+		const isEditableCashMovement =
+			sourceKind === 'manual' || sourceKind === 'adjustment'
+		const sourceId = entry.source_id ?? entry.id
+		const deleteKind = isDebtPayment ? 'debt-payment' : 'cash-movement'
+		const deleteData = isDebtPayment
+			? debtPaymentDetailData(entry)
+			: { ...entry, id: sourceId }
+		const actions: QuickAction[] = [
+			{
+				id: `cash-entry:detail:${cashEntryKey(entry)}`,
+				label: 'Detalle movimiento',
+				icon: <Eye size={15} />,
+				onSelect: () => openCashEntryDetail(entry),
+			},
+			deleteRecordQuickAction(
+				deleteKind,
+				deleteData,
+				isDebtPayment ? 'Eliminar pago' : 'Eliminar movimiento',
+			),
+		]
+		return actions.map((action) => ({
+			...action,
+			hidden:
+				action.hidden ||
+				(action.id.startsWith(`${deleteKind}:delete:`) &&
+					!isDebtPayment &&
+					!isEditableCashMovement),
+		}))
+	}
+
+	function quoteQuickActions(quote: AnyRecord): QuickAction[] {
+		const customer = customerForRecord(quote)
+		const vehicle = vehicleForRecord(quote)
+		const hasReservation = quoteHasReservation(quote)
+		const isDraft = quoteLaneStatus(quote) === 'draft'
+		return [
+			{
+				id: `quote:detail:${quote.id}`,
+				label: 'Detalle cotizacion',
+				icon: <Eye size={15} />,
+				onSelect: () => openDetailModal('Cotizacion', quote),
+			},
+			{
+				id: `quote:pdf:${quote.id}`,
+				label: 'Bajar PDF',
+				icon: <FileText size={15} />,
+				onSelect: () => downloadQuotePdf(quote),
+			},
+			{
+				id: `quote:send:${quote.id}`,
+				label: 'Bajar y marcar enviada',
+				icon: <FileText size={15} />,
+				hidden: !isDraft,
+				onSelect: () => downloadQuotePdfAndMarkSent(quote),
+			},
+			{
+				id: `quote:agenda:${quote.id}`,
+				label: hasReservation ? 'Ver en agenda' : 'Crear reserva',
+				icon: <CalendarDays size={15} />,
+				onSelect: () =>
+					hasReservation
+						? openQuoteReservationInAgenda(quote)
+						: createReservationFromQuote(quote),
+			},
+			{
+				id: `quote:customer:${quote.id}`,
+				label: 'Cliente',
+				icon: <Users size={15} />,
+				hidden: !customer,
+				onSelect: () => customer && openCustomerDashboard(customer),
+			},
+			{
+				id: `quote:vehicle:${quote.id}`,
+				label: 'Vehiculo',
+				icon: <Car size={15} />,
+				hidden: !vehicle,
+				onSelect: () => vehicle && openDetailModal('Vehiculo', vehicle),
+			},
+			deleteRecordQuickAction('quote', quote, 'Eliminar cotizacion'),
+		]
+	}
+
+	function materialOpenUnitQuickActions(unit: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `material-open-unit:detail:${unit.id}`,
+				label: 'Detalle unidad',
+				icon: <Eye size={15} />,
+				onSelect: () => openDetailModal('Unidad abierta', unit),
+			},
+			{
+				id: `material-open-unit:finish:${unit.id}`,
+				label: 'Finalizar unidad',
+				icon: <CheckCircle2 size={15} />,
+				hidden: unit.status !== 'open',
+				onSelect: () => finishOpenUnit(unit),
+			},
+		]
+	}
+
+	function materialPurchaseQuickActions(purchase: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `material-purchase:detail:${purchase.id}`,
+				label: 'Detalle compra',
+				icon: <Eye size={15} />,
+				onSelect: () => openDetailModal('Compra de material', purchase),
+			},
+			deleteRecordQuickAction(
+				'material-purchase',
+				purchase,
+				'Eliminar compra',
+			),
+		]
+	}
+
+	function materialConsumptionQuickActions(consumption: AnyRecord): QuickAction[] {
+		return [
+			{
+				id: `material-consumption:detail:${consumption.id}`,
+				label: 'Detalle consumo',
+				icon: <Eye size={15} />,
+				onSelect: () =>
+					openDetailModal('Consumo de material', consumption),
+			},
+			deleteRecordQuickAction(
+				'material-consumption',
+				consumption,
+				'Eliminar consumo',
+			),
+		]
 	}
 
 	function detailRecordProps(title: string, data: AnyRecord) {
@@ -14182,6 +14999,14 @@ export default function Home() {
 				}
 			>
 				<NoticeToastViewport toasts={toasts} onDismiss={dismissToast} />
+				<QuickActionsMenu
+					open={Boolean(quickActionsMenu)}
+					anchorPoint={quickActionsMenu?.anchorPoint ?? null}
+					actions={quickActionsMenu?.actions ?? []}
+					title={quickActionsMenu?.title ?? ''}
+					returnFocusRef={quickActionsReturnFocusRef}
+					onClose={() => setQuickActionsMenu(null)}
+				/>
 				<AnimatedWorkspaceView viewKey={displayedActive}>
 					<PageHeader
 						title={title.label}
@@ -14301,57 +15126,529 @@ export default function Home() {
 										hint="Mantenemos el tablero visible mientras llegan ventas, trabajos y caja."
 									/>
 								) : null}
-								{!loading || dashboardHasBusinessActivity ? (
+								{!loading && dashboardEmptyPeriod ? (
+									<Panel
+										title="Sin actividad economica en el periodo"
+										subtitle={String(
+											dashboardDataQuality.message ??
+												'No hay trabajos, pagos ni movimientos economicos en este rango.',
+										)}
+									>
+										<Empty
+											text="No hay datos para leer todavia."
+											hint="Cambia el rango o registra trabajos, cobros y movimientos para activar la cabina economica."
+											action={
+												<button
+													type="button"
+													className="primary"
+													onClick={() => setActive('agenda')}
+												>
+													<CalendarDays size={16} />
+													Ir a Agenda
+												</button>
+											}
+										/>
+									</Panel>
+								) : null}
+								{(!loading || dashboardHasBusinessActivity) &&
+								!dashboardEmptyPeriod ? (
 									<>
-										<section className="grid three metric-grid-dashboard">
+										<section className="dashboard-executive-grid">
 											<MetricCard
-												label="Ventas del periodo"
-												value={money(dashboard.sales_total)}
-												hint={dashboardPeriodLabel}
-											/>
-											<MetricCard
-												label="Reservas con trabajo"
-												value={dashboard.work_orders_count ?? 0}
-												hint="Ordenes creadas desde agenda"
-											/>
-											<MetricCard
-												label="Ticket promedio"
-												value={money(dashboard.average_ticket)}
-												hint="Promedio por trabajo vendido"
-											/>
-											<MetricCard
-												label={
-													<>
-														<span className="cash-term income">Ingresos</span>{' '}
-														del dia
-													</>
-												}
-												value={money(dashboard.today_income)}
-												hint={formatDateLabel(selectedDay)}
-											/>
-											<MetricCard
-												label={
-													<>
-														<span className="cash-term expense">Egresos</span>{' '}
-														del dia
-													</>
-												}
-												value={money(dashboard.today_expense)}
-												hint="Caja operativa"
-											/>
-											<MetricCard
-												label="Consumo materiales"
-												value={money(
-													dashboard.material_consumption_estimated,
+												className="dashboard-executive-metric"
+												label="Facturado"
+												value={money(dashboardBilledTotal)}
+												hint={dashboardDeltaHint(
+													dashboardBilledTotal,
+													dashboardPreviousPeriod.billed_total,
+													{ metricKey: 'billed_total' },
 												)}
-												hint="Costo estimado imputado"
+											/>
+											<MetricCard
+												className="dashboard-executive-metric"
+												label="Margen estimado"
+												value={money(dashboardEstimatedMarginTotal)}
+												hint={dashboardDeltaHint(
+													dashboardEstimatedMarginTotal,
+													dashboardPreviousPeriod.estimated_margin_total,
+													{ metricKey: 'estimated_margin_total' },
+												)}
+											/>
+											<MetricCard
+												className="dashboard-executive-metric"
+												label="Caja real"
+												value={money(dashboardCashflowBalance)}
+												hint={dashboardDeltaHint(
+													dashboardCashflowBalance,
+													dashboardPreviousPeriod.cashflow_balance,
+													{ metricKey: 'cashflow_balance' },
+												)}
+											/>
+											<MetricCard
+												className={cx(
+													'dashboard-executive-metric',
+													dashboardBalanceDueTotal > 0 &&
+														'metric--attention',
+												)}
+												label="Por cobrar"
+												value={money(dashboardBalanceDueTotal)}
+												hint={dashboardCountText(
+													dashboardBalanceDueWorkOrdersCount,
+													'trabajo con saldo',
+													'trabajos con saldo',
+												)}
 											/>
 										</section>
+										<div className="dashboard-insight-grid">
+											<Panel
+												title="Composicion economica"
+												subtitle="Separacion entre facturado, cobrado, costos y obligaciones."
+											>
+												<div className="dashboard-composition-grid">
+													<MetricCard
+														label="Cobrado"
+														value={money(dashboardCollectedTotal)}
+														hint="Pagos registrados en el periodo"
+													/>
+													<MetricCard
+														label="Materiales consumidos"
+														value={money(dashboardMaterialCostTotal)}
+														hint="Costo estimado imputado a trabajos"
+													/>
+													<MetricCard
+														label="Compras materiales"
+														value={money(dashboardMaterialPurchasesTotal)}
+														hint="Reposicion e insumos del periodo"
+													/>
+													<MetricCard
+														className={
+															dashboardOverdueDebtsTotal > 0
+																? 'metric--attention'
+																: ''
+														}
+														label="Deudas vencidas"
+														value={money(dashboardOverdueDebtsTotal)}
+														hint={`${dashboardOverdueDebtsCount} pendientes`}
+													/>
+												</div>
+												<div className="dashboard-economy-note">
+													<Info size={16} />
+													<div>
+														<strong>
+															{dashboardMarginBasis.label ??
+																'Margen estimado por materiales'}
+														</strong>
+														<p>
+															{dashboardMarginBasis.detail ??
+																'El margen descuenta materiales imputados; no reemplaza la utilidad contable final.'}
+														</p>
+													</div>
+												</div>
+												<div className="dashboard-aging-grid">
+													<div className="dashboard-aging-panel">
+														<div className="dashboard-section-kicker">
+															<span>Antiguedad por cobrar</span>
+														</div>
+														{dashboardReceivablesAging.length ? (
+															<div className="dashboard-aging-bars">
+																{dashboardReceivablesAging.map((bucket: AnyRecord) => (
+																	<div
+																		className="dashboard-aging-row"
+																		key={bucket.id ?? bucket.label}
+																	>
+																		<span>{bucket.label}</span>
+																		<strong>{money(bucket.amount)}</strong>
+																		<small>
+																			{dashboardCountText(
+																				numberValue(bucket.count),
+																				'trabajo',
+																				'trabajos',
+																			)}
+																		</small>
+																	</div>
+																))}
+															</div>
+														) : (
+															<Empty text="Sin saldos a cobrar." />
+														)}
+													</div>
+													<div className="dashboard-aging-panel">
+														<div className="dashboard-section-kicker">
+															<span>Deudas operativas</span>
+														</div>
+														<div className="dashboard-debt-timing">
+															<div>
+																<span>Vencidas</span>
+																<strong>{money(dashboardDebtOverdue.amount)}</strong>
+																<small>
+																	{dashboardCountText(
+																		numberValue(dashboardDebtOverdue.count),
+																		'deuda',
+																		'deudas',
+																	)}
+																</small>
+															</div>
+															<div>
+																<span>Por vencer</span>
+																<strong>{money(dashboardDebtDueSoon.amount)}</strong>
+																<small>
+																	{dashboardCountText(
+																		numberValue(dashboardDebtDueSoon.count),
+																		'deuda',
+																		'deudas',
+																	)}
+																</small>
+															</div>
+														</div>
+													</div>
+												</div>
+											</Panel>
+											<div className="dashboard-side-stack">
+												<Panel
+													title="Alertas economicas"
+													subtitle={
+														dashboardEconomicAlerts.length
+															? 'Prioridades para cobrar, pagar o corregir.'
+															: 'Sin alertas economicas activas para el periodo.'
+													}
+												>
+													{dashboardEconomicAlerts.length ? (
+														<div className="records dashboard-alert-records">
+															{dashboardEconomicAlerts.map((alert: AnyRecord) => {
+																const target = dashboardAlertTarget(alert)
+																return (
+																	<RecordCard
+																		className={cx(
+																			'dashboard-alert-record',
+																			`dashboard-alert-record--${
+																				alert.severity ?? 'warning'
+																			}`,
+																		)}
+																		key={alert.id ?? alert.title}
+																	>
+																		<div className="record-head">
+																			<div>
+																				<span>{alert.title}</span>
+																				<small>{alert.detail}</small>
+																			</div>
+																			<strong className="dashboard-alert-amount">
+																				{money(alert.amount)}
+																			</strong>
+																		</div>
+																		{target ? (
+																			<button
+																				type="button"
+																				className="ghost"
+																				onClick={() => setActive(target)}
+																			>
+																				{alert.action_label ??
+																					`Ver ${sectionMeta[target].label}`}
+																			</button>
+																		) : null}
+																	</RecordCard>
+																)
+															})}
+														</div>
+													) : (
+														<Empty
+															text="Sin alertas economicas."
+															hint="Cuando haya saldos a cobrar, caja negativa o deudas vencidas, van a aparecer aca."
+														/>
+													)}
+													{dashboardEconomicInsights.length ? (
+														<div className="dashboard-insights">
+															<h3>Lectura rapida</h3>
+															<div className="records dashboard-insight-records">
+																{dashboardEconomicInsights.map((insight: AnyRecord) => {
+																	const target = dashboardInsightTarget(insight)
+																	return (
+																		<RecordCard
+																			className="dashboard-insight-record"
+																			key={insight.id ?? insight.title}
+																		>
+																			<div>
+																				<span>{insight.title}</span>
+																				<small>{insight.detail}</small>
+																			</div>
+																			{target ? (
+																				<button
+																					type="button"
+																					className="ghost"
+																					onClick={() => setActive(target)}
+																				>
+																					Ver {sectionMeta[target].label}
+																				</button>
+																			) : null}
+																		</RecordCard>
+																	)
+																})}
+															</div>
+														</div>
+													) : null}
+													{dashboardTopReceivables.length ? (
+														<div className="dashboard-receivables">
+															<h3>A cobrar primero</h3>
+															<div className="records dashboard-receivable-records">
+																{dashboardTopReceivables.map((item: AnyRecord) => (
+																	<RecordCard
+																		className="dashboard-receivable-record"
+																		key={item.customer_id ?? item.customer_name}
+																	>
+																		<div className="record-head">
+																			<div>
+																				<span>{item.customer_name}</span>
+																				<small>
+																					{dashboardCountText(
+																						numberValue(item.work_orders_count),
+																						'trabajo con saldo',
+																						'trabajos con saldo',
+																					)}
+																					{numberValue(item.oldest_balance_days) > 0
+																						? ` - mas antiguo ${numberValue(
+																								item.oldest_balance_days,
+																							)} dias`
+																						: ''}
+																				</small>
+																			</div>
+																			<strong>{money(item.balance_due_total)}</strong>
+																		</div>
+																		{Array.isArray(item.work_orders) &&
+																		item.work_orders.length ? (
+																			<div className="dashboard-receivable-workorders">
+																				{item.work_orders.map((workOrder: AnyRecord) => (
+																					<div
+																						className="dashboard-receivable-workorder"
+																						key={workOrder.id}
+																					>
+																						<div>
+																							<span>
+																								#{workOrder.id} -{' '}
+																								{serviceDisplayName(workOrder)}
+																							</span>
+																							<small>
+																								{workOrder.vehicle_label} -{' '}
+																								{numberValue(workOrder.age_days)} dias
+																							</small>
+																						</div>
+																						<strong>{money(workOrder.balance_due)}</strong>
+																						<button
+																							type="button"
+																							className="ghost"
+																							onClick={() => openPaymentForOrder(workOrder)}
+																						>
+																							<CreditCard size={14} />
+																							Cobrar
+																						</button>
+																					</div>
+																				))}
+																			</div>
+																		) : null}
+																	</RecordCard>
+																))}
+															</div>
+														</div>
+													) : null}
+												</Panel>
+											<Panel
+												title="Comparacion"
+												subtitle={
+													dashboardPreviousHasActivity
+														? `${formatDateLabel(
+																dashboardPreviousPeriod.from,
+															)} a ${formatDateLabel(dashboardPreviousPeriod.to)}`
+														: 'Sin actividad registrada en el periodo anterior'
+												}
+											>
+												<div className="records dashboard-comparison-records">
+													<RecordCard className="dashboard-comparison-record">
+														<div className="record-head">
+															<span>Facturado</span>
+															<strong>{money(dashboardBilledTotal)}</strong>
+														</div>
+														<small>
+															{dashboardDeltaHint(
+																dashboardBilledTotal,
+																dashboardPreviousPeriod.billed_total,
+																{ metricKey: 'billed_total' },
+															)}
+														</small>
+													</RecordCard>
+													<RecordCard className="dashboard-comparison-record">
+														<div className="record-head">
+															<span>Cobrado</span>
+															<strong>{money(dashboardCollectedTotal)}</strong>
+														</div>
+														<small>
+															{dashboardDeltaHint(
+																dashboardCollectedTotal,
+																dashboardPreviousPeriod.collected_total,
+																{ metricKey: 'collected_total' },
+															)}
+														</small>
+													</RecordCard>
+													<RecordCard className="dashboard-comparison-record">
+														<div className="record-head">
+															<span>Margen estimado</span>
+															<strong>{money(dashboardEstimatedMarginTotal)}</strong>
+														</div>
+														<small>
+															{dashboardDeltaHint(
+																dashboardEstimatedMarginTotal,
+																dashboardPreviousPeriod.estimated_margin_total,
+																{ metricKey: 'estimated_margin_total' },
+															)}
+														</small>
+													</RecordCard>
+													<RecordCard className="dashboard-comparison-record">
+														<div className="record-head">
+															<span>Caja real</span>
+															<strong>{money(dashboardCashflowBalance)}</strong>
+														</div>
+														<small>
+															{dashboardDeltaHint(
+																dashboardCashflowBalance,
+																dashboardPreviousPeriod.cashflow_balance,
+																{ metricKey: 'cashflow_balance' },
+															)}
+														</small>
+													</RecordCard>
+													<RecordCard className="dashboard-comparison-record">
+														<div className="record-head">
+															<span>Por cobrar</span>
+															<strong>{money(dashboardBalanceDueTotal)}</strong>
+														</div>
+														<small>
+															{dashboardDeltaHint(
+																dashboardBalanceDueTotal,
+																dashboardPreviousPeriod.balance_due_total,
+																{
+																	metricKey: 'balance_due_total',
+																	polarity: 'higher-is-bad',
+																},
+															)}
+														</small>
+													</RecordCard>
+												</div>
+											</Panel>
+											</div>
+										</div>
+										{dashboardTopCustomersByBilled.length ||
+										dashboardTopServicesByBilled.length ||
+										dashboardTopWorkOrdersByMargin.length ||
+										dashboardTopMaterialsByCost.length ? (
+											<Panel
+												title="Rankings economicos"
+												subtitle="Donde se concentra facturacion, margen y costo de materiales."
+											>
+												<div className="dashboard-ranking-grid">
+													<div className="dashboard-ranking-column">
+														<div className="dashboard-section-kicker">
+															<span>Clientes por facturacion</span>
+														</div>
+														<div className="records dashboard-ranking-records">
+															{dashboardTopCustomersByBilled.map((item: AnyRecord) => (
+																<RecordCard
+																	className="dashboard-ranking-record"
+																	key={item.customer_id ?? item.customer_name}
+																>
+																	<div className="record-head">
+																		<div>
+																			<span>{item.customer_name}</span>
+																			<small>
+																				{dashboardCountText(
+																					numberValue(item.work_orders_count),
+																					'trabajo',
+																					'trabajos',
+																				)}
+																			</small>
+																		</div>
+																		<strong>{money(item.billed_total)}</strong>
+																	</div>
+																</RecordCard>
+															))}
+														</div>
+													</div>
+													<div className="dashboard-ranking-column">
+														<div className="dashboard-section-kicker">
+															<span>Servicios por facturacion</span>
+														</div>
+														<div className="records dashboard-ranking-records">
+															{dashboardTopServicesByBilled.map((item: AnyRecord) => (
+																<RecordCard
+																	className="dashboard-ranking-record"
+																	key={item.service_id ?? item.service_name}
+																>
+																	<div className="record-head">
+																		<div>
+																			<span>{item.service_name}</span>
+																			<small>
+																				Margen {money(item.estimated_margin_total)}
+																			</small>
+																		</div>
+																		<strong>{money(item.billed_total)}</strong>
+																	</div>
+																</RecordCard>
+															))}
+														</div>
+													</div>
+													<div className="dashboard-ranking-column">
+														<div className="dashboard-section-kicker">
+															<span>Trabajos por margen</span>
+														</div>
+														<div className="records dashboard-ranking-records">
+															{dashboardTopWorkOrdersByMargin.map((item: AnyRecord) => (
+																<RecordCard
+																	className="dashboard-ranking-record"
+																	key={item.id}
+																>
+																	<div className="record-head">
+																		<div>
+																			<span>
+																				#{item.id} - {item.customer_name}
+																			</span>
+																			<small>{item.service_name}</small>
+																		</div>
+																		<strong>{money(item.estimated_margin)}</strong>
+																	</div>
+																</RecordCard>
+															))}
+														</div>
+													</div>
+													<div className="dashboard-ranking-column">
+														<div className="dashboard-section-kicker">
+															<span>Materiales por costo</span>
+														</div>
+														<div className="records dashboard-ranking-records">
+															{dashboardTopMaterialsByCost.map((item: AnyRecord) => (
+																<RecordCard
+																	className="dashboard-ranking-record"
+																	key={item.material_id ?? item.material_name}
+																>
+																	<div className="record-head">
+																		<div>
+																			<span>{item.material_name}</span>
+																			<small>
+																				{quantity(item.quantity)} {item.unit}
+																			</small>
+																		</div>
+																		<strong>{money(item.estimated_total_cost)}</strong>
+																	</div>
+																</RecordCard>
+															))}
+														</div>
+													</div>
+												</div>
+											</Panel>
+										) : null}
 										<Panel
 											title="Trabajo por estado"
 											subtitle={
 												dashboardWorkOrdersTotal
-													? `${dashboardWorkOrdersTotal} trabajos distribuidos por avance`
+													? dashboardCountText(
+															dashboardWorkOrdersTotal,
+															'trabajo distribuido por avance',
+															'trabajos distribuidos por avance',
+														)
 													: 'Sin trabajos registrados en el periodo seleccionado'
 											}
 										>
@@ -14467,16 +15764,41 @@ export default function Home() {
 									},
 								)
 							}
+							onOpenQuickActions={(event, item) =>
+								openQuickActionsFromContext(
+									event,
+									'Acciones de cliente',
+									customerQuickActions(item),
+								)
+							}
+							onOpenQuickActionsFromTrigger={(event, item) =>
+								openQuickActionsFromTrigger(
+									event,
+									'Acciones de cliente',
+									customerQuickActions(item),
+								)
+							}
 						/>
 						<section className="panel hidden-section">
 							<h2>Vehiculos</h2>
 							<div className="records">
-								{filteredVehicles.map((item) => (
+								{filteredVehicles.map((item) => {
+									const quickActions = vehicleQuickActions(item)
+									return (
 									<MotionFlashSurface
 										className={recordClass('vehicle', item.id)}
 										key={`v-${item.id}`}
 										{...detailRecordProps('Vehiculo', item)}
+										{...quickActionTargetProps(
+											'Acciones de vehiculo',
+											quickActions,
+										)}
 									>
+										{renderQuickActionsTrigger(
+											'Acciones de vehiculo',
+											quickActions,
+											'Acciones rapidas de vehiculo',
+										)}
 										<div className="record-head">
 											<div>
 												<div className="record-title">
@@ -14510,7 +15832,10 @@ export default function Home() {
 																	'vehicle',
 																	'deleted',
 																),
-																undo: undoRestoreActiveRecord('vehicle', item),
+																undo: undoRestoreActiveRecord(
+																	'vehicle',
+																	item,
+																),
 															},
 														)
 													}
@@ -14520,7 +15845,8 @@ export default function Home() {
 											</div>
 										</div>
 									</MotionFlashSurface>
-								))}
+									)
+								})}
 							</div>
 						</section>
 					</div>
@@ -14569,10 +15895,15 @@ export default function Home() {
 								{filteredSuppliers.length ? (
 									filteredSuppliers.map((item) => {
 										const insights = supplierListInsight(item)
+										const quickActions = supplierQuickActions(item)
 										return (
 											<MotionFlashSurface
 												className={recordClass('supplier', item.id)}
 												key={`supplier-page-${item.id}`}
+												{...quickActionTargetProps(
+													'Acciones de proveedor',
+													quickActions,
+												)}
 											>
 												<RecordCardHeader
 													title={item.name}
@@ -14621,13 +15952,21 @@ export default function Home() {
 																			'supplier',
 																			'deleted',
 																		),
-																		undo: undoRestoreActiveRecord('supplier', item),
+																		undo: undoRestoreActiveRecord(
+																			'supplier',
+																			item,
+																		),
 																	},
 																)
 															}
 														>
 															Inactivar
 														</button>
+														{renderQuickActionsTrigger(
+															'Acciones de proveedor',
+															quickActions,
+															'Acciones rapidas de proveedor',
+														)}
 														</>
 													}
 												>
@@ -14698,12 +16037,23 @@ export default function Home() {
 							</div>
 							<div className="records">
 								{filteredVehicles.length ? (
-									filteredVehicles.map((item) => (
+									filteredVehicles.map((item) => {
+										const quickActions = vehicleQuickActions(item)
+										return (
 										<MotionFlashSurface
 											className={recordClass('vehicle', item.id)}
 											key={`v-page-${item.id}`}
 											{...detailRecordProps('Vehiculo', item)}
+											{...quickActionTargetProps(
+												'Acciones de vehiculo',
+												quickActions,
+											)}
 										>
+											{renderQuickActionsTrigger(
+												'Acciones de vehiculo',
+												quickActions,
+												'Acciones rapidas de vehiculo',
+											)}
 											<div className="record-head">
 												<div>
 													<div className="record-title">
@@ -14738,7 +16088,10 @@ export default function Home() {
 																			'vehicle',
 																			'deleted',
 																		),
-																	undo: undoRestoreActiveRecord('vehicle', item),
+																	undo: undoRestoreActiveRecord(
+																		'vehicle',
+																		item,
+																	),
 																},
 															)
 													}
@@ -14748,7 +16101,8 @@ export default function Home() {
 											</div>
 										</div>
 										</MotionFlashSurface>
-									))
+										)
+									})
 								) : (
 									<Empty
 										text={
@@ -14790,11 +16144,22 @@ export default function Home() {
 							</div>
 							<div className="records">
 								{services.length ? (
-									services.map((item) => (
+									services.map((item) => {
+										const quickActions = serviceQuickActions(item)
+										return (
 										<MotionFlashSurface
 											className={recordClass('service', item.id)}
 											key={item.id}
+											{...quickActionTargetProps(
+												'Acciones de servicio',
+												quickActions,
+											)}
 										>
+											{renderQuickActionsTrigger(
+												'Acciones de servicio',
+												quickActions,
+												'Acciones rapidas de servicio',
+											)}
 											<RecordCardHeader
 												title={serviceDisplayName(item)}
 												subtitle={joinDisplayParts([
@@ -14834,7 +16199,10 @@ export default function Home() {
 																			'service',
 																			'deleted',
 																		),
-																	undo: undoRestoreActiveRecord('service', item),
+																	undo: undoRestoreActiveRecord(
+																		'service',
+																		item,
+																	),
 																},
 															)
 														}
@@ -14845,7 +16213,8 @@ export default function Home() {
 												}
 											/>
 										</MotionFlashSurface>
-									))
+										)
+									})
 								) : (
 									<Empty
 										text="Sin servicios."
@@ -14899,7 +16268,11 @@ export default function Home() {
 									text={agendaLoadError.title}
 									hint={agendaLoadError.description}
 									action={
-										<button type="button" className="ghost" onClick={() => loadData({ force: true })}>
+										<button
+											type="button"
+											className="ghost"
+											onClick={() => loadData({ force: true })}
+										>
 											<RefreshCw size={16} />
 											Actualizar
 										</button>
@@ -15171,7 +16544,11 @@ export default function Home() {
 									}
 									hint={loadErrorNotice?.description}
 									action={
-										<button type="button" className="ghost" onClick={() => loadData({ force: true })}>
+										<button
+											type="button"
+											className="ghost"
+											onClick={() => loadData({ force: true })}
+										>
 											<RefreshCw size={16} />
 											Actualizar
 										</button>
@@ -15384,7 +16761,9 @@ export default function Home() {
 							</section>
 							<div className="records cash-records">
 								{filteredCashEntries.length ? (
-									filteredCashEntries.map((item: AnyRecord) => (
+									filteredCashEntries.map((item: AnyRecord) => {
+										const quickActions = cashEntryQuickActions(item)
+										return (
 										<FinanceRecordCard
 											amount={{
 												label:
@@ -15417,12 +16796,24 @@ export default function Home() {
 												!item.cashflow_effect && 'cash-entry-muted',
 											)}
 											key={cashEntryKey(item)}
+											onContextMenu={(event) =>
+												openQuickActionsFromContext(
+													event,
+													'Acciones de caja',
+													quickActions,
+												)
+											}
 											primaryAction={{
 												label: 'Abrir detalle',
 												icon: <Eye size={15} />,
 												onClick: () => openCashEntryDetail(item),
 												variant: 'primary',
 											}}
+											quickActionsTrigger={renderQuickActionsTrigger(
+												'Acciones de caja',
+												quickActions,
+												'Acciones rapidas de caja',
+											)}
 											stats={[
 												{
 													label: 'Categoria',
@@ -15442,7 +16833,8 @@ export default function Home() {
 											subtitle={cashEntryDescription(item)}
 											title={cashEntryTitle(item)}
 										/>
-									))
+										)
+									})
 								) : (
 									<Empty
 										text={
@@ -15533,7 +16925,11 @@ export default function Home() {
 									}
 									hint={loadErrorNotice?.description}
 									action={
-										<button type="button" className="ghost" onClick={() => loadData({ force: true })}>
+										<button
+											type="button"
+											className="ghost"
+											onClick={() => loadData({ force: true })}
+										>
 											<RefreshCw size={16} />
 											Actualizar
 										</button>
@@ -15623,7 +17019,9 @@ export default function Home() {
 							</section>
 							<div className="records finance-records debt-records">
 								{filteredDebts.length ? (
-									filteredDebts.map((item) => (
+									filteredDebts.map((item) => {
+										const quickActions = debtQuickActions(item)
+										return (
 										<FinanceRecordCard
 											amount={{
 												label: 'Saldo',
@@ -15656,6 +17054,13 @@ export default function Home() {
 												'debt-record-card',
 											)}
 											key={item.id}
+											onContextMenu={(event) =>
+												openQuickActionsFromContext(
+													event,
+													'Acciones de deuda',
+													quickActions,
+												)
+											}
 											primaryAction={
 												numberValue(item.balance_due) > 0
 													? {
@@ -15684,6 +17089,11 @@ export default function Home() {
 														]
 													: []
 											}
+											quickActionsTrigger={renderQuickActionsTrigger(
+												'Acciones de deuda',
+												quickActions,
+												'Acciones rapidas de deuda',
+											)}
 											stats={[
 												{
 													label: 'Original',
@@ -15711,7 +17121,8 @@ export default function Home() {
 											])}
 											title={item.concept}
 										/>
-									))
+										)
+									})
 								) : (
 									<Empty
 										text={
@@ -15741,7 +17152,9 @@ export default function Home() {
 							</div>
 							<h2 className="subsection-title">Pagos recientes</h2>
 							<div className="records finance-records debt-payment-records">
-								{debtPayments.slice(0, 5).map((item) => (
+								{debtPayments.slice(0, 5).map((item) => {
+									const quickActions = debtPaymentQuickActions(item)
+									return (
 									<FinanceRecordCard
 										amount={{
 											label: 'Pago',
@@ -15762,12 +17175,24 @@ export default function Home() {
 											'debt-payment-record-card',
 										)}
 										key={item.id}
+										onContextMenu={(event) =>
+											openQuickActionsFromContext(
+												event,
+												'Acciones de pago',
+												quickActions,
+											)
+										}
 										primaryAction={{
 											label: 'Abrir detalle',
 											icon: <Eye size={15} />,
 											onClick: () => openDetailModal('Pago de deuda', item),
 											variant: 'primary',
 										}}
+										quickActionsTrigger={renderQuickActionsTrigger(
+											'Acciones de pago',
+											quickActions,
+											'Acciones rapidas de pago',
+										)}
 										stats={[
 											{
 												label: 'Fecha',
@@ -15780,7 +17205,8 @@ export default function Home() {
 										subtitle="Pago parcial registrado"
 										title={item.debt_concept}
 									/>
-								))}
+									)
+								})}
 								{debtPayments.length ? null : (
 									<Empty
 										text="Sin pagos de deuda registrados."
@@ -15908,12 +17334,18 @@ export default function Home() {
 								{stockMovements.length ? null : (
 									<Empty text="Sin movimientos de stock." />
 								)}
-								{suppliers.slice(0, 5).map((item) => (
+								{suppliers.slice(0, 5).map((item) => {
+									const quickActions = supplierQuickActions(item)
+									return (
 									<MotionFlashSurface
 										className={recordClass('supplier', item.id)}
 										key={`supplier-${item.id}`}
 										{...interactiveRecordProps(() =>
 											openSupplierDashboard(item)
+										)}
+										{...quickActionTargetProps(
+											'Acciones de proveedor',
+											quickActions,
 										)}
 									>
 										<div className="record-head">
@@ -15938,12 +17370,21 @@ export default function Home() {
 													compras
 												</div>
 											</div>
+											<div className="record-actions">
+												{renderQuickActionsTrigger(
+													'Acciones de proveedor',
+													quickActions,
+													'Acciones rapidas de proveedor',
+												)}
+											</div>
 										</div>
 									</MotionFlashSurface>
-								))}
+									)
+								})}
 								{materials.length ? (
 									materials.map((item) => {
 										const usage = materialUsageSummary(item)
+										const quickActions = materialQuickActions(item)
 										return (
 											<MotionFlashSurface
 												className={recordClass('material', item.id)}
@@ -15951,6 +17392,10 @@ export default function Home() {
 												{...detailRecordProps(
 													'Material',
 													item,
+												)}
+												{...quickActionTargetProps(
+													'Acciones de material',
+													quickActions,
 												)}
 											>
 												<div className="record-head">
@@ -16016,16 +17461,7 @@ export default function Home() {
 														<button
 															type="button"
 															className="ghost"
-															onClick={() => {
-																setOpenUnitForm({
-																	material: String(item.id),
-																	opened_at: selectedDay,
-																	opened_by_work_order: '',
-																	stock_quantity_to_decrement: '1',
-																	observations: '',
-																})
-																setFormModal({ kind: 'material-open-unit' })
-															}}
+															onClick={() => openUnitForMaterial(item)}
 														>
 															Abrir unidad
 														</button>
@@ -16055,13 +17491,21 @@ export default function Home() {
 																				'material',
 																				'deleted',
 																			),
-																		undo: undoRestoreActiveRecord('material', item),
+																		undo: undoRestoreActiveRecord(
+																			'material',
+																			item,
+																		),
 																	},
 																)
 															}
 														>
 															Inactivar
 														</button>
+														{renderQuickActionsTrigger(
+															'Acciones de material',
+															quickActions,
+															'Acciones rapidas de material',
+														)}
 													</div>
 												</div>
 											</MotionFlashSurface>
@@ -16075,6 +17519,7 @@ export default function Home() {
 										(materialItem) =>
 											String(materialItem.id) === String(item.material),
 									)
+									const quickActions = materialOpenUnitQuickActions(item)
 									return (
 										<MotionFlashSurface
 											className={recordClass(
@@ -16083,6 +17528,10 @@ export default function Home() {
 											)}
 											key={`ou-${item.id}`}
 											{...detailRecordProps('Unidad abierta', item)}
+											{...quickActionTargetProps(
+												'Acciones de unidad',
+												quickActions,
+											)}
 										>
 											<div className="record-head">
 												<div>
@@ -16111,21 +17560,31 @@ export default function Home() {
 														)}
 													</div>
 												</div>
-												{item.status === 'open' ? (
+												{item.status === 'open' ||
+												availableQuickActions(quickActions).length ? (
 													<div className="record-actions">
-														<button
-															className="primary"
-															onClick={() => finishOpenUnit(item)}
-														>
-															Finalizar
-														</button>
+														{item.status === 'open' ? (
+															<button
+																className="primary"
+																onClick={() => finishOpenUnit(item)}
+															>
+																Finalizar
+															</button>
+														) : null}
+														{renderQuickActionsTrigger(
+															'Acciones de unidad',
+															quickActions,
+															'Acciones rapidas de unidad',
+														)}
 													</div>
 												) : null}
 											</div>
 										</MotionFlashSurface>
 									)
 								})}
-								{purchases.slice(0, 5).map((item) => (
+								{purchases.slice(0, 5).map((item) => {
+									const quickActions = materialPurchaseQuickActions(item)
+									return (
 									<MotionFlashSurface
 										className={recordClass(
 											'material-purchase',
@@ -16133,6 +17592,10 @@ export default function Home() {
 										)}
 										key={`p-${item.id}`}
 										{...detailRecordProps('Compra de material', item)}
+										{...quickActionTargetProps(
+											'Acciones de compra',
+											quickActions,
+										)}
 									>
 										<div className="record-head">
 											<div>
@@ -16150,10 +17613,20 @@ export default function Home() {
 													])}
 												</div>
 												</div>
+											<div className="record-actions">
+												{renderQuickActionsTrigger(
+													'Acciones de compra',
+													quickActions,
+													'Acciones rapidas de compra',
+												)}
+											</div>
 											</div>
 									</MotionFlashSurface>
-								))}
-								{consumptions.slice(0, 5).map((item) => (
+									)
+								})}
+								{consumptions.slice(0, 5).map((item) => {
+									const quickActions = materialConsumptionQuickActions(item)
+									return (
 									<MotionFlashSurface
 										className={recordClass(
 											'material-consumption',
@@ -16161,6 +17634,10 @@ export default function Home() {
 										)}
 										key={`c-${item.id}`}
 										{...detailRecordProps('Consumo de material', item)}
+										{...quickActionTargetProps(
+											'Acciones de consumo',
+											quickActions,
+										)}
 									>
 										<div className="record-head">
 											<div>
@@ -16178,9 +17655,17 @@ export default function Home() {
 													)}
 												</div>
 												</div>
+											<div className="record-actions">
+												{renderQuickActionsTrigger(
+													'Acciones de consumo',
+													quickActions,
+													'Acciones rapidas de consumo',
+												)}
+											</div>
 											</div>
 									</MotionFlashSurface>
-								))}
+									)
+								})}
 							</div>
 						</section>
 					</div>
@@ -16228,13 +17713,19 @@ export default function Home() {
 							</div>
 							<div className="records">
 								{filteredTools.length ? (
-									filteredTools.map((item) => (
+									filteredTools.map((item) => {
+										const quickActions = toolQuickActions(item)
+										return (
 										<MotionFlashSurface
 											className={recordClass('tool', item.id)}
 											key={item.id}
 											{...detailRecordProps(
 												'Herramienta',
 												item,
+											)}
+											{...quickActionTargetProps(
+												'Acciones de herramienta',
+												quickActions,
 											)}
 										>
 											<div className="record-head">
@@ -16294,17 +17785,26 @@ export default function Home() {
 																			'tool',
 																			'deleted',
 																		),
-																	undo: undoRestoreActiveRecord('tool', item),
+																	undo: undoRestoreActiveRecord(
+																		'tool',
+																		item,
+																	),
 																},
 															)
 														}
 														>
 															Inactivar
 														</button>
+														{renderQuickActionsTrigger(
+															'Acciones de herramienta',
+															quickActions,
+															'Acciones rapidas de herramienta',
+														)}
 													</div>
 												</div>
 										</MotionFlashSurface>
-									))
+										)
+									})
 								) : (
 									<Empty text="Sin herramientas." />
 								)}
@@ -16978,7 +18478,11 @@ export default function Home() {
 										</button>
 									</div>
 									<div className="settings-secondary-actions">
-										<button type="button" className="ghost" onClick={() => loadData({ force: true })}>
+										<button
+											type="button"
+											className="ghost"
+											onClick={() => loadData({ force: true })}
+										>
 											<RefreshCw size={16} />
 											Actualizar
 										</button>

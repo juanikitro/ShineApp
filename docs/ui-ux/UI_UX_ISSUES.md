@@ -12,20 +12,15 @@ Fuente viva de deuda UI/UX. Esta version separa deuda vigente de deuda ya cerrad
 - Rutas/flujos probados: login, dashboard, agenda, clientes, caja, configuracion, dark mode, landing publica `/publica/default` y deep-links con `?section=...`.
 - Screenshots locales fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui-audit-2026-05-20\*.png`.
 - Resultado QA: sin blank screens, sin overlay de framework, sin console errors, sin page errors y sin respuestas 4xx/5xx en los flujos auditados.
+- Batch P1 aplicado 2026-05-20: UI-025, UI-021, UI-003, UI-008, UI-012 y UI-016 quedan cerrados en codigo con el corte minimo documentado abajo.
 
 ## Vigentes P0/P1
 
-No quedaron P0 reproducidos en runtime estable. Los items siguientes siguen vigentes como P1 porque afectan flujos operativos, accesibilidad, confianza de demo o superficie publica.
+No quedaron P0 reproducidos en runtime estable. Como P1/P2 estructural queda la extraccion gradual del frontend; no bloquea este batch porque requiere un corte tecnico separado.
 
 | ID | Prioridad | Pantalla | Problema vigente | Evidencia real | Siguiente accion |
 | --- | --- | --- | --- | --- | --- |
-| UI-003 | P1 | Agenda mobile | La agenda ya no rompe el body ni bloquea el drawer, pero el tablero sigue dependiendo de un ancho minimo grande en mobile. | QA mobile dark: `bodyScrollWidth=390`, `bodyClientWidth=390`, pero `boardMinWidth=860px`, `boardClientWidth=860`, viewport interno `358px`. Codigo: `frontend/app/styles/agenda.css` conserva `min-width` mobile en `.week-board`. Screenshot: `07-agenda-mobile-dark-drawer.png`. | Definir un patron mobile real para agenda: scroll contenido explicito con affordance, vista compacta por dia o columnas adaptativas. |
-| UI-008 | P1 | SearchSelect / formularios | `SearchSelect` sigue siendo un combobox custom con semantica incompleta y `autoFocus` dentro del popover. | Codigo: `frontend/app/components/ui/SearchSelect.tsx` usa `aria-haspopup="listbox"`, `role="listbox"` y `autoFocus`; no expone el contrato completo de combobox/listbox activo. | Completar semantica WAI-ARIA, foco inicial no intrusivo y navegacion de teclado verificable. |
 | UI-009 | P1 | App shell / frontend | `frontend/app/page.tsx` sigue concentrando demasiada responsabilidad de UI, estado y render. | Conteo auditado: `frontend/app/page.tsx` tiene 18.679 lineas y aprox. 176 coincidencias `render*`. | Extraer por vertical despues de cerrar deuda visible: agenda, clientes, caja, settings. |
-| UI-012 | P1 | Login | El login sigue prellenado con credenciales demo (`admin` / `admin123`). Autocomplete esta corregido, pero la confianza de demo/prod queda afectada. | QA login desktop muestra campos prellenados. Codigo: estado inicial en `frontend/lib/page-support.tsx` mantiene credenciales demo. | Hacer prefill solo en modo demo/dev documentado o moverlo a accion explicita "Usar demo". |
-| UI-016 | P1 | Caja | La pantalla carga y opera, pero la jerarquia visual sigue densa: resumen, filtros, acciones y lista compiten en una misma superficie. | QA desktop: navegacion a `/?section=cash` sin errores ni overlays; screenshot `05-caja-desktop-light.png` conserva alto ruido visual. | Reordenar jerarquia: accion primaria, filtros compactos y estados de caja separados de listado. |
-| UI-021 | P1 | Configuracion / dark mode | Dark mode funciona, pero controles segmentados/tabs de configuracion tienen contraste bajo en estado no seleccionado. | QA dark: `data-theme="dark"` activo; screenshot `06-configuracion-desktop-dark.png` muestra tabs con texto oscuro sobre fondo oscuro. Codigo: reglas de `.settings-tabs` / `.mode-toggle` no cubren suficientes estados dark. | Ajustar tokens dark para tabs/segmented controls y validar contraste AA. |
-| UI-025 | P1 | Landing publica | Los servicios renderizan claves de icono crudas como texto visible (`combo`, `polish`, `shield`, `seat`) y se parten dentro del badge. | QA mobile `/publica/default`: screenshot `08-public-landing-mobile.png`. Codigo: `frontend/app/publica/[slug]/PublicLandingClient.tsx` imprime `{service.icon || 'S'}` directo. | Mapear claves a iconos/simbolos reales o fallback inicial seguro, con dimensiones estables. |
 
 ## Cerrados en codigo / QA
 
@@ -40,6 +35,12 @@ No quedaron P0 reproducidos en runtime estable. Los items siguientes siguen vige
 | UI-011 Encoding `Â·` | Cerrado | `rg -F "Â·" frontend/app frontend/lib` no encontro ocurrencias en fuente UI. Solo queda mencionado en docs historicas. |
 | UI-013 Deep-linking | Cerrado | `navigation-state.ts` define `section` en URL; `page.tsx` sincroniza `pushState`/`popstate`. QA navego `?section=agenda`, `customers`, `cash`, `settings&settings=business`. |
 | UI-020 Runtime visual productivo | Cerrado para auditoria | Build productivo y `next start` cargaron login, app privada y landing publica sin errores de consola. La inestabilidad observada fue de Browser plugin, no de app. |
+| UI-025 Landing publica iconos | Cerrado 2026-05-20 | `PublicLandingClient.tsx` mapea `combo`, `polish`, `shield` y `seat` a iconos Lucide con fallback inicial; ya no se imprime la clave cruda del servicio. |
+| UI-021 Dark settings segmented | Cerrado 2026-05-20 | `shell.css` agrega estados dark para `.mode-toggle`: fondo, texto, hover/focus y selected con contraste legible. |
+| UI-003 Agenda mobile | Cerrado como corte minimo 2026-05-20 | `agenda.css` mantiene tablero horizontal, pero agrega scroll contenido, snap por dia y affordance visible `Mas dias ->`; una vista compacta por dia queda como mejora P2 si se prioriza. |
+| UI-008 SearchSelect accesible | Cerrado 2026-05-20 | `SearchSelect.tsx` elimina `autoFocus`, agrega ids activos para combobox/listbox, `aria-activedescendant` y estado live para resultados vacios. |
+| UI-012 Login demo prefill | Cerrado 2026-05-20 | `loginInitialCredentials` queda vacio en modo normal; el modo demo solo puede prellenar usuario con `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN=1` y no prellena password. |
+| UI-016 Caja hierarchy | Cerrado como corte visual 2026-05-20 | `shell.css` separa jerarquia de metricas, resumen, filtros y listado de caja sin cambiar acciones, filtros ni reglas de negocio. |
 
 ## Vigentes P2 / deuda diferible
 
