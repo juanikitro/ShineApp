@@ -8,6 +8,22 @@ Plan incremental, sin rehacer la app ni tocar contratos backend salvo necesidad 
 2. construir base reutilizable,
 3. intervenir pantallas criticas despues de estabilizar primitives.
 
+## Auditoria 2026-05-20 - estado del plan
+
+La re-auditoria sobre `development` confirmo que varios P0/P1 historicos ya estan cerrados en codigo y QA: drawer mobile, settings mobile tabs, sidebar search, modal accesible, deep-linking, Agenda naming principal, encoding `Â·` en fuente UI y runtime productivo basico.
+
+Estado por fase:
+
+| Fase | Estado actual | Evidencia / ajuste |
+| --- | --- | --- |
+| Fase 1 | Mayormente cerrada | Shell mobile, sidebar search, settings mobile y naming no se reprodujeron como deuda vigente. Quedan solo deudas visibles nuevas o residuales documentadas en issues/backlog. |
+| Fase 2 | Parcialmente cerrada | `ModalFrame`, `RecordCard` y estados base estan mejorados; `SearchSelect` sigue P1 por semantica/foco. |
+| Fase 3A | Cerrada para desktop | Agenda desktop carga y navega bien; Agenda mobile conserva deuda P1 por ancho minimo del tablero. |
+| Fase 4 | Parcialmente cerrada | Deep-linking y modal base estan cerrados; quedan dark mode tabs, login demo, caja y landing publica. |
+| Fase 5 | Cerrada como hito local | Se preserva la nota local de cierre de Fase 5. La auditoria no requiere inventar una Fase 6; el siguiente batch vive en backlog. |
+
+Siguiente batch recomendado: landing publica iconos de servicios, contraste dark de settings tabs, agenda mobile, `SearchSelect`, login demo prellenado y jerarquia de caja.
+
 ## Fase 1 - Mejoras visibles de bajo riesgo
 
 ### Objetivo
@@ -269,6 +285,31 @@ Dejar la experiencia utilizable y defendible en teclado y mobile real.
 - copy comercial amplio.
 
 ## Fase 5 - Pulido premium / demo vendible
+
+Estado: implementada y validada localmente en `development`.
+
+Alcance entregado:
+
+- microcopy operativo reforzado en dashboard, clientes, agenda, caja, deudas y configuracion,
+- estados vacios y low-data con CTA mas claros,
+- dashboard con lectura de periodo, prioridad operativa y estados de trabajo mas escaneables,
+- consistencia fina de foco visible, nombres accesibles, spacing y densidad en superficies principales,
+- ajustes frontend-only reutilizando componentes y tokens existentes.
+
+Validacion ejecutada:
+
+- `cd frontend && npm run test`
+- `cd frontend && npm run build`
+- `docker compose config --quiet`
+- QA browser en 390px, 768px, laptop y desktop
+- smoke manual: login, dashboard, clientes, agenda, caja, deudas y configuracion
+- chequeo de foco visible, teclado, nombres accesibles y ausencia de overflow horizontal/clipping.
+
+Notas de cierre:
+
+- no se tocaron endpoints, payloads, permisos, reglas de negocio ni backend,
+- los cambios quedaron incorporados en `development`,
+- este plan no declara una Fase 6; cualquier siguiente trabajo deberia salir de hallazgos puntuales de QA/demo o backlog nuevo.
 
 ### Objetivo
 
