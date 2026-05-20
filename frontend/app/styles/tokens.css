@@ -89,6 +89,16 @@
   --button-gap: 6px;
   --button-font-size: 13px;
   --button-font-size-compact: 12px;
+  --segmented-bg: var(--color-surface-raised);
+  --segmented-border: var(--color-border);
+  --segmented-option-color: var(--color-text-soft);
+  --segmented-option-hover-bg: var(--color-surface);
+  --segmented-option-hover-border: var(--color-border-strong);
+  --segmented-option-hover-color: var(--color-text);
+  --segmented-selected-bg: var(--color-surface);
+  --segmented-selected-border: var(--color-border-strong);
+  --segmented-selected-color: var(--color-text);
+  --segmented-selected-shadow: 0 1px 2px var(--color-shadow-soft);
   --z-popover: 120;
   --z-modal-backdrop: 1000;
   --z-modal-panel: 1010;
@@ -184,5 +194,15 @@
   --shop-warning: var(--color-warning);
   --shop-danger: var(--color-danger);
   --shop-ready: var(--color-ready);
+  --segmented-bg: var(--color-canvas-deep);
+  --segmented-border: var(--color-border-strong);
+  --segmented-option-color: var(--color-text-soft);
+  --segmented-option-hover-bg: var(--color-surface-interactive);
+  --segmented-option-hover-border: var(--color-workspace-active-border);
+  --segmented-option-hover-color: var(--color-text);
+  --segmented-selected-bg: var(--color-workspace-surface-raised);
+  --segmented-selected-border: var(--color-workspace-active-border);
+  --segmented-selected-color: var(--color-text);
+  --segmented-selected-shadow: inset 0 0 0 1px rgba(165, 215, 232, 0.12);
 }
 

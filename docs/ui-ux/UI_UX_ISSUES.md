@@ -14,6 +14,7 @@ Fuente viva de deuda UI/UX. Esta version separa deuda vigente de deuda ya cerrad
 - Resultado QA: sin blank screens, sin overlay de framework, sin console errors, sin page errors y sin respuestas 4xx/5xx en los flujos auditados.
 - Batch P1 aplicado 2026-05-20: UI-025, UI-021, UI-003, UI-008, UI-012 y UI-016 quedan cerrados en codigo con el corte minimo documentado abajo.
 - Corte UI-009 aplicado 2026-05-20: Caja quedo extraida a `frontend/app/components/cash/CashPanel.tsx` sin cambios intencionales de negocio. `frontend/app/page.tsx` bajo a 17.570 lineas y aprox. 164 coincidencias `render*`; `CashPanel.tsx` concentra 675 lineas presentacionales. QA: `npm run build`, `next start`, `/` y `/?section=cash` en desktop `1440x900` y mobile `390x844`, sin console errors. Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-cash-qa\*.png`.
+- Corte UI-024 aplicado 2026-05-20: `.mode-toggle` usa tokens `--segmented-*`, `--segmented-count` y estados hover/focus/selected compartidos light/dark. Validacion: `npm run build`. QA visual autenticada quedo parcial: el browser integrado bloqueo screenshot/CDP y el reintento termino en login local rechazado con `No se pudo iniciar sesion`.
 
 ## Vigentes P0/P1
 
@@ -55,7 +56,7 @@ No quedaron P0 reproducidos en runtime estable. Como P1/P2 estructural queda la 
 | UI-019 | P2 | Vehiculos | Se mantiene seccion oculta por CSS/estado, lo que agrega ruido de mantenimiento. | Codigo conserva `hidden-section` en shell/base. |
 | UI-022 | P2 | Sidebar footer/profile mobile | Drawer resuelto, pero footer/perfil mobile puede compactarse mejor. | QA no bloqueo navegacion; polish visual. |
 | UI-023 | P2 | Bulk workflows | Acciones masivas y feedback pueden ser mas consistentes. | No bloquea flujos QA cubiertos. |
-| UI-024 | P2 | Segmented controls | Varios segmented/tabs comparten patron, pero falta consolidar tokens y estados. | Se conecta con UI-021; la parte bloqueante es contraste dark. |
+| UI-024 | P2 | Segmented controls | Reducido como corte tecnico: tokens y estados compartidos ya existen. | Queda como deuda residual revalidar visualmente settings/agenda cuando auth local permita QA completa. |
 
 ## Evidencia de auditoria
 

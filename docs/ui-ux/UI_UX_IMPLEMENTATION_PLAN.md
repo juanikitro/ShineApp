@@ -24,7 +24,7 @@ Estado por fase:
 | Fase 4 | Cerrada para batch P1 | Deep-linking, modal base, dark mode tabs, login demo, caja y landing publica tienen cortes minimos aplicados. |
 | Fase 5 | Cerrada como hito local | Se preserva la nota local de cierre de Fase 5. La auditoria no requiere inventar una Fase 6; el siguiente batch vive en backlog. |
 
-Siguiente batch recomendado: `UI-024` consolidacion de segmented controls, continuar `UI-009` por otra vertical cuando el siguiente cambio sea tecnico y P2 visuales priorizados en backlog.
+Siguiente batch recomendado: continuar `UI-009` por otra vertical cuando el siguiente cambio sea tecnico, luego P2 visuales priorizados en backlog.
 
 Primer corte UI-009 aplicado 2026-05-20:
 
@@ -32,6 +32,13 @@ Primer corte UI-009 aplicado 2026-05-20:
 - `page.tsx` conserva estado, datos, callbacks, endpoints y reglas; el componente nuevo recibe props explicitas.
 - Conteo post-corte: `page.tsx` tiene 17.570 lineas y aprox. 164 coincidencias `render*`.
 - Validacion: `cd frontend && npm run build`, `next start`, `/` y `/?section=cash` en desktop `1440x900` y mobile `390x844`.
+
+Corte UI-024 aplicado 2026-05-20:
+
+- `frontend/app/styles/tokens.css` define tokens `--segmented-*` para light/dark.
+- `frontend/app/styles/shell.css` hace que `.mode-toggle` use esos tokens y `--segmented-count`.
+- Validacion: `cd frontend && npm run build`.
+- QA visual autenticada quedo parcial por bloqueo del browser integrado en screenshot/CDP y login local rechazado en el reintento.
 
 ## Fase 1 - Mejoras visibles de bajo riesgo
 

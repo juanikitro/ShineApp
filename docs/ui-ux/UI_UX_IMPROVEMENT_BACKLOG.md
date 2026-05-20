@@ -6,12 +6,12 @@ Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins hi
 
 | Orden | ID | Prioridad | Area | Objetivo | Evidencia | Resultado esperado |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | UI-024 | P2 | Segmented controls | Consolidar tokens y estados de segmented/tabs despues del fix dark urgente. | UI-021 cubrio dark de `.mode-toggle`, pero quedan variantes dispersas; UI-009 ya tuvo un primer corte tecnico en Caja. | Patron comun reutilizable para tabs/segmented. |
-| 2 | UI-009 | P1/P2 | Arquitectura frontend | Continuar extraccion por vertical de `frontend/app/page.tsx` sin mezclar redisenos. | Primer corte: Caja se movio a `frontend/app/components/cash/CashPanel.tsx`; `page.tsx` sigue grande con 17.570 lineas y aprox. 164 `render*`. | Menos riesgo de regresion y cambios UI mas faciles de validar. |
-| 3 | UI-015 | P2 | Dashboard | Mejorar siguiente accion y priorizacion de datos. | QA dashboard estable; queda deuda de producto, no bloqueo. | Dashboard mas accionable sin cambiar contratos. |
-| 4 | UI-017 | P2 | Clientes | Pulir low-data/empty states y CTA operativo. | QA clientes estable con busqueda; queda polish operativo. | Mejor guia cuando hay pocos datos o resultados. |
-| 5 | UI-018 | P2 | Estados transversales | Consolidar loading/empty/error states por modulo. | Existen primitives, pero el uso no es homogeneo. | Feedback mas consistente entre pantallas. |
-| 6 | UI-014 | P2 | Configuracion branding | Mejorar densidad/card de logo y negocio. | Settings funciona en dark y mobile; queda deuda visual diferible. | Configuracion mas escaneable sin redisenar. |
+| 1 | UI-009 | P1/P2 | Arquitectura frontend | Continuar extraccion por vertical de `frontend/app/page.tsx` sin mezclar redisenos. | Primer corte: Caja se movio a `frontend/app/components/cash/CashPanel.tsx`; `page.tsx` sigue grande con 17.570 lineas y aprox. 164 `render*`. | Menos riesgo de regresion y cambios UI mas faciles de validar. |
+| 2 | UI-015 | P2 | Dashboard | Mejorar siguiente accion y priorizacion de datos. | QA dashboard estable; queda deuda de producto, no bloqueo. | Dashboard mas accionable sin cambiar contratos. |
+| 3 | UI-017 | P2 | Clientes | Pulir low-data/empty states y CTA operativo. | QA clientes estable con busqueda; queda polish operativo. | Mejor guia cuando hay pocos datos o resultados. |
+| 4 | UI-018 | P2 | Estados transversales | Consolidar loading/empty/error states por modulo. | Existen primitives, pero el uso no es homogeneo. | Feedback mas consistente entre pantallas. |
+| 5 | UI-014 | P2 | Configuracion branding | Mejorar densidad/card de logo y negocio. | Settings funciona en dark y mobile; queda deuda visual diferible. | Configuracion mas escaneable sin redisenar. |
+| 6 | UI-024 | P2 | Segmented controls | Revalidar visualmente el corte de tokens cuando auth local permita QA completa. | Tokens y estados `--segmented-*` ya aplicados; browser screenshot/CDP y login local bloquearon QA visual completa. | Cerrar deuda residual de evidencia, no de implementacion. |
 
 ## Cerrado por batch P1 2026-05-20
 
@@ -24,6 +24,7 @@ Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins hi
 | UI-012 | Login | Modo normal sin credenciales prellenadas; demo solo por env flag y sin password. |
 | UI-016 | Caja | Jerarquia visual de metricas, filtros y listado reforzada por CSS sin tocar negocio. |
 | UI-009 | Caja / arquitectura frontend | Parcialmente reducido: render de Caja extraido a `CashPanel.tsx`; estado, callbacks, payloads y reglas siguen en `page.tsx`. |
+| UI-024 | Segmented controls | Reducido: `.mode-toggle` consume tokens `--segmented-*`, usa `--segmented-count` y comparte estados hover/focus/selected light/dark. |
 
 ## Cerrado por auditoria 2026-05-20
 
@@ -52,7 +53,7 @@ Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins hi
 | UI-019 | P2 | Vehiculos ocultos | Eliminar o formalizar `hidden-section` para reducir deuda de mantenimiento. |
 | UI-022 | P2 | Sidebar footer mobile | Compactar perfil/footer sin tocar el drawer ya cerrado. |
 | UI-023 | P2 | Bulk workflows | Homogeneizar feedback de acciones masivas. |
-| UI-024 | P2 | Segmented controls | Consolidar tokens/estados; la parte urgente esta cubierta por UI-021. |
+| UI-024 | P2 | Segmented controls | Implementacion de tokens aplicada; queda revalidacion visual autenticada cuando el entorno local lo permita. |
 
 ## Notas de ejecucion
 
