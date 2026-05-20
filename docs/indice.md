@@ -2,6 +2,27 @@
 
 Mapa de fuentes de verdad para asistentes y desarrolladores. No reemplaza la lectura del codigo tocado.
 
+## Documentacion navegable
+
+El sitio navegable usa MkDocs Material sobre este mismo directorio `docs/`. No migra ni duplica la fuente de verdad: `docs/indice.md` sigue siendo el mapa canonico.
+
+Comandos:
+
+```powershell
+py -3 -m pip install -r requirements-docs.txt
+py -3 -m mkdocs serve
+py -3 scripts/check_docs.py --check
+py -3 -m mkdocs build --strict
+```
+
+Para regenerar indices automaticos:
+
+```powershell
+py -3 scripts/check_docs.py --write --skip-build
+```
+
+El build docs debe fallar si hay links rotos, nav invalida o archivos canonicos faltantes.
+
 ## Entradas principales
 
 - `AGENTS.md`: reglas raiz para cualquier asistente.
@@ -41,8 +62,17 @@ Wrappers por herramienta:
 
 - `docs/registro/README.md`: convencion spec-as-source.
 - `docs/registro/cambios/`: cambios funcionales o visibles ya registrados.
+- `docs/registro/cambios/index.md`: indice generado de cambios. No editar manualmente.
 - `docs/registro/decisiones/`: decisiones de arquitectura, negocio o contrato.
+- `docs/registro/decisiones/index.md`: indice generado de decisiones. No editar manualmente.
 - `docs/plans/`: planes y disenos historicos. Usalos como contexto solo si el cambio actual lo requiere.
+- `docs/plans/index.md`: indice generado de planes. No editar manualmente.
+
+Reglas vivas:
+- Todo cambio funcional visible va a `docs/registro/cambios/`.
+- Toda decision de arquitectura, contrato o negocio va a `docs/registro/decisiones/`.
+- `docs/indice.md` sigue siendo el mapa canonico.
+- GitHub Pages, Vercel o Read the Docs son opciones futuras; no hay deploy automatico de docs.
 
 ## Deployment
 

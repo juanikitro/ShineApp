@@ -105,6 +105,33 @@ jobs:
           python -m pip install pip-audit==2.10.0
           pip-audit -r backend/requirements.txt
 
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install docs dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-docs.txt
+
+      - name: Check docs drift
+        run: python scripts/check_docs.py --check
+
+      - name: MkDocs strict build
+        run: python -m mkdocs build --strict
+
   codeql:
     name: codeql
     runs-on: ubuntu-latest
@@ -141,6 +168,7 @@ jobs:
       - backend
       - frontend
       - dependency-audit
+      - docs
       - codeql
     if: always()
 
@@ -150,6 +178,7 @@ jobs:
           BACKEND_RESULT: ${{ needs.backend.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           DEPENDENCY_AUDIT_RESULT: ${{ needs.dependency-audit.result }}
+          DOCS_RESULT: ${{ needs.docs.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
         run: |
           set -euo pipefail
@@ -157,10 +186,11 @@ jobs:
           printf 'backend=%s\n' "$BACKEND_RESULT"
           printf 'frontend=%s\n' "$FRONTEND_RESULT"
           printf 'dependency-audit=%s\n' "$DEPENDENCY_AUDIT_RESULT"
+          printf 'docs=%s\n' "$DOCS_RESULT"
           printf 'codeql=%s\n' "$CODEQL_RESULT"
 
           failed=0
-          for result in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_AUDIT_RESULT" "$CODEQL_RESULT"; do
+          for result in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_AUDIT_RESULT" "$DOCS_RESULT" "$CODEQL_RESULT"; do
             if [ "$result" != "success" ]; then
               failed=1
             fi

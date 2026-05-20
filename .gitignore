@@ -12,6 +12,7 @@ frontend/coverage/
 frontend/node_modules/
 frontend/.env.local
 frontend/tsconfig.tsbuildinfo
+site/
 .env
 .vscode/
 logs/

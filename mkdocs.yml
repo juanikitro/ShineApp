@@ -1,0 +1,88 @@
+site_name: ShineApp Docs
+site_description: Documentacion viva de ShineApp basada en el estado real del repo.
+docs_dir: docs
+site_dir: site
+strict: true
+
+theme:
+  name: material
+  language: es
+  features:
+    - navigation.sections
+    - navigation.path
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+
+plugins:
+  - search
+  - mermaid2
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+
+not_in_nav: |
+  **/*.compact.md
+  registro/cambios/20*.md
+  registro/decisiones/20*.md
+  plans/20*.md
+
+nav:
+  - Inicio: indice.md
+  - Contexto:
+      - Panorama: contexto/panorama.md
+      - Arquitectura: contexto/arquitectura.md
+      - Aplicaciones: contexto/aplicaciones.md
+  - Guias IA:
+      - Context hygiene: ia/CONTEXT_HYGIENE.md
+      - Testing: ia/TESTING.md
+      - Arquitectura: ia/ARCHITECTURE.md
+      - UI context: ia/UI_CONTEXT.md
+      - Style guide: ia/STYLE_GUIDE.md
+      - Security AI: ia/SECURITY_AI.md
+      - Errors logging: ia/ERRORS_LOGGING.md
+      - Contributing AI: ia/CONTRIBUTING_AI.md
+      - Testing prompt: ia/CODEX_TESTING_PROMPT.md
+      - Guia agentes: agentes/guia.md
+  - Registro:
+      - Spec-as-source: registro/README.md
+      - Errores agentes: registro/errores-agentes.md
+      - Cambios: registro/cambios/index.md
+      - Decisiones: registro/decisiones/index.md
+  - Deployment:
+      - Arquitectura: deployment/architecture.md
+      - Env vars: deployment/env-vars.md
+      - GitHub Actions: deployment/github-actions.md
+      - Vercel: deployment/vercel.md
+      - Supabase: deployment/supabase.md
+      - Media y static: deployment/media-static.md
+      - Pasos manuales: deployment/manual-steps.md
+      - Demo readiness: deployment/demo-readiness.md
+      - Upgrade path: deployment/upgrade-path.md
+  - Diseno y UI:
+      - Design brief: design-brief.md
+      - Design system: design-system.md
+      - Inspiration: inspiration.md
+      - UI review checklist: ui-review-checklist.md
+      - Materiales y unidades: materiales-unidades-abiertas.md
+      - UI/UX audit: ui-ux/UI_UX_AUDIT.md
+      - UI/UX issues: ui-ux/UI_UX_ISSUES.md
+      - UI/UX backlog: ui-ux/UI_UX_IMPROVEMENT_BACKLOG.md
+      - UI/UX implementation plan: ui-ux/UI_UX_IMPLEMENTATION_PLAN.md
+      - UI/UX design system plan: ui-ux/UI_UX_DESIGN_SYSTEM_PLAN.md
+  - Planes:
+      - Indice: plans/index.md
