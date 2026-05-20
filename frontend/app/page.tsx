@@ -130,6 +130,7 @@ import {
 	isPdfAssetName,
 	isPdfAssetSource,
 	renderPdfPreviewDataUrl,
+	safeImageAssetSource,
 } from '@/lib/pdf-preview'
 import {
 	auditActorLabel,
@@ -1719,10 +1720,18 @@ export default function Home() {
 
 	const { thumbnail: businessLogoPdfThumbnail, status: businessLogoPdfStatus } =
 		usePdfThumbnailPreview(businessLogoPreview, businessLogoIsPdf, 720)
+	const safeBusinessLogoPreview = safeImageAssetSource(businessLogoPreview)
+	const safeBusinessLogoPdfThumbnail = safeImageAssetSource(
+		businessLogoPdfThumbnail,
+	)
 
 	const {
 		thumbnail: sidebarAvatarPdfThumbnail,
 	} = usePdfThumbnailPreview(currentUser?.avatar_url ?? null, sidebarAvatarIsPdf, 128)
+	const safeSidebarAvatarUrl = safeImageAssetSource(currentUser?.avatar_url)
+	const safeSidebarAvatarPdfThumbnail = safeImageAssetSource(
+		sidebarAvatarPdfThumbnail,
+	)
 
 	useEffect(() => {
 		syncProfileForm(currentUser)
@@ -14907,10 +14916,10 @@ export default function Home() {
 										aria-label={`Abrir perfil de ${profileDisplayName(currentUser)}`}
 									>
 										<span className="sidebar-profile-avatar" aria-hidden="true">
-											{currentUser.avatar_url && !sidebarAvatarIsPdf ? (
-												<img src={currentUser.avatar_url} alt="" />
-											) : sidebarAvatarPdfThumbnail ? (
-												<img src={sidebarAvatarPdfThumbnail} alt="" />
+											{safeSidebarAvatarUrl && !sidebarAvatarIsPdf ? (
+												<img src={safeSidebarAvatarUrl} alt="" />
+											) : safeSidebarAvatarPdfThumbnail ? (
+												<img src={safeSidebarAvatarPdfThumbnail} alt="" />
 											) : currentUser.avatar_url ? (
 												<FileText size={18} />
 											) : (
@@ -17859,14 +17868,14 @@ export default function Home() {
 											: 'Cargar logo del negocio'
 									}
 								>
-									{businessLogoPreview && !businessLogoIsPdf ? (
+									{safeBusinessLogoPreview && !businessLogoIsPdf ? (
 										<img
-											src={businessLogoPreview}
+											src={safeBusinessLogoPreview}
 											alt={`Logo de ${businessForm.name || 'tu negocio'}`}
 										/>
-									) : businessLogoPdfThumbnail ? (
+									) : safeBusinessLogoPdfThumbnail ? (
 										<img
-											src={businessLogoPdfThumbnail}
+											src={safeBusinessLogoPdfThumbnail}
 											alt={`Preview del PDF de ${businessForm.name || 'tu negocio'}`}
 										/>
 									) : businessLogoPreview ? (

@@ -13,6 +13,7 @@ import {
 	isPdfAssetName,
 	isPdfAssetSource,
 	renderPdfPreviewDataUrl,
+	safeImageAssetSource,
 } from './pdf-preview'
 
 beforeEach(() => {
@@ -39,6 +40,25 @@ test('detects pdf asset urls with querystrings and ignores other assets', () => 
 	assert.equal(isPdfAssetSource(null), false)
 })
 
+test('allows only safe image asset sources', () => {
+	assert.equal(
+		safeImageAssetSource('https://cdn.example.test/logo.png'),
+		'https://cdn.example.test/logo.png',
+	)
+	assert.equal(safeImageAssetSource('/media/logo.webp'), '/media/logo.webp')
+	assert.equal(safeImageAssetSource('blob:http://localhost/logo'), 'blob:http://localhost/logo')
+	assert.equal(
+		safeImageAssetSource('data:image/png;base64,cHJldmlldw=='),
+		'data:image/png;base64,cHJldmlldw==',
+	)
+	assert.equal(safeImageAssetSource('javascript:alert(1)'), null)
+	assert.equal(safeImageAssetSource('http://['), null)
+	assert.equal(
+		safeImageAssetSource('data:image/svg+xml,<svg onload=alert(1)>'),
+		null,
+	)
+})
+
 test('renderPdfPreviewDataUrl rejects missing and failed PDF sources', async () => {
 	await assert.rejects(
 		() => renderPdfPreviewDataUrl(''),
@@ -50,6 +70,36 @@ test('renderPdfPreviewDataUrl rejects missing and failed PDF sources', async () 
 		() => renderPdfPreviewDataUrl('/files/report.pdf'),
 		/Unable to fetch PDF preview source: 503/,
 	)
+})
+
+test('renderPdfPreviewDataUrl rejects when canvas rendering is unavailable', async () => {
+	const getPage = vi.fn(async () => ({
+		getViewport: ({ scale }) => ({
+			width: 320 * scale,
+			height: 200 * scale,
+			scale,
+		}),
+	}))
+	const destroyPdf = vi.fn(async () => undefined)
+
+	global.fetch = vi.fn(async () => ({
+		ok: true,
+		arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+	}))
+	pdfMocks.getDocument.mockReturnValue({
+		destroy: vi.fn(),
+		promise: Promise.resolve({
+			getPage,
+			destroy: destroyPdf,
+		}),
+	})
+	vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
+
+	await assert.rejects(
+		() => renderPdfPreviewDataUrl('/files/report.pdf'),
+		/Canvas 2D context is not available/,
+	)
+	assert.equal(destroyPdf.mock.calls.length, 1)
 })
 
 test('renderPdfPreviewDataUrl renders the first page to a png data url and cleans resources', async () => {
