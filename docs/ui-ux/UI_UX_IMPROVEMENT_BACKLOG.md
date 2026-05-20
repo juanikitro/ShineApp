@@ -6,7 +6,7 @@ Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins hi
 
 | Orden | ID | Prioridad | Area | Objetivo | Evidencia | Resultado esperado |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | UI-009 | P1/P2 | Arquitectura frontend | Continuar extraccion por vertical de `frontend/app/page.tsx` sin mezclar redisenos. | Cortes aplicados: Caja en `components/cash/CashPanel.tsx`, Deudas en `components/debts/DebtPanel.tsx`, Dashboard en `components/dashboard/DashboardPanel.tsx`, Configuracion completa en `components/settings/*`, Inventario en `components/inventory/InventoryPanel.tsx`, Herramientas en `components/tools/ToolsPanel.tsx` y Cotizaciones en `components/quotes/QuotesPanel.tsx`; `page.tsx` sigue grande con 14.844 lineas y aprox. 149 `render*`. | UI-009 queda ~92% completo; siguiente corte recomendado: Servicios. |
+| 1 | UI-009 | Cerrado | Arquitectura frontend | Cerrar extraccion por vertical de `frontend/app/page.tsx` sin mezclar redisenos. | Cortes aplicados: Caja, Deudas, Dashboard, Configuracion completa, Inventario, Herramientas, Cotizaciones y Servicios en `components/*`; `page.tsx` queda en 14.436 lineas y aprox. 138 `render*`. | UI-009 queda 100% completo para verticales principales; no queda siguiente corte dentro de este ticket. |
 
 No quedan items no UI-009 en "Ahora". UI-009 queda listado solo como deuda estructural excluida del batch 2026-05-20.
 
@@ -20,7 +20,7 @@ No quedan items no UI-009 en "Ahora". UI-009 queda listado solo como deuda estru
 | UI-008 | Formularios | `SearchSelect` sin `autoFocus`, con combobox/listbox ids activos y estado live en vacio. |
 | UI-012 | Login | Modo normal sin credenciales prellenadas; demo solo por env flag y sin password. |
 | UI-016 | Caja | Jerarquia visual de metricas, filtros y listado reforzada por CSS sin tocar negocio. |
-| UI-009 | Caja + Deudas + Dashboard + Settings completo + Inventario + Herramientas + Cotizaciones / arquitectura frontend | Reducido a ~92%: renders de Caja, Deudas, Dashboard, Configuracion completa, Inventario, Herramientas y Cotizaciones extraidos a `CashPanel.tsx`, `DebtPanel.tsx`, `DashboardPanel.tsx`, `BusinessSettingsPanel.tsx`, `SettingsWorkspace.tsx`, `InventoryPanel.tsx`, `ToolsPanel.tsx` y `QuotesPanel.tsx`; estado, callbacks, payloads y reglas siguen en `page.tsx`. |
+| UI-009 | Caja + Deudas + Dashboard + Settings completo + Inventario + Herramientas + Cotizaciones + Servicios / arquitectura frontend | Cerrado al 100% para verticales principales: renders extraidos a `CashPanel.tsx`, `DebtPanel.tsx`, `DashboardPanel.tsx`, `BusinessSettingsPanel.tsx`, `SettingsWorkspace.tsx`, `InventoryPanel.tsx`, `ToolsPanel.tsx`, `QuotesPanel.tsx` y `ServicesPanel.tsx`; estado, callbacks, payloads y reglas siguen en `page.tsx`. |
 | UI-024 | Segmented controls | `.mode-toggle` consume tokens `--segmented-*`, usa `--segmented-count`, comparte estados hover/focus/selected light/dark y quedo revalidado visualmente en settings dark. |
 | UI-010 | Theme switch | `.theme-switch` ahora usa tokens `--theme-switch-*` light/dark; se elimino el outlier de hex directos en reglas del switch. |
 | UI-014 | Configuracion branding | Card de logo/negocio mas densa y escaneable en `BusinessSettingsPanel` + CSS, sin cambiar flujo ni persistencia. |
@@ -49,7 +49,7 @@ No quedan items no UI-009 en "Ahora". UI-009 queda listado solo como deuda estru
 
 | ID | Prioridad | Area | Motivo |
 | --- | --- | --- | --- |
-| UI-009 | P1/P2 | Arquitectura frontend | Cortes aplicados en Caja, Deudas, Dashboard, Settings completo, Inventario, Herramientas y Cotizaciones; quedan Servicios, estado, formularios y calculos todavia concentrados en `page.tsx`. |
+| UI-009 | Cerrado | Arquitectura frontend | Cortes aplicados en Caja, Deudas, Dashboard, Settings completo, Inventario, Herramientas, Cotizaciones y Servicios; solo quedan formularios/detail renders y calculos como residuo menor fuera del ticket. |
 
 No quedan deudas diferibles no UI-009 abiertas en este backlog al cierre del batch.
 

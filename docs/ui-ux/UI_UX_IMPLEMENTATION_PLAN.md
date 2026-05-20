@@ -79,6 +79,7 @@ Septimo corte UI-009 aplicado 2026-05-20:
 - Conteo post-corte Herramientas: `page.tsx` tiene 15.024 lineas y aprox. 155 coincidencias `render*`; `ToolsPanel.tsx` concentra 142 lineas presentacionales.
 - Validacion: `cd frontend && npm run build`.
 - QA visual autenticada normal: backend/db ya activos; `next start` en `9000`; `/?section=tools` cargo en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay y sin errores de consola/runtime/red. Screenshots fuera del repo capturados con Chrome headless CDP: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-tools-qa-2026-05-20\desktop-tools.png` y `...\mobile-tools.png`.
+
 Octavo corte UI-009 aplicado 2026-05-20:
 
 - Cotizaciones se movio desde `frontend/app/page.tsx` a `frontend/app/components/quotes/QuotesPanel.tsx`.
@@ -86,7 +87,15 @@ Octavo corte UI-009 aplicado 2026-05-20:
 - Conteo post-corte Cotizaciones: `page.tsx` tiene 14.844 lineas y aprox. 149 coincidencias `render*`; `QuotesPanel.tsx` concentra 324 lineas presentacionales.
 - Validacion: `cd frontend && npm run build`.
 - QA visual autenticada normal: backend/db ya activos; `next start` en `9000`; `/?section=quotes` cargo en desktop `1440x900` y mobile `390x844`, sin login residual, sin overlay y sin errores de consola/runtime/red. Screenshots fuera del repo capturados con Chrome headless CDP: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-quotes-qa-2026-05-20\desktop-quotes.png` y `...\mobile-quotes.png`.
-- Estado honesto: UI-009 queda ~92% completo. Quedan como deuda residual Servicios, algunos formularios/detail renders y calculos todavia concentrados en `page.tsx`.
+
+Noveno corte UI-009 aplicado 2026-05-20:
+
+- Servicios se movio desde `frontend/app/page.tsx` a `frontend/app/components/services/ServicesPanel.tsx`.
+- `page.tsx` conserva seleccion/carga del dashboard, quick actions, delete/undo, callbacks y apertura de detalles; el componente nuevo concentra listado, dashboard, metricas, rankings y listas relacionadas.
+- Conteo post-corte Servicios: `page.tsx` tiene 14.436 lineas y aprox. 138 coincidencias `render*`; `ServicesPanel.tsx` concentra 506 lineas presentacionales.
+- Validacion: `cd frontend && npm run build`.
+- QA visual autenticada normal: backend/db ya activos; `next start` en `9000`; `/?section=services` cargo en desktop `1440x900` y mobile `390x844`; el dashboard del primer servicio cargo en desktop, sin login residual, sin overlay y sin errores de consola/runtime/red. Screenshots fuera del repo: `C:\Users\Juanito\AppData\Local\Temp\shineapp-ui009-services-qa-2026-05-20\desktop-services.png`, `...\mobile-services.png` y `...\desktop-service-dashboard.png`.
+- Estado honesto: UI-009 queda 100% completo para las verticales principales identificadas. Deuda residual fuera de UI-009: formularios/detail renders y calculos siguen en `page.tsx` por diseno de este ticket.
 
 Corte UI-024 aplicado 2026-05-20:
 

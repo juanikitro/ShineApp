@@ -78,6 +78,7 @@ import {
 	QuoteCardContent,
 	QuotesPanel,
 } from '@/app/components/quotes/QuotesPanel'
+import { ServicesPanel } from '@/app/components/services/ServicesPanel'
 import { SettingsWorkspace } from '@/app/components/settings/SettingsWorkspace'
 import { ToolsPanel } from '@/app/components/tools/ToolsPanel'
 import {
@@ -5388,367 +5389,6 @@ export default function Home() {
 					{renderCustomerPaymentHistory(payments)}
 				</div>
 			</CustomerDashboardShell>
-		)
-	}
-
-	function renderServiceOperationalSnapshot(
-		history: AnyRecord,
-		upcomingReservations: AnyRecord[],
-		recentQuotes: AnyRecord[],
-	) {
-		const insights = history.insights ?? {}
-		const summary = history.summary ?? {}
-		const nextReservation =
-			insights.next_reservation ?? upcomingReservations[0] ?? null
-		const latestQuote = recentQuotes[0] ?? null
-		return (
-			<Panel
-				title="Estado del servicio"
-				subtitle="Carga operativa, venta y apariciones adicionales"
-			>
-				<div className="customer-dashboard-insights">
-					<div className="customer-dashboard-card">
-						<span>Ultimo uso</span>
-						<strong>
-							{insights.last_used_at
-								? formatDateLabel(insights.last_used_at)
-								: 'Sin trabajos'}
-						</strong>
-						<small>
-							{insights.last_used_at
-								? `${customerDaysAgoText(
-										insights.days_since_last_use,
-										'Sin dato',
-									)} · ${insights.last_customer_name || 'Sin cliente'} · ${
-										insights.last_vehicle_label || 'Sin vehiculo'
-									}`
-								: 'Todavia no tiene ordenes principales registradas.'}
-						</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Proxima reserva</span>
-						<strong>{customerScheduleLabel(nextReservation)}</strong>
-						<small>
-							{nextReservation
-								? `${nextReservation.customer} · ${nextReservation.vehicle}`
-								: 'Sin agenda futura como servicio principal.'}
-						</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Trabajos activos</span>
-						<strong>{summary.active_work_orders_count ?? 0}</strong>
-						<small>{`Facturado ${money(summary.sales_total)}`}</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Cotizaciones abiertas</span>
-						<strong>{summary.open_quotes_count ?? 0}</strong>
-						<small>
-							{latestQuote
-								? `Ultima ${formatDateLabel(latestQuote.quote_date)} · ${money(
-										latestQuote.total,
-									)}`
-								: `${summary.quotes_total ?? 0} cotizaciones con este servicio`}
-						</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Ticket promedio</span>
-						<strong>{money(insights.average_ticket)}</strong>
-						<small>{`${summary.work_orders_count ?? 0} trabajos historicos`}</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Uso adicional/combo</span>
-						<strong>
-							{(summary.additional_reservation_items_count ?? 0) +
-								(summary.quote_item_usages_count ?? 0)}
-						</strong>
-						<small>{`Reservas ${summary.additional_reservation_items_count ?? 0} · Cotizaciones ${
-							summary.quote_item_usages_count ?? 0
-						}`}</small>
-					</div>
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderServiceUpcomingReservations(reservationsRows: AnyRecord[]) {
-		return (
-			<Panel
-				title="Proximas reservas"
-				subtitle={`${reservationsRows.length} reservas visibles`}
-			>
-				<div className="records compact-records">
-					{reservationsRows.length ? (
-						reservationsRows.map((reservation: AnyRecord) => {
-							const detailReservation =
-								reservations.find(
-									(item) => String(item.id) === String(reservation.id),
-								) ?? reservation
-							return (
-								<button
-									className="record compact"
-									key={`service-reservation-${reservation.id}`}
-									onClick={() =>
-										openDetailModal('Reserva', detailReservation)
-									}
-									type="button"
-								>
-									<div className="record-head">
-										<div>
-											<div className="record-title">
-												{reservation.customer} - {reservation.vehicle}
-											</div>
-											<div className="record-sub">
-												{customerScheduleLabel(reservation)} -{' '}
-												{reservation.services}
-											</div>
-										</div>
-										<div className="record-actions">
-											<StatusPill
-												value={reservation.status}
-												labels={reservationLabels}
-											/>
-										</div>
-									</div>
-								</button>
-							)
-						})
-					) : (
-						<Empty text="Este servicio no tiene reservas futuras." />
-					)}
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderServiceActiveWorkOrders(orders: AnyRecord[]) {
-		return (
-			<Panel
-				title="Trabajos activos"
-				subtitle={`${orders.length} trabajos principales en curso`}
-			>
-				<div className="records compact-records">
-					{orders.length ? (
-						orders.map((order: AnyRecord) => {
-							const detailOrder =
-								workOrders.find((item) => String(item.id) === String(order.id)) ??
-								order
-							return (
-								<button
-									className="record compact"
-									key={`service-workorder-${order.id}`}
-									onClick={() =>
-										openDetailModal('Orden de trabajo', detailOrder)
-									}
-									type="button"
-								>
-									<div className="record-head">
-										<div>
-											<div className="record-title">
-												{order.customer_name} - {order.vehicle_label}
-											</div>
-											<div className="record-sub">
-												{formatDateTimeLabel(order.received_at)} - cobrado{' '}
-												{money(order.paid_amount)} - saldo{' '}
-												{money(order.balance_due)} - materiales{' '}
-												{money(order.material_cost)}
-											</div>
-										</div>
-										<div className="record-actions">
-											<StatusPill value={order.status} labels={orderLabels} />
-											<span className="status payment">
-												{money(order.total_amount)}
-											</span>
-										</div>
-									</div>
-								</button>
-							)
-						})
-					) : (
-						<Empty text="Este servicio no tiene trabajos activos." />
-					)}
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderServiceRecentQuotes(quotesRows: AnyRecord[]) {
-		return (
-			<Panel
-				title="Cotizaciones recientes"
-				subtitle={`${quotesRows.length} cotizaciones con este servicio`}
-			>
-				<div className="records compact-records">
-					{quotesRows.length ? (
-						quotesRows.map((quote: AnyRecord) => {
-							const detailQuote =
-								quotes.find((item) => String(item.id) === String(quote.id)) ??
-								quote
-							return (
-								<button
-									className="record compact"
-									key={`service-quote-${quote.id}`}
-									onClick={() => openDetailModal('Cotizacion', detailQuote)}
-									type="button"
-								>
-									<div className="record-head">
-										<div>
-											<div className="record-title">
-												Cotizacion {quote.public_code ?? `#${quote.id}`} -{' '}
-												{quote.customer}
-											</div>
-											<div className="record-sub">
-												{formatDateLabel(quote.quote_date)} -{' '}
-												{quote.vehicle || 'Sin vehiculo'} - {quote.services}
-											</div>
-										</div>
-										<div className="record-actions">
-											<StatusPill
-												value={quote.status}
-												labels={quoteStatusLabels}
-											/>
-											<span className="status payment">
-												{money(quote.total)}
-											</span>
-										</div>
-									</div>
-								</button>
-							)
-						})
-					) : (
-						<Empty text="Este servicio todavia no tiene cotizaciones." />
-					)}
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderServiceDashboard() {
-		if (!serviceDashboard || !canViewEconomy) return null
-		const hasDashboardHistory = Boolean(serviceDashboardHistory)
-		const history = serviceDashboardHistory ?? {}
-		const service = history.service ?? serviceDashboard
-		const summary = history.summary ?? {}
-		const topCustomers = history.top_customers ?? []
-		const topVehicles = history.top_vehicles ?? []
-		const upcomingReservations = history.upcoming_reservations ?? []
-		const activeOrders = history.active_work_orders ?? []
-		const recentQuotes = history.recent_quotes ?? []
-		return (
-			<div className="grid customer-dashboard service-dashboard">
-				<Panel>
-					<div className="customer-dashboard-head service-dashboard-head">
-						<button
-							type="button"
-							className="ghost"
-							onClick={() => setServiceDashboard(null)}
-						>
-							<ChevronLeft size={16} />
-							Servicios
-						</button>
-						<div>
-							<h2>{serviceDisplayName(service)}</h2>
-							<p>Dashboard especifico del servicio</p>
-						</div>
-						<button
-							type="button"
-							className="ghost"
-							onClick={() => openDetailModal('Servicio', service)}
-						>
-							Editar servicio
-						</button>
-					</div>
-					<div className="customer-dashboard-profile service-dashboard-profile">
-						<div>
-							<span>Tipo</span>
-							<strong>
-								{serviceTypeLabels[service.service_type] ??
-									service.service_type ??
-									'Sin tipo'}
-							</strong>
-						</div>
-						<div>
-							<span>Precio base</span>
-							<strong>{money(service.base_price)}</strong>
-						</div>
-						<div>
-							<span>Duracion estimada</span>
-							<strong>{service.estimated_duration_minutes ?? 0} min</strong>
-						</div>
-						<div>
-							<span>Estado</span>
-							<strong>{service.is_active === false ? 'Inactivo' : 'Activo'}</strong>
-						</div>
-						<div>
-							<span>Notas</span>
-							<strong>{service.notes || 'Sin notas'}</strong>
-						</div>
-					</div>
-				</Panel>
-
-				{serviceDashboardLoading ? (
-					<LoadingState text="Cargando dashboard del servicio..." />
-				) : null}
-
-				{!serviceDashboardLoading && !hasDashboardHistory ? (
-					<div className="info-note">
-						No se pudo cargar el historial operativo del servicio. El
-						listado sigue disponible para evitar datos incompletos.
-					</div>
-				) : null}
-
-				{hasDashboardHistory ? (
-					<>
-						<div className="customer-dashboard-metrics service-dashboard-metrics">
-							<MetricCard
-								label="Ventas"
-								value={money(summary.sales_total ?? summary.billed_total)}
-							/>
-							<MetricCard label="Cobrado" value={money(summary.paid_total)} />
-							<MetricCard
-								label="Saldo"
-								value={money(summary.balance_due_total)}
-							/>
-							<MetricCard
-								label="Materiales"
-								value={money(summary.material_cost_total)}
-							/>
-							<MetricCard label="Margen" value={money(summary.margin_total)} />
-							<MetricCard
-								label="Trabajos"
-								value={summary.work_orders_count ?? 0}
-							/>
-						</div>
-
-						{renderServiceOperationalSnapshot(
-							history,
-							upcomingReservations,
-							recentQuotes,
-						)}
-
-						<div className="grid two">
-							{renderCustomerRankingPanel(
-								'Clientes frecuentes',
-								topCustomers,
-								'name',
-								'Este servicio todavia no tiene clientes frecuentes.',
-							)}
-							{renderCustomerRankingPanel(
-								'Vehiculos frecuentes',
-								topVehicles,
-								'label',
-								'Este servicio todavia no tiene vehiculos frecuentes.',
-							)}
-						</div>
-
-						<div className="grid two">
-							{renderServiceUpcomingReservations(upcomingReservations)}
-							{renderServiceRecentQuotes(recentQuotes)}
-						</div>
-
-						{renderServiceActiveWorkOrders(activeOrders)}
-					</>
-				) : null}
-			</div>
 		)
 	}
 
@@ -14805,108 +14445,48 @@ export default function Home() {
 				) : null}
 
 				{displayedActive === 'services' ? (
-					serviceDashboard && canViewEconomy ? (
-						renderServiceDashboard()
-					) : (
-					<div className="grid">
-						<section className="panel">
-							<div className="panel-head">
-								<div>
-									<h2>Servicios</h2>
-									<p>Lavados, detailing y combos disponibles para reservas y cotizaciones.</p>
-								</div>
-								<button
-									type="button"
-									className="primary"
-									onClick={() => openFormModal('service')}
-								>
-									<Plus size={16} />
-									Nuevo servicio
-								</button>
-							</div>
-							<div className="records">
-								{services.length ? (
-									services.map((item) => {
-										const quickActions = serviceQuickActions(item)
-										return (
-										<MotionFlashSurface
-											className={recordClass('service', item.id)}
-											key={item.id}
-											{...quickActionTargetProps(
-												'Acciones de servicio',
-												quickActions,
-											)}
-										>
-											{renderQuickActionsTrigger(
-												'Acciones de servicio',
-												quickActions,
-												'Acciones rapidas de servicio',
-											)}
-											<RecordCardHeader
-												title={serviceDisplayName(item)}
-												subtitle={joinDisplayParts([
-													serviceTypeLabels[item.service_type],
-													money(item.base_price),
-													`${item.estimated_duration_minutes} min`,
-												])}
-												primaryAction={{
-													ariaLabel: `Abrir servicio ${serviceDisplayName(item)}`,
-													onClick: () => openServiceDashboard(item),
-												}}
-												actions={
-													<>
-													<button
-														type="button"
-														className="ghost"
-														onClick={() =>
-															openDetailModal('Servicio', item)
-														}
-													>
-														Editar
-													</button>
-													<button
-														type="button"
-														className="danger"
-														onClick={() =>
-															runAction(() =>
-																apiFetch(
-																	`/services/${item.id}/`,
-																	{
-																		method: 'DELETE',
-																	},
-																),
-																{
-																	successTitle:
-																		entityFeedbackTitle(
-																			'service',
-																			'deleted',
-																		),
-																	undo: undoRestoreActiveRecord(
-																		'service',
-																		item,
-																	),
-																},
-															)
-														}
-													>
-														Inactivar
-													</button>
-													</>
-												}
-											/>
-										</MotionFlashSurface>
-										)
-									})
-								) : (
-									<Empty
-										text="Sin servicios."
-										hint="Crea el primer servicio para reservar o cotizar."
-									/>
-								)}
-							</div>
-						</section>
-					</div>
-					)
+					<ServicesPanel
+						canViewEconomy={canViewEconomy}
+						customerDaysAgoText={customerDaysAgoText}
+						customerScheduleLabel={customerScheduleLabel}
+						orderLabels={orderLabels}
+						quickActionTargetProps={quickActionTargetProps}
+						quoteStatusLabels={quoteStatusLabels}
+						quotes={quotes}
+						recordClass={recordClass}
+						renderCustomerRankingPanel={renderCustomerRankingPanel}
+						renderQuickActionsTrigger={renderQuickActionsTrigger}
+						reservationLabels={reservationLabels}
+						reservations={reservations}
+						serviceDashboard={serviceDashboard}
+						serviceDashboardHistory={serviceDashboardHistory}
+						serviceDashboardLoading={serviceDashboardLoading}
+						serviceQuickActions={serviceQuickActions}
+						serviceTypeLabels={serviceTypeLabels}
+						services={services}
+						workOrders={workOrders}
+						onBackToServices={() => setServiceDashboard(null)}
+						onCreateService={() => openFormModal('service')}
+						onDeleteService={(item) =>
+							runAction(
+								() =>
+									apiFetch(`/services/${item.id}/`, {
+										method: 'DELETE',
+									}),
+								{
+									successTitle: entityFeedbackTitle('service', 'deleted'),
+									undo: undoRestoreActiveRecord('service', item),
+								},
+							)
+						}
+						onOpenQuoteDetail={(item) => openDetailModal('Cotizacion', item)}
+						onOpenReservationDetail={(item) => openDetailModal('Reserva', item)}
+						onOpenServiceDashboard={openServiceDashboard}
+						onOpenServiceDetail={(item) => openDetailModal('Servicio', item)}
+						onOpenWorkOrderDetail={(item) =>
+							openDetailModal('Orden de trabajo', item)
+						}
+					/>
 				) : null}
 
 				{displayedActive === 'agenda' ? (
