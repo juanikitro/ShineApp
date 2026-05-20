@@ -41,3 +41,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Landing publica y solicitudes](2026-05-18-landing-publica-solicitudes.md)
 - [Multi-negocio desde Django admin](2026-05-18-multi-negocio-django-admin.md)
 - [Documentacion viva con MkDocs Material](2026-05-20-documentacion-viva-mkdocs.md)
+- [Puertos locales dedicados](2026-05-20-puertos-locales-compose.md)

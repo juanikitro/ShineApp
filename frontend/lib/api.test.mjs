@@ -182,8 +182,8 @@ test('apiList follows every DRF page from relative next links with auth headers'
 	assert.deepEqual(
 		calls.map((call) => call.url),
 		[
-			'http://localhost:8000/api/customers/',
-			'http://localhost:8000/api/customers/?page=2',
+			'http://localhost:9001/api/customers/',
+			'http://localhost:9001/api/customers/?page=2',
 		],
 	)
 	assert.deepEqual(
@@ -212,7 +212,7 @@ test('apiList follows absolute DRF next links without prefixing the API URL twic
 
 	assert.deepEqual(await apiList('/customers/'), [{ id: 11 }, { id: 12 }])
 	assert.deepEqual(urls, [
-		'http://localhost:8000/api/customers/',
+		'http://localhost:9001/api/customers/',
 		'https://api.shineapp.test/api/customers/?page=2',
 	])
 })

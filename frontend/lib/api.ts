@@ -1,6 +1,6 @@
 import { ApiResponseError, normalizeApiErrorPayload } from "./api-errors";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:9001/api";
 const API_BASE_URL = API_URL.replace(/\/$/, "");
 
 type PaginatedPayload<T> = {

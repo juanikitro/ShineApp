@@ -28,13 +28,13 @@ test('detects pdf file names regardless of case', () => {
 })
 
 test('detects pdf asset urls with querystrings and ignores other assets', () => {
-	assert.equal(isPdfAssetSource('http://localhost:8000/media/logo.pdf'), true)
+	assert.equal(isPdfAssetSource('http://localhost:9001/media/logo.pdf'), true)
 	assert.equal(
-		isPdfAssetSource('http://localhost:8000/media/logo.pdf?token=123'),
+		isPdfAssetSource('http://localhost:9001/media/logo.pdf?token=123'),
 		true,
 	)
 	assert.equal(
-		isPdfAssetSource('http://localhost:8000/media/logo.png?download=1'),
+		isPdfAssetSource('http://localhost:9001/media/logo.png?download=1'),
 		false,
 	)
 	assert.equal(isPdfAssetSource(null), false)

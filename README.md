@@ -31,9 +31,10 @@ docker compose -f docker-compose.yml up --build frontend
 
 URLs:
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000/api
-- Admin Django: http://localhost:8000/admin
+- Frontend: http://localhost:9000
+- Backend API: http://localhost:9001/api
+- Admin Django: http://localhost:9001/admin
+- Postgres local: localhost:9002
 
 Usuario demo:
 
@@ -50,7 +51,7 @@ py -3 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe manage.py migrate
 .\.venv\Scripts\python.exe manage.py seed_demo
-.\.venv\Scripts\python.exe manage.py runserver
+.\.venv\Scripts\python.exe manage.py runserver 9001
 ```
 
 Frontend:
@@ -60,6 +61,8 @@ cd frontend
 npm install
 npm run dev
 ```
+
+El frontend local escucha en `9000` y usa `http://localhost:9001/api` como API por defecto. En Docker, esos mismos puertos se publican desde `docker-compose.yml`; si alguno esta ocupado, cambia `SHINEAPP_FRONTEND_PORT`, `SHINEAPP_BACKEND_PORT` o `SHINEAPP_DB_PORT` en `.env`.
 
 ## Documentacion viva
 
