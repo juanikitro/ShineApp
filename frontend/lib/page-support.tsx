@@ -1447,15 +1447,24 @@ function NoticeToastViewport({
 	)
 }
 
+function loginInitialCredentials() {
+	const demoLoginEnabled =
+		process.env.NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN === '1'
+	const demoUsername =
+		process.env.NEXT_PUBLIC_SHINEAPP_DEMO_USERNAME?.trim() || 'admin'
+
+	return {
+		username: demoLoginEnabled ? demoUsername : '',
+		password: '',
+	}
+}
+
 function LoginScreen({
 	onLogin,
 }: {
 	onLogin: (token: string, user: AnyRecord) => void
 }) {
-	const [form, setForm] = useState({
-		username: 'admin',
-		password: 'admin123',
-	})
+	const [form, setForm] = useState(loginInitialCredentials)
 	const [loading, setLoading] = useState(false)
 	const { toasts, showToast, dismissToast } = useNoticeToasts()
 
@@ -1576,6 +1585,7 @@ export {
 	asPayload,
 	businessVatConditionOptions,
 	birthdayText,
+	loginInitialCredentials,
 	blankBusinessForm,
 	blankAgendaPaymentForm,
 	blankCustomerForm,

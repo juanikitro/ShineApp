@@ -27,6 +27,7 @@ function apiRequestUrl(path: string) {
 
   return `${API_BASE_URL}/${path}`;
 }
+const AUTH_TOKEN_STORAGE_KEY = "detailingToken";
 
 async function readErrorPayload(response: Response) {
   let payload: unknown = "No se pudo completar la operacion.";
@@ -57,15 +58,25 @@ function raiseApiError(response: Response, payload: unknown): never {
 
 export function getStoredToken() {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem("detailingToken");
+  const sessionToken = window.sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  if (sessionToken) return sessionToken;
+
+  const legacyToken = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  if (legacyToken) {
+    window.sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, legacyToken);
+    window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  }
+  return legacyToken;
 }
 
 export function setStoredToken(token: string) {
-  window.localStorage.setItem("detailingToken", token);
+  window.sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
 }
 
 export function clearStoredToken() {
-  window.localStorage.removeItem("detailingToken");
+  window.sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
 }
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {

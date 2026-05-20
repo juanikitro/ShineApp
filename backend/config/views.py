@@ -96,7 +96,7 @@ class EmployeeUserSerializer(serializers.ModelSerializer):
 class EmployeeUserCreateSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
     email = serializers.EmailField(required=False, allow_blank=True)
-    password = serializers.CharField(write_only=True, min_length=4)
+    password = serializers.CharField(write_only=True, min_length=8)
 
     def validate_username(self, value):
         username = value.strip()

@@ -40,6 +40,7 @@ def required_env(name):
 
 DEBUG = False
 APP_ENVIRONMENT = os.getenv("APP_ENVIRONMENT", "production")
+AUTH_PASSWORD_VALIDATORS = STANDARD_PASSWORD_VALIDATORS  # noqa: F405
 
 SECRET_KEY = required_env("DJANGO_SECRET_KEY")
 if SECRET_KEY in {"change-me", "dev-only-shineapp-secret"} or len(SECRET_KEY) < 50:

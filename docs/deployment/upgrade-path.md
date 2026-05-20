@@ -23,6 +23,7 @@ Before real customer traffic:
 - Configure production email provider and verified sender domain.
 - Configure Sentry through `SENTRY_DSN` and keep `SENTRY_SEND_DEFAULT_PII=0` unless privacy review approves otherwise.
 - Configure rate limiting and WAF rules on public endpoints; set `WAF_STATUS=configured` only after dashboard rules are active.
+- Replace browser-readable token auth with HttpOnly/SameSite cookies or Django session auth plus CSRF, token/session expiry, rotation and server-side revocation.
 - Keep Django on Vercel only for initial production traffic that stays request/response oriented and low concurrency.
 - Add a release checklist for migrations, rollback, seed/demo data, and smoke tests.
 - Separate staging and production projects before real customer data.

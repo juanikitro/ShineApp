@@ -14,6 +14,7 @@ import {
 
 beforeEach(() => {
 	window.localStorage.clear()
+	window.sessionStorage.clear()
 })
 
 test('apiFetch normalizes non-JSON error bodies without reading the stream twice', async () => {
@@ -69,12 +70,23 @@ test('publicApiFetch does not read localStorage or attach auth headers', async (
 	assert.equal(authorizationHeader, null)
 })
 
-test('stored token helpers persist and clear the detailing token', () => {
+test('stored token helpers use sessionStorage and clear legacy localStorage tokens', () => {
 	assert.equal(getStoredToken(), null)
+
+	window.localStorage.setItem('detailingToken', 'legacy-token')
+	assert.equal(getStoredToken(), 'legacy-token')
+	assert.equal(window.sessionStorage.getItem('detailingToken'), 'legacy-token')
+	assert.equal(window.localStorage.getItem('detailingToken'), null)
+
 	setStoredToken('abc123')
 	assert.equal(getStoredToken(), 'abc123')
+	assert.equal(window.sessionStorage.getItem('detailingToken'), 'abc123')
+	assert.equal(window.localStorage.getItem('detailingToken'), null)
+
 	clearStoredToken()
 	assert.equal(getStoredToken(), null)
+	assert.equal(window.sessionStorage.getItem('detailingToken'), null)
+	assert.equal(window.localStorage.getItem('detailingToken'), null)
 })
 
 test('apiFetch attaches auth and json headers but leaves FormData content type to the browser', async () => {

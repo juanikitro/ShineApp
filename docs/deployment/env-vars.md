@@ -36,6 +36,8 @@ Do not commit real values. Use `.env.example` as shape only.
 ## Frontend public vars
 
 - `NEXT_PUBLIC_API_URL`: API root, including `/api`, for example `https://shineapp-api.vercel.app/api`.
+- `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN`: optional local/demo flag. Use `1` only when the login may prefill a demo username. Leave unset in real production.
+- `NEXT_PUBLIC_SHINEAPP_DEMO_USERNAME`: optional demo username to prefill when `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN=1`. Never put a password in public frontend env vars.
 
 Every `NEXT_PUBLIC_` variable is bundled into browser JavaScript. Never put server secrets there.
 
