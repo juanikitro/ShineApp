@@ -1646,6 +1646,10 @@ function LoginScreen({
 				/>
 				{signupMode ? (
 					<div className="form-grid login-trial-grid">
+						<p className="login-trial-note">
+							Sin tarjeta ni cobro automatico. Crea un espacio de prueba
+							para operar ShineApp durante 30 dias.
+						</p>
 						<Field label="Negocio">
 							<input
 								name="business_name"

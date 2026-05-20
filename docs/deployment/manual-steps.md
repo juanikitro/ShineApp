@@ -97,6 +97,30 @@ The public demo is deployed. These manual steps remain before showing media-heav
 - Value to copy: none.
 - Validate: admin/API can authenticate against the Supabase database after public API alias is enabled.
 
+## 8.1 Refresh demo seed credentials for customer walkthroughs
+
+- What: if seeded demo users are used in a customer walkthrough, rotate `admin`, `empleado` and `recepcion` away from default demo passwords.
+- Where: trusted local shell with the intended demo `DATABASE_URL`, or an approved one-off command that points to the demo Supabase database.
+- Why: `seed_demo` can create useful realistic data, but the default local credentials are known development credentials and should not be used as long-lived public demo access.
+- Value to set: generated temporary passwords outside the repo.
+- Command shape:
+
+  ```powershell
+  cd backend
+  $env:SEED_DEMO_ADMIN_PASSWORD = "<generated-admin-password>"
+  $env:SEED_DEMO_EMPLOYEE_PASSWORD = "<generated-employee-password>"
+  .\.venv\Scripts\python.exe manage.py seed_demo --yes
+  ```
+
+  If `backend/.venv` is unavailable, use `py -3 manage.py seed_demo --yes`.
+- Validate:
+  - `admin` can log in from the public web URL.
+  - `empleado` can log in but cannot see economy/settings surfaces.
+  - `GET /api/auth/me/` with each token returns the expected business, role and `can_view_economy`.
+  - `GET /api/cash/daily/` with the employee token returns HTTP 403.
+- Risk if omitted: a customer-facing demo can keep well-known demo passwords alive.
+- Note: use `--allow-default-passwords` only for disposable local/demo smoke runs where the risk is explicit. Do not use it as the normal customer-demo path.
+
 ## 9. Validate private media
 
 - What: upload a logo/avatar/document after public deploy.
