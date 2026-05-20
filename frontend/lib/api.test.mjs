@@ -12,6 +12,10 @@ import {
 	setStoredToken,
 } from './api'
 
+const API_BASE_URL = (
+	process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:9001/api'
+).replace(/\/$/, '')
+
 beforeEach(() => {
 	window.localStorage.clear()
 	window.sessionStorage.clear()
@@ -182,8 +186,8 @@ test('apiList follows every DRF page from relative next links with auth headers'
 	assert.deepEqual(
 		calls.map((call) => call.url),
 		[
-			'http://localhost:9001/api/customers/',
-			'http://localhost:9001/api/customers/?page=2',
+			`${API_BASE_URL}/customers/`,
+			`${API_BASE_URL}/customers/?page=2`,
 		],
 	)
 	assert.deepEqual(
@@ -212,7 +216,7 @@ test('apiList follows absolute DRF next links without prefixing the API URL twic
 
 	assert.deepEqual(await apiList('/customers/'), [{ id: 11 }, { id: 12 }])
 	assert.deepEqual(urls, [
-		'http://localhost:9001/api/customers/',
+		`${API_BASE_URL}/customers/`,
 		'https://api.shineapp.test/api/customers/?page=2',
 	])
 })
