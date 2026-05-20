@@ -80,7 +80,7 @@ Si no podes validar, informa causa, impacto y alternativa razonable. No confunda
 ## Git
 
 Regla local de ramas:
-- Trabaja siempre sobre `development`; este entorno debe mantenerse abierto en esa rama.
+- Trabaja por defecto sobre `development`; este entorno debe mantenerse abierto en esa rama.
 - `main` queda reservada como branch de publicacion.
 - No crees ramas nuevas ni worktrees salvo que el usuario lo pida explicitamente. Si aparece un bloqueo tecnico que realmente lo requiera, explicalo antes de actuar.
 
