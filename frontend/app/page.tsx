@@ -112,6 +112,10 @@ import {
 	getStoredToken,
 } from '@/lib/api'
 import {
+	dataSetCacheKey,
+	loadAppDataSets,
+} from '@/lib/app-data'
+import {
 	dataSetKeysForSection,
 	type DataSetKey,
 } from '@/lib/data-loading'
@@ -2352,61 +2356,6 @@ export default function Home() {
 		settingsSection?: SettingsSection
 	}
 
-	function dataSetCacheKey(key: DataSetKey) {
-		if (key === 'dashboard') return `${key}:${period.from}:${period.to}`
-		if (key === 'cash') return `${key}:${selectedDay}`
-		return key
-	}
-
-	async function loadDataSet(key: DataSetKey) {
-		switch (key) {
-			case 'dashboard':
-				return apiFetch<AnyRecord>(
-					`/dashboard/summary/?from=${period.from}&to=${period.to}`,
-				)
-			case 'cash':
-				return apiFetch<AnyRecord>(`/cash/daily/?date=${selectedDay}`)
-			case 'customers':
-				return apiList<AnyRecord>('/customers/')
-			case 'vehicles':
-				return apiList<AnyRecord>('/vehicles/')
-			case 'services':
-				return apiList<AnyRecord>('/services/')
-			case 'reservations':
-				return apiList<AnyRecord>('/reservations/')
-			case 'workOrders':
-				return apiList<AnyRecord>('/work-orders/')
-			case 'payments':
-				return apiList<AnyRecord>('/payments/')
-			case 'debts':
-				return apiList<AnyRecord>('/debts/')
-			case 'debtPayments':
-				return apiList<AnyRecord>('/debt-payments/')
-			case 'materials':
-				return apiList<AnyRecord>('/materials/')
-			case 'suppliers':
-				return apiList<AnyRecord>('/suppliers/')
-			case 'stockMovements':
-				return apiList<AnyRecord>('/stock-movements/')
-			case 'materialOpenUnits':
-				return apiList<AnyRecord>('/material-open-units/')
-			case 'purchases':
-				return apiList<AnyRecord>('/material-purchases/')
-			case 'consumptions':
-				return apiList<AnyRecord>('/material-consumptions/')
-			case 'tools':
-				return apiList<AnyRecord>('/tools/')
-			case 'quotes':
-				return apiList<AnyRecord>('/quotes/')
-			case 'publicRequests':
-				return apiList<AnyRecord>('/public-requests/')
-			case 'businessProfile':
-				return apiFetch<AnyRecord>('/settings/business-profile/')
-			case 'employees':
-				return apiList<AnyRecord>('/auth/employees/')
-		}
-	}
-
 	function applyLoadedData(key: DataSetKey, data: unknown) {
 		switch (key) {
 			case 'dashboard':
@@ -2476,6 +2425,7 @@ export default function Home() {
 	}
 
 	async function loadData(options: LoadDataOptions = {}) {
+		const dataScope = { period, selectedDay }
 		const keys = dataSetKeysForSection({
 			section: options.section ?? displayedActive,
 			settingsSection: options.settingsSection ?? settingsSection,
@@ -2487,7 +2437,10 @@ export default function Home() {
 		const keysToLoad = options.force
 			? keys
 			: keys.filter(
-					(key) => !loadedDataCacheRef.current.has(dataSetCacheKey(key)),
+					(key) =>
+						!loadedDataCacheRef.current.has(
+							dataSetCacheKey(key, dataScope),
+						),
 				)
 
 		if (!keysToLoad.length) return
@@ -2497,12 +2450,13 @@ export default function Home() {
 		setAgendaLoadError(null)
 		setLoadErrorNotice(null)
 		try {
-			const entries = await Promise.all(
-				keysToLoad.map(async (key) => [key, await loadDataSet(key)] as const),
-			)
+			const entries = await loadAppDataSets(keysToLoad, dataScope, {
+				apiFetch,
+				apiList,
+			})
 			for (const [key, data] of entries) {
 				applyLoadedData(key, data)
-				loadedDataCacheRef.current.add(dataSetCacheKey(key))
+				loadedDataCacheRef.current.add(dataSetCacheKey(key, dataScope))
 			}
 		} catch (err: any) {
 			const notice = formatApiError(err, {
