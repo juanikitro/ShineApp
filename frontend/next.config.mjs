@@ -2,6 +2,7 @@
 const nextConfig = {
   output: process.platform === "win32" ? undefined : "standalone",
   experimental: {
+    webpackBuildWorker: false,
     staticGenerationMaxConcurrency: 1,
   },
 };

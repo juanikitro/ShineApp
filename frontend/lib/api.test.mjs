@@ -139,12 +139,70 @@ test('apiList accepts both plain arrays and paginated results', async () => {
 		status: 200,
 		json: async () =>
 			String(_url).includes('paginated')
-				? { results: [{ id: 2 }] }
+				? { count: 1, next: null, previous: null, results: [{ id: 2 }] }
 				: [{ id: 1 }],
 	}))
 
 	assert.deepEqual(await apiList('/customers/'), [{ id: 1 }])
 	assert.deepEqual(await apiList('/paginated/customers/'), [{ id: 2 }])
+})
+
+test('apiList follows every DRF page from relative next links with auth headers', async () => {
+	const calls = []
+	setStoredToken('page-token')
+	global.fetch = vi.fn(async (_url, options) => {
+		const url = String(_url)
+		calls.push({
+			url,
+			authorization: new Headers(options.headers).get('Authorization'),
+		})
+		return {
+			ok: true,
+			status: 200,
+			json: async () =>
+				url.includes('page=2')
+					? { count: 2, next: null, previous: '/api/customers/', results: [{ id: 2 }] }
+					: { count: 2, next: '/api/customers/?page=2', previous: null, results: [{ id: 1 }] },
+		}
+	})
+
+	assert.deepEqual(await apiList('/customers/'), [{ id: 1 }, { id: 2 }])
+	assert.deepEqual(
+		calls.map((call) => call.url),
+		[
+			'http://localhost:8000/api/customers/',
+			'http://localhost:8000/api/customers/?page=2',
+		],
+	)
+	assert.deepEqual(
+		calls.map((call) => call.authorization),
+		['Token page-token', 'Token page-token'],
+	)
+})
+
+test('apiList follows absolute DRF next links without prefixing the API URL twice', async () => {
+	const urls = []
+	global.fetch = vi.fn(async (_url) => {
+		const url = String(_url)
+		urls.push(url)
+		return {
+			ok: true,
+			status: 200,
+			json: async () =>
+				url.includes('page=2')
+					? { next: null, results: [{ id: 12 }] }
+					: {
+							next: 'https://api.shineapp.test/api/customers/?page=2',
+							results: [{ id: 11 }],
+						},
+		}
+	})
+
+	assert.deepEqual(await apiList('/customers/'), [{ id: 11 }, { id: 12 }])
+	assert.deepEqual(urls, [
+		'http://localhost:8000/api/customers/',
+		'https://api.shineapp.test/api/customers/?page=2',
+	])
 })
 
 test('downloadApiFile sends auth, clicks a download link and revokes the blob url', async () => {

@@ -104,7 +104,10 @@ import {
 	clearStoredToken,
 	downloadApiFile,
 	getStoredToken,
-} from '@/lib/api'
+} from '@/lib/api'import {
+	dataSetKeysForSection,
+	type DataSetKey,
+} from '@/lib/data-loading'
 import {
 	type ApiErrorNotice,
 	createValidationNotice,
@@ -1066,6 +1069,7 @@ export default function Home() {
 	const [auditLogs, setAuditLogs] = useState<AnyRecord[]>([])
 	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>({})
 	const auditLogsLoadedRef = useRef(false)
+	const loadedDataCacheRef = useRef<Set<string>>(new Set())
 	const [expandedAuditLogId, setExpandedAuditLogId] = useState<string | null>(
 		null,
 	)
@@ -2189,98 +2193,164 @@ export default function Home() {
 		}
 	}
 
-	async function loadData() {
+	type LoadDataOptions = {
+		force?: boolean
+		section?: Section
+		settingsSection?: SettingsSection
+	}
+
+	function dataSetCacheKey(key: DataSetKey) {
+		if (key === 'dashboard') return `${key}:${period.from}:${period.to}`
+		if (key === 'cash') return `${key}:${selectedDay}`
+		return key
+	}
+
+	async function loadDataSet(key: DataSetKey) {
+		switch (key) {
+			case 'dashboard':
+				return apiFetch<AnyRecord>(
+					`/dashboard/summary/?from=${period.from}&to=${period.to}`,
+				)
+			case 'cash':
+				return apiFetch<AnyRecord>(`/cash/daily/?date=${selectedDay}`)
+			case 'customers':
+				return apiList<AnyRecord>('/customers/')
+			case 'vehicles':
+				return apiList<AnyRecord>('/vehicles/')
+			case 'services':
+				return apiList<AnyRecord>('/services/')
+			case 'reservations':
+				return apiList<AnyRecord>('/reservations/')
+			case 'workOrders':
+				return apiList<AnyRecord>('/work-orders/')
+			case 'payments':
+				return apiList<AnyRecord>('/payments/')
+			case 'debts':
+				return apiList<AnyRecord>('/debts/')
+			case 'debtPayments':
+				return apiList<AnyRecord>('/debt-payments/')
+			case 'materials':
+				return apiList<AnyRecord>('/materials/')
+			case 'suppliers':
+				return apiList<AnyRecord>('/suppliers/')
+			case 'stockMovements':
+				return apiList<AnyRecord>('/stock-movements/')
+			case 'materialOpenUnits':
+				return apiList<AnyRecord>('/material-open-units/')
+			case 'purchases':
+				return apiList<AnyRecord>('/material-purchases/')
+			case 'consumptions':
+				return apiList<AnyRecord>('/material-consumptions/')
+			case 'tools':
+				return apiList<AnyRecord>('/tools/')
+			case 'quotes':
+				return apiList<AnyRecord>('/quotes/')
+			case 'publicRequests':
+				return apiList<AnyRecord>('/public-requests/')
+			case 'businessProfile':
+				return apiFetch<AnyRecord>('/settings/business-profile/')
+			case 'employees':
+				return apiList<AnyRecord>('/auth/employees/')
+		}
+	}
+
+	function applyLoadedData(key: DataSetKey, data: unknown) {
+		switch (key) {
+			case 'dashboard':
+				setDashboard(data as AnyRecord)
+				break
+			case 'cash':
+				setCash(data as AnyRecord)
+				break
+			case 'customers':
+				setCustomers(data as AnyRecord[])
+				break
+			case 'vehicles':
+				setVehicles(data as AnyRecord[])
+				break
+			case 'services':
+				setServices(data as AnyRecord[])
+				break
+			case 'reservations':
+				setReservations(data as AnyRecord[])
+				break
+			case 'workOrders':
+				setWorkOrders(data as AnyRecord[])
+				break
+			case 'payments':
+				setPayments(data as AnyRecord[])
+				break
+			case 'debts':
+				setDebts(data as AnyRecord[])
+				break
+			case 'debtPayments':
+				setDebtPayments(data as AnyRecord[])
+				break
+			case 'materials':
+				setMaterials(data as AnyRecord[])
+				break
+			case 'suppliers':
+				setSuppliers(data as AnyRecord[])
+				break
+			case 'stockMovements':
+				setStockMovements(data as AnyRecord[])
+				break
+			case 'materialOpenUnits':
+				setMaterialOpenUnits(data as AnyRecord[])
+				break
+			case 'purchases':
+				setPurchases(data as AnyRecord[])
+				break
+			case 'consumptions':
+				setConsumptions(data as AnyRecord[])
+				break
+			case 'tools':
+				setTools(data as AnyRecord[])
+				break
+			case 'quotes':
+				setQuotes(data as AnyRecord[])
+				break
+			case 'publicRequests':
+				setPublicRequests(data as AnyRecord[])
+				break
+			case 'businessProfile':
+				syncBusinessProfile(data as AnyRecord)
+				break
+			case 'employees':
+				setEmployees(data as AnyRecord[])
+				break
+		}
+	}
+
+	async function loadData(options: LoadDataOptions = {}) {
+		const keys = dataSetKeysForSection({
+			section: options.section ?? displayedActive,
+			settingsSection: options.settingsSection ?? settingsSection,
+			canViewEconomy,
+		})
+		if (options.force) {
+			loadedDataCacheRef.current.clear()
+		}
+		const keysToLoad = options.force
+			? keys
+			: keys.filter(
+					(key) => !loadedDataCacheRef.current.has(dataSetCacheKey(key)),
+				)
+
+		if (!keysToLoad.length) return
+
 		setLoading(true)
 		setError(null)
 		setAgendaLoadError(null)
 		setLoadErrorNotice(null)
 		try {
-			const [
-				dashboardData,
-				cashData,
-				customerData,
-				vehicleData,
-				serviceData,
-				reservationData,
-				workOrderData,
-				paymentData,
-				debtData,
-				debtPaymentData,
-				materialData,
-				supplierData,
-				stockMovementData,
-				materialOpenUnitData,
-				purchaseData,
-				consumptionData,
-				toolData,
-				quoteData,
-				publicRequestData,
-				businessProfileData,
-				employeeData,
-			] = await Promise.all([
-				apiFetch<AnyRecord>(
-					`/dashboard/summary/?from=${period.from}&to=${period.to}`,
-				),
-				canViewEconomy
-					? apiFetch<AnyRecord>(`/cash/daily/?date=${selectedDay}`)
-					: Promise.resolve({}),
-				apiList<AnyRecord>('/customers/'),
-				apiList<AnyRecord>('/vehicles/'),
-				apiList<AnyRecord>('/services/'),
-				apiList<AnyRecord>('/reservations/'),
-				apiList<AnyRecord>('/work-orders/'),
-				canViewEconomy ? apiList<AnyRecord>('/payments/') : Promise.resolve([]),
-				canViewEconomy ? apiList<AnyRecord>('/debts/') : Promise.resolve([]),
-				canViewEconomy
-					? apiList<AnyRecord>('/debt-payments/')
-					: Promise.resolve([]),
-				canViewEconomy ? apiList<AnyRecord>('/materials/') : Promise.resolve([]),
-				canViewEconomy ? apiList<AnyRecord>('/suppliers/') : Promise.resolve([]),
-				canViewEconomy
-					? apiList<AnyRecord>('/stock-movements/')
-					: Promise.resolve([]),
-				canViewEconomy
-					? apiList<AnyRecord>('/material-open-units/')
-					: Promise.resolve([]),
-				canViewEconomy
-					? apiList<AnyRecord>('/material-purchases/')
-					: Promise.resolve([]),
-				canViewEconomy
-					? apiList<AnyRecord>('/material-consumptions/')
-					: Promise.resolve([]),
-				canViewEconomy ? apiList<AnyRecord>('/tools/') : Promise.resolve([]),
-				canViewEconomy ? apiList<AnyRecord>('/quotes/') : Promise.resolve([]),
-				canViewEconomy
-					? apiList<AnyRecord>('/public-requests/')
-					: Promise.resolve([]),
-				canViewEconomy
-					? apiFetch<AnyRecord>('/settings/business-profile/')
-					: Promise.resolve(null),
-				canViewEconomy
-					? apiList<AnyRecord>('/auth/employees/')
-					: Promise.resolve([]),
-			])
-			setDashboard(dashboardData)
-			setCash(cashData)
-			setCustomers(customerData)
-			setVehicles(vehicleData)
-			setServices(serviceData)
-			setReservations(reservationData)
-			setWorkOrders(workOrderData)
-			setPayments(paymentData)
-			setDebts(debtData)
-			setDebtPayments(debtPaymentData)
-			setMaterials(materialData)
-			setSuppliers(supplierData)
-			setStockMovements(stockMovementData)
-			setMaterialOpenUnits(materialOpenUnitData)
-			setPurchases(purchaseData)
-			setConsumptions(consumptionData)
-			setTools(toolData)
-			setQuotes(quoteData)
-			setPublicRequests(publicRequestData)
-			syncBusinessProfile(businessProfileData)
-			setEmployees(employeeData)
+			const entries = await Promise.all(
+				keysToLoad.map(async (key) => [key, await loadDataSet(key)] as const),
+			)
+			for (const [key, data] of entries) {
+				applyLoadedData(key, data)
+				loadedDataCacheRef.current.add(dataSetCacheKey(key))
+			}
 		} catch (err: any) {
 			const notice = formatApiError(err, {
 				fallbackTitle: 'No se pudieron cargar los datos',
@@ -2304,6 +2374,7 @@ export default function Home() {
 
 	useEffect(() => {
 		if (!token) {
+			loadedDataCacheRef.current.clear()
 			setCurrentUser(null)
 			syncBusinessProfile(null)
 			setAuditLogs([])
@@ -2343,7 +2414,7 @@ export default function Home() {
 		if (token && currentUser) {
 			loadData()
 		}
-	}, [currentUser, selectedDay, token])
+	}, [currentUser, displayedActive, selectedDay, settingsSection, token])
 
 	useEffect(() => {
 		if (
@@ -3503,7 +3574,7 @@ export default function Home() {
 		setError(null)
 		try {
 			const result = await action()
-			await loadData()
+			await loadData({ force: true })
 			const target =
 				typeof options?.flashTarget === 'function'
 					? options.flashTarget(result)
@@ -3937,7 +4008,7 @@ export default function Home() {
 				`/quotes/${quoteId}/pdf-mark-sent/`,
 				`cotizacion-${activeQuote.public_code ?? activeQuote.id}.pdf`,
 			)
-			await loadData()
+			await loadData({ force: true })
 			flash(recordFlashKey('quote', quoteId))
 			showToast({
 				tone: 'success',
@@ -13814,7 +13885,7 @@ export default function Home() {
 									className="ghost"
 									aria-label={`Actualizar ${title.label.toLowerCase()}`}
 									title={`Actualizar ${title.label.toLowerCase()}`}
-									onClick={loadData}
+									onClick={() => loadData({ force: true })}
 									disabled={loading}
 								>
 									<RefreshCw size={16} />
@@ -13836,7 +13907,7 @@ export default function Home() {
 										className="toolbar dashboard-period-toolbar"
 										onSubmit={(event) => (
 											event.preventDefault(),
-											loadData()
+											loadData({ force: true, section: 'dashboard' })
 										)}
 									>
 										<Field label="Desde">
@@ -14468,7 +14539,7 @@ export default function Home() {
 									text={agendaLoadError.title}
 									hint={agendaLoadError.description}
 									action={
-										<button type="button" className="ghost" onClick={loadData}>
+										<button type="button" className="ghost" onClick={() => loadData({ force: true })}>
 											<RefreshCw size={16} />
 											Actualizar
 										</button>
@@ -14740,7 +14811,7 @@ export default function Home() {
 									}
 									hint={loadErrorNotice?.description}
 									action={
-										<button type="button" className="ghost" onClick={loadData}>
+										<button type="button" className="ghost" onClick={() => loadData({ force: true })}>
 											<RefreshCw size={16} />
 											Actualizar
 										</button>
@@ -15102,7 +15173,7 @@ export default function Home() {
 									}
 									hint={loadErrorNotice?.description}
 									action={
-										<button type="button" className="ghost" onClick={loadData}>
+										<button type="button" className="ghost" onClick={() => loadData({ force: true })}>
 											<RefreshCw size={16} />
 											Actualizar
 										</button>
@@ -16545,7 +16616,7 @@ export default function Home() {
 										</button>
 									</div>
 									<div className="settings-secondary-actions">
-										<button type="button" className="ghost" onClick={loadData}>
+										<button type="button" className="ghost" onClick={() => loadData({ force: true })}>
 											<RefreshCw size={16} />
 											Actualizar
 										</button>

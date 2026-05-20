@@ -1,6 +1,32 @@
 import { ApiResponseError, normalizeApiErrorPayload } from "./api-errors";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+const API_BASE_URL = API_URL.replace(/\/$/, "");
+
+type PaginatedPayload<T> = {
+  next?: string | null;
+  results?: T[];
+};
+
+function apiRequestUrl(path: string) {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  if (path.startsWith("/api/")) {
+    try {
+      return `${new URL(API_BASE_URL).origin}${path}`;
+    } catch {
+      return path;
+    }
+  }
+
+  if (path.startsWith("/")) {
+    return `${API_BASE_URL}${path}`;
+  }
+
+  return `${API_BASE_URL}/${path}`;
+}
 
 async function readErrorPayload(response: Response) {
   let payload: unknown = "No se pudo completar la operacion.";
@@ -52,7 +78,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     headers.set("Authorization", `Token ${token}`);
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(apiRequestUrl(path), {
     ...options,
     headers,
     cache: "no-store"
@@ -74,7 +100,7 @@ export async function publicApiFetch<T>(path: string, options: RequestInit = {})
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(apiRequestUrl(path), {
     ...options,
     headers,
     cache: "no-store"
@@ -91,9 +117,25 @@ export async function publicApiFetch<T>(path: string, options: RequestInit = {})
 }
 
 export async function apiList<T>(path: string): Promise<T[]> {
-  const payload = await apiFetch<T[] | { results: T[] }>(path);
+  const payload = await apiFetch<T[] | PaginatedPayload<T>>(path);
   if (Array.isArray(payload)) return payload;
-  return payload.results ?? [];
+
+  const results = Array.isArray(payload.results) ? [...payload.results] : [];
+  let next = payload.next ?? null;
+
+  while (next) {
+    const nextPayload = await apiFetch<T[] | PaginatedPayload<T>>(next);
+    if (Array.isArray(nextPayload)) {
+      results.push(...nextPayload);
+      break;
+    }
+    if (Array.isArray(nextPayload.results)) {
+      results.push(...nextPayload.results);
+    }
+    next = nextPayload.next ?? null;
+  }
+
+  return results;
 }
 
 export async function downloadApiFile(path: string, filename: string) {
@@ -102,7 +144,7 @@ export async function downloadApiFile(path: string, filename: string) {
   if (token) {
     headers.set("Authorization", `Token ${token}`);
   }
-  const response = await fetch(`${API_URL}${path}`, { headers });
+  const response = await fetch(apiRequestUrl(path), { headers });
   if (!response.ok) {
     throw new Error("No se pudo descargar el archivo.");
   }
