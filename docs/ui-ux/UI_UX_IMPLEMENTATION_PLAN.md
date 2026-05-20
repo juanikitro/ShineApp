@@ -38,7 +38,7 @@ Corte UI-024 aplicado 2026-05-20:
 - `frontend/app/styles/tokens.css` define tokens `--segmented-*` para light/dark.
 - `frontend/app/styles/shell.css` hace que `.mode-toggle` use esos tokens y `--segmented-count`.
 - Validacion: `cd frontend && npm run build`.
-- QA visual autenticada quedo parcial por bloqueo del browser integrado en screenshot/CDP y login local rechazado en el reintento.
+- QA visual autenticada de UI-024 sigue bloqueada por entorno: `next start` no pudo tomar `9000` por `EADDRINUSE` de un `npm run dev` externo, y Codex Browser bloqueo `localhost`/`127.0.0.1` con `net::ERR_BLOCKED_BY_CLIENT`. El build de tokens paso limpio.
 
 ## Fase 1 - Mejoras visibles de bajo riesgo
 

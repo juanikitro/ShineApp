@@ -11,7 +11,7 @@ Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins hi
 | 3 | UI-017 | P2 | Clientes | Pulir low-data/empty states y CTA operativo. | QA clientes estable con busqueda; queda polish operativo. | Mejor guia cuando hay pocos datos o resultados. |
 | 4 | UI-018 | P2 | Estados transversales | Consolidar loading/empty/error states por modulo. | Existen primitives, pero el uso no es homogeneo. | Feedback mas consistente entre pantallas. |
 | 5 | UI-014 | P2 | Configuracion branding | Mejorar densidad/card de logo y negocio. | Settings funciona en dark y mobile; queda deuda visual diferible. | Configuracion mas escaneable sin redisenar. |
-| 6 | UI-024 | P2 | Segmented controls | Revalidar visualmente el corte de tokens cuando auth local permita QA completa. | Tokens y estados `--segmented-*` ya aplicados; browser screenshot/CDP y login local bloquearon QA visual completa. | Cerrar deuda residual de evidencia, no de implementacion. |
+| 6 | UI-024 | P2 | Segmented controls | Revalidar visualmente el corte de tokens cuando Browser/local runtime permitan QA completa. | Tokens y estados `--segmented-*` ya aplicados; build 2026-05-20 paso limpio. QA visual quedo bloqueada por `next start` con `EADDRINUSE` en `9000` y Browser con `net::ERR_BLOCKED_BY_CLIENT` en `localhost`/`127.0.0.1`. | Cerrar deuda residual de evidencia, no de implementacion. |
 
 ## Cerrado por batch P1 2026-05-20
 
@@ -53,7 +53,7 @@ Backlog priorizado a partir de la re-auditoria del 2026-05-20. Los quick wins hi
 | UI-019 | P2 | Vehiculos ocultos | Eliminar o formalizar `hidden-section` para reducir deuda de mantenimiento. |
 | UI-022 | P2 | Sidebar footer mobile | Compactar perfil/footer sin tocar el drawer ya cerrado. |
 | UI-023 | P2 | Bulk workflows | Homogeneizar feedback de acciones masivas. |
-| UI-024 | P2 | Segmented controls | Implementacion de tokens aplicada; queda revalidacion visual autenticada cuando el entorno local lo permita. |
+| UI-024 | P2 | Segmented controls | Implementacion de tokens aplicada; build limpio. Queda revalidacion visual autenticada cuando Browser/local runtime no bloqueen el acceso. |
 
 ## Notas de ejecucion
 
