@@ -24,6 +24,7 @@ from core.models import (
 )
 from core.permissions import EMPLOYEE_ROLE, EMPLOYER_ROLE, EmployerOnly, can_view_economy, user_context_payload
 from core.permissions import business_for_user, business_from_request
+from notifications.service import send_trial_welcome_email
 
 
 ALLOWED_PROFILE_ASSET_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg", "pdf"}
@@ -475,9 +476,15 @@ class TrialSignupView(APIView):
     def post(self, request):
         serializer = TrialSignupSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        owner_email = serializer.validated_data["email"]
+        business_name = serializer.validated_data["business_name"]
         user = serializer.save()
         update_last_login(None, user)
         token, _ = Token.objects.get_or_create(user=user)
+        send_trial_welcome_email(
+            owner_email=owner_email,
+            business_name=business_name,
+        )
         return Response(
             {
                 "token": token.key,

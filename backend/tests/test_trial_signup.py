@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -141,3 +142,37 @@ def test_trial_signup_invalid_password_fails_without_partial_creation():
     assert "password" in response.data
     assert not BusinessAccount.objects.filter(created_at__gte=before).exists()
     assert not get_user_model().objects.filter(email="dueno@kingshine.test").exists()
+
+
+@pytest.mark.django_db
+def test_trial_signup_sends_welcome_email_with_correct_data(mailoutbox):
+    """El email de bienvenida se envia con asunto, negocio y URL correctos."""
+    response = APIClient().post(
+        reverse("auth-trial-signup"),
+        trial_payload(email="welcome@kingshine.test"),
+        format="json",
+    )
+
+    assert response.status_code == 201, response.data
+    assert len(mailoutbox) == 1
+    sent = mailoutbox[0]
+    assert sent.to == ["welcome@kingshine.test"]
+    assert "Bienvenido a ShineApp" in sent.subject
+    assert "prueba gratuita" in sent.subject
+    assert "King Shine" in sent.body
+    assert "https://shineapp-web.vercel.app" in sent.body
+
+
+@pytest.mark.django_db
+def test_trial_signup_returns_201_even_if_smtp_fails():
+    """Si el envio del email falla, el signup igual retorna 201 con el token."""
+    with patch("notifications.service.send_mail", side_effect=Exception("SMTP error")):
+        response = APIClient().post(
+            reverse("auth-trial-signup"),
+            trial_payload(email="smtp-fail@kingshine.test"),
+            format="json",
+        )
+
+    assert response.status_code == 201, response.data
+    assert "token" in response.data
+    assert get_user_model().objects.filter(email="smtp-fail@kingshine.test").exists()
