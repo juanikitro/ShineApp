@@ -574,6 +574,26 @@ label {
   grid-column: 1 / -1;
 }
 
+.login-forgot-link {
+  background: none;
+  border: none;
+  color: var(--shop-ink-soft);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.login-forgot-link:hover {
+  color: var(--shop-ink);
+}
+
+.login-forgot-link:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 @media (max-width: 620px) {
   .login-trial-grid {
     grid-template-columns: 1fr;

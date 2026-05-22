@@ -1,11 +1,12 @@
 import json
+import secrets
 from datetime import timedelta
 from pathlib import Path
 
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group, update_last_login
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import DisallowedHost
+from django.core.exceptions import DisallowedHost, ValidationError as DjangoValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.text import slugify
@@ -18,13 +19,14 @@ from core.audit import audit_snapshot, record_audit_event
 from core.models import (
     BusinessAccount,
     BusinessProfile,
+    PasswordResetToken,
     UserProfile,
     normalize_expense_category_tree,
     normalize_income_category_tree,
 )
 from core.permissions import EMPLOYEE_ROLE, EMPLOYER_ROLE, EmployerOnly, can_view_economy, user_context_payload
 from core.permissions import business_for_user, business_from_request
-from notifications.service import send_trial_welcome_email
+from notifications.service import send_password_reset_email, send_trial_welcome_email
 
 
 ALLOWED_PROFILE_ASSET_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg", "pdf"}
@@ -212,6 +214,78 @@ class HealthCheckView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         return Response({"status": "ok", "checks": checks})
+
+
+class PasswordResetRequestView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = str(request.data.get("email", "")).strip().lower()
+        SAFE_RESPONSE = Response(
+            {"detail": "Si el email existe, recibirás un link."},
+            status=status.HTTP_200_OK,
+        )
+        if not email:
+            return SAFE_RESPONSE
+        user_model = get_user_model()
+        try:
+            user = user_model.objects.get(email__iexact=email)
+        except user_model.DoesNotExist:
+            return SAFE_RESPONSE
+        token_value = secrets.token_urlsafe(48)
+        expires_at = timezone.now() + timedelta(hours=1)
+        PasswordResetToken.objects.create(
+            user=user,
+            token=token_value,
+            expires_at=expires_at,
+        )
+        send_password_reset_email(user.email, token_value)
+        return SAFE_RESPONSE
+
+
+class PasswordResetConfirmView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        token_value = str(request.data.get("token", "")).strip()
+        new_password = str(request.data.get("new_password", ""))
+        if not token_value:
+            return Response(
+                {"token": ["Token inválido o vencido."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            reset_token = PasswordResetToken.objects.select_related("user").get(token=token_value)
+        except PasswordResetToken.DoesNotExist:
+            return Response(
+                {"token": ["Token inválido o vencido."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not reset_token.is_valid():
+            return Response(
+                {"token": ["Token inválido o vencido."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(new_password) < 8:
+            return Response(
+                {"new_password": ["La contraseña debe tener al menos 8 caracteres."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            validate_password(new_password, user=reset_token.user)
+        except DjangoValidationError as exc:
+            return Response(
+                {"new_password": list(exc.messages)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user = reset_token.user
+        user.set_password(new_password)
+        user.save(update_fields=["password"])
+        reset_token.used = True
+        reset_token.save(update_fields=["used"])
+        return Response({"detail": "Contraseña actualizada."}, status=status.HTTP_200_OK)
 
 
 class EmployeeUserSerializer(serializers.ModelSerializer):

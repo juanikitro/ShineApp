@@ -1564,9 +1564,10 @@ function LoginScreen({
 }: {
 	onLogin: (token: string, user: AnyRecord) => void
 }) {
-	const [mode, setMode] = useState<'login' | 'trial'>('login')
+	const [mode, setMode] = useState<'login' | 'trial' | 'forgot-password' | 'forgot-password-sent'>('login')
 	const [form, setForm] = useState(loginInitialCredentials)
 	const [trialForm, setTrialForm] = useState(trialSignupInitialForm)
+	const [forgotEmail, setForgotEmail] = useState('')
 	const [loading, setLoading] = useState(false)
 	const { toasts, showToast, dismissToast } = useNoticeToasts()
 
@@ -1630,145 +1631,54 @@ function LoginScreen({
 		}
 	}
 
+	async function submitForgotPassword(event: FormEvent) {
+		event.preventDefault()
+		setLoading(true)
+		setError(null)
+		try {
+			await publicApiFetch('/auth/password-reset/', {
+				method: 'POST',
+				body: JSON.stringify({ email: forgotEmail }),
+			})
+			setMode('forgot-password-sent')
+		} catch (err: any) {
+			setError(
+				formatApiError(err, {
+					fallbackTitle: 'No se pudo enviar el link',
+					fallbackDescription: 'Intenta nuevamente en unos minutos.',
+				}),
+			)
+		} finally {
+			setLoading(false)
+		}
+	}
+
 	const signupMode = mode === 'trial'
 
 	return (
 		<main className="login-screen">
 			<NoticeToastViewport toasts={toasts} onDismiss={dismissToast} />
-			<form
-				className={signupMode ? 'login-card login-card--trial' : 'login-card'}
-				onSubmit={signupMode ? submitTrial : submitLogin}
-			>
-				<AppBrand
-					className="login-brand"
-					subtitle={signupMode ? 'Prueba gratuita por 30 dias' : 'Acceso operativo'}
-					titleAs="h1"
-				/>
-				{signupMode ? (
-					<div className="form-grid login-trial-grid">
-						<p className="login-trial-note">
-							Sin tarjeta ni cobro automatico. Crea un espacio de prueba
-							para operar ShineApp durante 30 dias.
-						</p>
-						<Field label="Negocio">
-							<input
-								name="business_name"
-								autoComplete="organization"
-								required
-								value={trialForm.business_name}
-								onChange={(event) =>
-									setTrialForm({
-										...trialForm,
-										business_name: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="Rubro">
-							<input
-								name="industry"
-								autoComplete="organization-title"
-								required
-								value={trialForm.industry}
-								onChange={(event) =>
-									setTrialForm({
-										...trialForm,
-										industry: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="Responsable">
-							<input
-								name="owner_name"
-								autoComplete="name"
-								required
-								value={trialForm.owner_name}
-								onChange={(event) =>
-									setTrialForm({
-										...trialForm,
-										owner_name: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="Email">
+			{mode === 'forgot-password' ? (
+				<form className="login-card" onSubmit={submitForgotPassword}>
+					<AppBrand
+						className="login-brand"
+						subtitle="Recuperar acceso"
+						titleAs="h1"
+					/>
+					<div className="form-grid">
+						<Field label="Email de tu cuenta">
 							<input
 								type="email"
 								name="email"
 								autoComplete="email"
 								required
-								value={trialForm.email}
-								onChange={(event) =>
-									setTrialForm({
-										...trialForm,
-										email: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="WhatsApp/telefono">
-							<input
-								type="tel"
-								name="phone"
-								autoComplete="tel"
-								required
-								value={trialForm.phone}
-								onChange={(event) =>
-									setTrialForm({
-										...trialForm,
-										phone: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="Ciudad">
-							<input
-								name="city"
-								autoComplete="address-level2"
-								required
-								value={trialForm.city}
-								onChange={(event) =>
-									setTrialForm({
-										...trialForm,
-										city: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="Pais">
-							<input
-								name="country"
-								autoComplete="country-name"
-								required
-								value={trialForm.country}
-								onChange={(event) =>
-									setTrialForm({
-										...trialForm,
-										country: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="Contrasena">
-							<input
-								type="password"
-								name="password"
-								autoComplete="new-password"
-								required
-								minLength={8}
-								value={trialForm.password}
-								onChange={(event) =>
-									setTrialForm({
-										...trialForm,
-										password: event.target.value,
-									})
-								}
+								value={forgotEmail}
+								onChange={(event) => setForgotEmail(event.target.value)}
 							/>
 						</Field>
 						<div className="login-actions">
 							<button type="submit" className="primary" disabled={loading}>
-								Crear prueba
+								Enviar link
 							</button>
 							<button
 								type="button"
@@ -1776,55 +1686,232 @@ function LoginScreen({
 								disabled={loading}
 								onClick={() => setMode('login')}
 							>
-								Ya tengo cuenta
+								Volver al login
 							</button>
 						</div>
 					</div>
-				) : (
-					<div className="form-grid">
-						<Field label="Usuario">
-							<input
-								name="username"
-								autoComplete="username"
-								value={form.username}
-								onChange={(event) =>
-									setForm({
-										...form,
-										username: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="Clave">
-							<input
-								type="password"
-								name="password"
-								autoComplete="current-password"
-								value={form.password}
-								onChange={(event) =>
-									setForm({
-										...form,
-										password: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<div className="login-actions">
-							<button type="submit" className="primary" disabled={loading}>
-								Ingresar
-							</button>
+				</form>
+			) : mode === 'forgot-password-sent' ? (
+				<div className="login-card">
+					<AppBrand
+						className="login-brand"
+						subtitle="Recuperar acceso"
+						titleAs="h1"
+					/>
+					<p>
+						Si tu email esta registrado, recibiras un link para restablecer
+						tu contrasena. Revisa tu bandeja de entrada.
+					</p>
+					<div className="login-actions">
+						<button
+							type="button"
+							className="primary"
+							onClick={() => setMode('login')}
+						>
+							Volver al login
+						</button>
+					</div>
+				</div>
+			) : (
+				<form
+					className={signupMode ? 'login-card login-card--trial' : 'login-card'}
+					onSubmit={signupMode ? submitTrial : submitLogin}
+				>
+					<AppBrand
+						className="login-brand"
+						subtitle={signupMode ? 'Prueba gratuita por 30 dias' : 'Acceso operativo'}
+						titleAs="h1"
+					/>
+					{signupMode ? (
+						<div className="form-grid login-trial-grid">
+							<p className="login-trial-note">
+								Sin tarjeta ni cobro automatico. Crea un espacio de prueba
+								para operar ShineApp durante 30 dias.
+							</p>
+							<Field label="Negocio">
+								<input
+									name="business_name"
+									autoComplete="organization"
+									required
+									value={trialForm.business_name}
+									onChange={(event) =>
+										setTrialForm({
+											...trialForm,
+											business_name: event.target.value,
+										})
+									}
+								/>
+							</Field>
+							<Field label="Rubro">
+								<input
+									name="industry"
+									autoComplete="organization-title"
+									required
+									value={trialForm.industry}
+									onChange={(event) =>
+										setTrialForm({
+											...trialForm,
+											industry: event.target.value,
+										})
+									}
+								/>
+							</Field>
+							<Field label="Responsable">
+								<input
+									name="owner_name"
+									autoComplete="name"
+									required
+									value={trialForm.owner_name}
+									onChange={(event) =>
+										setTrialForm({
+											...trialForm,
+											owner_name: event.target.value,
+										})
+									}
+								/>
+							</Field>
+							<Field label="Email">
+								<input
+									type="email"
+									name="email"
+									autoComplete="email"
+									required
+									value={trialForm.email}
+									onChange={(event) =>
+										setTrialForm({
+											...trialForm,
+											email: event.target.value,
+										})
+									}
+								/>
+							</Field>
+							<Field label="WhatsApp/telefono">
+								<input
+									type="tel"
+									name="phone"
+									autoComplete="tel"
+									required
+									value={trialForm.phone}
+									onChange={(event) =>
+										setTrialForm({
+											...trialForm,
+											phone: event.target.value,
+										})
+									}
+								/>
+							</Field>
+							<Field label="Ciudad">
+								<input
+									name="city"
+									autoComplete="address-level2"
+									required
+									value={trialForm.city}
+									onChange={(event) =>
+										setTrialForm({
+											...trialForm,
+											city: event.target.value,
+										})
+									}
+								/>
+							</Field>
+							<Field label="Pais">
+								<input
+									name="country"
+									autoComplete="country-name"
+									required
+									value={trialForm.country}
+									onChange={(event) =>
+										setTrialForm({
+											...trialForm,
+											country: event.target.value,
+										})
+									}
+								/>
+							</Field>
+							<Field label="Contrasena">
+								<input
+									type="password"
+									name="password"
+									autoComplete="new-password"
+									required
+									minLength={8}
+									value={trialForm.password}
+									onChange={(event) =>
+										setTrialForm({
+											...trialForm,
+											password: event.target.value,
+										})
+									}
+								/>
+							</Field>
+							<div className="login-actions">
+								<button type="submit" className="primary" disabled={loading}>
+									Crear prueba
+								</button>
+								<button
+									type="button"
+									className="ghost"
+									disabled={loading}
+									onClick={() => setMode('login')}
+								>
+									Ya tengo cuenta
+								</button>
+							</div>
+						</div>
+					) : (
+						<div className="form-grid">
+							<Field label="Usuario">
+								<input
+									name="username"
+									autoComplete="username"
+									value={form.username}
+									onChange={(event) =>
+										setForm({
+											...form,
+											username: event.target.value,
+										})
+									}
+								/>
+							</Field>
+							<Field label="Clave">
+								<input
+									type="password"
+									name="password"
+									autoComplete="current-password"
+									value={form.password}
+									onChange={(event) =>
+										setForm({
+											...form,
+											password: event.target.value,
+										})
+									}
+								/>
+							</Field>
+							<div className="login-actions">
+								<button type="submit" className="primary" disabled={loading}>
+									Ingresar
+								</button>
+								<button
+									type="button"
+									className="ghost"
+									disabled={loading}
+									onClick={() => setMode('trial')}
+								>
+									Solicitar prueba
+								</button>
+							</div>
 							<button
 								type="button"
-								className="ghost"
+								className="login-forgot-link"
 								disabled={loading}
-								onClick={() => setMode('trial')}
+								onClick={() => setMode('forgot-password')}
 							>
-								Solicitar prueba
+								Olvide mi contrasena
 							</button>
 						</div>
-					</div>
-				)}
-			</form>
+					)}
+				</form>
+			)}
 		</main>
 	)
 }
