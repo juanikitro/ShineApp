@@ -66,6 +66,18 @@ import {
 	WorkStatusView,
 	workStatusColumns,
 } from '@/app/components/work/WorkStatusView'
+import { CashMovementForm } from '@/app/components/forms/CashMovementForm'
+import { CustomerForm } from '@/app/components/forms/CustomerForm'
+import { DebtForm } from '@/app/components/forms/DebtForm'
+import { DebtPaymentForm } from '@/app/components/forms/DebtPaymentForm'
+import { MaterialForm } from '@/app/components/forms/MaterialForm'
+import { PaymentForm } from '@/app/components/forms/PaymentForm'
+import { QuoteForm } from '@/app/components/forms/QuoteForm'
+import { ReservationForm } from '@/app/components/forms/ReservationForm'
+import { ServiceForm } from '@/app/components/forms/ServiceForm'
+import { StockMovementForm } from '@/app/components/forms/StockMovementForm'
+import { SupplierForm } from '@/app/components/forms/SupplierForm'
+import { VehicleForm } from '@/app/components/forms/VehicleForm'
 import { AgendaBoardToolbar } from '@/app/components/agenda/AgendaBoardToolbar'
 import { AgendaReservationCard } from '@/app/components/agenda/AgendaReservationCard'
 import {
@@ -10281,1849 +10293,6 @@ export default function Home() {
 		})
 	}
 
-	function renderReservationForm(submitLabel: string) {
-		return (
-			<>
-				<SearchSelect
-					label="Cliente"
-					value={reservationForm.customer}
-					options={customerOptions}
-					name="reservation_customer"
-					focusKey="reservation.customer"
-					className={flashClass(fieldFlashKey('reservation.customer'))}
-					onAdd={() =>
-						openQuickCreate('customer', 'reservation.customer')
-					}
-					onChange={updateReservationCustomer}
-				/>
-				<SearchSelect
-					label="Vehiculo"
-					value={reservationForm.vehicle}
-					options={customerVehicleOptions}
-					name="reservation_vehicle"
-					focusKey="reservation.vehicle"
-					className={flashClass(fieldFlashKey('reservation.vehicle'))}
-					onAdd={() =>
-						openQuickCreate('vehicle', 'reservation.vehicle')
-					}
-					onChange={(value) => {
-						setReservationForm({
-							...reservationForm,
-							vehicle: value,
-						})
-						focusField('reservation.service.0', true)
-					}}
-				/>
-				<div className="quote-lines">
-					<div className="quote-lines-head">
-						<h3>Servicios</h3>
-						<button type="button" className="ghost" onClick={addReservationItem}>
-							<Plus size={16} />
-							Agregar servicio
-						</button>
-					</div>
-					{(reservationForm.items ?? []).map(
-						(item: AnyRecord, index: number) => {
-							const lineTotal =
-								Number(item.quantity || 0) *
-								Number(item.unit_price || 0)
-							const nextLine = (reservationForm.items ?? [])[index + 1]
-							return (
-								<div className="quote-line" key={index}>
-									<SearchSelect
-										label="Servicio"
-										value={item.service}
-										options={serviceOptions}
-										name={`reservation_items_${index}_service`}
-										focusKey={`reservation.service.${index}`}
-										className={flashClass(
-											fieldFlashKey(`reservation.service.${index}`),
-										)}
-										onAdd={
-											canViewEconomy
-												? () =>
-														openQuickCreate(
-															'service',
-															`reservation.service.${index}`,
-														)
-												: undefined
-										}
-										onChange={(value) =>
-											selectReservationService(index, value)
-										}
-									/>
-									<div className="quote-line-grid">
-										<Field label="Cantidad">
-											<input
-												data-focus-key={`reservation.item.${index}.quantity`}
-												name={`reservation_items_${index}_quantity`}
-												type="number"
-												min="1"
-												value={item.quantity}
-												onChange={(event) =>
-													updateReservationItem(index, {
-														quantity: event.target.value,
-													})
-												}
-												onKeyDown={focusNextOnEnter(
-													`reservation.item.${index}.price`,
-												)}
-											/>
-										</Field>
-										<Field label="Precio">
-											<input
-												data-focus-key={`reservation.item.${index}.price`}
-												name={`reservation_items_${index}_unit_price`}
-												type="number"
-												min="0"
-												value={item.unit_price}
-												onChange={(event) =>
-													updateReservationItem(index, {
-														unit_price: event.target.value,
-													})
-												}
-												onKeyDown={focusNextOnEnter(
-													nextLine
-														? `reservation.service.${index + 1}`
-														: 'reservation.day',
-													Boolean(nextLine),
-												)}
-											/>
-										</Field>
-										<div className="line-total">
-											<span>Total</span>
-											<strong>{money(lineTotal)}</strong>
-										</div>
-									</div>
-									{(reservationForm.items ?? []).length > 1 ? (
-										<button
-											type="button"
-											className="danger"
-											onClick={() => removeReservationItem(index)}
-										>
-											Quitar
-										</button>
-									) : null}
-								</div>
-							)
-						},
-					)}
-					<div className="quote-total">
-						<span>Total reserva</span>
-						<strong>{money(serviceLinesTotal(reservationForm.items ?? []))}</strong>
-					</div>
-				</div>
-				<div className="form-row">
-					<Field label="Fecha de ingreso (opcional)">
-						<input
-							data-focus-key="reservation.day"
-							name="reservation_day"
-							type="date"
-							value={reservationForm.day}
-							onChange={(event) => {
-								setReservationForm({
-									...reservationForm,
-									day: event.target.value,
-								})
-								focusField('reservation.exit_day')
-							}}
-							onKeyDown={focusNextOnEnter('reservation.exit_day')}
-						/>
-					</Field>
-					<Field label="Fecha de egreso">
-						<input
-							data-focus-key="reservation.exit_day"
-							name="reservation_exit_day"
-							type="date"
-							value={reservationForm.exit_day}
-							onChange={(event) => {
-								setReservationForm({
-									...reservationForm,
-									exit_day: event.target.value,
-								})
-								focusField(
-									useReservationTimes
-										? 'reservation.start_time'
-										: 'reservation.notes',
-								)
-							}}
-							onKeyDown={focusNextOnEnter(
-								useReservationTimes
-									? 'reservation.start_time'
-									: 'reservation.notes',
-								!useReservationTimes,
-							)}
-						/>
-					</Field>
-				</div>
-				{useReservationTimes ? (
-					<div className="form-row">
-						<Field label="Hora de ingreso (opcional)">
-							<input
-								data-focus-key="reservation.start_time"
-								name="reservation_start_time"
-								type="time"
-								value={reservationForm.start_time}
-								onChange={(event) => {
-									setReservationForm({
-										...reservationForm,
-										start_time: event.target.value,
-									})
-									focusField('reservation.exit_time')
-								}}
-								onKeyDown={focusNextOnEnter('reservation.exit_time')}
-							/>
-						</Field>
-						<Field label="Hora de egreso (opcional)">
-							<input
-								data-focus-key="reservation.exit_time"
-								name="reservation_exit_time"
-								type="time"
-								value={reservationForm.exit_time}
-								onChange={(event) => {
-									setReservationForm({
-										...reservationForm,
-										exit_time: event.target.value,
-									})
-									focusField('reservation.notes')
-								}}
-								onKeyDown={focusNextOnEnter('reservation.notes')}
-							/>
-						</Field>
-					</div>
-				) : null}
-				<Field label="Notas">
-					<textarea
-						data-focus-key="reservation.notes"
-						name="reservation_notes"
-						autoComplete="off"
-						value={reservationForm.notes}
-						onChange={(event) =>
-							setReservationForm({
-								...reservationForm,
-								notes: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<button className="primary" data-focus-key="reservation.submit">
-					<Plus size={16} />
-					<AnimatedLabelSwap label={submitLabel} />
-				</button>
-			</>
-		)
-	}
-
-	function renderCustomerForm(submitLabel: string) {
-		return (
-			<form className="form-grid" onSubmit={saveCustomer}>
-				<Field label="Nombre">
-					<input
-						data-focus-key="customer.name"
-						name="customer_name"
-						autoComplete="name"
-						required
-						list="customer-name-options"
-						value={customerForm.name}
-						onChange={(event) =>
-							setCustomerForm({
-								...customerForm,
-								name: event.target.value,
-							})
-						}
-						onKeyDown={focusNextOnEnter('customer.phone')}
-					/>
-				</Field>
-				<Field label="Telefono">
-					<input
-						data-focus-key="customer.phone"
-						name="customer_phone"
-						autoComplete="tel"
-						inputMode="tel"
-						list="customer-phone-options"
-						value={customerForm.phone}
-						onChange={(event) =>
-							setCustomerForm({
-								...customerForm,
-								phone: event.target.value,
-							})
-						}
-						onKeyDown={focusNextOnEnter('customer.email')}
-					/>
-				</Field>
-					<Field label="Email">
-						<input
-							data-focus-key="customer.email"
-							name="customer_email"
-							type="email"
-							autoComplete="email"
-							list="customer-email-options"
-							value={customerForm.email}
-							onChange={(event) =>
-								setCustomerForm({
-									...customerForm,
-									email: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('customer.tax_id')}
-						/>
-					</Field>
-					<div className="form-row">
-						<Field label="CUIT/DNI">
-							<input
-								data-focus-key="customer.tax_id"
-								name="customer_tax_id"
-								autoComplete="off"
-								value={customerForm.tax_id}
-								onChange={(event) =>
-									setCustomerForm({
-										...customerForm,
-										tax_id: event.target.value,
-									})
-								}
-								onKeyDown={focusNextOnEnter('customer.billing_address')}
-							/>
-						</Field>
-						<Field label="Domicilio fiscal">
-							<input
-								data-focus-key="customer.billing_address"
-								name="customer_billing_address"
-								autoComplete="street-address"
-								value={customerForm.billing_address}
-								onChange={(event) =>
-									setCustomerForm({
-										...customerForm,
-										billing_address: event.target.value,
-									})
-								}
-								onKeyDown={focusNextOnEnter('customer.birthday_day')}
-							/>
-						</Field>
-					</div>
-					<BirthdayFields
-						day={customerForm.birthday_day}
-						month={customerForm.birthday_month}
-						dayName="customer_birthday_day"
-						monthName="customer_birthday_month"
-						dayFocusKey="customer.birthday_day"
-						monthFocusKey="customer.birthday_month"
-						onDayChange={(value) =>
-							setCustomerForm({
-								...customerForm,
-								birthday_day: value,
-							})
-						}
-						onMonthChange={(value) =>
-							setCustomerForm({
-								...customerForm,
-								birthday_month: value,
-							})
-						}
-						onDayKeyDown={focusNextOnEnter('customer.birthday_month')}
-						onMonthKeyDown={focusNextOnEnter('customer.notes')}
-					/>
-				<Field label="Notas">
-					<textarea
-						data-focus-key="customer.notes"
-						name="customer_notes"
-						autoComplete="off"
-						value={customerForm.notes}
-						onChange={(event) =>
-							setCustomerForm({
-								...customerForm,
-								notes: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<button className="primary" data-focus-key="customer.submit">
-					<Plus size={16} />
-					{submitLabel}
-				</button>
-			</form>
-		)
-	}
-
-	function renderVehicleForm(submitLabel: string) {
-		return (
-			<form className="form-grid" onSubmit={saveVehicle}>
-				<SearchSelect
-					label="Cliente"
-					value={vehicleForm.customer}
-					options={customerOptions}
-					name="vehicle_customer"
-					focusKey="vehicle.customer"
-					className={flashClass(fieldFlashKey('vehicle.customer'))}
-					onAdd={() => openQuickCreate('customer', 'vehicle.customer')}
-					onChange={updateVehicleCustomer}
-				/>
-				<div className="form-row">
-					<SearchSelect
-						label="Marca"
-						value={vehicleForm.brand}
-						options={vehicleBrandSelectOptions}
-						name="vehicle_brand"
-						placeholder="Sin marca"
-						focusKey="vehicle.brand"
-						onChange={updateVehicleBrand}
-						onCreate={updateVehicleBrand}
-						createLabel={(value) => `Crear marca "${value}"`}
-					/>
-					<SearchSelect
-						label="Modelo"
-						value={vehicleForm.model}
-						options={vehicleModelSelectOptions}
-						name="vehicle_model"
-						placeholder={
-							vehicleForm.brand ? 'Sin modelo' : 'Elegir marca'
-						}
-						disabled={!vehicleForm.brand && !vehicleForm.model}
-						focusKey="vehicle.model"
-						onChange={(value) => {
-							setVehicleForm({
-								...vehicleForm,
-								model: value,
-							})
-							focusField('vehicle.color')
-						}}
-						onCreate={(value) => {
-							setVehicleForm({
-								...vehicleForm,
-								model: value,
-							})
-							focusField('vehicle.color')
-						}}
-						createLabel={(value) => `Crear modelo "${value}"`}
-					/>
-				</div>
-				<div className="form-row">
-					<Field label="Color">
-						<input
-							data-focus-key="vehicle.color"
-							name="vehicle_color"
-							autoComplete="off"
-							list="vehicle-color-options"
-							value={vehicleForm.color}
-							onChange={(event) =>
-								setVehicleForm({
-									...vehicleForm,
-									color: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('vehicle.license_plate')}
-						/>
-					</Field>
-					<Field label="Patente">
-						<input
-							data-focus-key="vehicle.license_plate"
-							name="vehicle_license_plate"
-							autoComplete="off"
-							list="vehicle-plate-options"
-							value={vehicleForm.license_plate}
-							onChange={(event) =>
-								setVehicleForm({
-									...vehicleForm,
-									license_plate: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('vehicle.submit')}
-						/>
-					</Field>
-				</div>
-				<button className="primary" data-focus-key="vehicle.submit">
-					<Car size={16} />
-					{submitLabel}
-				</button>
-			</form>
-		)
-	}
-
-	function renderQuoteForm(submitLabel: string) {
-		return (
-			<form className="form-grid" onSubmit={saveQuote}>
-				<SearchSelect
-					label="Cliente"
-					value={quoteForm.customer}
-					options={customerOptions}
-					focusKey="quote.customer"
-					className={flashClass(fieldFlashKey('quote.customer'))}
-					onAdd={() => openQuickCreate('customer', 'quote.customer')}
-					onChange={updateQuoteCustomer}
-				/>
-				<SearchSelect
-					label="Vehiculo"
-					value={quoteForm.vehicle}
-					options={quoteVehicleSearchOptions}
-					placeholder="Sin vehiculo"
-					focusKey="quote.vehicle"
-					className={flashClass(fieldFlashKey('quote.vehicle'))}
-					onAdd={() => openQuickCreate('vehicle', 'quote.vehicle')}
-					onChange={(value) => {
-						setQuoteForm({
-							...quoteForm,
-							vehicle: value,
-						})
-						focusField('quote.service.0', true)
-					}}
-				/>
-				<div className="form-row">
-					<Field label="Fecha tentativa">
-						<input
-							type="date"
-							value={quoteForm.reservation_day ?? ''}
-							onChange={(event) =>
-								setQuoteForm({
-									...quoteForm,
-									reservation_day: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					{useReservationTimes ? (
-						<Field label="Hora tentativa">
-							<input
-								type="time"
-								value={quoteForm.reservation_start_time ?? ''}
-								onChange={(event) =>
-									setQuoteForm({
-										...quoteForm,
-										reservation_start_time: event.target.value,
-									})
-								}
-							/>
-						</Field>
-					) : null}
-				</div>
-				<div className="quote-lines">
-					<div className="quote-lines-head">
-						<h3>Servicios</h3>
-						<button type="button" className="ghost" onClick={addQuoteItem}>
-							<Plus size={16} />
-							Agregar servicio
-						</button>
-					</div>
-					{(quoteForm.items ?? []).map(
-						(item: AnyRecord, index: number) => {
-							const lineTotal =
-								Number(item.quantity || 0) *
-								Number(item.unit_price || 0)
-							const nextLine = (quoteForm.items ?? [])[index + 1]
-							return (
-								<div className="quote-line" key={index}>
-									<SearchSelect
-										label="Servicio"
-										value={item.service}
-										options={serviceOptions}
-										focusKey={`quote.service.${index}`}
-										className={flashClass(
-											fieldFlashKey(`quote.service.${index}`),
-										)}
-										onAdd={
-											canViewEconomy
-												? () =>
-														openQuickCreate(
-															'service',
-															`quote.service.${index}`,
-														)
-												: undefined
-										}
-										onChange={(value) => selectQuoteService(index, value)}
-									/>
-									{serviceNotesForLine(item) ? (
-										<div className="service-notes">
-											{serviceNotesForLine(item)}
-										</div>
-									) : null}
-									<div className="quote-line-grid">
-										<Field label="Cantidad">
-											<input
-												data-focus-key={`quote.item.${index}.quantity`}
-												type="number"
-												min="1"
-												value={item.quantity}
-												onChange={(event) =>
-													updateQuoteItem(index, {
-														quantity: event.target.value,
-													})
-												}
-												onKeyDown={focusNextOnEnter(
-													`quote.item.${index}.price`,
-												)}
-											/>
-										</Field>
-										<Field label="Precio">
-											<input
-												data-focus-key={`quote.item.${index}.price`}
-												type="number"
-												min="0"
-												value={item.unit_price}
-												onChange={(event) =>
-													updateQuoteItem(index, {
-														unit_price: event.target.value,
-													})
-												}
-												onKeyDown={focusNextOnEnter(
-													nextLine
-														? `quote.service.${index + 1}`
-														: 'quote.observations',
-													Boolean(nextLine),
-												)}
-											/>
-										</Field>
-										<div className="line-total">
-											<span>Total</span>
-											<strong>{money(lineTotal)}</strong>
-										</div>
-									</div>
-									{(quoteForm.items ?? []).length > 1 ? (
-										<button
-											type="button"
-											className="danger"
-											onClick={() => removeQuoteItem(index)}
-										>
-											Quitar
-										</button>
-									) : null}
-								</div>
-							)
-						},
-					)}
-					<div className="quote-total">
-						<span>Total cotizacion</span>
-						<strong>{money(quoteTotals.total)}</strong>
-					</div>
-				</div>
-				<details className="quote-advanced">
-					<summary>Avanzado comercial</summary>
-					<div className="form-row">
-						<Field label="Valida hasta">
-							<input
-								type="date"
-								value={quoteForm.valid_until ?? ''}
-								onChange={(event) =>
-									setQuoteForm({
-										...quoteForm,
-										valid_until: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="Descuento %">
-							<input
-								type="number"
-								min="0"
-								max="100"
-								step="0.01"
-								value={quoteForm.discount_rate ?? ''}
-								onChange={(event) =>
-									setQuoteForm({
-										...quoteForm,
-										discount_rate: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="IVA %">
-							<input
-								type="number"
-								min="0"
-								max="100"
-								step="0.01"
-								value={quoteForm.tax_rate ?? ''}
-								onChange={(event) =>
-									setQuoteForm({
-										...quoteForm,
-										tax_rate: event.target.value,
-									})
-								}
-							/>
-						</Field>
-					</div>
-					<div className="quote-total quote-total--breakdown">
-						<span>Subtotal {money(quoteTotals.subtotal)}</span>
-						<span>Descuento {money(quoteTotals.discountAmount)}</span>
-						<span>IVA {money(quoteTotals.taxAmount)}</span>
-						<strong>{money(quoteTotals.total)}</strong>
-					</div>
-					<Field label="Terminos">
-						<textarea
-							value={quoteForm.terms ?? ''}
-							onChange={(event) =>
-								setQuoteForm({
-									...quoteForm,
-									terms: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<Field label="Instrucciones de pago">
-						<textarea
-							value={quoteForm.payment_instructions ?? ''}
-							onChange={(event) =>
-								setQuoteForm({
-									...quoteForm,
-									payment_instructions: event.target.value,
-								})
-							}
-						/>
-					</Field>
-				</details>
-				<Field label="Observaciones">
-					<textarea
-						data-focus-key="quote.observations"
-						value={quoteForm.observations}
-						onChange={(event) =>
-							setQuoteForm({
-								...quoteForm,
-								observations: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<button className="primary" data-focus-key="quote.submit">
-					<FileText size={16} />
-					{submitLabel}
-				</button>
-			</form>
-		)
-	}
-
-	function renderServiceForm(submitLabel: string) {
-		return (
-			<form className="form-grid" onSubmit={saveService}>
-				<div className="form-row">
-					<Field label="Nombre">
-						<input
-							data-focus-key="service.name"
-							required
-							list="service-name-options"
-							value={serviceForm.name}
-							onChange={(event) =>
-								setServiceForm({
-									...serviceForm,
-									name: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('service.icon')}
-						/>
-					</Field>
-					<ServiceIconPicker
-						focusKey="service.icon"
-						value={String(serviceForm.icon ?? '')}
-						onChange={(icon) =>
-							setServiceForm({
-								...serviceForm,
-								icon,
-							})
-						}
-					/>
-				</div>
-				<SearchSelect
-					label="Tipo"
-					value={serviceForm.service_type}
-					options={serviceFormTypeOptions}
-					focusKey="service.type"
-					onChange={(value) => {
-						setServiceForm({
-							...serviceForm,
-							service_type: value || 'wash',
-						})
-						focusField('service.base_price')
-					}}
-				/>
-				<div className="form-row">
-					<Field label="Precio base">
-						<input
-							data-focus-key="service.base_price"
-							required
-							type="number"
-							min="0"
-							value={serviceForm.base_price}
-							onChange={(event) =>
-								setServiceForm({
-									...serviceForm,
-									base_price: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('service.duration')}
-						/>
-					</Field>
-					<Field label="Duracion estimada">
-						<input
-							data-focus-key="service.duration"
-							required
-							type="number"
-							min="1"
-							value={serviceForm.estimated_duration_minutes}
-							onChange={(event) =>
-								setServiceForm({
-									...serviceForm,
-									estimated_duration_minutes: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('service.notes')}
-						/>
-					</Field>
-				</div>
-				<Field label="Notas">
-					<textarea
-						data-focus-key="service.notes"
-						value={serviceForm.notes}
-						onChange={(event) =>
-							setServiceForm({
-								...serviceForm,
-								notes: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<button className="primary" data-focus-key="service.submit">
-					<Wrench size={16} />
-					{submitLabel}
-				</button>
-			</form>
-		)
-	}
-
-	function renderPaymentForm(submitLabel: string) {
-		return (
-			<form className="form-grid" onSubmit={savePayment}>
-				<SearchSelect
-					label="Reserva/trabajo"
-					value={paymentForm.work_order}
-					options={workOrderOptions}
-					focusKey="payment.work_order"
-					onChange={(value) => {
-						const selectedOrder = workOrders.find(
-							(item) => String(item.id) === String(value),
-						)
-						setPaymentForm({
-							...paymentForm,
-							work_order: value,
-							amount: fullPaymentAmountForOrder(selectedOrder),
-						})
-						focusField('payment.amount')
-					}}
-				/>
-				{selectedWorkOrderForPayment ? (
-					<div className="finance-form-summary">
-						<div>
-							<span>Saldo a cobrar</span>
-							<strong>
-								{money(
-									selectedWorkOrderForPayment.balance_due ??
-										selectedWorkOrderForPayment.total_amount,
-								)}
-							</strong>
-						</div>
-						<small>
-							{joinDisplayParts([
-								selectedWorkOrderForPayment.customer_name,
-								selectedWorkOrderForPayment.vehicle_label,
-								serviceDisplayName(selectedWorkOrderForPayment),
-							])}
-						</small>
-					</div>
-				) : null}
-				<div className="form-row">
-					<Field label="Importe">
-						<input
-							data-focus-key="payment.amount"
-							required
-							type="number"
-							min="0"
-							value={paymentForm.amount}
-							onChange={(event) =>
-								setPaymentForm({
-									...paymentForm,
-									amount: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('payment.type', true)}
-						/>
-					</Field>
-					<SearchSelect
-						label="Tipo"
-						value={paymentForm.payment_type}
-						options={[
-							{ value: 'payment', label: 'Pago' },
-							{ value: 'deposit', label: 'Sena' },
-						]}
-						focusKey="payment.type"
-						onChange={(value) => {
-							setPaymentForm({
-								...paymentForm,
-								payment_type: value || DEFAULT_PAYMENT_TYPE,
-							})
-							focusField('payment.method', true)
-						}}
-					/>
-				</div>
-				<SearchSelect
-					label="Medio"
-					value={paymentForm.method}
-					options={[
-						{ value: 'cash', label: 'Efectivo' },
-						{ value: 'card', label: 'Tarjeta' },
-						{ value: 'transfer', label: 'Transferencia' },
-						{ value: 'other', label: 'Otro' },
-					]}
-					focusKey="payment.method"
-					onChange={(value) => {
-						setPaymentForm({
-							...paymentForm,
-							method: value || DEFAULT_PAYMENT_METHOD,
-						})
-						focusField('payment.notes')
-					}}
-				/>
-				<Field label="Notas">
-					<textarea
-						data-focus-key="payment.notes"
-						value={paymentForm.notes}
-						onChange={(event) =>
-							setPaymentForm({
-								...paymentForm,
-								notes: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<button className="primary" data-focus-key="payment.submit">
-					<CreditCard size={16} />
-					{submitLabel}
-				</button>
-			</form>
-		)
-	}
-
-	function renderCashMovementForm(submitLabel: string) {
-		return (
-			<form className="form-grid" onSubmit={saveCashMovement}>
-				<SearchSelect
-					label="Tipo"
-					value={movementForm.movement_type}
-					options={[
-						{ value: 'expense', label: 'Egreso' },
-						{ value: 'income', label: 'Ingreso' },
-					]}
-					focusKey="cash-movement.type"
-					onChange={(value) => {
-						const movementType = value || 'expense'
-						const shouldResetCategory = [
-							'',
-							DEFAULT_EXPENSE_CATEGORY,
-							DEFAULT_INCOME_CATEGORY,
-						].includes(movementForm.category ?? '')
-						const nextCategory = shouldResetCategory
-							? defaultCashCategory(movementType)
-							: movementForm.category
-						setMovementForm({
-							...movementForm,
-							movement_type: movementType,
-							category: nextCategory,
-							subcategory: validCashSubcategoryForCategory(
-								movementType,
-								nextCategory,
-								movementForm.subcategory,
-							),
-						})
-						focusField('cash-movement.category')
-					}}
-				/>
-				<div className="form-row">
-					<SearchSelect
-						label="Categoria"
-						value={movementForm.category}
-						options={
-							movementForm.movement_type === 'income'
-								? incomeCategorySelectOptions
-								: expenseCategorySelectOptions
-						}
-						placeholder={
-							movementForm.movement_type === 'income'
-								? 'Categoria de ingreso'
-								: 'Categoria de egreso'
-						}
-						focusKey="cash-movement.category"
-						onChange={updateMovementCashCategory}
-						onCreate={updateMovementCashCategory}
-						createLabel={(value) => `Crear categoria "${value}"`}
-					/>
-					<SearchSelect
-						label="Subcategoria"
-						value={movementForm.subcategory ?? ''}
-						options={movementSubcategorySelectOptions}
-						placeholder={
-							movementForm.category
-								? 'Subcategoria'
-								: 'Elegir categoria'
-						}
-						disabled={!movementForm.category}
-						focusKey="cash-movement.subcategory"
-						onChange={(value) =>
-							setMovementForm({
-								...movementForm,
-								subcategory: value,
-							})
-						}
-						onCreate={registerMovementSubcategory}
-						createLabel={(value) => `Crear subcategoria "${value}"`}
-					/>
-				</div>
-				<div className="form-row">
-					<Field label="Importe">
-						<input
-							data-focus-key="cash-movement.amount"
-							required
-							type="number"
-							min="0"
-							value={movementForm.amount}
-							onChange={(event) =>
-								setMovementForm({
-									...movementForm,
-									amount: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('cash-movement.occurred_at')}
-						/>
-					</Field>
-					<Field label="Fecha que impacta">
-						<input
-							data-focus-key="cash-movement.occurred_at"
-							required
-							type="datetime-local"
-							value={movementForm.occurred_at}
-							onChange={(event) =>
-								setMovementForm({
-									...movementForm,
-									occurred_at: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('cash-movement.occurred_at')}
-						/>
-					</Field>
-					<Field label="Corrige cierre">
-						<input
-							type="date"
-							value={movementForm.adjusts_closed_day ?? ''}
-							onChange={(event) =>
-								setMovementForm({
-									...movementForm,
-									adjusts_closed_day: event.target.value,
-									category: event.target.value
-										? 'Ajustes'
-										: movementForm.category,
-									subcategory: event.target.value
-										? 'Ajuste de cierre'
-										: movementForm.subcategory,
-								})
-							}
-						/>
-					</Field>
-				</div>
-				{movementForm.adjusts_closed_day ? (
-					<div className="info-note">
-						El ajuste impacta hoy y deja trazado que corrige el cierre de{' '}
-						<strong>{formatDateLabel(movementForm.adjusts_closed_day)}</strong>.
-					</div>
-				) : null}
-				<Field label="Detalle">
-					<textarea
-						data-focus-key="cash-movement.description"
-						value={movementForm.description}
-						onChange={(event) =>
-							setMovementForm({
-								...movementForm,
-								description: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<button className="primary">
-					<ReceiptText size={16} />
-					{submitLabel}
-				</button>
-			</form>
-		)
-	}
-
-	function renderDebtForm(submitLabel: string) {
-		return (
-			<form className="form-grid" onSubmit={saveDebt}>
-				<Field label="Concepto">
-					<input
-						data-focus-key="debt.concept"
-						required
-						list="debt-concept-options"
-						value={debtForm.concept}
-						onChange={(event) =>
-							setDebtForm({
-								...debtForm,
-								concept: event.target.value,
-							})
-						}
-						onKeyDown={focusNextOnEnter('debt.creditor')}
-					/>
-				</Field>
-				<Field label="Acreedor">
-					<input
-						data-focus-key="debt.creditor"
-						list="debt-creditor-options"
-						value={debtForm.creditor}
-						onChange={(event) =>
-							setDebtForm({
-								...debtForm,
-								creditor: event.target.value,
-							})
-						}
-						onKeyDown={focusNextOnEnter('debt.amount')}
-					/>
-				</Field>
-				<SearchSelect
-					label="Proveedor vinculado"
-					value={debtForm.supplier ?? ''}
-					options={supplierOptions}
-					placeholder="Sin proveedor"
-					onChange={(value) => {
-						const supplier = suppliers.find(
-							(item) => String(item.id) === String(value),
-						)
-						setDebtForm({
-							...debtForm,
-							supplier: value,
-							creditor: supplier?.name ?? debtForm.creditor,
-						})
-					}}
-				/>
-				<div className="form-row">
-					<Field label="Total deuda">
-						<input
-							data-focus-key="debt.amount"
-							required
-							type="number"
-							min="0"
-							value={debtForm.principal_amount}
-							onChange={(event) =>
-								setDebtForm({
-									...debtForm,
-									principal_amount: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('debt.origin_date')}
-						/>
-					</Field>
-					<Field label="Origen">
-						<input
-							data-focus-key="debt.origin_date"
-							type="date"
-							value={debtForm.origin_date}
-							onChange={(event) =>
-								setDebtForm({
-									...debtForm,
-									origin_date: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('debt.due_date')}
-						/>
-					</Field>
-				</div>
-				<Field label="Fecha limite">
-					<input
-						data-focus-key="debt.due_date"
-						type="date"
-						value={debtForm.due_date}
-						onChange={(event) =>
-							setDebtForm({
-								...debtForm,
-								due_date: event.target.value,
-							})
-						}
-						onKeyDown={focusNextOnEnter('debt.expense_category')}
-					/>
-				</Field>
-				<div className="form-row">
-					<SearchSelect
-						label="Categoria del egreso"
-						value={debtForm.expense_category ?? ''}
-						options={debtExpenseCategorySelectOptions}
-						placeholder="Categoria de egreso"
-						focusKey="debt.expense_category"
-						onChange={updateDebtExpenseCategory}
-						onCreate={updateDebtExpenseCategory}
-						createLabel={(value) => `Crear categoria "${value}"`}
-					/>
-					<SearchSelect
-						label="Subcategoria"
-						value={debtForm.expense_subcategory ?? ''}
-						options={debtExpenseSubcategorySelectOptions}
-						placeholder={
-							debtForm.expense_category
-								? 'Subcategoria'
-								: 'Elegir categoria'
-						}
-						disabled={!debtForm.expense_category}
-						focusKey="debt.expense_subcategory"
-						onChange={(value) =>
-							setDebtForm({
-								...debtForm,
-								expense_subcategory: value,
-							})
-						}
-						onCreate={registerDebtSubcategory}
-						createLabel={(value) => `Crear subcategoria "${value}"`}
-					/>
-				</div>
-				<Field label="Notas">
-					<textarea
-						data-focus-key="debt.notes"
-						value={debtForm.notes}
-						onChange={(event) =>
-							setDebtForm({
-								...debtForm,
-								notes: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<div className="info-note">
-					El total crea el egreso original de la deuda. Los pagos parciales quedan trazados abajo y no generan otro egreso.
-				</div>
-				<button className="primary">
-					<ReceiptText size={16} />
-					{submitLabel}
-				</button>
-			</form>
-		)
-	}
-
-	function renderDebtPaymentForm(submitLabel = 'Guardar pago de deuda') {
-		return (
-			<form className="form-grid" onSubmit={saveDebtPayment}>
-				{debtOptions.length ? null : (
-					<div className="info-note">
-						No hay deudas con saldo pendiente para pagar.
-					</div>
-				)}
-				<SearchSelect
-					label="Deuda"
-					value={debtPaymentForm.debt}
-					options={debtOptions}
-					focusKey="debt-payment.debt"
-					onChange={(value) => {
-						setDebtPaymentForm({
-							...debtPaymentForm,
-							debt: value,
-						})
-						focusField('debt-payment.amount')
-					}}
-				/>
-				{selectedDebtForPayment ? (
-					<div className="finance-form-summary finance-form-summary--debt">
-						<div>
-							<span>Saldo pendiente</span>
-							<strong>{money(selectedDebtForPayment.balance_due)}</strong>
-						</div>
-						<small>
-							{joinDisplayParts([
-								selectedDebtForPayment.creditor || 'Sin acreedor',
-								selectedDebtForPayment.due_date
-									? `Limite ${formatDateLabel(selectedDebtForPayment.due_date)}`
-									: null,
-							])}
-						</small>
-					</div>
-				) : null}
-				<div className="form-row">
-					<Field label="Importe">
-						<input
-							data-focus-key="debt-payment.amount"
-							required
-							type="number"
-							min="0"
-							value={debtPaymentForm.amount}
-							onChange={(event) =>
-								setDebtPaymentForm({
-									...debtPaymentForm,
-									amount: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('debt-payment.paid_at')}
-						/>
-					</Field>
-					<Field label="Fecha pago">
-						<input
-							data-focus-key="debt-payment.paid_at"
-							type="date"
-							value={debtPaymentForm.paid_at}
-							onChange={(event) =>
-								setDebtPaymentForm({
-									...debtPaymentForm,
-									paid_at: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('debt-payment.method', true)}
-						/>
-					</Field>
-				</div>
-				<SearchSelect
-					label="Medio"
-					value={debtPaymentForm.method}
-					options={Object.entries(debtPaymentMethodLabels).map(
-						([value, label]) => ({ value, label }),
-					)}
-					focusKey="debt-payment.method"
-					onChange={(value) => {
-						setDebtPaymentForm({
-							...debtPaymentForm,
-							method: value || DEFAULT_PAYMENT_METHOD,
-						})
-						focusField('debt-payment.notes')
-					}}
-				/>
-				<Field label="Notas">
-					<textarea
-						data-focus-key="debt-payment.notes"
-						value={debtPaymentForm.notes}
-						onChange={(event) =>
-							setDebtPaymentForm({
-								...debtPaymentForm,
-								notes: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<div className="info-note">
-					Este pago queda como trazabilidad de deuda y no genera otro egreso en los reportes economicos.
-				</div>
-				<button className="primary">
-					<CreditCard size={16} />
-					{submitLabel}
-				</button>
-			</form>
-		)
-	}
-
-	function renderMaterialForm(submitLabel: string) {
-		return (
-			<form className="form-grid" onSubmit={saveMaterial}>
-				<Field label="Nombre">
-					<input
-						data-focus-key="material.name"
-						required
-						list="material-name-options"
-						value={materialForm.name}
-						onChange={(event) =>
-							setMaterialForm({
-								...materialForm,
-								name: event.target.value,
-							})
-						}
-						onKeyDown={focusNextOnEnter('material.unit')}
-					/>
-				</Field>
-				<div className="form-row">
-					<Field label="Unidad">
-						<input
-							data-focus-key="material.unit"
-							required
-							list="material-unit-options"
-							value={materialForm.unit}
-							onChange={(event) =>
-								setMaterialForm({
-									...materialForm,
-									unit: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('material.stock')}
-						/>
-					</Field>
-					<Field label="Categoria">
-						<input
-							list="material-category-options"
-							value={materialForm.category}
-							onChange={(event) =>
-								setMaterialForm({
-									...materialForm,
-									category: event.target.value,
-								})
-							}
-						/>
-					</Field>
-				</div>
-				<div className="form-row">
-					<Field label="SKU">
-						<input
-							value={materialForm.sku}
-							onChange={(event) =>
-								setMaterialForm({
-									...materialForm,
-									sku: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<Field label="Presentacion">
-						<input
-							value={materialForm.presentation}
-							onChange={(event) =>
-								setMaterialForm({
-									...materialForm,
-									presentation: event.target.value,
-								})
-							}
-						/>
-					</Field>
-				</div>
-				<div className="form-row">
-					<Field label="Stock">
-						<input
-							data-focus-key="material.stock"
-							type="number"
-							min="0"
-							value={materialForm.stock_quantity}
-							onChange={(event) =>
-								setMaterialForm({
-									...materialForm,
-									stock_quantity: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<Field label="Stock minimo">
-						<input
-							type="number"
-							min="0"
-							value={materialForm.minimum_stock}
-							onChange={(event) =>
-								setMaterialForm({
-									...materialForm,
-									minimum_stock: event.target.value,
-								})
-							}
-						/>
-					</Field>
-				</div>
-				<div className="info-note">
-					Costo unitario automatico por ultima compra:{' '}
-					<strong>{money(materialForm.estimated_unit_cost)}</strong>
-				</div>
-				<button className="primary">
-					<Package size={16} />
-					{submitLabel}
-				</button>
-			</form>
-		)
-	}
-
-	function renderSupplierForm(
-		submitLabel: string,
-		onSubmit: (event: FormEvent) => void | Promise<void> = saveSupplier,
-	) {
-		return (
-			<form className="form-grid" onSubmit={onSubmit}>
-				<Field label="Nombre">
-					<input
-						data-focus-key="supplier.name"
-						required
-						list="supplier-name-options"
-						value={supplierForm.name}
-						onChange={(event) =>
-							setSupplierForm({
-								...supplierForm,
-								name: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<Field label="Razon social">
-					<input
-						list="supplier-legal-name-options"
-						value={supplierForm.legal_name}
-						onChange={(event) =>
-							setSupplierForm({
-								...supplierForm,
-								legal_name: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<div className="form-row">
-					<Field label="Rubro">
-						<input
-							list="supplier-category-options"
-							value={supplierForm.category}
-							onChange={(event) =>
-								setSupplierForm({
-									...supplierForm,
-									category: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<Field label="Condicion fiscal">
-						<input
-							list="supplier-tax-condition-options"
-							value={supplierForm.tax_condition}
-							onChange={(event) =>
-								setSupplierForm({
-									...supplierForm,
-									tax_condition: event.target.value,
-								})
-							}
-						/>
-					</Field>
-				</div>
-				<div className="form-row">
-					<Field label="Contacto">
-						<input
-							value={supplierForm.contact_name}
-							onChange={(event) =>
-								setSupplierForm({
-									...supplierForm,
-									contact_name: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<Field label="Telefono">
-						<input
-							value={supplierForm.phone}
-							onChange={(event) =>
-								setSupplierForm({
-									...supplierForm,
-									phone: event.target.value,
-								})
-							}
-						/>
-					</Field>
-				</div>
-				<div className="form-row">
-					<Field label="Email">
-						<input
-							type="email"
-							value={supplierForm.email}
-							onChange={(event) =>
-								setSupplierForm({
-									...supplierForm,
-									email: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<Field label="CUIT / tax id">
-						<input
-							value={supplierForm.tax_id}
-							onChange={(event) =>
-								setSupplierForm({
-									...supplierForm,
-									tax_id: event.target.value,
-								})
-							}
-						/>
-					</Field>
-				</div>
-				<Field label="Website">
-					<input
-						type="url"
-						value={supplierForm.website}
-						onChange={(event) =>
-							setSupplierForm({
-								...supplierForm,
-								website: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<Field label="Direccion">
-					<input
-						value={supplierForm.address}
-						onChange={(event) =>
-							setSupplierForm({
-								...supplierForm,
-								address: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<Field label="Notas">
-					<textarea
-						value={supplierForm.notes}
-						onChange={(event) =>
-							setSupplierForm({
-								...supplierForm,
-								notes: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<button className="primary">
-					<Building2 size={16} />
-					{submitLabel}
-				</button>
-			</form>
-		)
-	}
-
-	function renderStockMovementForm(submitLabel: string) {
-		return (
-			<form className="form-grid stock-movement-form" onSubmit={saveStockMovement}>
-				<div className="form-row">
-					<SearchSelect
-						label="Tipo de movimiento"
-						value={stockMovementForm.movement_type}
-						options={stockMovementTypeOptions}
-						focusKey="stock-movement.type"
-						onChange={(value) =>
-							setStockMovementForm({
-								...blankStockMovementForm(selectedDay),
-								movement_type: value || 'purchase',
-							})
-						}
-					/>
-					<Field label="Fecha">
-						<input
-							type="date"
-							value={stockMovementForm.occurred_on}
-							onChange={(event) =>
-								setStockMovementForm({
-									...stockMovementForm,
-									occurred_on: event.target.value,
-								})
-							}
-						/>
-					</Field>
-				</div>
-				{stockMovementRequiresSupplier ? (
-					<div className="form-row">
-						<SearchSelect
-							label="Proveedor"
-							value={stockMovementForm.supplier}
-							options={supplierOptions}
-							placeholder="Sin proveedor"
-							focusKey="stock-movement.supplier"
-							className={flashClass(fieldFlashKey('stock-movement.supplier'))}
-							onAdd={() =>
-								openQuickCreate('supplier', 'stock-movement.supplier')
-							}
-							addLabel="Nuevo proveedor"
-							onCreate={(value) =>
-								void createSupplierFromName(value, 'stock-movement.supplier')
-							}
-							createLabel={(value) => `Crear proveedor "${value}"`}
-							onChange={(value) =>
-								setStockMovementForm({
-									...stockMovementForm,
-									supplier: value,
-								})
-							}
-						/>
-						<SearchSelect
-							label="Tipo de comprobante"
-							value={stockMovementForm.document_type}
-							options={stockDocumentTypeOptions}
-							onChange={(value) =>
-								setStockMovementForm({
-									...stockMovementForm,
-									document_type: value,
-								})
-							}
-						/>
-					</div>
-				) : null}
-				{stockMovementRequiresCustomer ? (
-					<SearchSelect
-						label="Cliente"
-						value={stockMovementForm.customer}
-						options={customerOptions}
-						onChange={(value) =>
-							setStockMovementForm({
-								...stockMovementForm,
-								customer: value,
-							})
-						}
-					/>
-				) : null}
-				{stockMovementRequiresReservation ? (
-					<SearchSelect
-						label="Reserva"
-						value={stockMovementForm.reservation}
-						options={reservationOptions}
-						onChange={(value) =>
-							setStockMovementForm({
-								...stockMovementForm,
-								reservation: value,
-							})
-						}
-					/>
-				) : null}
-				{stockMovementRequiresSupplier ? (
-					<div className="form-row">
-						<Field label="Numero de comprobante">
-							<input
-								value={stockMovementForm.document_number}
-								onChange={(event) =>
-									setStockMovementForm({
-										...stockMovementForm,
-										document_number: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="Adjunto">
-							<input
-								type="file"
-								accept="image/*,.pdf"
-								onChange={(event) =>
-									setStockMovementDocumentFile(
-										event.target.files?.[0] ?? null,
-									)
-								}
-							/>
-						</Field>
-					</div>
-				) : null}
-				<div className="stock-lines">
-					{stockMovementLines.map((line: AnyRecord, index: number) => {
-						const selectedMaterial = materials.find(
-							(item) => String(item.id) === String(line.material),
-						)
-						return (
-							<div className="quote-line stock-line" key={index}>
-								<SearchSelect
-								label="Producto"
-								value={line.material}
-								options={materialOptions}
-								onChange={(value) => {
-									const nextMaterial = materials.find(
-										(item) => String(item.id) === String(value),
-									)
-									updateStockMovementLine(index, {
-										material: value,
-										unit_price:
-											stockMovementForm.movement_type === 'consumption'
-												? nextMaterial?.estimated_unit_cost ?? ''
-												: line.unit_price,
-									})
-								}}
-							/>
-								<Field label="Cantidad">
-									<input
-										required
-										type="number"
-										min="0"
-										value={line.quantity}
-										onChange={(event) =>
-											updateStockMovementLine(index, {
-												quantity: event.target.value,
-											})
-										}
-									/>
-								</Field>
-								<Field label={stockMovementForm.movement_type === 'consumption' ? 'Costo ref.' : 'Precio unitario'}>
-									<input
-										type="number"
-										min="0"
-										value={line.unit_price}
-										placeholder={
-											stockMovementForm.movement_type === 'consumption'
-												? String(selectedMaterial?.estimated_unit_cost ?? '0')
-												: ''
-										}
-										onChange={(event) =>
-											updateStockMovementLine(index, {
-												unit_price: event.target.value,
-											})
-										}
-									/>
-								</Field>
-								<button
-									type="button"
-									className="ghost"
-									onClick={() => removeStockMovementLine(index)}
-								>
-									<Trash2 size={16} />
-								</button>
-							</div>
-						)
-					})}
-				</div>
-				<button type="button" className="ghost" onClick={addStockMovementLine}>
-					<Plus size={16} />
-					Agregar producto
-				</button>
-				<div className="material-summary">
-					<div className="material-kpi">
-						<span>Productos</span>
-						<strong>{stockMovementLines.length}</strong>
-					</div>
-					<div className="material-kpi">
-						<span>Total</span>
-						<strong>{money(stockMovementTotal)}</strong>
-					</div>
-				</div>
-				{stockMovementForm.movement_type === 'purchase' ? (
-					<div className="form-row">
-						<label>
-							<input
-								type="checkbox"
-								checked={stockMovementForm.products_received}
-								onChange={(event) =>
-									setStockMovementForm({
-										...stockMovementForm,
-										products_received: event.target.checked,
-									})
-								}
-							/>
-							Productos recibidos
-						</label>
-						<label>
-							<input
-								type="checkbox"
-								checked={stockMovementForm.affects_cash}
-								onChange={(event) =>
-									setStockMovementForm({
-										...stockMovementForm,
-										affects_cash: event.target.checked,
-									})
-								}
-							/>
-							Impacta en caja
-						</label>
-					</div>
-				) : null}
-				{stockMovementForm.movement_type === 'sale' ? (
-					<SearchSelect
-						label="Metodo de cobro"
-						value={stockMovementForm.payment_method}
-						options={stockPaymentMethodOptions}
-						onChange={(value) =>
-							setStockMovementForm({
-								...stockMovementForm,
-								payment_method: value || DEFAULT_PAYMENT_METHOD,
-							})
-						}
-					/>
-				) : null}
-				<Field label="Notas">
-					<textarea
-						value={stockMovementForm.notes}
-						onChange={(event) =>
-							setStockMovementForm({
-								...stockMovementForm,
-								notes: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<button className="primary">
-					<Package size={16} />
-					{submitLabel}
-				</button>
-			</form>
-		)
-	}
-
 	function renderPurchaseForm(submitLabel: string) {
 		return (
 			<form className="form-grid" onSubmit={savePurchase}>
@@ -12986,7 +11155,13 @@ export default function Home() {
 						title="Nuevo cliente"
 						onClose={formModalExit.close}
 					>
-						{renderCustomerForm('Guardar cliente')}
+						<CustomerForm
+						submitLabel="Guardar cliente"
+						onSubmit={saveCustomer}
+						customerForm={customerForm}
+						setCustomerForm={setCustomerForm}
+						focusNextOnEnter={focusNextOnEnter}
+					/>
 					</Modal>
 				) : null}
 				{formModal?.kind === 'vehicle' ? (
@@ -12995,7 +11170,22 @@ export default function Home() {
 						title="Nuevo vehiculo"
 						onClose={formModalExit.close}
 					>
-						{renderVehicleForm('Guardar vehiculo')}
+						<VehicleForm
+						submitLabel="Guardar vehiculo"
+						onSubmit={saveVehicle}
+						vehicleForm={vehicleForm}
+						setVehicleForm={setVehicleForm}
+						customerOptions={customerOptions}
+						vehicleBrandSelectOptions={vehicleBrandSelectOptions}
+						vehicleModelSelectOptions={vehicleModelSelectOptions}
+						flashClass={flashClass}
+						fieldFlashKey={fieldFlashKey}
+						openQuickCreate={openQuickCreate}
+						updateVehicleCustomer={updateVehicleCustomer}
+						updateVehicleBrand={updateVehicleBrand}
+						focusField={focusField}
+						focusNextOnEnter={focusNextOnEnter}
+					/>
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'quote' ? (
@@ -13004,7 +11194,29 @@ export default function Home() {
 						title="Nueva cotizacion"
 						onClose={formModalExit.close}
 					>
-						{renderQuoteForm('Crear cotizacion')}
+						<QuoteForm
+						submitLabel="Crear cotizacion"
+						onSubmit={saveQuote}
+						quoteForm={quoteForm}
+						setQuoteForm={setQuoteForm}
+						customerOptions={customerOptions}
+						quoteVehicleSearchOptions={quoteVehicleSearchOptions}
+						serviceOptions={serviceOptions}
+						canViewEconomy={canViewEconomy}
+						useReservationTimes={useReservationTimes}
+						quoteTotals={quoteTotals}
+						openQuickCreate={openQuickCreate}
+						updateQuoteCustomer={updateQuoteCustomer}
+						addQuoteItem={addQuoteItem}
+						selectQuoteService={selectQuoteService}
+						updateQuoteItem={updateQuoteItem}
+						removeQuoteItem={removeQuoteItem}
+						serviceNotesForLine={serviceNotesForLine}
+						focusField={focusField}
+						focusNextOnEnter={focusNextOnEnter}
+						flashClass={flashClass}
+						fieldFlashKey={fieldFlashKey}
+					/>
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'service' ? (
@@ -13013,7 +11225,14 @@ export default function Home() {
 						title="Nuevo servicio"
 						onClose={formModalExit.close}
 					>
-						{renderServiceForm('Guardar servicio')}
+						<ServiceForm
+						submitLabel="Guardar servicio"
+						onSubmit={saveService}
+						serviceForm={serviceForm}
+						setServiceForm={setServiceForm}
+						focusNextOnEnter={focusNextOnEnter}
+						focusField={focusField}
+					/>
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'payment' ? (
@@ -13022,7 +11241,17 @@ export default function Home() {
 						title="Registrar pago"
 						onClose={formModalExit.close}
 					>
-						{renderPaymentForm('Guardar pago')}
+						<PaymentForm
+						submitLabel="Guardar pago"
+						onSubmit={savePayment}
+						paymentForm={paymentForm}
+						setPaymentForm={setPaymentForm}
+						workOrders={workOrders}
+						workOrderOptions={workOrderOptions}
+						selectedWorkOrderForPayment={selectedWorkOrderForPayment}
+						focusField={focusField}
+						focusNextOnEnter={focusNextOnEnter}
+					/>
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'cash-movement' ? (
@@ -13031,7 +11260,20 @@ export default function Home() {
 						title="Movimiento manual"
 						onClose={formModalExit.close}
 					>
-						{renderCashMovementForm('Guardar movimiento')}
+						<CashMovementForm
+						submitLabel="Guardar movimiento"
+						onSubmit={saveCashMovement}
+						movementForm={movementForm}
+						setMovementForm={setMovementForm}
+						incomeCategorySelectOptions={incomeCategorySelectOptions}
+						expenseCategorySelectOptions={expenseCategorySelectOptions}
+						movementSubcategorySelectOptions={movementSubcategorySelectOptions}
+						updateMovementCashCategory={updateMovementCashCategory}
+						registerMovementSubcategory={registerMovementSubcategory}
+						validCashSubcategoryForCategory={validCashSubcategoryForCategory}
+						focusField={focusField}
+						focusNextOnEnter={focusNextOnEnter}
+					/>
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'expense-classification' ? (
@@ -13056,7 +11298,20 @@ export default function Home() {
 						title="Nueva deuda"
 						onClose={formModalExit.close}
 					>
-						{renderDebtForm('Guardar deuda')}
+						<DebtForm
+						submitLabel="Guardar deuda"
+						onSubmit={saveDebt}
+						debtForm={debtForm}
+						setDebtForm={setDebtForm}
+						supplierOptions={supplierOptions}
+						suppliers={suppliers}
+						debtExpenseCategorySelectOptions={debtExpenseCategorySelectOptions}
+						debtExpenseSubcategorySelectOptions={debtExpenseSubcategorySelectOptions}
+						updateDebtExpenseCategory={updateDebtExpenseCategory}
+						registerDebtSubcategory={registerDebtSubcategory}
+						focusField={focusField}
+						focusNextOnEnter={focusNextOnEnter}
+					/>
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'debt-payment' ? (
@@ -13065,7 +11320,15 @@ export default function Home() {
 						title="Registrar pago de deuda"
 						onClose={formModalExit.close}
 					>
-						{renderDebtPaymentForm()}
+						<DebtPaymentForm
+						onSubmit={saveDebtPayment}
+						debtPaymentForm={debtPaymentForm}
+						setDebtPaymentForm={setDebtPaymentForm}
+						debtOptions={debtOptions}
+						selectedDebtForPayment={selectedDebtForPayment}
+						focusField={focusField}
+						focusNextOnEnter={focusNextOnEnter}
+					/>
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'material' ? (
@@ -13074,7 +11337,13 @@ export default function Home() {
 						title="Nuevo material"
 						onClose={formModalExit.close}
 					>
-						{renderMaterialForm('Guardar material')}
+						<MaterialForm
+						submitLabel="Guardar material"
+						onSubmit={saveMaterial}
+						materialForm={materialForm}
+						setMaterialForm={setMaterialForm}
+						focusNextOnEnter={focusNextOnEnter}
+					/>
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'supplier' ? (
@@ -13083,7 +11352,13 @@ export default function Home() {
 						title="Nuevo proveedor"
 						onClose={formModalExit.close}
 					>
-						{renderSupplierForm('Guardar proveedor')}
+						<SupplierForm
+						submitLabel="Guardar proveedor"
+						onSubmit={saveSupplier}
+						supplierForm={supplierForm}
+						setSupplierForm={setSupplierForm}
+						focusNextOnEnter={focusNextOnEnter}
+					/>
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'stock-movement' ? (
@@ -13092,7 +11367,36 @@ export default function Home() {
 						title="Crear movimiento de stock"
 						onClose={formModalExit.close}
 					>
-						{renderStockMovementForm('Crear movimiento')}
+						<StockMovementForm
+						submitLabel="Crear movimiento"
+						onSubmit={saveStockMovement}
+						stockMovementForm={stockMovementForm}
+						setStockMovementForm={setStockMovementForm}
+						stockMovementDocumentFile={stockMovementDocumentFile}
+						setStockMovementDocumentFile={setStockMovementDocumentFile}
+						stockMovementTypeOptions={stockMovementTypeOptions}
+						stockDocumentTypeOptions={stockDocumentTypeOptions}
+						customerOptions={customerOptions}
+						supplierOptions={supplierOptions}
+						reservationOptions={reservationOptions}
+						materialOptions={materialOptions}
+						stockPaymentMethodOptions={stockPaymentMethodOptions}
+						materials={materials}
+						stockMovementLines={stockMovementLines}
+						selectedDay={selectedDay}
+						stockMovementRequiresSupplier={stockMovementRequiresSupplier}
+						stockMovementRequiresCustomer={stockMovementRequiresCustomer}
+						stockMovementRequiresReservation={stockMovementRequiresReservation}
+						stockMovementTotal={stockMovementTotal}
+						blankStockMovementForm={blankStockMovementForm}
+						updateStockMovementLine={updateStockMovementLine}
+						addStockMovementLine={addStockMovementLine}
+						removeStockMovementLine={removeStockMovementLine}
+						openQuickCreate={openQuickCreate}
+						createSupplierFromName={createSupplierFromName}
+						flashClass={flashClass}
+						fieldFlashKey={fieldFlashKey}
+					/>
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'material-purchase' ? (
@@ -13224,22 +11528,28 @@ export default function Home() {
 						}
 						onClose={quickReservationExit.close}
 					>
-						<form className="form-grid" onSubmit={saveReservation}>
-							{quickReservationPrefillDay ? (
-								<div className="info-note">
-									La fecha de la columna queda cargada automaticamente. Si la
-									quitas y dejas la hora vacia, se crea una cotizacion libre.
-								</div>
-							) : (
-								<div className="info-note">
-									Sin fecha se crea una cotizacion libre. Si cargas fecha, se crea
-									la reserva con su cotizacion y la agenda se mantiene abierta.
-								</div>
-							)}
-							{renderReservationForm(
-								reservationForm.day ? 'Crear reserva' : 'Crear cotizacion',
-							)}
-						</form>
+						<ReservationForm
+							submitLabel={reservationForm.day ? 'Crear reserva' : 'Crear cotizacion'}
+							onSubmit={saveReservation}
+							prefillDayMode={Boolean(quickReservationPrefillDay)}
+							reservationForm={reservationForm}
+							setReservationForm={setReservationForm}
+							customerOptions={customerOptions}
+							customerVehicleOptions={customerVehicleOptions}
+							serviceOptions={serviceOptions}
+							canViewEconomy={canViewEconomy}
+							useReservationTimes={useReservationTimes}
+							openQuickCreate={openQuickCreate}
+							updateReservationCustomer={updateReservationCustomer}
+							addReservationItem={addReservationItem}
+							selectReservationService={selectReservationService}
+							updateReservationItem={updateReservationItem}
+							removeReservationItem={removeReservationItem}
+							focusField={focusField}
+							focusNextOnEnter={focusNextOnEnter}
+							flashClass={flashClass}
+							fieldFlashKey={fieldFlashKey}
+						/>
 					</Modal>
 				) : null}
 				{quickCreate?.kind === 'customer' ? (
@@ -13582,7 +11892,13 @@ export default function Home() {
 						title="Nuevo proveedor"
 						onClose={quickCreateExit.close}
 					>
-						{renderSupplierForm('Crear proveedor', saveQuickSupplier)}
+						<SupplierForm
+						submitLabel="Crear proveedor"
+						onSubmit={saveQuickSupplier}
+						supplierForm={supplierForm}
+						setSupplierForm={setSupplierForm}
+						focusNextOnEnter={focusNextOnEnter}
+					/>
 					</Modal>
 				) : null}
 				{canViewEconomy && consumeForOrder ? (
