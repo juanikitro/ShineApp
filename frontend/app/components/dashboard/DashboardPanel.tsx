@@ -2,10 +2,9 @@
 
 import { type ReactNode } from 'react'
 
-import { CalendarDays, CreditCard, Info, Search } from 'lucide-react'
+import { CalendarDays, CreditCard, Info } from 'lucide-react'
 
 import { Empty, LoadingState } from '@/app/components/ui/Empty'
-import { Field } from '@/app/components/ui/Field'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { Panel } from '@/app/components/ui/Panel'
 import { RecordCard } from '@/app/components/ui/RecordCard'
@@ -22,21 +21,13 @@ import {
 } from '@/lib/page-support'
 import { serviceDisplayName } from '@/lib/service-display'
 
-type DashboardPeriod = {
-	from: string
-	to: string
-}
-
 type DashboardPanelProps = {
 	birthdayAlerts: ReactNode
 	canViewEconomy: boolean
 	dashboard: AnyRecord
 	loading: boolean
-	period: DashboardPeriod
 	onOpenPaymentForOrder: (workOrder: AnyRecord) => void
 	onOpenSection: (section: Section) => void
-	onPeriodChange: (period: DashboardPeriod) => void
-	onReloadDashboard: () => void
 }
 
 function dashboardCountText(count: number, singular: string, plural: string) {
@@ -53,15 +44,9 @@ export function DashboardPanel({
 	canViewEconomy,
 	dashboard,
 	loading,
-	period,
 	onOpenPaymentForOrder,
 	onOpenSection,
-	onPeriodChange,
-	onReloadDashboard,
 }: DashboardPanelProps) {
-	const dashboardPeriodLabel = `${formatDateLabel(period.from)} a ${formatDateLabel(
-		period.to,
-	)}`
 	const dashboardWorkStatusEntries = Object.entries(orderLabels)
 	const dashboardWorkStatusTotal = dashboardWorkStatusEntries.reduce(
 		(total, [key]) => total + numberValue(dashboard.work_orders_by_status?.[key]),
@@ -330,48 +315,6 @@ export function DashboardPanel({
 		<div className="grid">
 			{canViewEconomy ? (
 				<>
-					<Panel
-						title="Periodo de lectura"
-						subtitle={`Viendo ${dashboardPeriodLabel}. Ajusta el rango sin salir del tablero.`}
-					>
-						<form
-							aria-label="Filtrar dashboard por periodo"
-							className="toolbar dashboard-period-toolbar"
-							onSubmit={(event) => {
-								event.preventDefault()
-								onReloadDashboard()
-							}}
-						>
-							<Field label="Desde">
-								<input
-									type="date"
-									value={period.from}
-									onChange={(event) =>
-										onPeriodChange({
-											...period,
-											from: event.target.value,
-										})
-									}
-								/>
-							</Field>
-							<Field label="Hasta">
-								<input
-									type="date"
-									value={period.to}
-									onChange={(event) =>
-										onPeriodChange({
-											...period,
-											to: event.target.value,
-										})
-									}
-								/>
-							</Field>
-							<button className="primary">
-								<Search size={16} />
-								Ver periodo
-							</button>
-						</form>
-					</Panel>
 					{loading && !dashboardHasBusinessActivity ? (
 						<LoadingState
 							text="Cargando indicadores del negocio..."

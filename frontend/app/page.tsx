@@ -11220,52 +11220,87 @@ export default function Home() {
 							) : null
 						}
 						actions={
-							<div className="record-actions">
-								<button
-									ref={sidebarMobileToggleRef}
-									type="button"
-									className="ghost shell-mobile-toggle"
-									aria-controls={SIDEBAR_NAV_ID}
-									aria-expanded={sidebarMobileOpen}
-									aria-label={
-										sidebarMobileOpen
-											? 'Cerrar menu lateral'
-											: 'Abrir menu lateral'
-									}
-									title={
-										sidebarMobileOpen
-											? 'Cerrar menu lateral'
-											: 'Abrir menu lateral'
-									}
-									onClick={toggleSidebarMobileMenu}
-								>
-									{sidebarMobileOpen ? <X size={16} /> : <Menu size={16} />}
-									Menu
-								</button>
-								{displayedActive === 'agenda' ? (
+							<>
+								{displayedActive === 'dashboard' && canViewEconomy ? (
+									<form
+										aria-label="Filtrar dashboard por periodo"
+										className="toolbar dashboard-period-toolbar"
+										onSubmit={(event) => {
+											event.preventDefault()
+											loadData({ force: true, section: 'dashboard' })
+										}}
+									>
+										<Field label="Desde">
+											<input
+												type="date"
+												value={period.from}
+												onChange={(event) =>
+													setPeriod({ ...period, from: event.target.value })
+												}
+											/>
+										</Field>
+										<Field label="Hasta">
+											<input
+												type="date"
+												value={period.to}
+												onChange={(event) =>
+													setPeriod({ ...period, to: event.target.value })
+												}
+											/>
+										</Field>
+										<button className="primary" type="submit">
+											<Search size={16} />
+											Ver periodo
+										</button>
+									</form>
+								) : null}
+								<div className="record-actions">
+									<button
+										ref={sidebarMobileToggleRef}
+										type="button"
+										className="ghost shell-mobile-toggle"
+										aria-controls={SIDEBAR_NAV_ID}
+										aria-expanded={sidebarMobileOpen}
+										aria-label={
+											sidebarMobileOpen
+												? 'Cerrar menu lateral'
+												: 'Abrir menu lateral'
+										}
+										title={
+											sidebarMobileOpen
+												? 'Cerrar menu lateral'
+												: 'Abrir menu lateral'
+										}
+										onClick={toggleSidebarMobileMenu}
+									>
+										{sidebarMobileOpen ? <X size={16} /> : <Menu size={16} />}
+										Menu
+									</button>
+									{displayedActive === 'agenda' ? (
+										<button
+											type="button"
+											className="primary"
+											aria-label="Crear reserva para el dia seleccionado"
+											title="Crear reserva para el dia seleccionado"
+											onClick={() => openQuickReservation(selectedDay)}
+										>
+											<Plus size={16} />
+											Crear
+										</button>
+									) : null}
 									<button
 										type="button"
-										className="primary"
-										aria-label="Crear reserva para el dia seleccionado"
-										title="Crear reserva para el dia seleccionado"
-										onClick={() => openQuickReservation(selectedDay)}
+										className="ghost"
+										aria-label={`Actualizar ${title.label.toLowerCase()}`}
+										title={`Actualizar ${title.label.toLowerCase()}`}
+										onClick={() => loadData({ force: true })}
+										disabled={loading}
 									>
-										<Plus size={16} />
-										Crear
+										<RefreshCw size={16} />
+										Actualizar
 									</button>
-								) : null}
-								<button
-									type="button"
-									className="ghost"
-									aria-label={`Actualizar ${title.label.toLowerCase()}`}
-									title={`Actualizar ${title.label.toLowerCase()}`}
-									onClick={() => loadData({ force: true })}
-									disabled={loading}
-								>
-									<RefreshCw size={16} />
-									Actualizar
-								</button>
-							</div>
+								</div>
+							</>
 						}
 					/>
 				{displayedActive === 'dashboard' ? (
@@ -11274,13 +11309,8 @@ export default function Home() {
 						canViewEconomy={canViewEconomy}
 						dashboard={dashboard}
 						loading={loading}
-						period={period}
 						onOpenPaymentForOrder={openPaymentForOrder}
 						onOpenSection={setActive}
-						onPeriodChange={setPeriod}
-						onReloadDashboard={() =>
-							loadData({ force: true, section: 'dashboard' })
-						}
 					/>
 				) : null}
 
