@@ -61,6 +61,11 @@ import {
 	SupplierDashboardPanel,
 	supplierProfileSubtitle,
 } from '@/app/components/suppliers/SupplierDashboardPanel'
+import { WorkEntryDateView } from '@/app/components/work/WorkEntryDateView'
+import {
+	WorkStatusView,
+	workStatusColumns,
+} from '@/app/components/work/WorkStatusView'
 import { AgendaBoardToolbar } from '@/app/components/agenda/AgendaBoardToolbar'
 import { AgendaReservationCard } from '@/app/components/agenda/AgendaReservationCard'
 import {
@@ -341,26 +346,6 @@ const workViewModes: Array<{
 	{ value: 'agenda', label: 'Agenda' },
 	{ value: 'status', label: 'Estado' },
 	{ value: 'entry-date', label: 'Fecha de ingreso' },
-]
-const workStatusColumns = [
-	{
-		key: 'not_started',
-		label: 'Sin ingresar',
-		statuses: ['pending', 'confirmed'],
-		dropStatus: 'confirmed',
-	},
-	{
-		key: 'in_progress',
-		label: 'En proceso',
-		statuses: ['in_progress'],
-		dropStatus: 'in_progress',
-	},
-	{
-		key: 'finished',
-		label: 'Finalizados',
-		statuses: ['ready', 'delivered'],
-		dropStatus: 'ready',
-	},
 ]
 const quoteStatusLabels: Record<string, string> = {
 	draft: 'Sin enviar',
@@ -2989,247 +2974,6 @@ export default function Home() {
 			workOrder,
 		} satisfies AgendaOperationalRow
 	}
-
-	function renderWorkReservationListCard(reservation: AnyRecord) {
-		const row = workReservationRow(reservation)
-		return (
-			<MotionFlashSurface
-				className={recordClass(
-					'reservation',
-					reservation.id,
-					cx(
-						'compact',
-						agendaCardClass(row),
-						flashClass(agendaCardFlashKey(row.key)),
-					),
-				)}
-				key={`work-reservation-${reservation.id}`}
-			>
-				<div className="agenda-card-stack">
-					{renderAgendaReservationCard(reservation, row.workOrder, row, {
-						statusMode: 'work-order',
-					})}
-				</div>
-			</MotionFlashSurface>
-		)
-	}
-
-	function renderWorkFreeQuoteCard(item: AnyRecord) {
-		const quickActions = quoteQuickActions(item)
-		return (
-			<MotionFlashSurface
-				className={recordClass('quote', item.id, 'quote-board-card')}
-				key={`work-free-quote-${item.id}`}
-				{...detailRecordProps('Cotizacion', item)}
-				{...quickActionTargetProps('Acciones de cotizacion', quickActions)}
-			>
-				{renderQuickActionsTrigger(
-					'Acciones de cotizacion',
-					quickActions,
-					'Acciones rapidas de cotizacion',
-				)}
-				{renderQuoteCardContent(item)}
-			</MotionFlashSurface>
-		)
-	}
-
-	function WorkStatusDraggableReservation({
-		reservation,
-	}: {
-		reservation: AnyRecord
-	}) {
-		const row = workReservationRow(reservation)
-		const reservationId = String(reservation.id ?? '')
-		const workOrder = row.workOrder
-		const workOrderId = String(workOrder?.id ?? '')
-		const status = workStatusForReservation(reservation, workOrderByReservation)
-		const statusColumn = workStatusColumnForStatus(status, workStatusColumns)
-		const canDrag = reservationCanMoveWorkStatus(
-			reservation,
-			workOrderByReservation,
-		)
-		const { listeners, setNodeRef, isDragging } = useDraggable({
-			id: `work-status-reservation:${reservationId}`,
-			data: {
-				reservationId,
-				status,
-				statusGroup: statusColumn?.key,
-				workOrderId,
-			},
-			disabled:
-				!reservationId ||
-				!canDrag ||
-				Boolean(workStatusMovePendingId),
-		})
-
-		return (
-			<MotionFlashSurface
-				ref={setNodeRef}
-				{...listeners}
-				className={recordClass(
-					'reservation',
-					reservation.id,
-					cx(
-						'compact',
-						agendaCardClass(row),
-						flashClass(agendaCardFlashKey(row.key)),
-						'work-status-card',
-						'agenda-operational-card--draggable',
-						!canDrag && 'agenda-operational-card--locked',
-						isDragging && 'agenda-operational-card--dragging',
-						workStatusMovePendingId === reservationId &&
-							'agenda-operational-card--moving',
-					),
-				)}
-			>
-				<div className="agenda-card-stack">
-					{renderAgendaReservationCard(reservation, row.workOrder, row, {
-						statusMode: 'work-order',
-					})}
-				</div>
-			</MotionFlashSurface>
-		)
-	}
-
-	function WorkStatusDroppableLane({
-		group,
-	}: {
-		group: {
-			key: string
-			label: string
-			dropStatus?: string
-			reservations: AnyRecord[]
-		}
-	}) {
-		const { setNodeRef } = useDroppable({
-			id: `work-status:${group.key}`,
-			data: { status: group.dropStatus ?? group.key, statusGroup: group.key },
-		})
-
-		return (
-			<section
-				ref={setNodeRef}
-				className={cx(
-					'panel',
-					'work-group-panel',
-					'work-status-lane',
-					workStatusDropStatus === group.key &&
-						'work-status-lane--drop-target',
-				)}
-				key={group.key}
-			>
-				<div className="panel-head">
-					<div>
-						<h2>{group.label}</h2>
-						<p>{group.reservations.length} reservas</p>
-					</div>
-				</div>
-				<div className="records compact-records">
-					{group.reservations.length ? (
-						group.reservations.map((reservation) => (
-							<WorkStatusDraggableReservation
-								key={`work-status-${group.key}-${reservation.id}`}
-								reservation={reservation}
-							/>
-						))
-					) : (
-						<Empty
-							text={`Sin trabajos en ${group.label.toLowerCase()}.`}
-							hint="La columna queda lista para recibir trabajos cuando cambie el avance operativo."
-						/>
-					)}
-				</div>
-			</section>
-		)
-	}
-
-	function renderWorkReservationsByStatusView() {
-		return (
-			<DndContext
-				sensors={agendaSensors}
-				collisionDetection={closestCenter}
-				onDragStart={handleWorkStatusDragStart}
-				onDragOver={handleWorkStatusDragOver}
-				onDragEnd={handleWorkStatusDragEnd}
-				onDragCancel={handleWorkStatusDragCancel}
-			>
-				<div className="grid work-groups work-status-groups">
-					{workStatusGroups.map((group) => (
-						<WorkStatusDroppableLane group={group} key={group.key} />
-					))}
-				</div>
-				<DragOverlay>
-					{renderAgendaDragOverlay(activeWorkStatusRow, {
-						statusMode: 'work-order',
-					})}
-				</DragOverlay>
-			</DndContext>
-		)
-	}
-
-	function renderWorkReservationsByEntryDateView() {
-		const hasContent =
-			workEntryDateGroups.length || workFreeQuotesWithoutEntryDate.length
-		if (!hasContent) {
-			return (
-				<section className="panel">
-					<Empty
-						text="Sin reservas o cotizaciones para este filtro."
-						hint="Crea una reserva o cambia el tipo de servicio para ver trabajos por fecha de ingreso."
-						action={
-							<button
-								type="button"
-								className="primary"
-								onClick={() => openQuickReservation(selectedDay)}
-							>
-								<Plus size={16} />
-								Crear reserva
-							</button>
-						}
-					/>
-				</section>
-			)
-		}
-
-		return (
-			<div className="grid work-groups work-groups--entry-date">
-				{workEntryDateGroups.map((group) => (
-					<section className="panel work-group-panel" key={group.key}>
-						<div className="panel-head">
-							<div>
-								<h2>{formatDateLabel(group.entryDate)}</h2>
-								<p>{group.reservations.length} reservas</p>
-							</div>
-						</div>
-						<div className="records compact-records">
-							{group.reservations.map((reservation) =>
-								renderWorkReservationListCard(reservation),
-							)}
-						</div>
-					</section>
-				))}
-				{workFreeQuotesWithoutEntryDate.length ? (
-					<section
-						className="panel work-group-panel"
-						key="without-entry-date"
-					>
-						<div className="panel-head">
-							<div>
-								<h2>Sin fecha de ingreso</h2>
-								<p>{workFreeQuotesWithoutEntryDate.length} cotizaciones libres</p>
-							</div>
-						</div>
-						<div className="records compact-records">
-							{workFreeQuotesWithoutEntryDate.map((quote) =>
-								renderWorkFreeQuoteCard(quote),
-							)}
-						</div>
-					</section>
-				) : null}
-			</div>
-		)
-	}
-
 	function renderAgendaReservationCard(
 		reservation: AnyRecord,
 		workOrder: AnyRecord | null | undefined,
@@ -14838,13 +14582,46 @@ export default function Home() {
 					</div>
 				) : null}
 
-				{displayedActive === 'agenda' && workViewMode === 'status'
-					? renderWorkReservationsByStatusView()
-					: null}
+				{displayedActive === 'agenda' && workViewMode === 'status' ? (
+					<WorkStatusView
+						sensors={agendaSensors}
+						onDragStart={handleWorkStatusDragStart}
+						onDragOver={handleWorkStatusDragOver}
+						onDragEnd={handleWorkStatusDragEnd}
+						onDragCancel={handleWorkStatusDragCancel}
+						workStatusGroups={workStatusGroups}
+						workStatusDropStatus={workStatusDropStatus}
+						workStatusMovePendingId={workStatusMovePendingId}
+						activeWorkStatusRow={activeWorkStatusRow}
+						workOrderByReservation={workOrderByReservation}
+						recordClass={recordClass}
+						agendaCardClass={agendaCardClass}
+						flashClass={flashClass}
+						renderReservationCard={renderAgendaReservationCard}
+						renderDragOverlay={(row) =>
+							renderAgendaDragOverlay(row, { statusMode: 'work-order' })
+						}
+					/>
+				) : null}
 
-				{displayedActive === 'agenda' && workViewMode === 'entry-date'
-					? renderWorkReservationsByEntryDateView()
-					: null}
+				{displayedActive === 'agenda' && workViewMode === 'entry-date' ? (
+					<WorkEntryDateView
+						workEntryDateGroups={workEntryDateGroups}
+						workFreeQuotesWithoutEntryDate={workFreeQuotesWithoutEntryDate}
+						selectedDay={selectedDay}
+						onCreateReservation={() => openQuickReservation(selectedDay)}
+						getReservationRow={workReservationRow}
+						recordClass={recordClass}
+						agendaCardClass={agendaCardClass}
+						flashClass={flashClass}
+						renderReservationCard={renderAgendaReservationCard}
+						quoteQuickActions={quoteQuickActions}
+						detailRecordProps={detailRecordProps as (kind: string, data: AnyRecord) => Record<string, unknown>}
+						quickActionTargetProps={quickActionTargetProps as (title: string, actions: QuickAction[]) => Record<string, unknown>}
+						renderQuickActionsTrigger={renderQuickActionsTrigger}
+						renderQuoteCardContent={renderQuoteCardContent}
+					/>
+				) : null}
 
 
 				{displayedActive === 'cash' ? (
