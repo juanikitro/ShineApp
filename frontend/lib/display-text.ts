@@ -11,3 +11,10 @@ export function joinDisplayParts(
 		.filter(Boolean)
 		.join(separator)
 }
+
+export function selectOptionsFromValues(values: string[], currentValue?: any) {
+	const current = String(currentValue ?? '').trim()
+	const normalizedValues =
+		current && !values.includes(current) ? [current, ...values] : values
+	return normalizedValues.map((value) => ({ value, label: value }))
+}

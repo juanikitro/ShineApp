@@ -62,9 +62,6 @@ import { AgendaReservationCard } from '@/app/components/agenda/AgendaReservation
 import {
 	CashPanel,
 	type CashFilterState,
-	type CashFlowSummary,
-	type CashSummaryGroup,
-	type CashSummaryLine,
 	type CashSummaryMode,
 } from '@/app/components/cash/CashPanel'
 import {
@@ -206,6 +203,44 @@ import {
 import { serviceDisplayName } from '@/lib/service-display'
 import { serviceDetailPayloadFields } from '@/lib/service-detail-payload'
 import { shouldHandleUndoShortcut } from '@/lib/undo-shortcut'
+import {
+	buildCashFlowSummary,
+	cashEntryDescriptionText,
+	cashEntryMatchesFilters,
+	cashEntryTitleText,
+	cashSourceKindLabel,
+	compareExpenseClassificationPair,
+	hasCashFilters,
+	normalizedCashText,
+} from '@/lib/cash-entry'
+import {
+	debtMatchesFilters,
+	hasDebtFilters,
+} from '@/lib/debt-filters'
+import {
+	customerAverageGapText,
+	customerDaysAgoText,
+	customerDaysText,
+	customerListInsights,
+	customerScheduleLabel,
+	formatTimeLabel,
+} from '@/lib/customer-display'
+import {
+	blankProfileForm,
+	profileActiveText,
+	profileDisplayName,
+	profileInitial,
+	profileJoinedText,
+	profileLastLoginText,
+	profileRoleLabel,
+	profileTrialText,
+} from '@/lib/profile-display'
+import {
+	blankStockMovementForm,
+	blankStockMovementLine,
+	blankSupplierForm,
+} from '@/lib/inventory-forms'
+import { selectOptionsFromValues } from '@/lib/display-text'
 
 import {
 	type ActionMessage,
@@ -414,10 +449,7 @@ const stockPaymentMethodOptions = [
 	{ value: 'transfer', label: 'Transferencia' },
 	{ value: 'other', label: 'Otro' },
 ]
-const userRoleLabels: Record<string, string> = {
-	empleador: 'Empleador',
-	empleado: 'Empleado',
-}
+
 type SettingsSection =
 	| 'business'
 	| 'quotes'
@@ -509,428 +541,13 @@ const DEBT_FILTER_DEFAULTS: DebtFilterState = {
 	balance: '',
 }
 
-const cashSummaryGroupDefinitions = [
-	{ key: 'charges', label: 'Cobros' },
-	{ key: 'payments', label: 'Pagos' },
-	{ key: 'partner_contributions', label: 'Aportes' },
-	{ key: 'investments', label: 'Inversiones' },
-	{ key: 'partner_withdrawals', label: 'Retiros' },
-	{ key: 'adjustments', label: 'Ajustes' },
-] as const
 
-const cashSourceKindLabels: Record<string, string> = {
-	adjustment: 'Ajuste',
-	debt_origin: 'Deuda original',
-	debt_payment: 'Pago de deuda',
-	manual: 'Manual',
-	material_purchase: 'Compra',
-	payment: 'Cobro',
-}
 
-function normalizedCashText(value: any) {
-	return String(value ?? '')
-		.trim()
-		.toLocaleLowerCase('es-AR')
-}
 
-function cashSourceKindLabel(kind: any, fallback?: any) {
-	const key = String(kind ?? '').trim()
-	return cashSourceKindLabels[key] || String((fallback ?? key) || 'Origen')
-}
 
-function cashEntryTitleText(item: AnyRecord) {
-	if (item.source_kind === 'debt_origin') {
-		return `Deuda original: ${item.debt_concept || item.category}`
-	}
-	if (item.source_kind === 'debt_payment') {
-		return `Pago de deuda: ${item.debt_concept || item.description}`
-	}
-	return item.source_label || item.category || 'Movimiento de caja'
-}
 
-function cashEntryDescriptionText(item: AnyRecord) {
-	const dateLabel = item.occurred_at
-		? formatDateTimeLabel(item.occurred_at)
-		: 'Sin fecha'
-	const classification = [item.category, item.subcategory]
-		.filter(Boolean)
-		.join(' / ')
-	const detail = [classification, item.description]
-		.filter(Boolean)
-		.join(' - ')
-	const audit = item.created_by_username
-		? `Registrado por ${item.created_by_username}`
-		: ''
-	return [detail, dateLabel, audit].filter(Boolean).join(' - ')
-}
 
-function compareExpenseClassificationPair(
-	a: { category: string; subcategory: string },
-	b: { category: string; subcategory: string },
-) {
-	const categoryOrder = a.category.localeCompare(b.category, 'es-AR', {
-		sensitivity: 'base',
-	})
-	if (categoryOrder !== 0) return categoryOrder
-	return a.subcategory.localeCompare(b.subcategory, 'es-AR', {
-		sensitivity: 'base',
-	})
-}
 
-function cashEntryIncludedInSummary(item: AnyRecord, mode: CashSummaryMode) {
-	if (mode === 'cashflow') {
-		return item.cashflow_effect !== false && item.source_kind !== 'debt_origin'
-	}
-	return item.economic_effect !== false && item.source_kind !== 'debt_payment'
-}
-
-function cashEntrySignedAmount(item: AnyRecord) {
-	const amount = numberValue(item.amount)
-	return item.movement_type === 'expense' ? -amount : amount
-}
-
-function cashSummaryLineLabel(item: AnyRecord) {
-	return (
-		String(item.subcategory ?? '').trim() ||
-		String(item.category ?? '').trim() ||
-		cashSourceKindLabel(item.source_kind, item.source_label)
-	)
-}
-
-function cashSummaryGroupKey(item: AnyRecord) {
-	const category = normalizedCashText(item.category)
-	const subcategory = normalizedCashText(item.subcategory)
-	const sourceKind = normalizedCashText(item.source_kind)
-	const searchText = `${category} ${subcategory} ${sourceKind}`
-	if (sourceKind === 'adjustment' || category === 'ajustes') {
-		return 'adjustments'
-	}
-	if (item.movement_type === 'income') {
-		if (
-			searchText.includes('aporte') ||
-			searchText.includes('socio') ||
-			category === 'inversion' ||
-			category === 'prestamo'
-		) {
-			return 'partner_contributions'
-		}
-		return 'charges'
-	}
-	if (searchText.includes('retiro')) {
-		return 'partner_withdrawals'
-	}
-	if (category === 'inversion') {
-		return 'investments'
-	}
-	return 'payments'
-}
-
-function buildCashFlowSummary(
-	entries: AnyRecord[],
-	mode: CashSummaryMode,
-): CashFlowSummary {
-	const groupsByKey = Object.fromEntries(
-		cashSummaryGroupDefinitions.map((group) => [
-			group.key,
-			{
-				key: group.key,
-				label: group.label,
-				count: 0,
-				amount: 0,
-				lines: [] as CashSummaryLine[],
-			},
-		]),
-	) as Record<string, CashSummaryGroup>
-
-	entries
-		.filter((item) => cashEntryIncludedInSummary(item, mode))
-		.forEach((item) => {
-			const groupKey = cashSummaryGroupKey(item)
-			const group = groupsByKey[groupKey] ?? groupsByKey.payments
-			const amount = cashEntrySignedAmount(item)
-			const label = cashSummaryLineLabel(item)
-			const lineKey = normalizedCashText(label)
-			let line = group.lines.find((current) => current.key === lineKey)
-			if (!line) {
-				line = { key: lineKey, label, count: 0, amount: 0, percent: 0 }
-				group.lines.push(line)
-			}
-			group.count += 1
-			group.amount += amount
-			line.count += 1
-			line.amount += amount
-		})
-
-	Object.values(groupsByKey).forEach((group) => {
-		const absoluteTotal = group.lines.reduce(
-			(total, line) => total + Math.abs(line.amount),
-			0,
-		)
-		group.lines = group.lines
-			.map((line) => ({
-				...line,
-				percent: absoluteTotal ? Math.abs(line.amount) / absoluteTotal : 0,
-			}))
-			.sort((a, b) => {
-				const amountOrder = Math.abs(b.amount) - Math.abs(a.amount)
-				if (amountOrder !== 0) return amountOrder
-				return a.label.localeCompare(b.label, 'es-AR', {
-					sensitivity: 'base',
-				})
-			})
-	})
-
-	const charges = groupsByKey.charges.amount
-	const payments = groupsByKey.payments.amount
-	const partnerContributions = groupsByKey.partner_contributions.amount
-	const investments = groupsByKey.investments.amount
-	const partnerWithdrawals = groupsByKey.partner_withdrawals.amount
-	const adjustments = groupsByKey.adjustments.amount
-	const commercialBalance = charges + payments
-	const financialBalance =
-		partnerContributions + investments + partnerWithdrawals
-	const netFlow = commercialBalance + financialBalance + adjustments
-
-	return {
-		groups: cashSummaryGroupDefinitions.map((group) => groupsByKey[group.key]),
-		commercialBalance,
-		financialBalance,
-		netFlow,
-	}
-}
-
-function normalizedCashFilterAmount(value: any) {
-	const rawValue = String(value ?? '').trim()
-	if (!rawValue) return null
-	const amount = Number(rawValue.replace(',', '.'))
-	return Number.isFinite(amount) ? amount : null
-}
-
-function cashEntryMatchesFilters(item: AnyRecord, filters: CashFilterState) {
-	if (
-		filters.movementType &&
-		String(item.movement_type ?? '') !== filters.movementType
-	) {
-		return false
-	}
-	if (filters.sourceKind && String(item.source_kind ?? '') !== filters.sourceKind) {
-		return false
-	}
-	if (filters.category && String(item.category ?? '') !== filters.category) {
-		return false
-	}
-	if (
-		filters.subcategory &&
-		String(item.subcategory ?? '') !== filters.subcategory
-	) {
-		return false
-	}
-	if (filters.effect === 'cashflow' && item.cashflow_effect === false) {
-		return false
-	}
-	if (filters.effect === 'economic_only' && item.cashflow_effect !== false) {
-		return false
-	}
-
-	const amount = Math.abs(numberValue(item.amount))
-	const amountMin = normalizedCashFilterAmount(filters.amountMin)
-	const amountMax = normalizedCashFilterAmount(filters.amountMax)
-	if (amountMin !== null && amount < amountMin) return false
-	if (amountMax !== null && amount > amountMax) return false
-
-	const query = normalizedCashText(filters.query)
-	if (!query) return true
-	const haystack = normalizedCashText(
-		[
-			cashEntryTitleText(item),
-			cashEntryDescriptionText(item),
-			item.source_label,
-			item.source_kind,
-			item.category,
-			item.subcategory,
-			item.amount,
-			item.signed_amount,
-		].join(' '),
-	)
-	return haystack.includes(query)
-}
-
-function hasCashFilters(filters: CashFilterState) {
-	return Object.values(filters).some((value) => String(value ?? '').trim())
-}
-
-function debtMatchesFilters(
-	item: AnyRecord,
-	filters: DebtFilterState,
-	query: string,
-) {
-	if (filters.status && String(item.status ?? '') !== filters.status) {
-		return false
-	}
-	const balanceDue = numberValue(item.balance_due)
-	if (filters.balance === 'open' && balanceDue <= 0) return false
-	if (filters.balance === 'settled' && balanceDue > 0) return false
-
-	const term = normalizedCashText(query)
-	if (!term) return true
-	const haystack = normalizedCashText(
-		[
-			item.concept,
-			item.creditor,
-			item.supplier_name,
-			debtStatusLabels[item.status],
-			item.status,
-			item.expense_category,
-			item.expense_subcategory,
-			item.notes,
-			item.principal_amount,
-			item.total_paid,
-			item.balance_due,
-		].join(' '),
-	)
-	return haystack.includes(term)
-}
-
-function hasDebtFilters(filters: DebtFilterState) {
-	return Object.values(filters).some((value) => String(value ?? '').trim())
-}
-
-function customerDaysText(value: any, emptyText = 'Sin dato') {
-	const days = Number(value)
-	if (!Number.isFinite(days)) return emptyText
-	if (days === 0) return 'Hoy'
-	if (days === 1) return '1 dia'
-	return `${days} dias`
-}
-
-function customerDaysAgoText(value: any, emptyText = 'Sin dato') {
-	const label = customerDaysText(value, emptyText)
-	if (label === emptyText || label === 'Hoy') return label
-	return `Hace ${label}`
-}
-
-function customerAverageGapText(value: any) {
-	const days = Number(value)
-	if (!Number.isFinite(days)) return 'Sin suficiente historial'
-	if (days === 0) return 'Visitas el mismo dia'
-	if (days === 1) return '1 dia promedio entre visitas'
-	return `${days} dias promedio entre visitas`
-}
-
-function selectOptionsFromValues(values: string[], currentValue?: any) {
-	const current = String(currentValue ?? '').trim()
-	const normalizedValues =
-		current && !values.includes(current) ? [current, ...values] : values
-	return normalizedValues.map((value) => ({ value, label: value }))
-}
-
-function formatTimeLabel(value: any) {
-	const raw = String(value ?? '')
-	return raw.length >= 5 ? raw.slice(0, 5) : ''
-}
-
-function customerScheduleLabel(
-	reservation: AnyRecord | null | undefined,
-	showReservationTimes = true,
-) {
-	if (!reservation?.day) return 'Sin reserva futura'
-	const time =
-		showReservationTimes && reservation.start_time
-			? ` ${formatTimeLabel(reservation.start_time)}`
-			: ''
-	return `${formatDateLabel(reservation.day)}${time}`
-}
-
-function customerListInsights(customer: AnyRecord) {
-	return customer?.list_insights ?? {}
-}
-
-function blankProfileForm(user?: AnyRecord | null) {
-	return {
-		email: String(user?.email ?? ''),
-		phone_country_code: String(user?.phone_country_code ?? '+54'),
-		phone_number: String(user?.phone_number ?? ''),
-		subscription_type: String(user?.subscription_type ?? 'trial'),
-	}
-}
-
-function blankSupplierForm() {
-	return {
-		name: '',
-		legal_name: '',
-		category: '',
-		tax_condition: '',
-		website: '',
-		contact_name: '',
-		phone: '',
-		email: '',
-		tax_id: '',
-		address: '',
-		notes: '',
-	}
-}
-
-function blankStockMovementLine() {
-	return {
-		material: '',
-		quantity: '',
-		unit_price: '',
-	}
-}
-
-function blankStockMovementForm(day = today) {
-	return {
-		movement_type: 'purchase',
-		occurred_on: day,
-		supplier: '',
-		customer: '',
-		reservation: '',
-		document_type: '',
-		document_number: '',
-		affects_cash: true,
-		products_received: false,
-		payment_method: DEFAULT_PAYMENT_METHOD,
-		notes: '',
-		lines: [blankStockMovementLine()],
-	}
-}
-
-function profileDisplayName(user?: AnyRecord | null) {
-	return String(user?.username ?? 'Mi perfil')
-}
-
-function profileInitial(user?: AnyRecord | null) {
-	const name = profileDisplayName(user).trim()
-	return name ? name.charAt(0).toUpperCase() : '?'
-}
-
-function profileRoleLabel(user?: AnyRecord | null) {
-	return userRoleLabels[String(user?.role ?? '')] ?? 'Usuario'
-}
-
-function profileLastLoginText(user?: AnyRecord | null) {
-	return user?.last_login
-		? formatDateTimeLabel(user.last_login)
-		: 'Sin inicio previo'
-}
-
-function profileJoinedText(user?: AnyRecord | null) {
-	return user?.date_joined
-		? formatDateTimeLabel(user.date_joined)
-		: 'Sin fecha de alta'
-}
-
-function profileActiveText(user?: AnyRecord | null) {
-	return user?.is_active === false ? 'Inactivo' : 'Activo'
-}
-
-function profileTrialText(user?: AnyRecord | null) {
-	if (user?.trial_expired) return 'Prueba vencida'
-	if (user?.trial_ends_at) {
-		return `Prueba activa hasta ${formatDateLabel(user.trial_ends_at)}`
-	}
-	return null
-}
 
 function usePdfThumbnailPreview(
 	source: string | null,
