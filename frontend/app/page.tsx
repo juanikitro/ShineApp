@@ -2641,6 +2641,22 @@ export default function Home() {
 		)
 	}
 
+	function renderQuoteCardContent(item: AnyRecord) {
+		return (
+			<QuoteCardContent
+				item={item}
+				quoteCode={quoteCode}
+				quoteHasReservation={quoteHasReservation}
+				quoteLaneStatus={quoteLaneStatus}
+				quoteTentativeTimeLabel={quoteTentativeTimeLabel}
+				onCreateReservationFromQuote={createReservationFromQuote}
+				onDownloadQuotePdf={downloadQuotePdf}
+				onDownloadQuotePdfAndMarkSent={downloadQuotePdfAndMarkSent}
+				onOpenQuoteReservationInAgenda={openQuoteReservationInAgenda}
+			/>
+		)
+	}
+
 	function WorkStatusDraggableReservation({
 		reservation,
 	}: {
