@@ -1506,7 +1506,6 @@
 }
 
 .dashboard-insight-grid {
-  align-items: start;
   display: grid;
   gap: 18px;
   grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
@@ -1761,6 +1760,7 @@
 .dashboard-insight-record span,
 .dashboard-ranking-record span {
   color: var(--shop-ink);
+  display: block;
   font-size: 13px;
   font-weight: 750;
 }
@@ -1770,6 +1770,7 @@
 .dashboard-insight-record small,
 .dashboard-ranking-record small {
   color: var(--shop-ink-soft);
+  display: block;
   line-height: 1.35;
 }
 
@@ -1865,6 +1866,7 @@
 }
 
 .dashboard-ranking-column {
+  align-content: start;
   border: 1px solid var(--shop-border);
   border-radius: 8px;
   display: grid;
