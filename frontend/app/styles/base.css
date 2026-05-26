@@ -522,10 +522,6 @@ label {
   font-size: 14px;
 }
 
-.hidden-section {
-  display: none;
-}
-
 .login-card {
   background: var(--shop-surface);
   border: 1px solid var(--shop-border);
@@ -576,6 +572,26 @@ label {
 
 .login-trial-grid .login-actions {
   grid-column: 1 / -1;
+}
+
+.login-forgot-link {
+  background: none;
+  border: none;
+  color: var(--shop-ink-soft);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.login-forgot-link:hover {
+  color: var(--shop-ink);
+}
+
+.login-forgot-link:disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 @media (max-width: 620px) {

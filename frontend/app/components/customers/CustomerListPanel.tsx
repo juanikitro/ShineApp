@@ -201,6 +201,8 @@ export function CustomerListPanel({
 }: CustomerListPanelProps) {
 	const hasSearch = Boolean(search.trim())
 	const hasActiveFilter = hasSearch || filter !== 'all'
+	const showLowDataGuidance =
+		totalCustomers > 0 && totalCustomers < 3 && !hasActiveFilter
 	const filterLabel =
 		filterOptions.find((option) => option.value === filter)?.label ?? 'Todos'
 	const primaryActionLabel = canViewEconomy ? 'Dashboard' : 'Detalle'
@@ -238,6 +240,21 @@ export function CustomerListPanel({
 					onChange={onFilterChange}
 				/>
 			</div>
+			{showLowDataGuidance ? (
+				<div className="customer-guidance" role="note">
+					<div className="customer-guidance-copy">
+						<strong>Cartera en armado</strong>
+						<span>
+							Suma clientes con vehiculo y proxima visita para que el tablero
+							priorice seguimiento, reservas y saldo.
+						</span>
+					</div>
+					<button type="button" className="ghost" onClick={onCreate}>
+						<Plus size={16} />
+						Sumar cliente
+					</button>
+				</div>
+			) : null}
 			<div className="records customer-records">
 				{customers.length ? (
 					customers.map((customer) => {

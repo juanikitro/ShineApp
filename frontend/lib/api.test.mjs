@@ -221,6 +221,25 @@ test('apiList follows absolute DRF next links without prefixing the API URL twic
 	])
 })
 
+test('apiList accepts a plain array returned by a paginated next link', async () => {
+	global.fetch = vi.fn(async (_url) => {
+		const url = String(_url)
+		return {
+			ok: true,
+			status: 200,
+			json: async () =>
+				url.includes('page=2')
+					? [{ id: 22 }]
+					: {
+							next: '/api/customers/?page=2',
+							results: [{ id: 21 }],
+						},
+		}
+	})
+
+	assert.deepEqual(await apiList('/customers/'), [{ id: 21 }, { id: 22 }])
+})
+
 test('downloadApiFile sends auth, clicks a download link and revokes the blob url', async () => {
 	const click = vi.fn()
 	const revokeObjectURL = vi.fn()

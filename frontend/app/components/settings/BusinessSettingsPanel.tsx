@@ -177,7 +177,7 @@ export function BusinessSettingsPanel({
 								])
 							: 'Completa mail o celular para que la landing publica tenga un contacto claro.'}
 					</p>
-					<div className="record-sub">
+					<div className="record-sub business-profile-note">
 						{businessLogoFile
 							? `Nuevo archivo listo para guardar: ${businessLogoFile.name}`
 							: businessProfile?.logo_url
