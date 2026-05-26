@@ -66,6 +66,8 @@ import {
 	WorkStatusView,
 	workStatusColumns,
 } from '@/app/components/work/WorkStatusView'
+import { ProfileModal } from '@/app/components/profile/ProfileModal'
+import { PublicRequestCard } from '@/app/components/requests/PublicRequestCard'
 import { CashMovementForm } from '@/app/components/forms/CashMovementForm'
 import { CustomerForm } from '@/app/components/forms/CustomerForm'
 import { DebtForm } from '@/app/components/forms/DebtForm'
@@ -370,21 +372,6 @@ const serviceFormTypeOptions = [
 	{ value: 'detailing', label: 'Detailing' },
 	{ value: 'combo', label: 'Combo' },
 ]
-const profilePhoneCountryOptions = [
-	{ value: '+54', label: '🇦🇷 +54' },
-	{ value: '+598', label: '🇺🇾 +598' },
-	{ value: '+56', label: '🇨🇱 +56' },
-	{ value: '+55', label: '🇧🇷 +55' },
-	{ value: '+595', label: '🇵🇾 +595' },
-	{ value: '+591', label: '🇧🇴 +591' },
-	{ value: '+51', label: '🇵🇪 +51' },
-	{ value: '+57', label: '🇨🇴 +57' },
-	{ value: '+52', label: '🇲🇽 +52' },
-]
-const subscriptionTypeOptions = [
-	{ value: 'trial', label: 'Prueba' },
-	{ value: 'premium', label: 'Premium' },
-]
 const stockMovementTypeOptions = [
 	{ value: 'purchase', label: 'Compra' },
 	{ value: 'initial_stock', label: 'Stock inicial' },
@@ -478,15 +465,6 @@ const auditModuleLabels: Record<string, string> = {
 	scheduling: 'Agenda',
 	settings: 'Configuracion',
 	workorders: 'Ordenes',
-}
-const publicRequestTypeLabels: Record<string, string> = {
-	booking: 'Turno',
-	quote: 'Cotizacion',
-}
-const publicRequestStatusLabels: Record<string, string> = {
-	pending: 'Pendiente',
-	converted: 'Convertida',
-	archived: 'Archivada',
 }
 const CASH_FILTER_DEFAULTS: CashFilterState = {
 	query: '',
@@ -10729,28 +10707,6 @@ export default function Home() {
 		)
 	}
 
-	function publicRequestServicesText(item: AnyRecord) {
-		const names = (item.items ?? [])
-			.map((line: AnyRecord) => line.service_name || line.description)
-			.filter(Boolean)
-		return names.length ? names.join(', ') : 'Sin servicios'
-	}
-
-	function publicRequestVehicleText(item: AnyRecord) {
-		return (
-			joinDisplayParts([
-				item.vehicle_license_plate,
-				item.vehicle_brand,
-				item.vehicle_model,
-				item.vehicle_color,
-			]) || 'Sin vehiculo informado'
-		)
-	}
-
-	function publicRequestContactText(item: AnyRecord) {
-		return joinDisplayParts([item.customer_phone, item.customer_email])
-	}
-
 	function publicRequestSelection(item: AnyRecord) {
 		return publicRequestSelections[String(item.id)] ?? {}
 	}
@@ -10819,272 +10775,6 @@ export default function Home() {
 		setActive(converted.created_type === 'reservation' ? 'agenda' : 'quotes')
 	}
 
-	function renderPublicRequestCard(item: AnyRecord) {
-		const selection = publicRequestSelection(item)
-		const customerSuggestions = item.suggestions?.customers ?? []
-		const vehicleSuggestions = item.suggestions?.vehicles ?? []
-		const isPending = item.status === 'pending'
-		return (
-			<MotionFlashSurface
-				className={recordClass('public-request', item.id)}
-				key={item.id}
-			>
-				<RecordCard>
-					<RecordCardHeader
-						title={item.customer_name}
-						subtitle={
-							<>
-								{publicRequestTypeLabels[item.request_type] ?? item.request_type}{' '}
-								- {publicRequestServicesText(item)}
-							</>
-						}
-						actions={
-							<StatusPill
-								value={String(item.status ?? '')}
-								labels={publicRequestStatusLabels}
-							/>
-						}
-					>
-						<div className="record-sub">
-							{publicRequestContactText(item) || 'Sin contacto'} -{' '}
-							{publicRequestVehicleText(item)}
-						</div>
-						{item.preferred_day ? (
-							<div className="record-sub">
-								Preferencia: {formatDateLabel(item.preferred_day)}
-								{item.preferred_time ? ` ${item.preferred_time.slice(0, 5)}` : ''}
-							</div>
-						) : null}
-					</RecordCardHeader>
-					{item.message ? <p className="record-sub">{item.message}</p> : null}
-					{isPending ? (
-						<div className="public-request-resolution">
-							<div className="public-request-resolution-note">
-								<strong>Resolver solicitud</strong>
-								<span>
-									{customerSuggestions.length || vehicleSuggestions.length
-										? 'Revisa coincidencias sugeridas antes de convertir o archivar.'
-										: 'Al convertir se crean cliente y vehiculo nuevos si no elegis existentes.'}
-								</span>
-							</div>
-							<Field label="Cliente">
-								<select
-									value={selection.customer ?? ''}
-									onChange={(event) =>
-										patchPublicRequestSelection(item, {
-											customer: event.target.value,
-										})
-									}
-								>
-									<option value="">Crear nuevo cliente</option>
-									{customerSuggestions.map((customer: AnyRecord) => (
-										<option key={customer.id} value={customer.id}>
-											{joinDisplayParts([
-												customer.label ?? customer.name,
-												customer.phone,
-												customer.email,
-											])}
-										</option>
-									))}
-								</select>
-							</Field>
-							<Field label="Vehiculo">
-								<select
-									value={selection.vehicle ?? ''}
-									onChange={(event) =>
-										patchPublicRequestSelection(item, {
-											vehicle: event.target.value,
-										})
-									}
-								>
-									<option value="">Crear nuevo vehiculo</option>
-									{vehicleSuggestions.map((vehicle: AnyRecord) => (
-										<option key={vehicle.id} value={vehicle.id}>
-											{joinDisplayParts([
-												vehicle.label,
-												vehicle.customer_name,
-											])}
-										</option>
-									))}
-								</select>
-							</Field>
-							<div className="record-actions">
-								<button
-									type="button"
-									className="primary"
-									onClick={() => convertPublicRequest(item)}
-								>
-									<CheckCircle2 size={16} />
-									Convertir solicitud
-								</button>
-								<button
-									type="button"
-									className="ghost"
-									onClick={() => archivePublicRequest(item)}
-								>
-									<Trash2 size={16} />
-									Archivar
-								</button>
-							</div>
-						</div>
-					) : (
-						<div className="record-sub">
-							{item.converted_reservation
-								? `Reserva #${item.converted_reservation}`
-								: item.converted_quote
-									? `Cotizacion #${item.converted_quote}`
-									: item.archived_at
-										? `Archivada ${formatDateTimeLabel(item.archived_at)}`
-										: 'Gestionada'}
-						</div>
-					)}
-				</RecordCard>
-			</MotionFlashSurface>
-		)
-	}
-
-	function renderProfileModal() {
-		if (!currentUser) return null
-		return (
-			<form className="form-grid" onSubmit={saveProfile}>
-				<div className="detail-grid profile-detail-grid">
-					<div className="detail-row">
-						<span>ID</span>
-						<strong>{currentUser.id}</strong>
-					</div>
-					<div className="detail-row">
-						<span>Usuario</span>
-						<strong>{currentUser.username}</strong>
-					</div>
-					<label className="detail-row" htmlFor="profile-email">
-						<span>Email</span>
-						<div className="profile-detail-control">
-							<input
-								id="profile-email"
-								name="profile_email"
-								className="profile-detail-input"
-								type="email"
-								autoComplete="email"
-								value={profileForm.email}
-								onChange={(event) =>
-									setProfileForm({
-										...profileForm,
-										email: event.target.value,
-									})
-								}
-							/>
-						</div>
-					</label>
-					<div className="detail-row">
-						<span>Rol</span>
-						<strong>{profileRoleLabel(currentUser)}</strong>
-					</div>
-					<div className="detail-row">
-						<span>Estado</span>
-						<strong>{profileActiveText(currentUser)}</strong>
-					</div>
-					{profileTrialText(currentUser) ? (
-						<div className="detail-row">
-							<span>Prueba</span>
-							<strong>{profileTrialText(currentUser)}</strong>
-						</div>
-					) : null}
-					<div className="detail-row">
-						<span>Alta</span>
-						<strong>{profileJoinedText(currentUser)}</strong>
-					</div>
-					<div className="detail-row">
-						<span>Acceso</span>
-						<strong>{profileLastLoginText(currentUser)}</strong>
-					</div>
-					<label className="detail-row" htmlFor="profile-subscription-type">
-						<span>Plan interno</span>
-						<div className="profile-detail-control">
-							<select
-								id="profile-subscription-type"
-								name="profile_subscription_type"
-								className="profile-detail-input"
-								value={profileForm.subscription_type}
-								onChange={(event) =>
-									setProfileForm({
-										...profileForm,
-										subscription_type: event.target.value,
-									})
-								}
-								disabled={!canViewEconomy}
-							>
-								{subscriptionTypeOptions.map((option) => (
-									<option key={option.value} value={option.value}>
-										{option.label}
-									</option>
-								))}
-							</select>
-						</div>
-					</label>
-					<div className="detail-row">
-						<span id="profile-phone-label">Celular</span>
-						<div className="profile-detail-control">
-							<div className="profile-phone-composite">
-								<select
-									name="profile_phone_country_code"
-									className="profile-country-select"
-									aria-label="Codigo de pais"
-									value={profileForm.phone_country_code}
-									onChange={(event) =>
-										setProfileForm({
-											...profileForm,
-											phone_country_code: event.target.value,
-										})
-									}
-								>
-									{profilePhoneCountryOptions.map((option) => (
-										<option key={option.value} value={option.value}>
-											{option.label}
-										</option>
-									))}
-								</select>
-								<input
-									name="profile_phone_number"
-									className="profile-phone-input"
-									type="tel"
-									inputMode="tel"
-									autoComplete="tel-national"
-									aria-labelledby="profile-phone-label"
-									placeholder="2345 45-5007"
-									value={profileForm.phone_number}
-									onChange={(event) =>
-										setProfileForm({
-											...profileForm,
-											phone_number: event.target.value,
-										})
-									}
-								/>
-							</div>
-						</div>
-					</div>
-				</div>
-				{!canViewEconomy ? (
-					<div className="record-sub">
-						Solo el empleador puede cambiar esta referencia interna.
-					</div>
-				) : (
-					<div className="record-sub">
-						Referencia interna de demo; no cobra ni cambia billing real.
-					</div>
-				)}
-				<div className="modal-actions split">
-					<button type="button" className="danger" onClick={handleProfileLogout}>
-						<LogOut size={16} />
-						Salir
-					</button>
-					<button type="submit" className="primary">
-						Guardar perfil
-					</button>
-				</div>
-			</form>
-		)
-	}
-
 	return (
 		<>
 			<DataList id="customer-name-options" values={customerNameValues} />
@@ -11146,7 +10836,21 @@ export default function Home() {
 						title="Mi perfil"
 						onClose={profileExit.close}
 					>
-						{renderProfileModal()}
+						{currentUser ? (
+						<ProfileModal
+							onSubmit={saveProfile}
+							currentUser={currentUser}
+							profileForm={profileForm}
+							setProfileForm={setProfileForm}
+							canViewEconomy={canViewEconomy}
+							onLogout={handleProfileLogout}
+							roleLabel={profileRoleLabel(currentUser)}
+							activeText={profileActiveText(currentUser)}
+							trialText={profileTrialText(currentUser)}
+							joinedText={profileJoinedText(currentUser)}
+							lastLoginText={profileLastLoginText(currentUser)}
+						/>
+					) : null}
 					</Modal>
 				) : null}
 				{formModal?.kind === 'customer' ? (
@@ -12236,9 +11940,19 @@ export default function Home() {
 						>
 							<div className="records">
 								{pendingPublicRequests.length ? (
-									pendingPublicRequests.map((item) =>
-										renderPublicRequestCard(item),
-									)
+									pendingPublicRequests.map((item) => (
+										<PublicRequestCard
+											key={item.id}
+											item={item}
+											selection={publicRequestSelection(item)}
+											onPatchSelection={(patch) =>
+												patchPublicRequestSelection(item, patch)
+											}
+											onConvert={() => convertPublicRequest(item)}
+											onArchive={() => archivePublicRequest(item)}
+											recordClass={recordClass}
+										/>
+									))
 								) : (
 									<Empty
 										text="Sin solicitudes pendientes"
@@ -12250,9 +11964,19 @@ export default function Home() {
 						<Panel title="Gestionadas">
 							<div className="records">
 								{managedPublicRequests.length ? (
-									managedPublicRequests.map((item) =>
-										renderPublicRequestCard(item),
-									)
+									managedPublicRequests.map((item) => (
+										<PublicRequestCard
+											key={item.id}
+											item={item}
+											selection={publicRequestSelection(item)}
+											onPatchSelection={(patch) =>
+												patchPublicRequestSelection(item, patch)
+											}
+											onConvert={() => convertPublicRequest(item)}
+											onArchive={() => archivePublicRequest(item)}
+											recordClass={recordClass}
+										/>
+									))
 								) : (
 									<Empty
 										text="Sin solicitudes gestionadas"
