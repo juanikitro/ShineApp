@@ -85,9 +85,6 @@ import { AgendaReservationCard } from '@/app/components/agenda/AgendaReservation
 import {
 	CashPanel,
 	type CashFilterState,
-	type CashFlowSummary,
-	type CashSummaryGroup,
-	type CashSummaryLine,
 	type CashSummaryMode,
 } from '@/app/components/cash/CashPanel'
 import {
@@ -97,7 +94,13 @@ import {
 } from '@/app/components/debts/DebtPanel'
 import { DashboardPanel } from '@/app/components/dashboard/DashboardPanel'
 import { InventoryPanel } from '@/app/components/inventory/InventoryPanel'
+import {
+	QuoteCardContent,
+	QuotesPanel,
+} from '@/app/components/quotes/QuotesPanel'
+import { ServicesPanel } from '@/app/components/services/ServicesPanel'
 import { SettingsWorkspace } from '@/app/components/settings/SettingsWorkspace'
+import { ToolsPanel } from '@/app/components/tools/ToolsPanel'
 import {
 	CustomerDashboardShell,
 	type CustomerDashboardMetric,
@@ -223,6 +226,44 @@ import {
 import { serviceDisplayName } from '@/lib/service-display'
 import { serviceDetailPayloadFields } from '@/lib/service-detail-payload'
 import { shouldHandleUndoShortcut } from '@/lib/undo-shortcut'
+import {
+	buildCashFlowSummary,
+	cashEntryDescriptionText,
+	cashEntryMatchesFilters,
+	cashEntryTitleText,
+	cashSourceKindLabel,
+	compareExpenseClassificationPair,
+	hasCashFilters,
+	normalizedCashText,
+} from '@/lib/cash-entry'
+import {
+	debtMatchesFilters,
+	hasDebtFilters,
+} from '@/lib/debt-filters'
+import {
+	customerAverageGapText,
+	customerDaysAgoText,
+	customerDaysText,
+	customerListInsights,
+	customerScheduleLabel,
+	formatTimeLabel,
+} from '@/lib/customer-display'
+import {
+	blankProfileForm,
+	profileActiveText,
+	profileDisplayName,
+	profileInitial,
+	profileJoinedText,
+	profileLastLoginText,
+	profileRoleLabel,
+	profileTrialText,
+} from '@/lib/profile-display'
+import {
+	blankStockMovementForm,
+	blankStockMovementLine,
+	blankSupplierForm,
+} from '@/lib/inventory-forms'
+import { selectOptionsFromValues } from '@/lib/display-text'
 
 import {
 	type ActionMessage,
@@ -396,10 +437,7 @@ const stockPaymentMethodOptions = [
 	{ value: 'transfer', label: 'Transferencia' },
 	{ value: 'other', label: 'Otro' },
 ]
-const userRoleLabels: Record<string, string> = {
-	empleador: 'Empleador',
-	empleado: 'Empleado',
-}
+
 type SettingsSection =
 	| 'business'
 	| 'quotes'
@@ -482,428 +520,13 @@ const DEBT_FILTER_DEFAULTS: DebtFilterState = {
 	balance: '',
 }
 
-const cashSummaryGroupDefinitions = [
-	{ key: 'charges', label: 'Cobros' },
-	{ key: 'payments', label: 'Pagos' },
-	{ key: 'partner_contributions', label: 'Aportes' },
-	{ key: 'investments', label: 'Inversiones' },
-	{ key: 'partner_withdrawals', label: 'Retiros' },
-	{ key: 'adjustments', label: 'Ajustes' },
-] as const
 
-const cashSourceKindLabels: Record<string, string> = {
-	adjustment: 'Ajuste',
-	debt_origin: 'Deuda original',
-	debt_payment: 'Pago de deuda',
-	manual: 'Manual',
-	material_purchase: 'Compra',
-	payment: 'Cobro',
-}
 
-function normalizedCashText(value: any) {
-	return String(value ?? '')
-		.trim()
-		.toLocaleLowerCase('es-AR')
-}
 
-function cashSourceKindLabel(kind: any, fallback?: any) {
-	const key = String(kind ?? '').trim()
-	return cashSourceKindLabels[key] || String((fallback ?? key) || 'Origen')
-}
 
-function cashEntryTitleText(item: AnyRecord) {
-	if (item.source_kind === 'debt_origin') {
-		return `Deuda original: ${item.debt_concept || item.category}`
-	}
-	if (item.source_kind === 'debt_payment') {
-		return `Pago de deuda: ${item.debt_concept || item.description}`
-	}
-	return item.source_label || item.category || 'Movimiento de caja'
-}
 
-function cashEntryDescriptionText(item: AnyRecord) {
-	const dateLabel = item.occurred_at
-		? formatDateTimeLabel(item.occurred_at)
-		: 'Sin fecha'
-	const classification = [item.category, item.subcategory]
-		.filter(Boolean)
-		.join(' / ')
-	const detail = [classification, item.description]
-		.filter(Boolean)
-		.join(' - ')
-	const audit = item.created_by_username
-		? `Registrado por ${item.created_by_username}`
-		: ''
-	return [detail, dateLabel, audit].filter(Boolean).join(' - ')
-}
 
-function compareExpenseClassificationPair(
-	a: { category: string; subcategory: string },
-	b: { category: string; subcategory: string },
-) {
-	const categoryOrder = a.category.localeCompare(b.category, 'es-AR', {
-		sensitivity: 'base',
-	})
-	if (categoryOrder !== 0) return categoryOrder
-	return a.subcategory.localeCompare(b.subcategory, 'es-AR', {
-		sensitivity: 'base',
-	})
-}
 
-function cashEntryIncludedInSummary(item: AnyRecord, mode: CashSummaryMode) {
-	if (mode === 'cashflow') {
-		return item.cashflow_effect !== false && item.source_kind !== 'debt_origin'
-	}
-	return item.economic_effect !== false && item.source_kind !== 'debt_payment'
-}
-
-function cashEntrySignedAmount(item: AnyRecord) {
-	const amount = numberValue(item.amount)
-	return item.movement_type === 'expense' ? -amount : amount
-}
-
-function cashSummaryLineLabel(item: AnyRecord) {
-	return (
-		String(item.subcategory ?? '').trim() ||
-		String(item.category ?? '').trim() ||
-		cashSourceKindLabel(item.source_kind, item.source_label)
-	)
-}
-
-function cashSummaryGroupKey(item: AnyRecord) {
-	const category = normalizedCashText(item.category)
-	const subcategory = normalizedCashText(item.subcategory)
-	const sourceKind = normalizedCashText(item.source_kind)
-	const searchText = `${category} ${subcategory} ${sourceKind}`
-	if (sourceKind === 'adjustment' || category === 'ajustes') {
-		return 'adjustments'
-	}
-	if (item.movement_type === 'income') {
-		if (
-			searchText.includes('aporte') ||
-			searchText.includes('socio') ||
-			category === 'inversion' ||
-			category === 'prestamo'
-		) {
-			return 'partner_contributions'
-		}
-		return 'charges'
-	}
-	if (searchText.includes('retiro')) {
-		return 'partner_withdrawals'
-	}
-	if (category === 'inversion') {
-		return 'investments'
-	}
-	return 'payments'
-}
-
-function buildCashFlowSummary(
-	entries: AnyRecord[],
-	mode: CashSummaryMode,
-): CashFlowSummary {
-	const groupsByKey = Object.fromEntries(
-		cashSummaryGroupDefinitions.map((group) => [
-			group.key,
-			{
-				key: group.key,
-				label: group.label,
-				count: 0,
-				amount: 0,
-				lines: [] as CashSummaryLine[],
-			},
-		]),
-	) as Record<string, CashSummaryGroup>
-
-	entries
-		.filter((item) => cashEntryIncludedInSummary(item, mode))
-		.forEach((item) => {
-			const groupKey = cashSummaryGroupKey(item)
-			const group = groupsByKey[groupKey] ?? groupsByKey.payments
-			const amount = cashEntrySignedAmount(item)
-			const label = cashSummaryLineLabel(item)
-			const lineKey = normalizedCashText(label)
-			let line = group.lines.find((current) => current.key === lineKey)
-			if (!line) {
-				line = { key: lineKey, label, count: 0, amount: 0, percent: 0 }
-				group.lines.push(line)
-			}
-			group.count += 1
-			group.amount += amount
-			line.count += 1
-			line.amount += amount
-		})
-
-	Object.values(groupsByKey).forEach((group) => {
-		const absoluteTotal = group.lines.reduce(
-			(total, line) => total + Math.abs(line.amount),
-			0,
-		)
-		group.lines = group.lines
-			.map((line) => ({
-				...line,
-				percent: absoluteTotal ? Math.abs(line.amount) / absoluteTotal : 0,
-			}))
-			.sort((a, b) => {
-				const amountOrder = Math.abs(b.amount) - Math.abs(a.amount)
-				if (amountOrder !== 0) return amountOrder
-				return a.label.localeCompare(b.label, 'es-AR', {
-					sensitivity: 'base',
-				})
-			})
-	})
-
-	const charges = groupsByKey.charges.amount
-	const payments = groupsByKey.payments.amount
-	const partnerContributions = groupsByKey.partner_contributions.amount
-	const investments = groupsByKey.investments.amount
-	const partnerWithdrawals = groupsByKey.partner_withdrawals.amount
-	const adjustments = groupsByKey.adjustments.amount
-	const commercialBalance = charges + payments
-	const financialBalance =
-		partnerContributions + investments + partnerWithdrawals
-	const netFlow = commercialBalance + financialBalance + adjustments
-
-	return {
-		groups: cashSummaryGroupDefinitions.map((group) => groupsByKey[group.key]),
-		commercialBalance,
-		financialBalance,
-		netFlow,
-	}
-}
-
-function normalizedCashFilterAmount(value: any) {
-	const rawValue = String(value ?? '').trim()
-	if (!rawValue) return null
-	const amount = Number(rawValue.replace(',', '.'))
-	return Number.isFinite(amount) ? amount : null
-}
-
-function cashEntryMatchesFilters(item: AnyRecord, filters: CashFilterState) {
-	if (
-		filters.movementType &&
-		String(item.movement_type ?? '') !== filters.movementType
-	) {
-		return false
-	}
-	if (filters.sourceKind && String(item.source_kind ?? '') !== filters.sourceKind) {
-		return false
-	}
-	if (filters.category && String(item.category ?? '') !== filters.category) {
-		return false
-	}
-	if (
-		filters.subcategory &&
-		String(item.subcategory ?? '') !== filters.subcategory
-	) {
-		return false
-	}
-	if (filters.effect === 'cashflow' && item.cashflow_effect === false) {
-		return false
-	}
-	if (filters.effect === 'economic_only' && item.cashflow_effect !== false) {
-		return false
-	}
-
-	const amount = Math.abs(numberValue(item.amount))
-	const amountMin = normalizedCashFilterAmount(filters.amountMin)
-	const amountMax = normalizedCashFilterAmount(filters.amountMax)
-	if (amountMin !== null && amount < amountMin) return false
-	if (amountMax !== null && amount > amountMax) return false
-
-	const query = normalizedCashText(filters.query)
-	if (!query) return true
-	const haystack = normalizedCashText(
-		[
-			cashEntryTitleText(item),
-			cashEntryDescriptionText(item),
-			item.source_label,
-			item.source_kind,
-			item.category,
-			item.subcategory,
-			item.amount,
-			item.signed_amount,
-		].join(' '),
-	)
-	return haystack.includes(query)
-}
-
-function hasCashFilters(filters: CashFilterState) {
-	return Object.values(filters).some((value) => String(value ?? '').trim())
-}
-
-function debtMatchesFilters(
-	item: AnyRecord,
-	filters: DebtFilterState,
-	query: string,
-) {
-	if (filters.status && String(item.status ?? '') !== filters.status) {
-		return false
-	}
-	const balanceDue = numberValue(item.balance_due)
-	if (filters.balance === 'open' && balanceDue <= 0) return false
-	if (filters.balance === 'settled' && balanceDue > 0) return false
-
-	const term = normalizedCashText(query)
-	if (!term) return true
-	const haystack = normalizedCashText(
-		[
-			item.concept,
-			item.creditor,
-			item.supplier_name,
-			debtStatusLabels[item.status],
-			item.status,
-			item.expense_category,
-			item.expense_subcategory,
-			item.notes,
-			item.principal_amount,
-			item.total_paid,
-			item.balance_due,
-		].join(' '),
-	)
-	return haystack.includes(term)
-}
-
-function hasDebtFilters(filters: DebtFilterState) {
-	return Object.values(filters).some((value) => String(value ?? '').trim())
-}
-
-function customerDaysText(value: any, emptyText = 'Sin dato') {
-	const days = Number(value)
-	if (!Number.isFinite(days)) return emptyText
-	if (days === 0) return 'Hoy'
-	if (days === 1) return '1 dia'
-	return `${days} dias`
-}
-
-function customerDaysAgoText(value: any, emptyText = 'Sin dato') {
-	const label = customerDaysText(value, emptyText)
-	if (label === emptyText || label === 'Hoy') return label
-	return `Hace ${label}`
-}
-
-function customerAverageGapText(value: any) {
-	const days = Number(value)
-	if (!Number.isFinite(days)) return 'Sin suficiente historial'
-	if (days === 0) return 'Visitas el mismo dia'
-	if (days === 1) return '1 dia promedio entre visitas'
-	return `${days} dias promedio entre visitas`
-}
-
-function selectOptionsFromValues(values: string[], currentValue?: any) {
-	const current = String(currentValue ?? '').trim()
-	const normalizedValues =
-		current && !values.includes(current) ? [current, ...values] : values
-	return normalizedValues.map((value) => ({ value, label: value }))
-}
-
-function formatTimeLabel(value: any) {
-	const raw = String(value ?? '')
-	return raw.length >= 5 ? raw.slice(0, 5) : ''
-}
-
-function customerScheduleLabel(
-	reservation: AnyRecord | null | undefined,
-	showReservationTimes = true,
-) {
-	if (!reservation?.day) return 'Sin reserva futura'
-	const time =
-		showReservationTimes && reservation.start_time
-			? ` ${formatTimeLabel(reservation.start_time)}`
-			: ''
-	return `${formatDateLabel(reservation.day)}${time}`
-}
-
-function customerListInsights(customer: AnyRecord) {
-	return customer?.list_insights ?? {}
-}
-
-function blankProfileForm(user?: AnyRecord | null) {
-	return {
-		email: String(user?.email ?? ''),
-		phone_country_code: String(user?.phone_country_code ?? '+54'),
-		phone_number: String(user?.phone_number ?? ''),
-		subscription_type: String(user?.subscription_type ?? 'trial'),
-	}
-}
-
-function blankSupplierForm() {
-	return {
-		name: '',
-		legal_name: '',
-		category: '',
-		tax_condition: '',
-		website: '',
-		contact_name: '',
-		phone: '',
-		email: '',
-		tax_id: '',
-		address: '',
-		notes: '',
-	}
-}
-
-function blankStockMovementLine() {
-	return {
-		material: '',
-		quantity: '',
-		unit_price: '',
-	}
-}
-
-function blankStockMovementForm(day = today) {
-	return {
-		movement_type: 'purchase',
-		occurred_on: day,
-		supplier: '',
-		customer: '',
-		reservation: '',
-		document_type: '',
-		document_number: '',
-		affects_cash: true,
-		products_received: false,
-		payment_method: DEFAULT_PAYMENT_METHOD,
-		notes: '',
-		lines: [blankStockMovementLine()],
-	}
-}
-
-function profileDisplayName(user?: AnyRecord | null) {
-	return String(user?.username ?? 'Mi perfil')
-}
-
-function profileInitial(user?: AnyRecord | null) {
-	const name = profileDisplayName(user).trim()
-	return name ? name.charAt(0).toUpperCase() : '?'
-}
-
-function profileRoleLabel(user?: AnyRecord | null) {
-	return userRoleLabels[String(user?.role ?? '')] ?? 'Usuario'
-}
-
-function profileLastLoginText(user?: AnyRecord | null) {
-	return user?.last_login
-		? formatDateTimeLabel(user.last_login)
-		: 'Sin inicio previo'
-}
-
-function profileJoinedText(user?: AnyRecord | null) {
-	return user?.date_joined
-		? formatDateTimeLabel(user.date_joined)
-		: 'Sin fecha de alta'
-}
-
-function profileActiveText(user?: AnyRecord | null) {
-	return user?.is_active === false ? 'Inactivo' : 'Activo'
-}
-
-function profileTrialText(user?: AnyRecord | null) {
-	if (user?.trial_expired) return 'Prueba vencida'
-	if (user?.trial_ends_at) {
-		return `Prueba activa hasta ${formatDateLabel(user.trial_ends_at)}`
-	}
-	return null
-}
 
 function usePdfThumbnailPreview(
 	source: string | null,
@@ -2964,6 +2587,257 @@ export default function Home() {
 			workOrder,
 		} satisfies AgendaOperationalRow
 	}
+
+	function renderWorkReservationListCard(reservation: AnyRecord) {
+		const row = workReservationRow(reservation)
+		return (
+			<MotionFlashSurface
+				className={recordClass(
+					'reservation',
+					reservation.id,
+					cx(
+						'compact',
+						agendaCardClass(row),
+						flashClass(agendaCardFlashKey(row.key)),
+					),
+				)}
+				key={`work-reservation-${reservation.id}`}
+			>
+				<div className="agenda-card-stack">
+					{renderAgendaReservationCard(reservation, row.workOrder, row, {
+						statusMode: 'work-order',
+					})}
+				</div>
+			</MotionFlashSurface>
+		)
+	}
+
+	function renderWorkFreeQuoteCard(item: AnyRecord) {
+		const quickActions = quoteQuickActions(item)
+		return (
+			<MotionFlashSurface
+				className={recordClass('quote', item.id, 'quote-board-card')}
+				key={`work-free-quote-${item.id}`}
+				{...detailRecordProps('Cotizacion', item)}
+				{...quickActionTargetProps('Acciones de cotizacion', quickActions)}
+			>
+				{renderQuickActionsTrigger(
+					'Acciones de cotizacion',
+					quickActions,
+					'Acciones rapidas de cotizacion',
+				)}
+				<QuoteCardContent
+					item={item}
+					quoteCode={quoteCode}
+					quoteHasReservation={quoteHasReservation}
+					quoteLaneStatus={quoteLaneStatus}
+					quoteTentativeTimeLabel={quoteTentativeTimeLabel}
+					onCreateReservationFromQuote={createReservationFromQuote}
+					onDownloadQuotePdf={downloadQuotePdf}
+					onDownloadQuotePdfAndMarkSent={downloadQuotePdfAndMarkSent}
+					onOpenQuoteReservationInAgenda={openQuoteReservationInAgenda}
+				/>
+			</MotionFlashSurface>
+		)
+	}
+
+	function WorkStatusDraggableReservation({
+		reservation,
+	}: {
+		reservation: AnyRecord
+	}) {
+		const row = workReservationRow(reservation)
+		const reservationId = String(reservation.id ?? '')
+		const workOrder = row.workOrder
+		const workOrderId = String(workOrder?.id ?? '')
+		const status = workStatusForReservation(reservation, workOrderByReservation)
+		const statusColumn = workStatusColumnForStatus(status, workStatusColumns)
+		const canDrag = reservationCanMoveWorkStatus(
+			reservation,
+			workOrderByReservation,
+		)
+		const { listeners, setNodeRef, isDragging } = useDraggable({
+			id: `work-status-reservation:${reservationId}`,
+			data: {
+				reservationId,
+				status,
+				statusGroup: statusColumn?.key,
+				workOrderId,
+			},
+			disabled:
+				!reservationId ||
+				!canDrag ||
+				Boolean(workStatusMovePendingId),
+		})
+
+		return (
+			<MotionFlashSurface
+				ref={setNodeRef}
+				{...listeners}
+				className={recordClass(
+					'reservation',
+					reservation.id,
+					cx(
+						'compact',
+						agendaCardClass(row),
+						flashClass(agendaCardFlashKey(row.key)),
+						'work-status-card',
+						'agenda-operational-card--draggable',
+						!canDrag && 'agenda-operational-card--locked',
+						isDragging && 'agenda-operational-card--dragging',
+						workStatusMovePendingId === reservationId &&
+							'agenda-operational-card--moving',
+					),
+				)}
+			>
+				<div className="agenda-card-stack">
+					{renderAgendaReservationCard(reservation, row.workOrder, row, {
+						statusMode: 'work-order',
+					})}
+				</div>
+			</MotionFlashSurface>
+		)
+	}
+
+	function WorkStatusDroppableLane({
+		group,
+	}: {
+		group: {
+			key: string
+			label: string
+			dropStatus?: string
+			reservations: AnyRecord[]
+		}
+	}) {
+		const { setNodeRef } = useDroppable({
+			id: `work-status:${group.key}`,
+			data: { status: group.dropStatus ?? group.key, statusGroup: group.key },
+		})
+
+		return (
+			<section
+				ref={setNodeRef}
+				className={cx(
+					'panel',
+					'work-group-panel',
+					'work-status-lane',
+					workStatusDropStatus === group.key &&
+						'work-status-lane--drop-target',
+				)}
+				key={group.key}
+			>
+				<div className="panel-head">
+					<div>
+						<h2>{group.label}</h2>
+						<p>{group.reservations.length} reservas</p>
+					</div>
+				</div>
+				<div className="records compact-records">
+					{group.reservations.length ? (
+						group.reservations.map((reservation) => (
+							<WorkStatusDraggableReservation
+								key={`work-status-${group.key}-${reservation.id}`}
+								reservation={reservation}
+							/>
+						))
+					) : (
+						<Empty
+							text={`Sin trabajos en ${group.label.toLowerCase()}.`}
+							hint="La columna queda lista para recibir trabajos cuando cambie el avance operativo."
+						/>
+					)}
+				</div>
+			</section>
+		)
+	}
+
+	function renderWorkReservationsByStatusView() {
+		return (
+			<DndContext
+				sensors={agendaSensors}
+				collisionDetection={closestCenter}
+				onDragStart={handleWorkStatusDragStart}
+				onDragOver={handleWorkStatusDragOver}
+				onDragEnd={handleWorkStatusDragEnd}
+				onDragCancel={handleWorkStatusDragCancel}
+			>
+				<div className="grid work-groups work-status-groups">
+					{workStatusGroups.map((group) => (
+						<WorkStatusDroppableLane group={group} key={group.key} />
+					))}
+				</div>
+				<DragOverlay>
+					{renderAgendaDragOverlay(activeWorkStatusRow, {
+						statusMode: 'work-order',
+					})}
+				</DragOverlay>
+			</DndContext>
+		)
+	}
+
+	function renderWorkReservationsByEntryDateView() {
+		const hasContent =
+			workEntryDateGroups.length || workFreeQuotesWithoutEntryDate.length
+		if (!hasContent) {
+			return (
+				<section className="panel">
+					<Empty
+						text="Sin reservas o cotizaciones para este filtro."
+						hint="Crea una reserva o cambia el tipo de servicio para ver trabajos por fecha de ingreso."
+						action={
+							<button
+								type="button"
+								className="primary"
+								onClick={() => openQuickReservation(selectedDay)}
+							>
+								<Plus size={16} />
+								Crear reserva
+							</button>
+						}
+					/>
+				</section>
+			)
+		}
+
+		return (
+			<div className="grid work-groups work-groups--entry-date">
+				{workEntryDateGroups.map((group) => (
+					<section className="panel work-group-panel" key={group.key}>
+						<div className="panel-head">
+							<div>
+								<h2>{formatDateLabel(group.entryDate)}</h2>
+								<p>{group.reservations.length} reservas</p>
+							</div>
+						</div>
+						<div className="records compact-records">
+							{group.reservations.map((reservation) =>
+								renderWorkReservationListCard(reservation),
+							)}
+						</div>
+					</section>
+				))}
+				{workFreeQuotesWithoutEntryDate.length ? (
+					<section
+						className="panel work-group-panel"
+						key="without-entry-date"
+					>
+						<div className="panel-head">
+							<div>
+								<h2>Sin fecha de ingreso</h2>
+								<p>{workFreeQuotesWithoutEntryDate.length} cotizaciones libres</p>
+							</div>
+						</div>
+						<div className="records compact-records">
+							{workFreeQuotesWithoutEntryDate.map((quote) =>
+								renderWorkFreeQuoteCard(quote),
+							)}
+						</div>
+					</section>
+				) : null}
+			</div>
+		)
+	}
+
 	function renderAgendaReservationCard(
 		reservation: AnyRecord,
 		workOrder: AnyRecord | null | undefined,
@@ -3244,183 +3118,6 @@ export default function Home() {
 						{showWork ? renderAgendaWorkDebt(workOrder as AnyRecord) : null}
 					</div>
 				</div>
-			</div>
-		)
-	}
-
-	function renderQuoteCardContent(
-		item: AnyRecord,
-		options: { overlay?: boolean } = {},
-	) {
-		const code = quoteCode(item)
-		const hasReservation = quoteHasReservation(item)
-		const isDraft = quoteLaneStatus(item) === 'draft'
-		return (
-			<div className="record-head quote-card-head">
-				<div className="quote-card-copy">
-					<div className="record-title">
-						Cotizacion {code} - {item.customer_name}
-					</div>
-					<div className="record-sub">
-						{item.vehicle_label || 'Sin vehiculo'} - {money(item.total)}
-					</div>
-					{item.reservation_day ? (
-						<div className="record-sub">
-							Reserva tentativa: {item.reservation_day}
-							{quoteTentativeTimeLabel(item.reservation_start_time)}
-						</div>
-					) : null}
-					{item.items?.length ? (
-						<div className="quote-card-services" aria-label="Servicios">
-							{item.items.map((quoteItem: AnyRecord) => (
-								<span
-									className="quote-card-service-name"
-									key={quoteItem.id ?? `${item.id}-${quoteItem.service}`}
-								>
-									{serviceDisplayName({
-										service_icon: quoteItem.service_icon,
-										service_name:
-											quoteItem.service_name ?? quoteItem.description,
-									})}
-								</span>
-							))}
-						</div>
-					) : null}
-				</div>
-				{options.overlay ? null : (
-					<div className="record-actions quote-card-actions">
-						{hasReservation ? (
-							<button
-								type="button"
-								className="ghost quote-action-button quote-action-button--outline"
-								aria-label="Ver reserva en agenda"
-								onClick={() => openQuoteReservationInAgenda(item)}
-							>
-								<CalendarDays size={16} />
-								Agenda
-							</button>
-						) : (
-							<button
-								type="button"
-								className="ghost quote-action-button quote-action-button--outline"
-								aria-label="Crear reserva desde cotizacion"
-								onClick={() => createReservationFromQuote(item)}
-							>
-								<CalendarDays size={16} />
-								Reserva
-							</button>
-						)}
-						<button
-							type="button"
-							className="ghost quote-action-button quote-action-button--outline"
-							aria-label="Bajar PDF"
-							onClick={() => downloadQuotePdf(item)}
-						>
-							<FileText size={16} />
-							PDF
-						</button>
-						{isDraft ? (
-							<button
-								type="button"
-								className="primary quote-action-button quote-action-button--filled"
-								aria-label="Bajar PDF y marcar cotizacion como enviada"
-								onClick={() => downloadQuotePdfAndMarkSent(item)}
-							>
-								<FileText size={16} />
-								Enviar
-							</button>
-						) : null}
-					</div>
-				)}
-			</div>
-		)
-	}
-
-	function QuoteDraggableRecord({ item }: { item: AnyRecord }) {
-		const quoteId = String(item.id ?? '')
-		const laneStatus = quoteLaneStatus(item)
-		const canDrag = laneStatus === 'draft'
-		const quickActions = quoteQuickActions(item)
-		const { listeners, setNodeRef, isDragging } = useDraggable({
-			id: `quote:${quoteId}`,
-			data: {
-				quoteId,
-				status: laneStatus,
-			},
-			disabled: !quoteId || !canDrag || Boolean(quoteMovePendingId),
-		})
-
-		return (
-			<MotionFlashSurface
-				ref={setNodeRef}
-				{...listeners}
-				className={recordClass(
-					'quote',
-					item.id,
-					cx(
-						'quote-board-card',
-						'quote-board-card--draggable',
-						!canDrag && 'quote-board-card--locked',
-						isDragging && 'quote-board-card--dragging',
-						quoteMovePendingId === quoteId && 'quote-board-card--moving',
-					),
-				)}
-				{...detailRecordProps('Cotizacion', item)}
-				{...quickActionTargetProps('Acciones de cotizacion', quickActions)}
-			>
-				{renderQuickActionsTrigger(
-					'Acciones de cotizacion',
-					quickActions,
-					'Acciones rapidas de cotizacion',
-				)}
-				{renderQuoteCardContent(item)}
-			</MotionFlashSurface>
-		)
-	}
-
-	function QuoteDroppableLane({
-		status,
-		children,
-	}: {
-		status: 'draft' | 'sent'
-		children: ReactNode
-	}) {
-		const { setNodeRef } = useDroppable({
-			id: `quote-lane:${status}`,
-			data: { status },
-		})
-		const count = status === 'draft' ? quoteBoard.draft.length : quoteBoard.sent.length
-
-		return (
-			<section
-				ref={setNodeRef}
-				className={cx(
-					'quote-lane',
-					`quote-lane--${status}`,
-					quoteDropStatus === status && 'quote-lane--drop-target',
-				)}
-			>
-				<div className="quote-lane-head">
-					<div>
-						<h3>{status === 'draft' ? 'Sin enviar' : 'Enviados'}</h3>
-						<span>
-							{status === 'draft'
-								? 'Por fecha de creacion'
-								: 'Por fecha de envio'}
-						</span>
-					</div>
-					<strong>{count}</strong>
-				</div>
-				<div className="records quote-lane-records">{children}</div>
-			</section>
-		)
-	}
-
-	function renderQuoteDragOverlay(item: AnyRecord | null) {
-		if (!item) return null
-		return (
-			<div className="record quote-board-card quote-board-card--drag-overlay">
-				{renderQuoteCardContent(item, { overlay: true })}
 			</div>
 		)
 	}
@@ -5288,367 +4985,6 @@ export default function Home() {
 					{renderCustomerPaymentHistory(payments)}
 				</div>
 			</CustomerDashboardShell>
-		)
-	}
-
-	function renderServiceOperationalSnapshot(
-		history: AnyRecord,
-		upcomingReservations: AnyRecord[],
-		recentQuotes: AnyRecord[],
-	) {
-		const insights = history.insights ?? {}
-		const summary = history.summary ?? {}
-		const nextReservation =
-			insights.next_reservation ?? upcomingReservations[0] ?? null
-		const latestQuote = recentQuotes[0] ?? null
-		return (
-			<Panel
-				title="Estado del servicio"
-				subtitle="Carga operativa, venta y apariciones adicionales"
-			>
-				<div className="customer-dashboard-insights">
-					<div className="customer-dashboard-card">
-						<span>Ultimo uso</span>
-						<strong>
-							{insights.last_used_at
-								? formatDateLabel(insights.last_used_at)
-								: 'Sin trabajos'}
-						</strong>
-						<small>
-							{insights.last_used_at
-								? `${customerDaysAgoText(
-										insights.days_since_last_use,
-										'Sin dato',
-									)} · ${insights.last_customer_name || 'Sin cliente'} · ${
-										insights.last_vehicle_label || 'Sin vehiculo'
-									}`
-								: 'Todavia no tiene ordenes principales registradas.'}
-						</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Proxima reserva</span>
-						<strong>{customerScheduleLabel(nextReservation)}</strong>
-						<small>
-							{nextReservation
-								? `${nextReservation.customer} · ${nextReservation.vehicle}`
-								: 'Sin agenda futura como servicio principal.'}
-						</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Trabajos activos</span>
-						<strong>{summary.active_work_orders_count ?? 0}</strong>
-						<small>{`Facturado ${money(summary.sales_total)}`}</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Cotizaciones abiertas</span>
-						<strong>{summary.open_quotes_count ?? 0}</strong>
-						<small>
-							{latestQuote
-								? `Ultima ${formatDateLabel(latestQuote.quote_date)} · ${money(
-										latestQuote.total,
-									)}`
-								: `${summary.quotes_total ?? 0} cotizaciones con este servicio`}
-						</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Ticket promedio</span>
-						<strong>{money(insights.average_ticket)}</strong>
-						<small>{`${summary.work_orders_count ?? 0} trabajos historicos`}</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Uso adicional/combo</span>
-						<strong>
-							{(summary.additional_reservation_items_count ?? 0) +
-								(summary.quote_item_usages_count ?? 0)}
-						</strong>
-						<small>{`Reservas ${summary.additional_reservation_items_count ?? 0} · Cotizaciones ${
-							summary.quote_item_usages_count ?? 0
-						}`}</small>
-					</div>
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderServiceUpcomingReservations(reservationsRows: AnyRecord[]) {
-		return (
-			<Panel
-				title="Proximas reservas"
-				subtitle={`${reservationsRows.length} reservas visibles`}
-			>
-				<div className="records compact-records">
-					{reservationsRows.length ? (
-						reservationsRows.map((reservation: AnyRecord) => {
-							const detailReservation =
-								reservations.find(
-									(item) => String(item.id) === String(reservation.id),
-								) ?? reservation
-							return (
-								<button
-									className="record compact"
-									key={`service-reservation-${reservation.id}`}
-									onClick={() =>
-										openDetailModal('Reserva', detailReservation)
-									}
-									type="button"
-								>
-									<div className="record-head">
-										<div>
-											<div className="record-title">
-												{reservation.customer} - {reservation.vehicle}
-											</div>
-											<div className="record-sub">
-												{customerScheduleLabel(reservation)} -{' '}
-												{reservation.services}
-											</div>
-										</div>
-										<div className="record-actions">
-											<StatusPill
-												value={reservation.status}
-												labels={reservationLabels}
-											/>
-										</div>
-									</div>
-								</button>
-							)
-						})
-					) : (
-						<Empty text="Este servicio no tiene reservas futuras." />
-					)}
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderServiceActiveWorkOrders(orders: AnyRecord[]) {
-		return (
-			<Panel
-				title="Trabajos activos"
-				subtitle={`${orders.length} trabajos principales en curso`}
-			>
-				<div className="records compact-records">
-					{orders.length ? (
-						orders.map((order: AnyRecord) => {
-							const detailOrder =
-								workOrders.find((item) => String(item.id) === String(order.id)) ??
-								order
-							return (
-								<button
-									className="record compact"
-									key={`service-workorder-${order.id}`}
-									onClick={() =>
-										openDetailModal('Orden de trabajo', detailOrder)
-									}
-									type="button"
-								>
-									<div className="record-head">
-										<div>
-											<div className="record-title">
-												{order.customer_name} - {order.vehicle_label}
-											</div>
-											<div className="record-sub">
-												{formatDateTimeLabel(order.received_at)} - cobrado{' '}
-												{money(order.paid_amount)} - saldo{' '}
-												{money(order.balance_due)} - materiales{' '}
-												{money(order.material_cost)}
-											</div>
-										</div>
-										<div className="record-actions">
-											<StatusPill value={order.status} labels={orderLabels} />
-											<span className="status payment">
-												{money(order.total_amount)}
-											</span>
-										</div>
-									</div>
-								</button>
-							)
-						})
-					) : (
-						<Empty text="Este servicio no tiene trabajos activos." />
-					)}
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderServiceRecentQuotes(quotesRows: AnyRecord[]) {
-		return (
-			<Panel
-				title="Cotizaciones recientes"
-				subtitle={`${quotesRows.length} cotizaciones con este servicio`}
-			>
-				<div className="records compact-records">
-					{quotesRows.length ? (
-						quotesRows.map((quote: AnyRecord) => {
-							const detailQuote =
-								quotes.find((item) => String(item.id) === String(quote.id)) ??
-								quote
-							return (
-								<button
-									className="record compact"
-									key={`service-quote-${quote.id}`}
-									onClick={() => openDetailModal('Cotizacion', detailQuote)}
-									type="button"
-								>
-									<div className="record-head">
-										<div>
-											<div className="record-title">
-												Cotizacion {quote.public_code ?? `#${quote.id}`} -{' '}
-												{quote.customer}
-											</div>
-											<div className="record-sub">
-												{formatDateLabel(quote.quote_date)} -{' '}
-												{quote.vehicle || 'Sin vehiculo'} - {quote.services}
-											</div>
-										</div>
-										<div className="record-actions">
-											<StatusPill
-												value={quote.status}
-												labels={quoteStatusLabels}
-											/>
-											<span className="status payment">
-												{money(quote.total)}
-											</span>
-										</div>
-									</div>
-								</button>
-							)
-						})
-					) : (
-						<Empty text="Este servicio todavia no tiene cotizaciones." />
-					)}
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderServiceDashboard() {
-		if (!serviceDashboard || !canViewEconomy) return null
-		const hasDashboardHistory = Boolean(serviceDashboardHistory)
-		const history = serviceDashboardHistory ?? {}
-		const service = history.service ?? serviceDashboard
-		const summary = history.summary ?? {}
-		const topCustomers = history.top_customers ?? []
-		const topVehicles = history.top_vehicles ?? []
-		const upcomingReservations = history.upcoming_reservations ?? []
-		const activeOrders = history.active_work_orders ?? []
-		const recentQuotes = history.recent_quotes ?? []
-		return (
-			<div className="grid customer-dashboard service-dashboard">
-				<Panel>
-					<div className="customer-dashboard-head service-dashboard-head">
-						<button
-							type="button"
-							className="ghost"
-							onClick={() => setServiceDashboard(null)}
-						>
-							<ChevronLeft size={16} />
-							Servicios
-						</button>
-						<div>
-							<h2>{serviceDisplayName(service)}</h2>
-							<p>Dashboard especifico del servicio</p>
-						</div>
-						<button
-							type="button"
-							className="ghost"
-							onClick={() => openDetailModal('Servicio', service)}
-						>
-							Editar servicio
-						</button>
-					</div>
-					<div className="customer-dashboard-profile service-dashboard-profile">
-						<div>
-							<span>Tipo</span>
-							<strong>
-								{serviceTypeLabels[service.service_type] ??
-									service.service_type ??
-									'Sin tipo'}
-							</strong>
-						</div>
-						<div>
-							<span>Precio base</span>
-							<strong>{money(service.base_price)}</strong>
-						</div>
-						<div>
-							<span>Duracion estimada</span>
-							<strong>{service.estimated_duration_minutes ?? 0} min</strong>
-						</div>
-						<div>
-							<span>Estado</span>
-							<strong>{service.is_active === false ? 'Inactivo' : 'Activo'}</strong>
-						</div>
-						<div>
-							<span>Notas</span>
-							<strong>{service.notes || 'Sin notas'}</strong>
-						</div>
-					</div>
-				</Panel>
-
-				{serviceDashboardLoading ? (
-					<LoadingState text="Cargando dashboard del servicio..." />
-				) : null}
-
-				{!serviceDashboardLoading && !hasDashboardHistory ? (
-					<div className="info-note">
-						No se pudo cargar el historial operativo del servicio. El
-						listado sigue disponible para evitar datos incompletos.
-					</div>
-				) : null}
-
-				{hasDashboardHistory ? (
-					<>
-						<div className="customer-dashboard-metrics service-dashboard-metrics">
-							<MetricCard
-								label="Ventas"
-								value={money(summary.sales_total ?? summary.billed_total)}
-							/>
-							<MetricCard label="Cobrado" value={money(summary.paid_total)} />
-							<MetricCard
-								label="Saldo"
-								value={money(summary.balance_due_total)}
-							/>
-							<MetricCard
-								label="Materiales"
-								value={money(summary.material_cost_total)}
-							/>
-							<MetricCard label="Margen" value={money(summary.margin_total)} />
-							<MetricCard
-								label="Trabajos"
-								value={summary.work_orders_count ?? 0}
-							/>
-						</div>
-
-						{renderServiceOperationalSnapshot(
-							history,
-							upcomingReservations,
-							recentQuotes,
-						)}
-
-						<div className="grid two">
-							{renderCustomerRankingPanel(
-								'Clientes frecuentes',
-								topCustomers,
-								'name',
-								'Este servicio todavia no tiene clientes frecuentes.',
-							)}
-							{renderCustomerRankingPanel(
-								'Vehiculos frecuentes',
-								topVehicles,
-								'label',
-								'Este servicio todavia no tiene vehiculos frecuentes.',
-							)}
-						</div>
-
-						<div className="grid two">
-							{renderServiceUpcomingReservations(upcomingReservations)}
-							{renderServiceRecentQuotes(recentQuotes)}
-						</div>
-
-						{renderServiceActiveWorkOrders(activeOrders)}
-					</>
-				) : null}
-			</div>
 		)
 	}
 
@@ -12323,108 +11659,48 @@ export default function Home() {
 				) : null}
 
 				{displayedActive === 'services' ? (
-					serviceDashboard && canViewEconomy ? (
-						renderServiceDashboard()
-					) : (
-					<div className="grid">
-						<section className="panel">
-							<div className="panel-head">
-								<div>
-									<h2>Servicios</h2>
-									<p>Lavados, detailing y combos disponibles para reservas y cotizaciones.</p>
-								</div>
-								<button
-									type="button"
-									className="primary"
-									onClick={() => openFormModal('service')}
-								>
-									<Plus size={16} />
-									Nuevo servicio
-								</button>
-							</div>
-							<div className="records">
-								{services.length ? (
-									services.map((item) => {
-										const quickActions = serviceQuickActions(item)
-										return (
-										<MotionFlashSurface
-											className={recordClass('service', item.id)}
-											key={item.id}
-											{...quickActionTargetProps(
-												'Acciones de servicio',
-												quickActions,
-											)}
-										>
-											{renderQuickActionsTrigger(
-												'Acciones de servicio',
-												quickActions,
-												'Acciones rapidas de servicio',
-											)}
-											<RecordCardHeader
-												title={serviceDisplayName(item)}
-												subtitle={joinDisplayParts([
-													serviceTypeLabels[item.service_type],
-													money(item.base_price),
-													`${item.estimated_duration_minutes} min`,
-												])}
-												primaryAction={{
-													ariaLabel: `Abrir servicio ${serviceDisplayName(item)}`,
-													onClick: () => openServiceDashboard(item),
-												}}
-												actions={
-													<>
-													<button
-														type="button"
-														className="ghost"
-														onClick={() =>
-															openDetailModal('Servicio', item)
-														}
-													>
-														Editar
-													</button>
-													<button
-														type="button"
-														className="danger"
-														onClick={() =>
-															runAction(() =>
-																apiFetch(
-																	`/services/${item.id}/`,
-																	{
-																		method: 'DELETE',
-																	},
-																),
-																{
-																	successTitle:
-																		entityFeedbackTitle(
-																			'service',
-																			'deleted',
-																		),
-																	undo: undoRestoreActiveRecord(
-																		'service',
-																		item,
-																	),
-																},
-															)
-														}
-													>
-														Inactivar
-													</button>
-													</>
-												}
-											/>
-										</MotionFlashSurface>
-										)
-									})
-								) : (
-									<Empty
-										text="Sin servicios."
-										hint="Crea el primer servicio para reservar o cotizar."
-									/>
-								)}
-							</div>
-						</section>
-					</div>
-					)
+					<ServicesPanel
+						canViewEconomy={canViewEconomy}
+						customerDaysAgoText={customerDaysAgoText}
+						customerScheduleLabel={customerScheduleLabel}
+						orderLabels={orderLabels}
+						quickActionTargetProps={quickActionTargetProps}
+						quoteStatusLabels={quoteStatusLabels}
+						quotes={quotes}
+						recordClass={recordClass}
+						renderCustomerRankingPanel={renderCustomerRankingPanel}
+						renderQuickActionsTrigger={renderQuickActionsTrigger}
+						reservationLabels={reservationLabels}
+						reservations={reservations}
+						serviceDashboard={serviceDashboard}
+						serviceDashboardHistory={serviceDashboardHistory}
+						serviceDashboardLoading={serviceDashboardLoading}
+						serviceQuickActions={serviceQuickActions}
+						serviceTypeLabels={serviceTypeLabels}
+						services={services}
+						workOrders={workOrders}
+						onBackToServices={() => setServiceDashboard(null)}
+						onCreateService={() => openFormModal('service')}
+						onDeleteService={(item) =>
+							runAction(
+								() =>
+									apiFetch(`/services/${item.id}/`, {
+										method: 'DELETE',
+									}),
+								{
+									successTitle: entityFeedbackTitle('service', 'deleted'),
+									undo: undoRestoreActiveRecord('service', item),
+								},
+							)
+						}
+						onOpenQuoteDetail={(item) => openDetailModal('Cotizacion', item)}
+						onOpenReservationDetail={(item) => openDetailModal('Reserva', item)}
+						onOpenServiceDashboard={openServiceDashboard}
+						onOpenServiceDetail={(item) => openDetailModal('Servicio', item)}
+						onOpenWorkOrderDetail={(item) =>
+							openDetailModal('Orden de trabajo', item)
+						}
+					/>
 				) : null}
 
 				{displayedActive === 'agenda' ? (
@@ -12794,196 +12070,61 @@ export default function Home() {
 				) : null}
 
 				{displayedActive === 'tools' ? (
-					<div className="grid">
-						<section className="panel">
-							<div className="panel-head">
-								<div>
-									<h2>Herramientas</h2>
-									<p>Estado, cantidades y valor estimado del equipamiento.</p>
-								</div>
-								<button
-									type="button"
-									className="primary"
-									onClick={() => openFormModal('tool')}
-								>
-									<Hammer size={16} />
-									Nueva herramienta
-								</button>
-							</div>
-							<div className="inventory-metrics">
-								<div className="material-kpi">
-									<span>Herramientas</span>
-									<strong>{toolSummary.records}</strong>
-								</div>
-								<div className="material-kpi">
-									<span>Unidades</span>
-									<strong>{toolSummary.quantity}</strong>
-								</div>
-								<div className="material-kpi">
-									<span>Valor total</span>
-									<strong>{money(toolSummary.value)}</strong>
-								</div>
-							</div>
-							<div className="toolbar toolbar-spaced">
-								<input
-									placeholder="Buscar por nombre, estado o notas"
-									value={search}
-									onChange={(event) =>
-										setSearch(event.target.value)
-									}
-								/>
-							</div>
-							<div className="records">
-								{filteredTools.length ? (
-									filteredTools.map((item) => {
-										const quickActions = toolQuickActions(item)
-										return (
-										<MotionFlashSurface
-											className={recordClass('tool', item.id)}
-											key={item.id}
-											{...detailRecordProps(
-												'Herramienta',
-												item,
-											)}
-											{...quickActionTargetProps(
-												'Acciones de herramienta',
-												quickActions,
-											)}
-										>
-											<div className="record-head">
-												<div>
-													<div className="record-title">
-														{item.name}
-													</div>
-													<div className="record-sub">
-														{toolStatusLabels[
-															item.status
-														] ?? item.status}{' '}
-														- {item.quantity}{' '}
-														unidades -{' '}
-														{money(
-															item.unit_value,
-														)}{' '}
-														c/u - valor{' '}
-														{money(
-															toolTotalValue(
-																item,
-															),
-														)}
-													</div>
-													<div className="record-sub">
-														{item.purchased_at
-															? `Compra ${item.purchased_at}`
-															: 'Sin fecha de compra'}
-														{item.notes
-															? ` - ${item.notes}`
-															: ''}
-													</div>
-												</div>
-												<div className="record-actions">
-													<button
-														type="button"
-														className="ghost"
-														onClick={() =>
-															openDetailModal('Herramienta', item)
-														}
-													>
-														Editar
-													</button>
-													<button
-														className="danger"
-														type="button"
-														onClick={() =>
-															runAction(() =>
-																apiFetch(
-																	`/tools/${item.id}/`,
-																	{
-																		method: 'DELETE',
-																	},
-																),
-																{
-																	successTitle:
-																		entityFeedbackTitle(
-																			'tool',
-																			'deleted',
-																		),
-																	undo: undoRestoreActiveRecord(
-																		'tool',
-																		item,
-																	),
-																},
-															)
-														}
-														>
-															Inactivar
-														</button>
-														{renderQuickActionsTrigger(
-															'Acciones de herramienta',
-															quickActions,
-															'Acciones rapidas de herramienta',
-														)}
-													</div>
-												</div>
-										</MotionFlashSurface>
-										)
-									})
-								) : (
-									<Empty text="Sin herramientas." />
-								)}
-							</div>
-						</section>
-					</div>
+					<ToolsPanel
+						detailRecordProps={detailRecordProps}
+						filteredTools={filteredTools}
+						quickActionTargetProps={quickActionTargetProps}
+						recordClass={recordClass}
+						renderQuickActionsTrigger={renderQuickActionsTrigger}
+						search={search}
+						toolQuickActions={toolQuickActions}
+						toolStatusLabels={toolStatusLabels}
+						toolSummary={toolSummary}
+						toolTotalValue={toolTotalValue}
+						onDeleteTool={(item) =>
+							runAction(
+								() =>
+									apiFetch(`/tools/${item.id}/`, {
+										method: 'DELETE',
+									}),
+								{
+									successTitle: entityFeedbackTitle('tool', 'deleted'),
+									undo: undoRestoreActiveRecord('tool', item),
+								},
+							)
+						}
+						onOpenToolDetail={(item) => openDetailModal('Herramienta', item)}
+						onOpenToolForm={() => openFormModal('tool')}
+						onSearchChange={setSearch}
+					/>
 				) : null}
 
 				{displayedActive === 'quotes' ? (
-					<div className="grid">
-						<section className="panel">
-							<div className="panel-head">
-								<div>
-									<h2>Cotizaciones</h2>
-									<p>Presupuestos y descargas PDF.</p>
-								</div>
-								<button
-									type="button"
-									className="primary"
-									onClick={() => openFormModal('quote')}
-								>
-									<Plus size={16} />
-									Nueva cotizacion
-								</button>
-							</div>
-							<DndContext
-								sensors={agendaSensors}
-								collisionDetection={closestCenter}
-								onDragStart={handleQuoteDragStart}
-								onDragOver={handleQuoteDragOver}
-								onDragEnd={handleQuoteDragEnd}
-								onDragCancel={handleQuoteDragCancel}
-							>
-								<div className="quote-board">
-									<QuoteDroppableLane status="draft">
-										{quoteBoard.draft.length ? (
-											quoteBoard.draft.map((item) => (
-												<QuoteDraggableRecord item={item} key={item.id} />
-											))
-										) : (
-											<Empty text="Sin cotizaciones sin enviar." />
-										)}
-									</QuoteDroppableLane>
-									<QuoteDroppableLane status="sent">
-										{quoteBoard.sent.length ? (
-											quoteBoard.sent.map((item) => (
-												<QuoteDraggableRecord item={item} key={item.id} />
-											))
-										) : (
-											<Empty text="Sin cotizaciones enviadas." />
-										)}
-									</QuoteDroppableLane>
-								</div>
-								<DragOverlay>{renderQuoteDragOverlay(activeQuoteDrag)}</DragOverlay>
-							</DndContext>
-						</section>
-					</div>
+					<QuotesPanel
+						activeQuoteDrag={activeQuoteDrag}
+						agendaSensors={agendaSensors}
+						detailRecordProps={detailRecordProps}
+						quickActionTargetProps={quickActionTargetProps}
+						quoteBoard={quoteBoard}
+						quoteCode={quoteCode}
+						quoteDropStatus={quoteDropStatus}
+						quoteHasReservation={quoteHasReservation}
+						quoteLaneStatus={quoteLaneStatus}
+						quoteMovePendingId={quoteMovePendingId}
+						quoteQuickActions={quoteQuickActions}
+						quoteTentativeTimeLabel={quoteTentativeTimeLabel}
+						recordClass={recordClass}
+						renderQuickActionsTrigger={renderQuickActionsTrigger}
+						onCreateQuote={() => openFormModal('quote')}
+						onCreateReservationFromQuote={createReservationFromQuote}
+						onDownloadQuotePdf={downloadQuotePdf}
+						onDownloadQuotePdfAndMarkSent={downloadQuotePdfAndMarkSent}
+						onOpenQuoteReservationInAgenda={openQuoteReservationInAgenda}
+						onQuoteDragCancel={handleQuoteDragCancel}
+						onQuoteDragEnd={handleQuoteDragEnd}
+						onQuoteDragOver={handleQuoteDragOver}
+						onQuoteDragStart={handleQuoteDragStart}
+					/>
 				) : null}
 
 				{displayedActive === 'settings' ? (

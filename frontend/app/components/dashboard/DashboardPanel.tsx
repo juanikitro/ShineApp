@@ -182,6 +182,56 @@ export function DashboardPanel({
 	const dashboardEmptyPeriod =
 		String(dashboardDataQuality.state ?? '') === 'empty' &&
 		!dashboardHasBusinessActivity
+	const dashboardFirstReceivableWorkOrder =
+		dashboardTopReceivables.reduce<AnyRecord | null>((selected, item) => {
+			if (selected) return selected
+			return Array.isArray(item.work_orders)
+				? item.work_orders[0] ?? null
+				: null
+		}, null)
+	const dashboardNextAction = dashboardFirstReceivableWorkOrder
+		? {
+				title: 'Cobrar saldo mas antiguo',
+				detail: 'Hay trabajos con saldo pendiente y accion directa de cobro.',
+				label: 'Cobrar ahora',
+				icon: CreditCard,
+				tone: 'attention',
+				onSelect: () =>
+					onOpenPaymentForOrder(dashboardFirstReceivableWorkOrder),
+			}
+		: dashboardOverdueDebtsTotal > 0
+			? {
+					title: 'Revisar deudas vencidas',
+					detail: `${dashboardOverdueDebtsCount} ${
+						dashboardOverdueDebtsCount === 1 ? 'deuda vencida' : 'deudas vencidas'
+					} en el periodo.`,
+					label: 'Ver deudas',
+					icon: CreditCard,
+					tone: 'attention',
+					onSelect: () => onOpenSection('debts'),
+				}
+			: dashboardWorkOrdersTotal === 0
+				? {
+						title: 'Crear actividad del periodo',
+						detail: 'Agenda el proximo trabajo para activar indicadores operativos.',
+						label: 'Ir a Agenda',
+						icon: CalendarDays,
+						tone: 'neutral',
+						onSelect: () => onOpenSection('agenda'),
+					}
+				: {
+						title: 'Mantener la agenda al dia',
+						detail: `${dashboardCountText(
+							dashboardWorkOrdersTotal,
+							'trabajo registrado',
+							'trabajos registrados',
+						)} en el periodo seleccionado.`,
+						label: 'Ver Agenda',
+						icon: CalendarDays,
+						tone: 'neutral',
+						onSelect: () => onOpenSection('agenda'),
+					}
+	const DashboardNextActionIcon = dashboardNextAction.icon
 
 	function dashboardDeltaHint(
 		current: any,
@@ -400,6 +450,36 @@ export function DashboardPanel({
 									)}
 								/>
 							</section>
+							<Panel
+								className="dashboard-next-action-panel"
+								title="Siguiente accion"
+								subtitle="Prioridad operativa sugerida para este periodo."
+							>
+								<RecordCard
+									className={cx(
+										'dashboard-next-action',
+										dashboardNextAction.tone === 'attention' &&
+											'dashboard-next-action--attention',
+									)}
+								>
+									<div className="dashboard-next-action-main">
+										<span className="dashboard-next-action-icon" aria-hidden="true">
+											<DashboardNextActionIcon size={16} />
+										</span>
+										<div className="dashboard-next-action-copy">
+											<strong>{dashboardNextAction.title}</strong>
+											<span>{dashboardNextAction.detail}</span>
+										</div>
+									</div>
+									<button
+										type="button"
+										className="ghost"
+										onClick={dashboardNextAction.onSelect}
+									>
+										{dashboardNextAction.label}
+									</button>
+								</RecordCard>
+							</Panel>
 							<div className="dashboard-insight-grid">
 								<Panel
 									title="Composicion economica"
