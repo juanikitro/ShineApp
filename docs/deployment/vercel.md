@@ -24,6 +24,10 @@ Los deploys manuales o promociones todavia requieren confirmacion humana. El cam
 - Region de computo: `gru1` (Sao Paulo), fijada en `backend/vercel.json` para
   co-ubicar la funcion con la DB Supabase `sa-east-1`. Hobby permite una sola
   region. Verificar post-deploy con el header `x-vercel-id` (`gru1::gru1::...`).
+- Fluid Compute: habilitado con `"fluid": true` en `backend/vercel.json` para
+  reducir cold starts (las instancias se mantienen tibias mas tiempo y se reusan).
+  $0 en Hobby (es el modelo de computo por defecto de Vercel). `conn_max_age=0`
+  se mantiene; cada request sigue usando una conexion por request via el pooler.
 - Install command: `python -m pip install -r requirements.txt`
 - Build command: `python manage.py collectstatic --noinput`
 - Env vars:
