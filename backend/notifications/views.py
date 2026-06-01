@@ -50,7 +50,7 @@ class PublicLandingView(APIView):
             business=business,
             is_active=True,
         ).order_by("service_type", "name")
-        return response.Response(
+        landing = response.Response(
             {
                 "business": {
                     "name": profile.name,
@@ -68,6 +68,12 @@ class PublicLandingView(APIView):
                 "services": PublicLandingServiceSerializer(services, many=True).data,
             }
         )
+        # Datos publicos y de baja frecuencia de cambio: cacheables en el edge de
+        # Vercel. "public" habilita cache compartido (no hay datos por-usuario);
+        # s-maxage controla el CDN y stale-while-revalidate sirve sin ir al origen
+        # mientras revalida en segundo plano.
+        landing["Cache-Control"] = "public, s-maxage=120, stale-while-revalidate=600"
+        return landing
 
 
 class PublicLandingRequestCreateView(APIView):

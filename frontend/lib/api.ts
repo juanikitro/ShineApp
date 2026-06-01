@@ -111,10 +111,12 @@ export async function publicApiFetch<T>(path: string, options: RequestInit = {})
     headers.set("Content-Type", "application/json");
   }
 
+  // Datos publicos: el llamador puede optar por cache (ej. landing publica) via
+  // options.cache. Por defecto no-store para no servir datos viejos.
   const response = await fetch(apiRequestUrl(path), {
     ...options,
     headers,
-    cache: "no-store"
+    cache: options.cache ?? "no-store"
   });
 
   if (!response.ok) {
