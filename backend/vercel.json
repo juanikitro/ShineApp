@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["gru1"],
   "installCommand": "python -m pip install -r requirements.txt",
   "buildCommand": "python manage.py collectstatic --noinput"
 }
