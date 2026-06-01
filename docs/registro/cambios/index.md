@@ -43,3 +43,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Documentacion viva con MkDocs Material](2026-05-20-documentacion-viva-mkdocs.md)
 - [Puertos locales dedicados](2026-05-20-puertos-locales-compose.md)
 - [UI-009: extraccion de paneles principales](2026-05-22-ui009-extraccion-paneles.md)
+- [Performance: funcion API co-ubicada en gru1 (Sao Paulo)](2026-06-01-perf-region-funcion-gru1.md)

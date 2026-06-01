@@ -21,6 +21,9 @@ Los deploys manuales o promociones todavia requieren confirmacion humana. El cam
 - Root Directory: `backend`
 - Runtime: Python, fijado con `backend/.python-version` a `3.12`
 - Entrypoint: `backend/wsgi.py` expone `app`
+- Region de computo: `gru1` (Sao Paulo), fijada en `backend/vercel.json` para
+  co-ubicar la funcion con la DB Supabase `sa-east-1`. Hobby permite una sola
+  region. Verificar post-deploy con el header `x-vercel-id` (`gru1::gru1::...`).
 - Install command: `python -m pip install -r requirements.txt`
 - Build command: `python manage.py collectstatic --noinput`
 - Env vars:
