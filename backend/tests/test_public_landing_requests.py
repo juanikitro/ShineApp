@@ -90,6 +90,9 @@ def test_public_landing_is_available_without_auth_and_hides_prices():
     assert response.data["services"][0]["id"] == service.id
     assert response.data["services"][0]["name"] == service.name
     assert "base_price" not in response.data["services"][0]
+    cache_control = response.headers.get("Cache-Control", "")
+    assert "public" in cache_control
+    assert "s-maxage" in cache_control
 
 
 @pytest.mark.django_db

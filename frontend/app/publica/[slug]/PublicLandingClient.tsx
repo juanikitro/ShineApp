@@ -168,6 +168,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 			try {
 				const payload = await publicApiFetch<PublicLandingPayload>(
 					`/public/landing/${encodeURIComponent(slug)}/`,
+					{ cache: 'default' },
 				)
 				if (!mounted) return
 				setLanding(payload)

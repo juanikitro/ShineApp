@@ -74,6 +74,19 @@ test('publicApiFetch does not read localStorage or attach auth headers', async (
 	assert.equal(authorizationHeader, null)
 })
 
+test('publicApiFetch defaults to no-store but respects an explicit cache mode', async () => {
+	const cacheModes = []
+	global.fetch = vi.fn(async (_url, options) => {
+		cacheModes.push(options.cache)
+		return { ok: true, status: 200, json: async () => ({ ok: true }) }
+	})
+
+	await publicApiFetch('/public/landing/king-shine/')
+	await publicApiFetch('/public/landing/king-shine/', { cache: 'default' })
+
+	assert.deepEqual(cacheModes, ['no-store', 'default'])
+})
+
 test('stored token helpers use sessionStorage and clear legacy localStorage tokens', () => {
 	assert.equal(getStoredToken(), null)
 

@@ -41,19 +41,28 @@ misma ciudad que la DB Supabase `sa-east-1`:
 - Cambio aditivo y reversible; no toca contratos de API, serializers ni auth.
 - `conn_max_age=0` se mantiene (transaction pooler). No subir sin confirmar pooling.
 
-## Impacto esperado (pendiente de medir post-deploy)
+## Impacto medido (post-deploy 2026-06-01, PR #7 -> main)
 
-- Apertura de conexion DB: ~600 ms -> ~5-15 ms.
-- Latencia por query funcion<->DB: ~120 ms -> ~1-3 ms (clave para dashboard con N queries).
-- Cliente AR -> funcion: ~150 ms -> ~30 ms (edge gru1 ya estaba cerca).
-- No afirmar mejora sin numero: medir warm/cold de health, login y dashboard
-  despues del deploy con el mismo script de baseline.
+Deploy via GitHub Actions (deploy-vercel-demo.yml), verde, smoke test OK, sin
+migraciones nuevas. Region confirmada: `x-vercel-id: gru1::gru1::...`.
+
+| Endpoint                | ANTES warm | DESPUES warm | Mejora |
+|-------------------------|-----------:|-------------:|-------:|
+| `GET /api/health/`      |    ~970 ms |      ~180 ms | -82% (~5.4x) |
+| `POST /api/auth/login/` |   ~1750 ms |      ~690 ms | -61% (~2.5x) |
+
+- El residual de login (~690 ms) ya no es red: es hashing PBKDF2 (CPU, inherente
+  a seguridad) + RTT cliente AR->BR. La latencia cross-continente funcion<->DB
+  quedo eliminada.
+- Cold start verdadero post-deploy no aislado (la funcion estaba tibia por el
+  smoke test). El cold start es dominado por boot de Django; ver hipotesis #3
+  (Fluid Compute) para atacarlo.
 
 ## Validacion
 
 - `backend/vercel.json` parsea como JSON valido y expone `regions=gru1`.
-- Medicion ANTES/DESPUES requiere deploy a Vercel (gate humano). No se deployo aca.
-- Verificacion post-deploy: header `x-vercel-id` debe mostrar `gru1::gru1::...`.
+- Deploy aprobado por humano y publicado via PR #7 -> main (GitHub Actions).
+- Verificacion post-deploy OK: header `x-vercel-id = gru1::gru1::...`.
 
 ## Riesgo
 
