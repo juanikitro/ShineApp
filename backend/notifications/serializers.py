@@ -177,6 +177,7 @@ class PublicLandingRequestSerializer(serializers.ModelSerializer):
             "vehicle_brand",
             "vehicle_model",
             "vehicle_color",
+            "vehicle_type",
             "preferred_day",
             "preferred_time",
             "message",
@@ -280,6 +281,7 @@ class PublicLandingRequestSerializer(serializers.ModelSerializer):
 class PublicRequestSerializer(serializers.ModelSerializer):
     request_type_label = serializers.CharField(source="get_request_type_display", read_only=True)
     status_label = serializers.CharField(source="get_status_display", read_only=True)
+    vehicle_type_label = serializers.CharField(source="get_vehicle_type_display", read_only=True)
     items = PublicRequestItemSerializer(many=True, read_only=True)
     suggestions = serializers.SerializerMethodField()
 
@@ -298,6 +300,8 @@ class PublicRequestSerializer(serializers.ModelSerializer):
             "vehicle_brand",
             "vehicle_model",
             "vehicle_color",
+            "vehicle_type",
+            "vehicle_type_label",
             "preferred_day",
             "preferred_time",
             "message",
@@ -412,6 +416,7 @@ class PublicRequestConvertSerializer(serializers.Serializer):
             brand=public_request.vehicle_brand,
             model=public_request.vehicle_model,
             color=public_request.vehicle_color,
+            vehicle_type=public_request.vehicle_type,
         )
 
     def _request_items_payload(self, public_request, vehicle=None):

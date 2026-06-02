@@ -13,9 +13,9 @@ El negocio cobra distinto el mismo servicio segun el tipo de vehiculo (moto, aut
 - Los cuatro precios por tipo se agregan a `economy_fields` del `ServiceSerializer`: son informacion economica y se ocultan al empleado, igual que `base_price`.
 - Re-precio automatico en frontend: al cambiar el vehiculo de una reserva/cotizacion, las lineas de servicio se recalculan al precio del nuevo tipo (sobrescribe lo tipeado a mano).
 
-## Fuera de alcance
+## Landing publica
 
-- El formulario publico de landing no pide tipo de vehiculo: esas solicitudes crean el vehiculo con `auto` y cobran precio auto. El codigo de conversion ya usa `price_for(...)` para quedar preparado.
+- El formulario publico pide el tipo de vehiculo (default `auto`). `PublicRequest` guarda `vehicle_type`; al convertir la solicitud el vehiculo se crea con ese tipo y la reserva/cotizacion cobra el precio del tipo via `price_for(...)`. La landing sigue sin exponer precios.
 
 ## Validacion esperada
 

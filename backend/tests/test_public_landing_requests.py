@@ -416,3 +416,37 @@ def test_public_request_convert_creates_quote_or_reservation_from_confirmed_enti
     assert reservation.start_time == time(15, 0)
     assert reservation.items.get().service == service
     assert booking_request.__class__.objects.get(pk=booking_request.pk).status == PublicRequest.Status.CONVERTED
+
+
+@pytest.mark.django_db
+def test_public_request_collects_vehicle_type_and_prices_conversion_by_type(api_client):
+    business = api_client.user.profile.business
+    service = create_service(business)
+    service.price_moto = Decimal("8000.00")
+    service.save(update_fields=["price_moto", "updated_at"])
+
+    public_client = APIClient()
+    created = public_client.post(
+        reverse("public-landing-requests", args=[business.slug]),
+        {**public_request_payload(service), "vehicle_type": "moto"},
+        format="json",
+        REMOTE_ADDR="203.0.113.77",
+    )
+
+    assert created.status_code == 201, created.data
+    public_request = PublicRequest.objects.get(pk=created.data["id"])
+    assert public_request.vehicle_type == "moto"
+
+    convert = api_client.post(
+        reverse("publicrequest-convert", args=[public_request.id]),
+        {},
+        format="json",
+    )
+
+    assert convert.status_code == 201, convert.data
+    assert convert.data["created_type"] == "reservation"
+    assert convert.data["public_request"]["vehicle_type"] == "moto"
+    assert convert.data["public_request"]["vehicle_type_label"] == "Moto"
+    reservation = Reservation.objects.get(pk=convert.data["reservation"]["id"])
+    assert reservation.vehicle.vehicle_type == "moto"
+    assert reservation.items.get().unit_price == Decimal("8000.00")

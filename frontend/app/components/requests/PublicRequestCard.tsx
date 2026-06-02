@@ -41,6 +41,7 @@ function publicRequestVehicleText(item: AnyRecord) {
 			item.vehicle_brand,
 			item.vehicle_model,
 			item.vehicle_color,
+			item.vehicle_type_label,
 		]) || 'Sin vehiculo informado'
 	)
 }

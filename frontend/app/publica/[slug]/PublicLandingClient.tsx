@@ -20,6 +20,7 @@ import { publicApiFetch } from '@/lib/api'
 import { formatApiError } from '@/lib/api-errors'
 import { joinDisplayParts } from '@/lib/display-text'
 import { isPdfAssetSource, renderPdfPreviewDataUrl } from '@/lib/pdf-preview'
+import { VEHICLE_TYPE_OPTIONS } from '@/lib/service-pricing'
 
 type PublicService = {
 	id: number
@@ -54,6 +55,7 @@ type PublicRequestForm = {
 	vehicle_license_plate: string
 	vehicle_brand: string
 	vehicle_model: string
+	vehicle_type: string
 	preferred_day: string
 	preferred_time: string
 	message: string
@@ -68,6 +70,7 @@ const blankForm: PublicRequestForm = {
 	vehicle_license_plate: '',
 	vehicle_brand: '',
 	vehicle_model: '',
+	vehicle_type: 'auto',
 	preferred_day: '',
 	preferred_time: '',
 	message: '',
@@ -459,13 +462,28 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							/>
 						</label>
 					</div>
-					<label>
-						Modelo
-						<input
-							value={form.vehicle_model}
-							onChange={(event) => patchForm({ vehicle_model: event.target.value })}
-						/>
-					</label>
+					<div className="public-form-row">
+						<label>
+							Modelo
+							<input
+								value={form.vehicle_model}
+								onChange={(event) => patchForm({ vehicle_model: event.target.value })}
+							/>
+						</label>
+						<label>
+							Tipo de vehiculo
+							<select
+								value={form.vehicle_type}
+								onChange={(event) => patchForm({ vehicle_type: event.target.value })}
+							>
+								{VEHICLE_TYPE_OPTIONS.map((option) => (
+									<option key={option.value} value={option.value}>
+										{option.label}
+									</option>
+								))}
+							</select>
+						</label>
+					</div>
 					<div className="public-form-row">
 						<label>
 							Fecha preferida
