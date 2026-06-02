@@ -1326,7 +1326,14 @@ def test_employee_operational_endpoints_do_not_expose_money_fields(employee_clie
 
     assert service_response.status_code == 200
     service_payload = response_payload(service_response)[0]
-    for field in ["base_price", "price_moto", "price_auto", "price_camioneta", "price_combi"]:
+    for field in [
+        "base_price",
+        "price_moto",
+        "price_auto",
+        "price_camioneta",
+        "price_combi",
+        "price_camion",
+    ]:
         assert field not in service_payload
     assert work_order_response.status_code == 200
     for field in ["total_amount", "paid_amount", "balance_due", "material_cost"]:
@@ -2196,6 +2203,29 @@ def test_cash_close_creates_snapshot_and_rejects_duplicate(api_client):
     closure = CashClosure.objects.get(day=cash_day)
     assert closure.total_income == Decimal("12000.00")
     assert closure.cashflow_income == Decimal("12000.00")
+
+
+@pytest.mark.django_db
+def test_cash_reopen_removes_closure_and_rejects_if_not_closed(api_client):
+    cash_day = date(2026, 5, 9)
+    CashClosure.objects.create(
+        day=cash_day,
+        total_income=Decimal("5000.00"),
+        total_expense=Decimal("1000.00"),
+        balance=Decimal("4000.00"),
+        cashflow_income=Decimal("5000.00"),
+        cashflow_expense=Decimal("1000.00"),
+        cashflow_balance=Decimal("4000.00"),
+    )
+
+    reopen = api_client.post(reverse("cash-reopen"), {"date": cash_day.isoformat()}, format="json")
+    assert reopen.status_code == 200, reopen.data
+    assert reopen.data["date"] == cash_day.isoformat()
+    assert not CashClosure.objects.filter(day=cash_day).exists()
+
+    second = api_client.post(reverse("cash-reopen"), {"date": cash_day.isoformat()}, format="json")
+    assert second.status_code == 400
+    assert "cerrad" in str(second.data).lower()
 
 
 @pytest.mark.django_db

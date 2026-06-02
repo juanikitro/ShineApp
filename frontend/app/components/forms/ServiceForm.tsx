@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 
 import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { Wrench } from 'lucide-react'
 
 import { Field } from '@/app/components/ui/Field'
+import { NumericInput } from '@/app/components/ui/NumericInput'
 import { SearchSelect } from '@/app/components/ui/SearchSelect'
 import { ServiceIconPicker } from '@/app/components/ui/ServiceIconPicker'
 import { type AnyRecord } from '@/lib/page-support'
@@ -79,15 +80,14 @@ export function ServiceForm({
 			/>
 			<div className="form-row">
 				<Field label="Precio base">
-					<input
+					<NumericInput
 						data-focus-key="service.base_price"
 						required
-						type="number"
-						min="0"
+						prefix="$"
 						value={serviceForm.base_price}
-						onChange={(event) =>
+						onChange={(raw) =>
 							setServiceForm(
-								applyBasePriceToTypes(serviceForm, event.target.value),
+								applyBasePriceToTypes(serviceForm, raw),
 							)
 						}
 						onKeyDown={focusNextOnEnter('service.duration')}
@@ -113,14 +113,13 @@ export function ServiceForm({
 			<div className="form-row">
 				{VEHICLE_TYPES.map((type) => (
 					<Field key={type.value} label={`Precio ${type.label}`}>
-						<input
-							type="number"
-							min="0"
+						<NumericInput
+							prefix="$"
 							value={serviceForm[type.priceField] ?? ''}
-							onChange={(event) =>
+							onChange={(raw) =>
 								setServiceForm({
 									...serviceForm,
-									[type.priceField]: event.target.value,
+									[type.priceField]: raw,
 								})
 							}
 						/>

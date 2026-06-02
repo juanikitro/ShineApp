@@ -17,11 +17,13 @@ const service = {
 	price_auto: '15000.00',
 	price_camioneta: '20000.00',
 	price_combi: '25000.00',
+	price_camion: '30000.00',
 }
 
 test('servicePriceForVehicleType returns the typed price', () => {
 	assert.equal(servicePriceForVehicleType(service, 'moto'), '8000.00')
 	assert.equal(servicePriceForVehicleType(service, 'combi'), '25000.00')
+	assert.equal(servicePriceForVehicleType(service, 'camion'), '30000.00')
 })
 
 test('servicePriceForVehicleType falls back to base when type missing or unset', () => {
@@ -94,9 +96,15 @@ test('repriceItemsForVehicle re-resolves unit_price only for service lines', () 
 	assert.equal(next[1].unit_price, '500.00')
 })
 
-test('VEHICLE_TYPE_OPTIONS keeps moto/auto/camioneta/combi order', () => {
+test('repriceItemsForVehicle keeps unit_price when service id is not in the catalog', () => {
+	const items = [{ service: 999, quantity: '1.00', unit_price: '500.00' }]
+	const next = repriceItemsForVehicle(items, 'auto', [service])
+	assert.equal(next[0].unit_price, '500.00')
+})
+
+test('VEHICLE_TYPE_OPTIONS keeps moto/auto/camioneta/combi/camion order', () => {
 	assert.deepEqual(
 		VEHICLE_TYPE_OPTIONS.map((option) => option.value),
-		['moto', 'auto', 'camioneta', 'combi'],
+		['moto', 'auto', 'camioneta', 'combi', 'camion'],
 	)
 })

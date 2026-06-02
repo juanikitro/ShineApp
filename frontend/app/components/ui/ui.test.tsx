@@ -5,6 +5,7 @@ import { Car } from 'lucide-react'
 import { test, vi } from 'vitest'
 
 import { BirthdayFields } from './BirthdayFields'
+import { NumericInput } from './NumericInput'
 import { DetailModal } from './DetailModal'
 import { Empty, ErrorState, LoadingState, StateNotice } from './Empty'
 import { Field } from './Field'
@@ -393,6 +394,30 @@ test('SearchSelect blocks duplicate creates and exposes empty results', async ()
 	assert.deepEqual(created, ['Nuevo'])
 })
 
+test('SearchSelect renders its menu in a portal anchored with fixed coordinates', async () => {
+	const user = userEvent.setup()
+	const { container } = render(
+		<SearchSelect
+			label="Cliente"
+			value=""
+			options={[{ value: '1', label: 'Ana Lopez' }]}
+			onChange={vi.fn()}
+		/>,
+	)
+
+	await user.click(screen.getByRole('combobox', { name: 'Cliente' }))
+
+	const field = container.querySelector('.combo-field')
+	const menu = document.querySelector('.combo-menu')
+	assert.ok(field)
+	assert.ok(menu)
+	// The menu must escape the field (and therefore the modal's scroll
+	// container) so opening it never forces the modal to scroll.
+	assert.equal(field?.contains(menu), false)
+	assert.equal(menu?.parentElement, document.body)
+	assert.ok(menu?.getAttribute('style')?.includes('top'))
+})
+
 test('ServiceIconPicker normalizes selected and cleared emojis', async () => {
 	const user = userEvent.setup()
 	const changes: string[] = []
@@ -458,4 +483,61 @@ test('DetailModal formats readonly data and swaps to edit form when editing', ()
 		<DetailModal title="Detalle" onClose={onClose} data={{}} editing editForm={<form>Formulario</form>} />,
 	)
 	assert.ok(screen.getByText('Formulario'))
+})
+
+test('NumericInput formats value with thousand separators and emits raw digits', async () => {
+	const user = userEvent.setup()
+	const changes: string[] = []
+	render(
+		<label>
+			Importe
+			<NumericInput value="10000" onChange={(v) => changes.push(v)} />
+		</label>,
+	)
+
+	const input = screen.getByLabelText('Importe')
+	assert.equal((input as HTMLInputElement).value, '10.000')
+
+	await user.clear(input)
+	await user.type(input, '25000')
+	assert.equal(changes.at(-1), '25000')
+	assert.equal((input as HTMLInputElement).value, '25.000')
+})
+
+test('NumericInput renders prefix and ignores non-digit input', async () => {
+	const user = userEvent.setup()
+	const changes: string[] = []
+	const { container } = render(
+		<label>
+			Precio
+			<NumericInput value="" prefix="$" onChange={(v) => changes.push(v)} />
+		</label>,
+	)
+
+	assert.ok(container.querySelector('.numeric-input-wrapper'))
+	assert.equal(container.querySelector('.numeric-input-prefix')?.textContent, '$')
+
+	const input = screen.getByRole('textbox', { name: 'Precio' })
+	await user.type(input, 'abc5000xyz')
+	assert.equal(changes.at(-1), '5000')
+})
+
+test('NumericInput renders empty string for empty value', () => {
+	render(
+		<label>
+			Campo
+			<NumericInput value="" onChange={() => {}} />
+		</label>,
+	)
+	assert.equal((screen.getByLabelText('Campo') as HTMLInputElement).value, '')
+})
+
+test('NumericInput renders empty string when value has no digits', () => {
+	render(
+		<label>
+			Etiqueta
+			<NumericInput value="abc" onChange={() => {}} />
+		</label>,
+	)
+	assert.equal((screen.getByLabelText('Etiqueta') as HTMLInputElement).value, '')
 })

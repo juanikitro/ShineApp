@@ -714,6 +714,7 @@ export default function Home() {
 		price_auto: '',
 		price_camioneta: '',
 		price_combi: '',
+		price_camion: '',
 		estimated_duration_minutes: '60',
 		notes: '',
 	})
@@ -1174,13 +1175,11 @@ export default function Home() {
 	}
 
 	function openProfileModal() {
-		syncProfileForm(currentUser)
 		setProfileModalOpen(true)
 	}
 
 	function closeProfileModal() {
 		setProfileModalOpen(false)
-		syncProfileForm(currentUser)
 	}
 
 	function patchBusinessForm(patch: AnyRecord) {
@@ -5593,6 +5592,21 @@ export default function Home() {
 		)
 	}
 
+	function reopenCashDay() {
+		return runAction(
+			() =>
+				apiFetch('/cash/reopen/', {
+					method: 'POST',
+					body: JSON.stringify({ date: selectedDay }),
+				}),
+			{
+				successTitle: 'Caja reabierta',
+				successDescription: () =>
+					`La caja de ${formatDateLabel(selectedDay)} fue reabierta.`,
+			},
+		)
+	}
+
 	function openFormModal(kind: FormModalKind) {
 		if (!canViewEconomy && !['customer', 'vehicle'].includes(kind)) return
 		if (kind === 'customer') {
@@ -5624,6 +5638,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -5637,80 +5652,8 @@ export default function Home() {
 		if (kind === 'expense-classification') {
 			resetExpenseClassificationForm()
 		}
-		if (kind === 'debt') {
-			setDebtForm(blankDebtForm(today))
-		}
-		if (kind === 'debt-payment') {
-			setDebtPaymentForm(blankDebtPaymentForm(today))
-		}
-		if (kind === 'material') {
-			setMaterialForm({
-				id: '',
-				name: '',
-				unit: 'ml',
-				category: '',
-				sku: '',
-				presentation: '',
-				stock_quantity: '0',
-				minimum_stock: '0',
-				estimated_unit_cost: '0',
-				notes: '',
-			})
-		}
-		if (kind === 'supplier') {
-			setSupplierForm(blankSupplierForm())
-		}
 		if (kind === 'stock-movement') {
-			setStockMovementForm(blankStockMovementForm(selectedDay))
 			setStockMovementDocumentFile(null)
-		}
-		if (kind === 'material-purchase') {
-			setPurchaseForm({
-				material: '',
-				purchased_at: selectedDay,
-				quantity: '',
-				total_cost: '',
-				affects_cash: true,
-				observations: '',
-			})
-		}
-		if (kind === 'material-open-unit') {
-			setOpenUnitForm({
-				material: '',
-				opened_at: selectedDay,
-				opened_by_work_order: '',
-				stock_quantity_to_decrement: '1',
-				observations: '',
-			})
-		}
-		if (kind === 'material-consumption') {
-			setConsumptionForm({
-				mode: 'direct',
-				work_order: '',
-				material: '',
-				open_unit: '',
-				consumed_at: selectedDay,
-				quantity: '',
-				observations: '',
-			})
-		}
-		if (kind === 'tool') {
-			setToolForm({
-				id: '',
-				name: '',
-				quantity: '1',
-				status: 'in_use',
-				unit_value: '0',
-				purchased_at: '',
-				notes: '',
-			})
-		}
-		if (kind === 'employee') {
-			setEmployeeForm({
-				username: '',
-				email: '',
-				password: '',
-			})
 		}
 		setFormModal({ kind })
 	}
@@ -5798,6 +5741,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -5883,6 +5827,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -8940,6 +8885,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -12148,6 +12094,7 @@ export default function Home() {
 						onCashSummaryModeChange={setCashSummaryMode}
 						onClearCashFilters={() => setCashFilters(CASH_FILTER_DEFAULTS)}
 						onCloseDay={closeCashDay}
+						onReopenDay={reopenCashDay}
 						onCollectWork={() => openFormModal('payment')}
 						onCreateMovement={() => openFormModal('cash-movement')}
 						onMoveSelectedDay={moveSelectedCashDay}

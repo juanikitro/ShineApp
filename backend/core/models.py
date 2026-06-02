@@ -16,6 +16,7 @@ class VehicleType(models.TextChoices):
     AUTO = "auto", "Auto"
     CAMIONETA = "camioneta", "Camioneta"
     COMBI = "combi", "Combi"
+    CAMION = "camion", "Camion"
 
 
 def default_expense_category_tree():
