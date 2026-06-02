@@ -3,7 +3,6 @@ import csv
 from django.contrib import admin
 from django.db.models import Count
 from django.http import HttpResponse
-from django.utils.html import format_html
 
 from .models import Customer, Vehicle
 
@@ -18,15 +17,16 @@ class VehicleInline(admin.TabularInline):
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ["name", "email", "phone", "vehicles_count", "is_active", "created_at"]
-    list_filter = ["is_active", "created_at"]
+    list_display = ["name", "business", "email", "phone", "vehicles_count", "is_active", "created_at"]
+    list_filter = ["business", "is_active", "created_at"]
     search_fields = ["name", "email", "phone"]
     list_per_page = 25
     ordering = ["-created_at"]
     readonly_fields = ["created_at", "updated_at"]
+    autocomplete_fields = ["business"]
     inlines = [VehicleInline]
     save_on_top = True
-    list_select_related = True
+    list_select_related = ["business"]
     actions = ["export_as_csv"]
 
     def get_queryset(self, request):
@@ -43,22 +43,22 @@ class CustomerAdmin(admin.ModelAdmin):
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = "attachment; filename=clientes.csv"
         writer = csv.writer(response)
-        writer.writerow(["ID", "Nombre", "Email", "Teléfono", "CUIT", "Activo", "Alta"])
-        for obj in queryset:
+        writer.writerow(["ID", "Negocio", "Nombre", "Email", "Teléfono", "CUIT", "Activo", "Alta"])
+        for obj in queryset.select_related("business"):
             writer.writerow([
-                obj.id, obj.name, obj.email, obj.phone, obj.tax_id,
-                obj.is_active, obj.created_at.strftime("%Y-%m-%d"),
+                obj.id, obj.business.name, obj.name, obj.email, obj.phone,
+                obj.tax_id, obj.is_active, obj.created_at.strftime("%Y-%m-%d"),
             ])
         return response
 
 
 @admin.register(Vehicle)
 class VehicleAdmin(admin.ModelAdmin):
-    list_display = ["license_plate", "brand", "model", "color", "vehicle_type", "customer", "is_active"]
-    list_filter = ["vehicle_type", "is_active"]
+    list_display = ["license_plate", "business", "brand", "model", "color", "vehicle_type", "customer", "is_active"]
+    list_filter = ["business", "vehicle_type", "is_active"]
     search_fields = ["license_plate", "brand", "model", "customer__name"]
     list_per_page = 25
     ordering = ["license_plate"]
     autocomplete_fields = ["customer"]
-    readonly_fields = ["created_at", "updated_at"]
-    list_select_related = ["customer"]
+    readonly_fields = ["business", "created_at", "updated_at"]
+    list_select_related = ["business", "customer"]
