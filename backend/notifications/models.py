@@ -38,6 +38,7 @@ class PublicRequest(models.Model):
     message = models.TextField(blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.CharField(max_length=500, blank=True)
+    push_subscription = models.JSONField(null=True, blank=True)
     converted_reservation = models.OneToOneField(
         "scheduling.Reservation",
         related_name="public_request",

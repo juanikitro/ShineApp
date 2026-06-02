@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Push notification al confirmar turno](2026-06-02-push-notificaciones-turno-confirmado.md)
 - [Precios por tipo de vehiculo](2026-06-02-precios-por-tipo-vehiculo.md)
 - [Changelog automatico (CHANGELOG.md + hook de commit)](2026-06-02-changelog-automatico.md)
 - [Performance: funcion API co-ubicada en gru1 (Sao Paulo)](2026-06-01-perf-region-funcion-gru1.md)
