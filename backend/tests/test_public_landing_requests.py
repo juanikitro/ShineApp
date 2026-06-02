@@ -453,6 +453,128 @@ def test_public_request_collects_vehicle_type_and_prices_conversion_by_type(api_
     assert reservation.items.get().unit_price == Decimal("8000.00")
 
 
+@pytest.mark.django_db
+def test_public_landing_exposes_opening_and_closing_time():
+    business = create_business()
+    profile = BusinessProfile.objects.get(business=business)
+    profile.opening_time = time(9, 0)
+    profile.closing_time = time(18, 0)
+    profile.save(update_fields=["opening_time", "closing_time"])
+    client = APIClient()
+
+    response = client.get(reverse("public-landing", args=[business.slug]))
+
+    assert response.status_code == 200
+    assert response.data["business"]["opening_time"] == "09:00"
+    assert response.data["business"]["closing_time"] == "18:00"
+
+
+@pytest.mark.django_db
+def test_public_landing_opening_closing_time_null_when_not_configured():
+    business = create_business()
+    client = APIClient()
+
+    response = client.get(reverse("public-landing", args=[business.slug]))
+
+    assert response.status_code == 200
+    assert response.data["business"]["opening_time"] is None
+    assert response.data["business"]["closing_time"] is None
+
+
+@pytest.mark.django_db
+def test_public_request_rejects_preferred_time_outside_business_hours():
+    business = create_business()
+    service = create_service(business)
+    profile = BusinessProfile.objects.get(business=business)
+    profile.opening_time = time(9, 0)
+    profile.closing_time = time(18, 0)
+    profile.save(update_fields=["opening_time", "closing_time"])
+    client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    base_payload = {
+        "customer_name": "Ana Lopez",
+        "customer_phone": "11 9999-8888",
+        "service_ids": [service.id],
+        "preferred_day": "2026-06-15",
+        "website": "",
+    }
+
+    resp_before_opening = client.post(
+        url, {**base_payload, "preferred_time": "08:00:00"}, format="json"
+    )
+    resp_after_closing = client.post(
+        url, {**base_payload, "preferred_time": "19:00:00"}, format="json"
+    )
+    resp_within_hours = client.post(
+        url, {**base_payload, "preferred_time": "10:00:00"}, format="json"
+    )
+    resp_at_closing = client.post(
+        url, {**base_payload, "preferred_time": "18:00:00"}, format="json"
+    )
+    resp_at_opening = client.post(
+        url, {**base_payload, "preferred_time": "09:00:00"}, format="json"
+    )
+
+    assert resp_before_opening.status_code == 400
+    assert "apertura" in str(resp_before_opening.data)
+    assert resp_after_closing.status_code == 400
+    assert "cierre" in str(resp_after_closing.data)
+    assert resp_within_hours.status_code == 201
+    assert resp_at_closing.status_code == 201
+    assert resp_at_opening.status_code == 201
+
+
+@pytest.mark.django_db
+def test_public_request_no_time_restriction_when_hours_not_configured():
+    business = create_business()
+    service = create_service(business)
+    client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    resp = client.post(
+        url,
+        {
+            "customer_name": "Juan Perez",
+            "customer_phone": "11 1111-1111",
+            "service_ids": [service.id],
+            "preferred_day": "2026-06-15",
+            "preferred_time": "23:00:00",
+            "website": "",
+        },
+        format="json",
+    )
+
+    assert resp.status_code == 201
+
+
+@pytest.mark.django_db
+def test_public_request_time_restriction_ignored_when_no_preferred_time():
+    business = create_business()
+    service = create_service(business)
+    profile = BusinessProfile.objects.get(business=business)
+    profile.opening_time = time(9, 0)
+    profile.closing_time = time(18, 0)
+    profile.save(update_fields=["opening_time", "closing_time"])
+    client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    resp = client.post(
+        url,
+        {
+            "customer_name": "Juan Perez",
+            "customer_phone": "11 1111-1111",
+            "service_ids": [service.id],
+            "preferred_day": "2026-06-15",
+            "preferred_time": "",
+            "website": "",
+        },
+        format="json",
+    )
+
+    assert resp.status_code == 201
+
+
 # ── recall ────────────────────────────────────────────────────────────────────
 
 
