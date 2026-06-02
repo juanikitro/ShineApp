@@ -12,6 +12,7 @@ import {
 	Eye,
 	Info,
 	LockKeyhole,
+	LockOpen,
 	ReceiptText,
 	RefreshCw,
 } from 'lucide-react'
@@ -105,6 +106,7 @@ type CashPanelProps = {
 	onCashSummaryModeChange: (value: CashSummaryMode) => void
 	onClearCashFilters: () => void
 	onCloseDay: () => void
+	onReopenDay: () => void
 	onCollectWork: () => void
 	onCreateMovement: () => void
 	onMoveSelectedDay: (offset: number) => void
@@ -185,6 +187,7 @@ export function CashPanel({
 	onCashSummaryModeChange,
 	onClearCashFilters,
 	onCloseDay,
+	onReopenDay,
 	onCollectWork,
 	onCreateMovement,
 	onMoveSelectedDay,
@@ -318,14 +321,24 @@ export function CashPanel({
 								Cerrar dia
 							</button>
 							{cashIsClosed ? (
-								<button
-									type="button"
-									className="ghost"
-									onClick={onRegisterAdjustment}
-								>
-									<ReceiptText size={16} />
-									Registrar ajuste hoy
-								</button>
+								<>
+									<button
+										type="button"
+										className="ghost"
+										onClick={onRegisterAdjustment}
+									>
+										<ReceiptText size={16} />
+										Registrar ajuste hoy
+									</button>
+									<button
+										type="button"
+										className="ghost"
+										onClick={onReopenDay}
+									>
+										<LockOpen size={16} />
+										Reabrir caja
+									</button>
+								</>
 							) : null}
 						</div>
 					</div>

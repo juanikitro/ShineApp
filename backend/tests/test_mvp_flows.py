@@ -2206,6 +2206,29 @@ def test_cash_close_creates_snapshot_and_rejects_duplicate(api_client):
 
 
 @pytest.mark.django_db
+def test_cash_reopen_removes_closure_and_rejects_if_not_closed(api_client):
+    cash_day = date(2026, 5, 9)
+    CashClosure.objects.create(
+        day=cash_day,
+        total_income=Decimal("5000.00"),
+        total_expense=Decimal("1000.00"),
+        balance=Decimal("4000.00"),
+        cashflow_income=Decimal("5000.00"),
+        cashflow_expense=Decimal("1000.00"),
+        cashflow_balance=Decimal("4000.00"),
+    )
+
+    reopen = api_client.post(reverse("cash-reopen"), {"date": cash_day.isoformat()}, format="json")
+    assert reopen.status_code == 200, reopen.data
+    assert reopen.data["date"] == cash_day.isoformat()
+    assert not CashClosure.objects.filter(day=cash_day).exists()
+
+    second = api_client.post(reverse("cash-reopen"), {"date": cash_day.isoformat()}, format="json")
+    assert second.status_code == 400
+    assert "cerrad" in str(second.data).lower()
+
+
+@pytest.mark.django_db
 def test_closed_cash_day_blocks_every_cash_impact_path(api_client, base_data):
     customer, vehicle, service = base_data
     closed_day = date(2026, 5, 8)
