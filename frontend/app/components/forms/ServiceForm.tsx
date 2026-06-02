@@ -8,6 +8,7 @@ import { Field } from '@/app/components/ui/Field'
 import { SearchSelect } from '@/app/components/ui/SearchSelect'
 import { ServiceIconPicker } from '@/app/components/ui/ServiceIconPicker'
 import { type AnyRecord } from '@/lib/page-support'
+import { applyBasePriceToTypes, VEHICLE_TYPES } from '@/lib/service-pricing'
 
 const serviceFormTypeOptions = [
 	{ value: 'wash', label: 'Lavado' },
@@ -85,10 +86,9 @@ export function ServiceForm({
 						min="0"
 						value={serviceForm.base_price}
 						onChange={(event) =>
-							setServiceForm({
-								...serviceForm,
-								base_price: event.target.value,
-							})
+							setServiceForm(
+								applyBasePriceToTypes(serviceForm, event.target.value),
+							)
 						}
 						onKeyDown={focusNextOnEnter('service.duration')}
 					/>
@@ -109,6 +109,23 @@ export function ServiceForm({
 						onKeyDown={focusNextOnEnter('service.notes')}
 					/>
 				</Field>
+			</div>
+			<div className="form-row">
+				{VEHICLE_TYPES.map((type) => (
+					<Field key={type.value} label={`Precio ${type.label}`}>
+						<input
+							type="number"
+							min="0"
+							value={serviceForm[type.priceField] ?? ''}
+							onChange={(event) =>
+								setServiceForm({
+									...serviceForm,
+									[type.priceField]: event.target.value,
+								})
+							}
+						/>
+					</Field>
+				))}
 			</div>
 			<Field label="Notas">
 				<textarea

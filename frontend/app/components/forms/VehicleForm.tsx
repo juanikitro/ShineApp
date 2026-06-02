@@ -10,6 +10,7 @@ import {
 	type SelectOption,
 } from '@/app/components/ui/SearchSelect'
 import { type AnyRecord } from '@/lib/page-support'
+import { VEHICLE_TYPE_OPTIONS } from '@/lib/service-pricing'
 
 type VehicleFormProps = {
 	submitLabel: string
@@ -58,6 +59,19 @@ export function VehicleForm({
 				className={flashClass(fieldFlashKey('vehicle.customer'))}
 				onAdd={() => openQuickCreate('customer', 'vehicle.customer')}
 				onChange={updateVehicleCustomer}
+			/>
+			<SearchSelect
+				label="Tipo de vehiculo"
+				value={vehicleForm.vehicle_type}
+				options={VEHICLE_TYPE_OPTIONS}
+				name="vehicle_type"
+				focusKey="vehicle.vehicle_type"
+				onChange={(value) =>
+					setVehicleForm({
+						...vehicleForm,
+						vehicle_type: value || 'auto',
+					})
+				}
 			/>
 			<div className="form-row">
 				<SearchSelect

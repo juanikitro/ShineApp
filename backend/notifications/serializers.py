@@ -414,13 +414,14 @@ class PublicRequestConvertSerializer(serializers.Serializer):
             color=public_request.vehicle_color,
         )
 
-    def _request_items_payload(self, public_request):
+    def _request_items_payload(self, public_request, vehicle=None):
+        vehicle_type = getattr(vehicle, "vehicle_type", "")
         return [
             {
                 "service": item.service_id,
                 "description": item.description,
                 "quantity": str(item.quantity),
-                "unit_price": str(item.service.base_price),
+                "unit_price": str(item.service.price_for(vehicle_type)),
             }
             for item in public_request.items.select_related("service")
             if item.service_id
@@ -434,7 +435,7 @@ class PublicRequestConvertSerializer(serializers.Serializer):
                 "day": public_request.preferred_day,
                 "start_time": public_request.preferred_time,
                 "notes": public_request.message,
-                "items": self._request_items_payload(public_request),
+                "items": self._request_items_payload(public_request, vehicle),
             },
             context={"request": request},
         )
@@ -458,7 +459,7 @@ class PublicRequestConvertSerializer(serializers.Serializer):
                 service=item.service,
                 description=item.description,
                 quantity=item.quantity,
-                unit_price=item.service.base_price,
+                unit_price=item.service.price_for(getattr(vehicle, "vehicle_type", "")),
             )
         quote.recalculate()
         return quote

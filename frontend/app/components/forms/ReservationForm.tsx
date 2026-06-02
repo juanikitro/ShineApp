@@ -33,6 +33,7 @@ type ReservationFormProps = {
 	useReservationTimes: boolean
 	openQuickCreate: (kind: string, target: string) => void
 	updateReservationCustomer: (value: string) => void
+	updateReservationVehicle: (value: string) => void
 	addReservationItem: () => void
 	selectReservationService: (index: number, value: string) => void
 	updateReservationItem: (index: number, changes: AnyRecord) => void
@@ -59,6 +60,7 @@ export function ReservationForm({
 	useReservationTimes,
 	openQuickCreate,
 	updateReservationCustomer,
+	updateReservationVehicle,
 	addReservationItem,
 	selectReservationService,
 	updateReservationItem,
@@ -99,13 +101,7 @@ export function ReservationForm({
 				focusKey="reservation.vehicle"
 				className={flashClass(fieldFlashKey('reservation.vehicle'))}
 				onAdd={() => openQuickCreate('vehicle', 'reservation.vehicle')}
-				onChange={(value) => {
-					setReservationForm({
-						...reservationForm,
-						vehicle: value,
-					})
-					focusField('reservation.service.0', true)
-				}}
+				onChange={updateReservationVehicle}
 			/>
 			<div className="quote-lines">
 				<div className="quote-lines-head">

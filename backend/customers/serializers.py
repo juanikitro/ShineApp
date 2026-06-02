@@ -91,6 +91,7 @@ class CustomerListSerializer(CustomerSerializer):
 class VehicleSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.name", read_only=True)
     label = serializers.SerializerMethodField()
+    vehicle_type_label = serializers.CharField(source="get_vehicle_type_display", read_only=True)
 
     class Meta:
         model = Vehicle
@@ -103,12 +104,14 @@ class VehicleSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializ
             "brand",
             "model",
             "color",
+            "vehicle_type",
+            "vehicle_type_label",
             "notes",
             "is_active",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "customer_name", "label", "created_at", "updated_at"]
+        read_only_fields = ["id", "customer_name", "label", "vehicle_type_label", "created_at", "updated_at"]
 
     def get_label(self, obj):
         return str(obj)

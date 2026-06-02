@@ -31,6 +31,7 @@ type QuoteFormProps = {
 	quoteTotals: QuoteTotals
 	openQuickCreate: (kind: string, target: string) => void
 	updateQuoteCustomer: (value: string) => void
+	updateQuoteVehicle: (value: string) => void
 	addQuoteItem: () => void
 	selectQuoteService: (index: number, value: string) => void
 	updateQuoteItem: (index: number, changes: AnyRecord) => void
@@ -58,6 +59,7 @@ export function QuoteForm({
 	quoteTotals,
 	openQuickCreate,
 	updateQuoteCustomer,
+	updateQuoteVehicle,
 	addQuoteItem,
 	selectQuoteService,
 	updateQuoteItem,
@@ -87,13 +89,7 @@ export function QuoteForm({
 				focusKey="quote.vehicle"
 				className={flashClass(fieldFlashKey('quote.vehicle'))}
 				onAdd={() => openQuickCreate('vehicle', 'quote.vehicle')}
-				onChange={(value) => {
-					setQuoteForm({
-						...quoteForm,
-						vehicle: value,
-					})
-					focusField('quote.service.0', true)
-				}}
+				onChange={updateQuoteVehicle}
 			/>
 			<div className="form-row">
 				<Field label="Fecha tentativa">

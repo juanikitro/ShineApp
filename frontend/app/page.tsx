@@ -225,6 +225,14 @@ import {
 } from '@/lib/vehicle-display'
 import { serviceDisplayName } from '@/lib/service-display'
 import { serviceDetailPayloadFields } from '@/lib/service-detail-payload'
+import {
+	applyBasePriceToTypes,
+	repriceItemsForVehicle,
+	servicePriceForVehicleType,
+	vehicleTypeForId,
+	VEHICLE_TYPES,
+	VEHICLE_TYPE_OPTIONS,
+} from '@/lib/service-pricing'
 import { shouldHandleUndoShortcut } from '@/lib/undo-shortcut'
 import {
 	buildCashFlowSummary,
@@ -693,6 +701,7 @@ export default function Home() {
 		brand: '',
 		model: '',
 		color: '',
+		vehicle_type: 'auto',
 		notes: '',
 	})
 	const [serviceForm, setServiceForm] = useState<AnyRecord>({
@@ -701,6 +710,10 @@ export default function Home() {
 		icon: '',
 		service_type: 'wash',
 		base_price: '',
+		price_moto: '',
+		price_auto: '',
+		price_camioneta: '',
+		price_combi: '',
 		estimated_duration_minutes: '60',
 		notes: '',
 	})
@@ -5092,7 +5105,10 @@ export default function Home() {
 		const service = services.find((item) => String(item.id) === serviceId)
 		updateQuoteItem(index, {
 			service: serviceId,
-			unit_price: service?.base_price ?? '',
+			unit_price: servicePriceForVehicleType(
+				service,
+				vehicleTypeForId(vehicles, quoteForm.vehicle),
+			),
 		})
 		if (serviceId) {
 			focusField(`quote.item.${index}.quantity`)
@@ -5134,7 +5150,10 @@ export default function Home() {
 		const service = services.find((item) => String(item.id) === serviceId)
 		updateReservationItem(index, {
 			service: serviceId,
-			unit_price: service?.base_price ?? '',
+			unit_price: servicePriceForVehicleType(
+				service,
+				vehicleTypeForId(vehicles, reservationForm.vehicle),
+			),
 		})
 		if (serviceId) {
 			focusField(`reservation.item.${index}.quantity`)
@@ -5162,14 +5181,32 @@ export default function Home() {
 		})
 	}
 
+	function repricedItems(items: AnyRecord[] | undefined, vehicleId: string) {
+		return repriceItemsForVehicle(
+			items ?? [],
+			vehicleTypeForId(vehicles, vehicleId),
+			services,
+		)
+	}
+
 	function updateReservationCustomer(value: string) {
 		const vehicle = singleVehicleIdForCustomer(value)
 		setReservationForm({
 			...reservationForm,
 			customer: value,
 			vehicle,
+			items: repricedItems(reservationForm.items, vehicle),
 		})
 		focusField(vehicle ? 'reservation.service.0' : 'reservation.vehicle', !vehicle)
+	}
+
+	function updateReservationVehicle(value: string) {
+		setReservationForm({
+			...reservationForm,
+			vehicle: value,
+			items: repricedItems(reservationForm.items, value),
+		})
+		focusField('reservation.service.0', true)
 	}
 
 	function updateQuoteCustomer(value: string) {
@@ -5178,8 +5215,18 @@ export default function Home() {
 			...quoteForm,
 			customer: value,
 			vehicle,
+			items: repricedItems(quoteForm.items, vehicle),
 		})
 		focusField(vehicle ? 'quote.service.0' : 'quote.vehicle', !vehicle)
+	}
+
+	function updateQuoteVehicle(value: string) {
+		setQuoteForm({
+			...quoteForm,
+			vehicle: value,
+			items: repricedItems(quoteForm.items, value),
+		})
+		focusField('quote.service.0', true)
 	}
 
 	function updateVehicleCustomer(value: string) {
@@ -5559,6 +5606,7 @@ export default function Home() {
 				brand: '',
 				model: '',
 				color: '',
+				vehicle_type: 'auto',
 				notes: '',
 			})
 		}
@@ -5572,6 +5620,10 @@ export default function Home() {
 				icon: '',
 				service_type: 'wash',
 				base_price: '',
+				price_moto: '',
+				price_auto: '',
+				price_camioneta: '',
+				price_combi: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -5665,13 +5717,10 @@ export default function Home() {
 
 	function applyQuickSelection(target: string, value: string) {
 		if (target === 'reservation.customer') {
-			const vehicle = singleVehicleIdForCustomer(value)
-			setReservationForm({ ...reservationForm, customer: value, vehicle })
-			focusField(vehicle ? 'reservation.service.0' : 'reservation.vehicle', !vehicle)
+			updateReservationCustomer(value)
 		}
 		if (target === 'reservation.vehicle') {
-			setReservationForm({ ...reservationForm, vehicle: value })
-			focusField('reservation.service.0', true)
+			updateReservationVehicle(value)
 		}
 		if (target === 'reservation.service') {
 			selectReservationService(0, value)
@@ -5681,13 +5730,10 @@ export default function Home() {
 			selectReservationService(Number(target.replace('reservation.service.', '')), value)
 		}
 		if (target === 'quote.customer') {
-			const vehicle = singleVehicleIdForCustomer(value)
-			setQuoteForm({ ...quoteForm, customer: value, vehicle })
-			focusField(vehicle ? 'quote.service.0' : 'quote.vehicle', !vehicle)
+			updateQuoteCustomer(value)
 		}
 		if (target === 'quote.vehicle') {
-			setQuoteForm({ ...quoteForm, vehicle: value })
-			focusField('quote.service.0', true)
+			updateQuoteVehicle(value)
 		}
 		if (target.startsWith('quote.service.')) {
 			selectQuoteService(Number(target.replace('quote.service.', '')), value)
@@ -5737,6 +5783,7 @@ export default function Home() {
 				brand: '',
 				model: '',
 				color: '',
+				vehicle_type: 'auto',
 				notes: '',
 			})
 		}
@@ -5747,6 +5794,10 @@ export default function Home() {
 				icon: '',
 				service_type: 'wash',
 				base_price: '',
+				price_moto: '',
+				price_auto: '',
+				price_camioneta: '',
+				price_combi: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -5801,6 +5852,7 @@ export default function Home() {
 				brand: '',
 				model: '',
 				color: '',
+				vehicle_type: 'auto',
 				notes: '',
 			})
 			quickCreateExit.close()
@@ -5827,6 +5879,10 @@ export default function Home() {
 				icon: '',
 				service_type: 'wash',
 				base_price: '',
+				price_moto: '',
+				price_auto: '',
+				price_camioneta: '',
+				price_combi: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -6680,7 +6736,10 @@ export default function Home() {
 		const service = services.find((item) => String(item.id) === serviceId)
 		updateDetailReservationItem(index, {
 			service: serviceId,
-			unit_price: service?.base_price ?? '',
+			unit_price: servicePriceForVehicleType(
+				service,
+				vehicleTypeForId(vehicles, detailModal?.editData?.vehicle),
+			),
 		})
 	}
 
@@ -6851,6 +6910,7 @@ export default function Home() {
 				'brand',
 				'model',
 				'color',
+				'vehicle_type',
 				'notes',
 			],
 			service: serviceDetailPayloadFields,
@@ -7213,6 +7273,15 @@ export default function Home() {
 							focusField('detail.vehicle.brand')
 						}}
 					/>
+					<SearchSelect
+						label="Tipo de vehiculo"
+						value={String(data.vehicle_type ?? 'auto')}
+						options={VEHICLE_TYPE_OPTIONS}
+						focusKey="detail.vehicle.vehicle_type"
+						onChange={(value) =>
+							updateDetailEdit({ vehicle_type: value || 'auto' })
+						}
+					/>
 					<div className="form-row">
 						<SearchSelect
 							label="Marca"
@@ -7316,9 +7385,9 @@ export default function Home() {
 								min="0"
 								value={data.base_price ?? ''}
 								onChange={(event) =>
-									updateDetailEdit({
-										base_price: event.target.value,
-									})
+									updateDetailEdit(
+										applyBasePriceToTypes(data, event.target.value),
+									)
 								}
 							/>
 						</Field>
@@ -7335,6 +7404,22 @@ export default function Home() {
 								}
 							/>
 						</Field>
+					</div>
+					<div className="form-row">
+						{VEHICLE_TYPES.map((type) => (
+							<Field key={type.value} label={`Precio ${type.label}`}>
+								<input
+									type="number"
+									min="0"
+									value={data[type.priceField] ?? ''}
+									onChange={(event) =>
+										updateDetailEdit({
+											[type.priceField]: event.target.value,
+										})
+									}
+								/>
+							</Field>
+						))}
 					</div>
 					<Field label="Notas">
 						<textarea
@@ -8808,6 +8893,7 @@ export default function Home() {
 				brand: '',
 				model: '',
 				color: '',
+				vehicle_type: 'auto',
 				notes: '',
 			})
 			formModalExit.close()
@@ -8850,6 +8936,10 @@ export default function Home() {
 				icon: '',
 				service_type: 'wash',
 				base_price: '',
+				price_moto: '',
+				price_auto: '',
+				price_camioneta: '',
+				price_combi: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -10263,6 +10353,7 @@ export default function Home() {
 						quoteTotals={quoteTotals}
 						openQuickCreate={openQuickCreate}
 						updateQuoteCustomer={updateQuoteCustomer}
+						updateQuoteVehicle={updateQuoteVehicle}
 						addQuoteItem={addQuoteItem}
 						selectQuoteService={selectQuoteService}
 						updateQuoteItem={updateQuoteItem}
@@ -10597,6 +10688,7 @@ export default function Home() {
 							useReservationTimes={useReservationTimes}
 							openQuickCreate={openQuickCreate}
 							updateReservationCustomer={updateReservationCustomer}
+							updateReservationVehicle={updateReservationVehicle}
 							addReservationItem={addReservationItem}
 							selectReservationService={selectReservationService}
 							updateReservationItem={updateReservationItem}
@@ -10736,6 +10828,18 @@ export default function Home() {
 									})
 								}
 							/>
+							<SearchSelect
+								label="Tipo de vehiculo"
+								value={vehicleForm.vehicle_type}
+								options={VEHICLE_TYPE_OPTIONS}
+								name="quick_vehicle_type"
+								onChange={(value) =>
+									setVehicleForm({
+										...vehicleForm,
+										vehicle_type: value || 'auto',
+									})
+								}
+							/>
 							<div className="form-row">
 								<SearchSelect
 									label="Marca"
@@ -10856,10 +10960,12 @@ export default function Home() {
 										min="0"
 										value={serviceForm.base_price}
 										onChange={(event) =>
-											setServiceForm({
-												...serviceForm,
-												base_price: event.target.value,
-											})
+											setServiceForm(
+												applyBasePriceToTypes(
+													serviceForm,
+													event.target.value,
+												),
+											)
 										}
 									/>
 								</Field>
@@ -10876,6 +10982,26 @@ export default function Home() {
 										}
 									/>
 								</Field>
+							</div>
+							<div className="form-row">
+								{VEHICLE_TYPES.map((type) => (
+									<Field
+										key={type.value}
+										label={`Precio ${type.label}`}
+									>
+										<input
+											type="number"
+											min="0"
+											value={serviceForm[type.priceField] ?? ''}
+											onChange={(event) =>
+												setServiceForm({
+													...serviceForm,
+													[type.priceField]: event.target.value,
+												})
+											}
+										/>
+									</Field>
+								))}
 							</div>
 							<button className="primary">
 								<Plus size={16} />
