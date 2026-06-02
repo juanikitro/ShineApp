@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react'
 
 import { AnimatedLabelSwap } from '@/app/components/motion/AnimatedLabelSwap'
 import { Field } from '@/app/components/ui/Field'
+import { NumericInput } from '@/app/components/ui/NumericInput'
 import {
 	SearchSelect,
 	type SelectOption,
