@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 
 import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { CreditCard } from 'lucide-react'
 
 import { Field } from '@/app/components/ui/Field'
+import { NumericInput } from '@/app/components/ui/NumericInput'
 import {
 	SearchSelect,
 	type SelectOption,
@@ -80,16 +81,15 @@ export function DebtPaymentForm({
 			) : null}
 			<div className="form-row">
 				<Field label="Importe">
-					<input
+					<NumericInput
 						data-focus-key="debt-payment.amount"
 						required
-						type="number"
-						min="0"
+						prefix="$"
 						value={debtPaymentForm.amount}
-						onChange={(event) =>
+						onChange={(raw) =>
 							setDebtPaymentForm({
 								...debtPaymentForm,
-								amount: event.target.value,
+								amount: raw,
 							})
 						}
 						onKeyDown={focusNextOnEnter('debt-payment.paid_at')}

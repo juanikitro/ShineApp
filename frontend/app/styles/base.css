@@ -295,6 +295,25 @@ textarea::placeholder {
   color: var(--shop-ink-muted);
 }
 
+.numeric-input-wrapper {
+  position: relative;
+}
+
+.numeric-input-wrapper input {
+  padding-left: 24px;
+}
+
+.numeric-input-prefix {
+  color: var(--shop-ink-muted);
+  font-size: 14px;
+  left: 10px;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  user-select: none;
+}
+
 textarea {
   min-height: 92px;
   resize: vertical;
