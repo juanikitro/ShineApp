@@ -152,6 +152,9 @@ La demo publica esta deployada. Estos pasos manuales quedan pendientes antes de 
 - Secretos de entorno a setear en `demo-production`:
   - `DATABASE_URL`
   - `DJANGO_MIGRATION_SECRET_KEY`
+  - `DJANGO_SUPERUSER_USERNAME`
+  - `DJANGO_SUPERUSER_PASSWORD`
+  - `DJANGO_SUPERUSER_EMAIL` (opcional)
 - Secreto de entorno opcional:
   - `SMOKE_TEST_TOKEN` si los smoke tests deben verificar un endpoint autenticado.
 - Ramas de deploy del entorno:

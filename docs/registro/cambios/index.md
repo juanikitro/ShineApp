@@ -43,6 +43,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Documentacion viva con MkDocs Material](2026-05-20-documentacion-viva-mkdocs.md)
 - [Puertos locales dedicados](2026-05-20-puertos-locales-compose.md)
 - [UI-009: extraccion de paneles principales](2026-05-22-ui009-extraccion-paneles.md)
+- [CI: superadmin de Django admin idempotente en el deploy](2026-06-01-ci-ensure-superuser.md)
 - [Performance: cache de edge en la landing publica](2026-06-01-perf-cache-landing-publica.md)
 - [Performance: Fluid Compute en la funcion API](2026-06-01-perf-fluid-compute.md)
 - [Performance: funcion API co-ubicada en gru1 (Sao Paulo)](2026-06-01-perf-region-funcion-gru1.md)
