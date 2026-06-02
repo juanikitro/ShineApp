@@ -12,6 +12,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Tipo de vehiculo "Camion"](2026-06-02-tipo-vehiculo-camion.md)
 - [Reabrir caja](2026-06-02-reabrir-caja.md)
 - [Precios por tipo de vehiculo](2026-06-02-precios-por-tipo-vehiculo.md)
+- [Cotizacion PDF: logo sin overlap, marca de agua ShineApp y soporte emoji](2026-06-02-cotizacion-pdf-mejoras.md)
 - [Desplegable de SearchSelect en portal fijo](2026-06-02-combo-desplegable-portal.md)
 - [Changelog automatico (CHANGELOG.md + hook de commit)](2026-06-02-changelog-automatico.md)
 - [Performance: funcion API co-ubicada en gru1 (Sao Paulo)](2026-06-01-perf-region-funcion-gru1.md)
