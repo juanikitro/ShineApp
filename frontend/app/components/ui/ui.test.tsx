@@ -517,7 +517,7 @@ test('NumericInput renders prefix and ignores non-digit input', async () => {
 	assert.ok(container.querySelector('.numeric-input-wrapper'))
 	assert.equal(container.querySelector('.numeric-input-prefix')?.textContent, '$')
 
-	const input = screen.getByLabelText('Precio')
+	const input = screen.getByRole('textbox', { name: 'Precio' })
 	await user.type(input, 'abc5000xyz')
 	assert.equal(changes.at(-1), '5000')
 })
