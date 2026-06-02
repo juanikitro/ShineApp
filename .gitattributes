@@ -1,0 +1,4 @@
+# Hooks y shell scripts deben quedar en LF para correr en Linux/Mac (Codex y CI).
+# Si quedan en CRLF, el shebang `#!/bin/sh` rompe en POSIX.
+.githooks/* text eol=lf
+*.sh text eol=lf

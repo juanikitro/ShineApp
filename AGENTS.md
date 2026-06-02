@@ -112,3 +112,4 @@ Si la tarea es solo lectura o el usuario pide explicitamente no versionar, no ha
 - `docs/ia/UI_CONTEXT.md`: reglas de UI y superficies reales.
 - `docs/ia/ARCHITECTURE.md`: boundaries y contratos.
 - `docs/registro/errores-agentes.md`: errores repetidos que el harness busca prevenir.
+- `CHANGELOG.md`: changelog generado por fecha; se regenera solo en cada commit via `.githooks/pre-commit`. Vos segui creando la entrada del cambio en `docs/registro/cambios/`; la vista agregada se actualiza sola.
