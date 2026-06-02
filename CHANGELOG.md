@@ -11,6 +11,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-02
+- [Push notification al confirmar turno](docs/registro/cambios/2026-06-02-push-notificaciones-turno-confirmado.md)
 - [Precios por tipo de vehiculo](docs/registro/cambios/2026-06-02-precios-por-tipo-vehiculo.md)
 - [Changelog automatico (CHANGELOG.md + hook de commit)](docs/registro/cambios/2026-06-02-changelog-automatico.md)
 

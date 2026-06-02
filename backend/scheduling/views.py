@@ -5,7 +5,7 @@ from django.db.models import Q
 from rest_framework import decorators, response, status, viewsets
 from rest_framework.views import APIView
 
-from notifications.service import send_reservation_confirmation
+from notifications.service import send_public_request_push, send_reservation_confirmation
 from quotes.models import Quote, QuoteItem
 from quotes.serializers import QuoteSerializer
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
@@ -84,6 +84,10 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         reservation = serializer.save()
         send_reservation_confirmation(reservation)
+        try:
+            send_public_request_push(reservation.public_request)
+        except ObjectDoesNotExist:
+            pass
         record_audit_event(
             request=request,
             action="confirm",
