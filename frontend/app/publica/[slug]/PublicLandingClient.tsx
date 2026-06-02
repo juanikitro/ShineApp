@@ -116,6 +116,30 @@ const blankForm: PublicRequestForm = {
 	service_ids: [],
 }
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
+	const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+	const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+	const rawData = atob(base64)
+	return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)))
+}
+
+async function registerPushSubscription(): Promise<object | null> {
+	const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+	if (!vapidKey) return null
+	if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null
+	const permission = await Notification.requestPermission()
+	if (permission !== 'granted') return null
+	const registration = await navigator.serviceWorker.register('/sw.js')
+	await navigator.serviceWorker.ready
+	const existing = await registration.pushManager.getSubscription()
+	if (existing) return existing.toJSON()
+	const subscription = await registration.pushManager.subscribe({
+		userVisibleOnly: true,
+		applicationServerKey: urlBase64ToUint8Array(vapidKey),
+	})
+	return subscription.toJSON()
+}
+
 function serviceDurationLabel(service: PublicService) {
 	if (!service.estimated_duration_minutes) return null
 	if (service.estimated_duration_minutes < 60) {
@@ -374,6 +398,10 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		setSubmitting(true)
 		setError(null)
 		setSuccess(false)
+		let pushSubscription: object | null = null
+		try {
+			pushSubscription = await registerPushSubscription()
+		} catch (_) {}
 		try {
 			await publicApiFetch(`/public/landing/${encodeURIComponent(slug)}/requests/`, {
 				method: 'POST',
@@ -381,6 +409,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 					...form,
 					request_type: requestType,
 					service_ids: form.service_ids.map(Number),
+					push_subscription: pushSubscription,
 				}),
 			})
 			saveClientData(slug, {

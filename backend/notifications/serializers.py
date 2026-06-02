@@ -164,6 +164,11 @@ class PublicLandingRequestSerializer(serializers.ModelSerializer):
         allow_blank=True,
         write_only=True,
     )
+    push_subscription = serializers.JSONField(
+        required=False,
+        allow_null=True,
+        write_only=True,
+    )
 
     class Meta:
         model = PublicRequest
@@ -183,6 +188,7 @@ class PublicLandingRequestSerializer(serializers.ModelSerializer):
             "message",
             "service_ids",
             "website",
+            "push_subscription",
             "status",
             "created_at",
         ]
@@ -221,6 +227,13 @@ class PublicLandingRequestSerializer(serializers.ModelSerializer):
 
     def validate_message(self, value):
         return value.strip()
+
+    def validate_push_subscription(self, value):
+        if value is None:
+            return None
+        if not isinstance(value, dict) or not value.get("endpoint"):
+            raise serializers.ValidationError("Formato de suscripcion invalido.")
+        return value
 
     def validate(self, attrs):
         business = self.context["business"]
