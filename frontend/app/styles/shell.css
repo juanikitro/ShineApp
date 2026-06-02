@@ -3253,6 +3253,26 @@
     display: inline-flex;
   }
 
+  /* En modo drawer, las acciones (Menu, Actualizar, etc.) van arriba del
+     titulo de la seccion; el filtro de periodo del dashboard queda debajo. */
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .page-actions {
+    display: contents;
+  }
+
+  .page-actions .record-actions {
+    justify-content: flex-start;
+    order: -2;
+  }
+
+  .page-intro {
+    order: -1;
+  }
+
   .mode-toggle.settings-section-toggle {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
