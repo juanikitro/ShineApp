@@ -23,6 +23,7 @@ from quotes.views import QuoteViewSet
 from scheduling.views import DailyAgendaView, DailyCapacityViewSet, ReservationViewSet
 from workorders.views import WorkOrderViewSet
 from notifications.views import (
+    PublicLandingRecallView,
     PublicLandingRequestCreateView,
     PublicLandingView,
     PublicRequestViewSet,
@@ -87,6 +88,11 @@ urlpatterns = [
         "api/public/landing/<slug:slug>/requests/",
         PublicLandingRequestCreateView.as_view(),
         name="public-landing-requests",
+    ),
+    path(
+        "api/public/landing/<slug:slug>/recall/",
+        PublicLandingRecallView.as_view(),
+        name="public-landing-recall",
     ),
     path("api/", include(router.urls)),
 ]
