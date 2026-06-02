@@ -3198,6 +3198,7 @@
   }
 
   .sidebar-top {
+    flex-shrink: 0;
     padding-inline: 0;
   }
 
@@ -3211,9 +3212,14 @@
   }
 
   .nav {
+    flex: 0 0 auto;
     gap: 8px;
     grid-template-columns: 1fr;
     overflow: visible;
+  }
+
+  .sidebar-footer {
+    flex-shrink: 0;
   }
 
   .sidebar-footer-stack {
