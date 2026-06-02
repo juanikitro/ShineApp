@@ -59,7 +59,8 @@ class WorkOrder(models.Model):
 
             self.business = BusinessAccount.get_default()
         if self.service_id and not self.total_amount:
-            self.total_amount = self.service.base_price
+            vehicle_type = self.vehicle.vehicle_type if self.vehicle_id else ""
+            self.total_amount = self.service.price_for(vehicle_type)
         super().save(*args, **kwargs)
         if requested_status and self.reservation_id:
             from scheduling.models import Reservation

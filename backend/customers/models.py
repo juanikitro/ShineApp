@@ -4,6 +4,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
+from core.models import VehicleType
+
 
 class TimeStampedModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
@@ -99,6 +101,11 @@ class Vehicle(TimeStampedModel):
     brand = models.CharField(max_length=80, blank=True)
     model = models.CharField(max_length=80, blank=True)
     color = models.CharField(max_length=60, blank=True)
+    vehicle_type = models.CharField(
+        max_length=20,
+        choices=VehicleType.choices,
+        default=VehicleType.AUTO,
+    )
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
 

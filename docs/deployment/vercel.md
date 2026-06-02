@@ -96,7 +96,7 @@ $env:DATABASE_URL="<supabase-pooler-url>"
 .\.venv\Scripts\python.exe manage.py migrate --plan
 ```
 
-Ejecutar `seed_demo` solo para entornos demo y solo despues de confirmar la base de datos destino. El workflow de deploy de GitHub Actions nunca ejecuta `seed_demo` y nunca crea superusers.
+Ejecutar `seed_demo` solo para entornos demo y solo despues de confirmar la base de datos destino. El workflow de deploy de GitHub Actions nunca ejecuta `seed_demo`. Si asegura el superusuario de Django admin de forma idempotente con `manage.py ensure_superuser` (lo crea solo si no existe; nunca resetea el password) usando los secrets `DJANGO_SUPERUSER_*`.
 
 ## GitHub Actions CI/CD
 
@@ -115,6 +115,9 @@ Secretos GitHub requeridos:
 - `VERCEL_BACKEND_PROJECT_ID`
 - `DATABASE_URL` en el entorno `demo-production`
 - `DJANGO_MIGRATION_SECRET_KEY` en el entorno `demo-production`
+- `DJANGO_SUPERUSER_USERNAME` en el entorno `demo-production`
+- `DJANGO_SUPERUSER_PASSWORD` en el entorno `demo-production`
+- `DJANGO_SUPERUSER_EMAIL` en el entorno `demo-production` (opcional)
 
 Los secretos de runtime backend no se duplican en GitHub. El workflow usa `config.settings_migrations` para el paso de migracion de base de datos y deja el runtime env completo en el proyecto Vercel API.
 
@@ -123,11 +126,12 @@ Orden de deploy:
 1. Checks backend y frontend.
 2. `python backend/manage.py migrate --plan`.
 3. `python backend/manage.py migrate --noinput`.
-4. Pull de configuracion del proyecto backend en Vercel.
-5. Deploy productivo del proyecto backend en Vercel.
-6. Pull de configuracion del proyecto frontend en Vercel.
-7. Deploy productivo del proyecto frontend en Vercel.
-8. Smoke test contra `https://shineapp-web.vercel.app` y `https://shineapp-api.vercel.app/api`.
+4. `python backend/manage.py ensure_superuser` (crea el admin si no existe).
+5. Pull de configuracion del proyecto backend en Vercel.
+6. Deploy productivo del proyecto backend en Vercel.
+7. Pull de configuracion del proyecto frontend en Vercel.
+8. Deploy productivo del proyecto frontend en Vercel.
+9. Smoke test contra `https://shineapp-web.vercel.app` y `https://shineapp-api.vercel.app/api`.
 
 No habilitar los deploys Git productivos integrados de Vercel para estos proyectos al mismo tiempo que este workflow salvo que esten configurados explicitamente para saltearse. El workflow de GitHub Actions es el gate de migracion; un deploy Git paralelo de Vercel puede publicar codigo antes de que corran las migraciones.
 

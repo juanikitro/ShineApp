@@ -80,14 +80,15 @@ class Reservation(models.Model):
         )
         if items:
             return items
+        unit_price = self.service.price_for(self.vehicle.vehicle_type)
         return [
             ReservationItem(
                 reservation=self,
                 service=self.service,
                 description=self.service.name,
                 quantity=Decimal("1.00"),
-                unit_price=self.service.base_price,
-                line_total=self.service.base_price,
+                unit_price=unit_price,
+                line_total=unit_price,
             )
         ]
 

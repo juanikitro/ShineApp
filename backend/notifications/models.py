@@ -1,6 +1,8 @@
 from django.db import models
 from django.utils import timezone
 
+from core.models import VehicleType
+
 
 class PublicRequest(models.Model):
     class RequestType(models.TextChoices):
@@ -26,6 +28,11 @@ class PublicRequest(models.Model):
     vehicle_brand = models.CharField(max_length=80, blank=True)
     vehicle_model = models.CharField(max_length=80, blank=True)
     vehicle_color = models.CharField(max_length=60, blank=True)
+    vehicle_type = models.CharField(
+        max_length=20,
+        choices=VehicleType.choices,
+        default=VehicleType.AUTO,
+    )
     preferred_day = models.DateField(null=True, blank=True)
     preferred_time = models.TimeField(null=True, blank=True)
     message = models.TextField(blank=True)

@@ -41,11 +41,13 @@ jobs:
           VERCEL_BACKEND_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DJANGO_MIGRATION_SECRET_KEY: ${{ secrets.DJANGO_MIGRATION_SECRET_KEY }}
+          DJANGO_SUPERUSER_USERNAME: ${{ secrets.DJANGO_SUPERUSER_USERNAME }}
+          DJANGO_SUPERUSER_PASSWORD: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
         run: |
           set -euo pipefail
           missing=()
 
-          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_FRONTEND_PROJECT_ID VERCEL_BACKEND_PROJECT_ID DATABASE_URL DJANGO_MIGRATION_SECRET_KEY; do
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_FRONTEND_PROJECT_ID VERCEL_BACKEND_PROJECT_ID DATABASE_URL DJANGO_MIGRATION_SECRET_KEY DJANGO_SUPERUSER_USERNAME DJANGO_SUPERUSER_PASSWORD; do
             value="${!name:-}"
             if [ -z "$value" ]; then
               missing+=("$name")
@@ -108,6 +110,17 @@ jobs:
         run: |
           python manage.py migrate --plan
           python manage.py migrate --noinput
+
+      - name: Ensure Django admin superuser
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings_migrations
+          DJANGO_MIGRATION_SECRET_KEY: ${{ secrets.DJANGO_MIGRATION_SECRET_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DJANGO_SUPERUSER_USERNAME: ${{ secrets.DJANGO_SUPERUSER_USERNAME }}
+          DJANGO_SUPERUSER_EMAIL: ${{ secrets.DJANGO_SUPERUSER_EMAIL }}
+          DJANGO_SUPERUSER_PASSWORD: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
+        run: python manage.py ensure_superuser
 
       - name: Install Vercel CLI
         run: |

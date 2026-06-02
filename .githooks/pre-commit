@@ -1,0 +1,30 @@
+#!/bin/sh
+# ShineApp: regenera CHANGELOG.md y los indices generados en cada commit, para
+# que toda implementacion (Claude, Codex o humano) los mantenga al dia.
+#
+# Habilitar una sola vez por clon:
+#   git config core.hooksPath .githooks
+# (o ejecutar scripts/setup-hooks.ps1 / scripts/setup-hooks.sh)
+set -e
+
+# Resolver Python: Windows usa el launcher `py -3`; Linux/Mac, python3/python.
+if command -v py >/dev/null 2>&1; then
+  PY="py -3"
+elif command -v python3 >/dev/null 2>&1; then
+  PY="python3"
+elif command -v python >/dev/null 2>&1; then
+  PY="python"
+else
+  echo "pre-commit: no se encontro Python; salteo la regeneracion del changelog." >&2
+  echo "pre-commit: CI (job docs) igual valida que no quede desactualizado." >&2
+  exit 0
+fi
+
+# Regenerar sin build de mkdocs: rapido y sin dependencias extra.
+$PY scripts/check_docs.py --write --skip-build >/dev/null
+
+# Reincorporar al commit lo que se haya regenerado (no-op si no cambio nada).
+git add CHANGELOG.md \
+  docs/registro/cambios/index.md \
+  docs/registro/decisiones/index.md \
+  docs/plans/index.md

@@ -30,11 +30,20 @@ Ampliar solo si el cambio toca reglas funcionales, permisos, seguridad o comport
 - `docs/registro/errores-agentes.md`
 - `YYYY-MM-DD-<tema>.md`
 
-Los indices `docs/registro/cambios/index.md` y `docs/registro/decisiones/index.md` son generados. No editarlos manualmente; regenerarlos con:
+Los indices `docs/registro/cambios/index.md` y `docs/registro/decisiones/index.md`, mas el `CHANGELOG.md` de la raiz, son generados. No editarlos manualmente; regenerarlos con:
 
 ```powershell
 py -3 scripts/check_docs.py --write --skip-build
 ```
+
+`CHANGELOG.md` es la vista unica de cambios funcionales mas nuevo arriba, agrupada por fecha; sale de los archivos de `docs/registro/cambios/`.
+
+## Automatizacion del changelog
+
+- El hook `.githooks/pre-commit` regenera `CHANGELOG.md` y los indices en cada commit y los vuelve a agregar al commit. Sirve para Claude, Codex o humano porque dispara en el commit, no en una herramienta puntual.
+- Habilitarlo una vez por clon: `git config core.hooksPath .githooks` (o `scripts/setup-hooks.ps1` / `scripts/setup-hooks.sh`).
+- CI (job `docs`) corre `py -3 scripts/check_docs.py --check`, asi que un changelog o indice desactualizado rompe el build aunque el hook no este habilitado.
+- El hook mantiene la vista agregada; la entrada por cambio en `docs/registro/cambios/` la sigue escribiendo quien hace el cambio.
 
 Validar la documentacion viva con:
 

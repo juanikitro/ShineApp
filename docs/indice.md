@@ -60,6 +60,8 @@ Wrappers por herramienta:
 
 ## Registro tecnico
 
+- `CHANGELOG.md`: changelog generado (mas nuevo arriba) desde `docs/registro/cambios/`. No editar manualmente.
+- `.githooks/pre-commit`: hook que regenera `CHANGELOG.md` e indices en cada commit. Habilitar con `scripts/setup-hooks.ps1` o `scripts/setup-hooks.sh`.
 - `docs/registro/README.md`: convencion spec-as-source.
 - `docs/registro/cambios/`: cambios funcionales o visibles ya registrados.
 - `docs/registro/cambios/index.md`: indice generado de cambios. No editar manualmente.

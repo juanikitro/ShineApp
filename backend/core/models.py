@@ -11,6 +11,13 @@ PROFILE_ASSET_FILE_VALIDATOR = FileExtensionValidator(
 )
 
 
+class VehicleType(models.TextChoices):
+    MOTO = "moto", "Moto"
+    AUTO = "auto", "Auto"
+    CAMIONETA = "camioneta", "Camioneta"
+    COMBI = "combi", "Combi"
+
+
 def default_expense_category_tree():
     return {
         "Alquiler": ["Local", "Deposito", "Cochera"],

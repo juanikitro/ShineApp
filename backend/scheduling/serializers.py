@@ -282,16 +282,20 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
 
     def _replace_items(self, reservation, items_data):
         reservation.items.all().delete()
+        vehicle_type = getattr(reservation.vehicle, "vehicle_type", "")
         for item_data in items_data:
-            ReservationItem.objects.create(reservation=reservation, **self._with_service_defaults(item_data))
+            ReservationItem.objects.create(
+                reservation=reservation,
+                **self._with_service_defaults(item_data, vehicle_type),
+            )
 
-    def _with_service_defaults(self, item_data):
+    def _with_service_defaults(self, item_data, vehicle_type=""):
         item_data = dict(item_data)
         service = item_data.get("service")
         if service:
             if not item_data.get("description"):
                 item_data["description"] = service.name
-            item_data.setdefault("unit_price", service.base_price)
+            item_data.setdefault("unit_price", service.price_for(vehicle_type))
         return item_data
 
     def _duration_from_items(self, items_data):

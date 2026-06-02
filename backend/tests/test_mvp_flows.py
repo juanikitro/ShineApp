@@ -1325,7 +1325,9 @@ def test_employee_operational_endpoints_do_not_expose_money_fields(employee_clie
     agenda_response = employee_client.get(reverse("agenda-daily"), {"date": "2026-04-28"})
 
     assert service_response.status_code == 200
-    assert "base_price" not in response_payload(service_response)[0]
+    service_payload = response_payload(service_response)[0]
+    for field in ["base_price", "price_moto", "price_auto", "price_camioneta", "price_combi"]:
+        assert field not in service_payload
     assert work_order_response.status_code == 200
     for field in ["total_amount", "paid_amount", "balance_due", "material_cost"]:
         assert field not in work_order_response.data

@@ -11,10 +11,13 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DOCS_DIR = REPO_ROOT / "docs"
 INDICE_PATH = DOCS_DIR / "indice.md"
+CAMBIOS_DIR = DOCS_DIR / "registro" / "cambios"
+CHANGELOG_PATH = REPO_ROOT / "CHANGELOG.md"
 
 GENERATED_MARKER = "<!-- AUTO-GENERATED: scripts/check_docs.py -->"
 INLINE_BACKTICK_RE = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
 H1_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
+DATE_PREFIX_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})-")
 
 
 @dataclass(frozen=True)
@@ -23,6 +26,7 @@ class GeneratedIndex:
     output: Path
     title: str
     description: str
+    reverse: bool = False
 
 
 GENERATED_INDICES = (
@@ -32,8 +36,9 @@ GENERATED_INDICES = (
         title="Cambios Registrados",
         description=(
             "Indice generado de cambios funcionales o visibles registrados en "
-            "`docs/registro/cambios/`."
+            "`docs/registro/cambios/`, mas nuevo arriba."
         ),
+        reverse=True,
     ),
     GeneratedIndex(
         directory=DOCS_DIR / "registro" / "decisiones",
@@ -83,7 +88,10 @@ def iter_index_sources(directory: Path, output: Path) -> list[Path]:
 
 def render_index(config: GeneratedIndex) -> str:
     rows = []
-    for path in iter_index_sources(config.directory, config.output):
+    sources = iter_index_sources(config.directory, config.output)
+    if config.reverse:
+        sources = list(reversed(sources))
+    for path in sources:
         title = read_h1(path)
         rows.append(f"- [{title}]({path.name})")
 
@@ -107,10 +115,64 @@ def render_index(config: GeneratedIndex) -> str:
     )
 
 
+def iter_changelog_sources() -> list[Path]:
+    if not CAMBIOS_DIR.exists():
+        fail(f"Missing directory: {relpath(CAMBIOS_DIR)}")
+
+    return sorted(
+        path
+        for path in CAMBIOS_DIR.glob("*.md")
+        if path.name != "index.md" and not path.name.endswith(".compact.md")
+    )
+
+
+def render_changelog() -> str:
+    grouped: dict[str, list[tuple[str, str, str]]] = {}
+    for path in iter_changelog_sources():
+        match = DATE_PREFIX_RE.match(path.name)
+        if not match:
+            fail(
+                f"{relpath(path)} must start with a YYYY-MM-DD prefix "
+                "(convention: YYYY-MM-DD-<tema>.md)"
+            )
+        title = read_h1(path)
+        link = path.relative_to(REPO_ROOT).as_posix()
+        grouped.setdefault(match.group(1), []).append((path.name, title, link))
+
+    header = [
+        GENERATED_MARKER,
+        "# Changelog",
+        "",
+        "Cambios funcionales y visibles de ShineApp, mas nuevo arriba.",
+        "Generado desde `docs/registro/cambios/`. No editar manualmente.",
+        "",
+        "Regenerar con:",
+        "",
+        "```powershell",
+        "py -3 scripts/check_docs.py --write --skip-build",
+        "```",
+        "",
+    ]
+
+    if not grouped:
+        return "\n".join([*header, "_No hay cambios registrados todavia._", ""])
+
+    body: list[str] = []
+    for date in sorted(grouped, reverse=True):
+        body.append(f"## {date}")
+        for _name, title, link in sorted(grouped[date], reverse=True):
+            body.append(f"- [{title}]({link})")
+        body.append("")
+
+    return "\n".join([*header, *body])
+
+
 def write_indices() -> None:
     for config in GENERATED_INDICES:
         config.output.write_text(render_index(config), encoding="utf-8", newline="\n")
         print(f"generated {relpath(config.output)}")
+    CHANGELOG_PATH.write_text(render_changelog(), encoding="utf-8", newline="\n")
+    print(f"generated {relpath(CHANGELOG_PATH)}")
 
 
 def check_indices() -> None:
@@ -124,6 +186,15 @@ def check_indices() -> None:
                 f"{relpath(config.output)} is stale. "
                 "Run: py -3 scripts/check_docs.py --write --skip-build"
             )
+
+    expected_changelog = render_changelog()
+    if not CHANGELOG_PATH.exists():
+        fail(f"Missing generated changelog: {relpath(CHANGELOG_PATH)}")
+    if CHANGELOG_PATH.read_text(encoding="utf-8") != expected_changelog:
+        fail(
+            f"{relpath(CHANGELOG_PATH)} is stale. "
+            "Run: py -3 scripts/check_docs.py --write --skip-build"
+        )
 
 
 def is_path_candidate(value: str) -> bool:

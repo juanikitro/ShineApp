@@ -131,8 +131,9 @@ class QuoteSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer
         quote = Quote(**self._with_quote_defaults(validated_data))
         quote._skip_snapshot_defaults = True
         quote.save()
+        vehicle_type = getattr(quote.vehicle, "vehicle_type", "")
         for item_data in items_data:
-            QuoteItem.objects.create(quote=quote, **self._with_service_defaults(item_data))
+            QuoteItem.objects.create(quote=quote, **self._with_service_defaults(item_data, vehicle_type))
         quote.recalculate()
         return quote
 
@@ -146,8 +147,9 @@ class QuoteSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer
         instance.save()
         if items_data is not None:
             instance.items.all().delete()
+            vehicle_type = getattr(instance.vehicle, "vehicle_type", "")
             for item_data in items_data:
-                QuoteItem.objects.create(quote=instance, **self._with_service_defaults(item_data))
+                QuoteItem.objects.create(quote=instance, **self._with_service_defaults(item_data, vehicle_type))
         if should_recalculate:
             instance.recalculate()
         return instance
@@ -188,11 +190,11 @@ class QuoteSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer
                 data[field] = value
         return data
 
-    def _with_service_defaults(self, item_data):
+    def _with_service_defaults(self, item_data, vehicle_type=""):
         item_data = dict(item_data)
         service = item_data.get("service")
         if service:
             if not item_data.get("description"):
                 item_data["description"] = service.name
-            item_data.setdefault("unit_price", service.base_price)
+            item_data.setdefault("unit_price", service.price_for(vehicle_type))
         return item_data

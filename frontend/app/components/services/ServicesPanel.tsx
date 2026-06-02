@@ -14,6 +14,10 @@ import { StatusPill } from '@/app/components/ui/StatusPill'
 import { joinDisplayParts } from '@/lib/display-text'
 import { serviceDisplayName } from '@/lib/service-display'
 import {
+	servicePriceForVehicleType,
+	VEHICLE_TYPES,
+} from '@/lib/service-pricing'
+import {
 	formatDateLabel,
 	formatDateTimeLabel,
 	money,
@@ -360,6 +364,14 @@ export function ServicesPanel({
 							<span>Precio base</span>
 							<strong>{money(service.base_price)}</strong>
 						</div>
+						{VEHICLE_TYPES.map((type) => (
+							<div key={type.value}>
+								<span>Precio {type.label}</span>
+								<strong>
+									{money(servicePriceForVehicleType(service, type.value))}
+								</strong>
+							</div>
+						))}
 						<div>
 							<span>Duracion estimada</span>
 							<strong>{service.estimated_duration_minutes ?? 0} min</strong>

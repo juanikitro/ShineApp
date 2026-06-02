@@ -15,3 +15,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Categorias configurables de Caja](2026-05-09-categorias-gastos-caja.md)
 - [2026-05-19 - Politica de testing IA y coverage 90](2026-05-19-politica-testing-ia-coverage.md)
 - [MkDocs Material para documentacion viva](2026-05-20-mkdocs-material-documentacion-viva.md)
+- [Pricing por tipo de vehiculo](2026-06-02-pricing-por-tipo-vehiculo.md)
