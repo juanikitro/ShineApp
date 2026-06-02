@@ -14,6 +14,8 @@ frontend/.env.local
 frontend/tsconfig.tsbuildinfo
 site/
 .env
+.env.demo
+.env.prd
 .vscode/
 logs/
 .codex-logs/
