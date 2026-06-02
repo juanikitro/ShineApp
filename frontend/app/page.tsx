@@ -714,6 +714,7 @@ export default function Home() {
 		price_auto: '',
 		price_camioneta: '',
 		price_combi: '',
+		price_camion: '',
 		estimated_duration_minutes: '60',
 		notes: '',
 	})
@@ -5624,6 +5625,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -5798,6 +5800,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -5883,6 +5886,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -8940,6 +8944,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})

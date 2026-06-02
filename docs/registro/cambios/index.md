@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Tipo de vehiculo "Camion"](2026-06-02-tipo-vehiculo-camion.md)
 - [Precios por tipo de vehiculo](2026-06-02-precios-por-tipo-vehiculo.md)
 - [Desplegable de SearchSelect en portal fijo](2026-06-02-combo-desplegable-portal.md)
 - [Changelog automatico (CHANGELOG.md + hook de commit)](2026-06-02-changelog-automatico.md)
