@@ -96,6 +96,12 @@ test('repriceItemsForVehicle re-resolves unit_price only for service lines', () 
 	assert.equal(next[1].unit_price, '500.00')
 })
 
+test('repriceItemsForVehicle keeps unit_price when service id is not in the catalog', () => {
+	const items = [{ service: 999, quantity: '1.00', unit_price: '500.00' }]
+	const next = repriceItemsForVehicle(items, 'auto', [service])
+	assert.equal(next[0].unit_price, '500.00')
+})
+
 test('VEHICLE_TYPE_OPTIONS keeps moto/auto/camioneta/combi/camion order', () => {
 	assert.deepEqual(
 		VEHICLE_TYPE_OPTIONS.map((option) => option.value),

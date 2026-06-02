@@ -16,6 +16,7 @@ function formatWithSeparators(raw: string | number): string {
   const digits = String(raw).replace(/\D/g, '')
   if (!digits) return ''
   const num = parseInt(digits, 10)
+  /* v8 ignore next */
   if (isNaN(num)) return ''
   return num.toLocaleString('es-AR', { maximumFractionDigits: 0 })
 }

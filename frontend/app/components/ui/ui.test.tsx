@@ -531,3 +531,13 @@ test('NumericInput renders empty string for empty value', () => {
 	)
 	assert.equal((screen.getByLabelText('Campo') as HTMLInputElement).value, '')
 })
+
+test('NumericInput renders empty string when value has no digits', () => {
+	render(
+		<label>
+			Etiqueta
+			<NumericInput value="abc" onChange={() => {}} />
+		</label>,
+	)
+	assert.equal((screen.getByLabelText('Etiqueta') as HTMLInputElement).value, '')
+})
