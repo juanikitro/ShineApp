@@ -714,6 +714,7 @@ export default function Home() {
 		price_auto: '',
 		price_camioneta: '',
 		price_combi: '',
+		price_camion: '',
 		estimated_duration_minutes: '60',
 		notes: '',
 	})
@@ -5591,8 +5592,63 @@ export default function Home() {
 		)
 	}
 
+	function reopenCashDay() {
+		return runAction(
+			() =>
+				apiFetch('/cash/reopen/', {
+					method: 'POST',
+					body: JSON.stringify({ date: selectedDay }),
+				}),
+			{
+				successTitle: 'Caja reabierta',
+				successDescription: () =>
+					`La caja de ${formatDateLabel(selectedDay)} fue reabierta.`,
+			},
+		)
+	}
+
 	function openFormModal(kind: FormModalKind) {
 		if (!canViewEconomy && !['customer', 'vehicle'].includes(kind)) return
+		if (kind === 'customer') {
+			setCustomerForm(blankCustomerForm())
+		}
+		if (kind === 'vehicle') {
+			setVehicleForm({
+				id: '',
+				customer: '',
+				license_plate: '',
+				brand: '',
+				model: '',
+				color: '',
+				vehicle_type: 'auto',
+				notes: '',
+			})
+		}
+		if (kind === 'quote') {
+			setQuoteForm(blankQuoteFormWithDefaults())
+		}
+		if (kind === 'service') {
+			setServiceForm({
+				id: '',
+				name: '',
+				icon: '',
+				service_type: 'wash',
+				base_price: '',
+				price_moto: '',
+				price_auto: '',
+				price_camioneta: '',
+				price_combi: '',
+				price_camion: '',
+				estimated_duration_minutes: '60',
+				notes: '',
+			})
+		}
+		if (kind === 'payment') {
+			setPaymentForm(blankPaymentForm())
+		}
+		if (kind === 'cash-movement') {
+			setMovementForm(blankMovementForm(selectedDay))
+		}
 		if (kind === 'expense-classification') {
 			resetExpenseClassificationForm()
 		}
@@ -5685,6 +5741,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -5770,6 +5827,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -8827,6 +8885,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -12035,6 +12094,7 @@ export default function Home() {
 						onCashSummaryModeChange={setCashSummaryMode}
 						onClearCashFilters={() => setCashFilters(CASH_FILTER_DEFAULTS)}
 						onCloseDay={closeCashDay}
+						onReopenDay={reopenCashDay}
 						onCollectWork={() => openFormModal('payment')}
 						onCreateMovement={() => openFormModal('cash-movement')}
 						onMoveSelectedDay={moveSelectedCashDay}

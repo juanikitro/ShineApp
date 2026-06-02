@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react'
 
 import { AnimatedLabelSwap } from '@/app/components/motion/AnimatedLabelSwap'
 import { Field } from '@/app/components/ui/Field'
+import { NumericInput } from '@/app/components/ui/NumericInput'
 import {
 	SearchSelect,
 	type SelectOption,
@@ -159,15 +160,14 @@ export function ReservationForm({
 										/>
 									</Field>
 									<Field label="Precio">
-										<input
+										<NumericInput
 											data-focus-key={`reservation.item.${index}.price`}
 											name={`reservation_items_${index}_unit_price`}
-											type="number"
-											min="0"
+											prefix="$"
 											value={item.unit_price}
-											onChange={(event) =>
+											onChange={(raw) =>
 												updateReservationItem(index, {
-													unit_price: event.target.value,
+													unit_price: raw,
 												})
 											}
 											onKeyDown={focusNextOnEnter(

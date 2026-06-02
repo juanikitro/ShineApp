@@ -237,3 +237,24 @@ class CashCloseView(APIView):
             after=audit_snapshot(closure),
         )
         return response.Response(CashClosureSerializer(closure).data, status=status.HTTP_201_CREATED)
+
+
+class CashReopenView(APIView):
+    permission_classes = [CanViewEconomy]
+
+    @transaction.atomic
+    def post(self, request):
+        day = date.fromisoformat(request.data.get("date")) if request.data.get("date") else date.today()
+        business = business_from_request(request)
+        closure = CashClosure.objects.filter(business=business, day=day).first()
+        if not closure:
+            raise serializers.ValidationError({"date": "La caja de este dia no esta cerrada."})
+        record_audit_event(
+            request=request,
+            action="reopen",
+            instance=closure,
+            before=audit_snapshot(closure),
+            after=None,
+        )
+        closure.delete()
+        return response.Response({"date": day.isoformat()}, status=status.HTTP_200_OK)

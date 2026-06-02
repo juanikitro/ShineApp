@@ -39,3 +39,15 @@ test('vehicleModelOptionsForBrand waits for a brand before listing catalog model
 		['Modelo legado'],
 	)
 })
+
+test('vehicleModelOptionsForBrand returns only historical models for unknown brand', () => {
+	const vehicles = [{ brand: 'Ferrari', model: 'F40' }]
+	const models = vehicleModelOptionsForBrand('Ferrari', vehicles)
+	assert.deepEqual(models, ['F40'])
+})
+
+test('vehicleBrandOptions handles null and undefined entries in historical list', () => {
+	const options = vehicleBrandOptions([null, undefined, 'MarcaRara'])
+	assert.ok(options.includes('MarcaRara'))
+	assert.ok(!options.includes(''))
+})

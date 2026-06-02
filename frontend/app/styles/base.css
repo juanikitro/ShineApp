@@ -295,6 +295,25 @@ textarea::placeholder {
   color: var(--shop-ink-muted);
 }
 
+.numeric-input-wrapper {
+  position: relative;
+}
+
+.numeric-input-wrapper input {
+  padding-left: 24px;
+}
+
+.numeric-input-prefix {
+  color: var(--shop-ink-muted);
+  font-size: 14px;
+  left: 10px;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  user-select: none;
+}
+
 textarea {
   min-height: 92px;
   resize: vertical;
@@ -362,14 +381,12 @@ label {
   display: grid;
   gap: 10px;
   isolation: isolate;
-  left: 0;
-  min-width: min(100%, 260px);
+  max-width: calc(100vw - 16px);
+  min-width: min(260px, calc(100vw - 16px));
   overscroll-behavior: contain;
   padding: 10px;
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: var(--z-popover);
+  position: fixed;
+  z-index: calc(var(--z-modal-panel) + 20);
 }
 
 .record,
@@ -462,12 +479,6 @@ label {
 }
 
 @media (max-width: 620px) {
-  .combo-menu {
-    margin-top: 6px;
-    position: static;
-    width: 100%;
-  }
-
   .combo-options {
     max-height: min(220px, 40vh);
   }

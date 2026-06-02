@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 
 import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { ReceiptText } from 'lucide-react'
 
 import { Field } from '@/app/components/ui/Field'
+import { NumericInput } from '@/app/components/ui/NumericInput'
 import {
 	SearchSelect,
 	type SelectOption,
@@ -126,16 +127,15 @@ export function CashMovementForm({
 			</div>
 			<div className="form-row">
 				<Field label="Importe">
-					<input
+					<NumericInput
 						data-focus-key="cash-movement.amount"
 						required
-						type="number"
-						min="0"
+						prefix="$"
 						value={movementForm.amount}
-						onChange={(event) =>
+						onChange={(raw) =>
 							setMovementForm({
 								...movementForm,
-								amount: event.target.value,
+								amount: raw,
 							})
 						}
 						onKeyDown={focusNextOnEnter('cash-movement.occurred_at')}

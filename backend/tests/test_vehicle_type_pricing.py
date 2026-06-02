@@ -47,6 +47,7 @@ def priced_service(db):
         price_auto=Decimal("15000.00"),
         price_camioneta=Decimal("20000.00"),
         price_combi=Decimal("25000.00"),
+        price_camion=Decimal("30000.00"),
         estimated_duration_minutes=90,
     )
 
@@ -69,6 +70,7 @@ def test_price_for_resolves_each_vehicle_type(priced_service):
     assert priced_service.price_for(VehicleType.AUTO) == Decimal("15000.00")
     assert priced_service.price_for(VehicleType.CAMIONETA) == Decimal("20000.00")
     assert priced_service.price_for(VehicleType.COMBI) == Decimal("25000.00")
+    assert priced_service.price_for(VehicleType.CAMION) == Decimal("30000.00")
 
 
 @pytest.mark.django_db
@@ -262,7 +264,14 @@ def test_employee_cannot_see_vehicle_type_prices(employee_client, priced_service
 
     assert response.status_code == 200
     service_payload = payload_list(response)[0]
-    for field in ["base_price", "price_moto", "price_auto", "price_camioneta", "price_combi"]:
+    for field in [
+        "base_price",
+        "price_moto",
+        "price_auto",
+        "price_camioneta",
+        "price_combi",
+        "price_camion",
+    ]:
         assert field not in service_payload
 
 
@@ -274,6 +283,7 @@ def test_employer_sees_vehicle_type_prices(api_client, priced_service):
     service_payload = payload_list(response)[0]
     assert Decimal(service_payload["price_moto"]) == Decimal("8000.00")
     assert Decimal(service_payload["price_combi"]) == Decimal("25000.00")
+    assert Decimal(service_payload["price_camion"]) == Decimal("30000.00")
 
 
 @pytest.mark.django_db
@@ -288,6 +298,7 @@ def test_service_create_persists_vehicle_type_prices(api_client):
             "price_auto": "10000.00",
             "price_camioneta": "14000.00",
             "price_combi": "18000.00",
+            "price_camion": "22000.00",
             "estimated_duration_minutes": 60,
         },
         format="json",
@@ -297,6 +308,7 @@ def test_service_create_persists_vehicle_type_prices(api_client):
     service = Service.objects.get(pk=response.data["id"])
     assert service.price_moto == Decimal("6000.00")
     assert service.price_combi == Decimal("18000.00")
+    assert service.price_camion == Decimal("22000.00")
 
 
 @pytest.mark.django_db
