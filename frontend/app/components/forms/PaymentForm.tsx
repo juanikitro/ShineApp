@@ -5,6 +5,7 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 import { CreditCard } from 'lucide-react'
 
 import { Field } from '@/app/components/ui/Field'
+import { NumericInput } from '@/app/components/ui/NumericInput'
 import {
 	SearchSelect,
 	type SelectOption,
@@ -86,16 +87,15 @@ export function PaymentForm({
 			) : null}
 			<div className="form-row">
 				<Field label="Importe">
-					<input
+					<NumericInput
 						data-focus-key="payment.amount"
 						required
-						type="number"
-						min="0"
+						prefix="$"
 						value={paymentForm.amount}
-						onChange={(event) =>
+						onChange={(raw) =>
 							setPaymentForm({
 								...paymentForm,
-								amount: event.target.value,
+								amount: raw,
 							})
 						}
 						onKeyDown={focusNextOnEnter('payment.type', true)}

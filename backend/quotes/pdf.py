@@ -37,6 +37,67 @@ ACCENT = colors.HexColor("#0ea5e9")
 ACCENT_SOFT = colors.HexColor("#eaf6ff")
 WHITE = colors.white
 
+_BODY_FONT = "Helvetica"
+_BODY_FONT_BOLD = "Helvetica-Bold"
+
+
+def _setup_unicode_font():
+    global _BODY_FONT, _BODY_FONT_BOLD
+    try:
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+
+        candidates = [
+            (
+                "ShineNotoSans",
+                "ShineNotoSansBold",
+                "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+                "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+            ),
+            (
+                "ShineNotoSans",
+                "ShineNotoSansBold",
+                "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+                "/usr/share/fonts/noto/NotoSans-Bold.ttf",
+            ),
+            (
+                "ShineDejaVu",
+                "ShineDejaVuBold",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            ),
+            (
+                "ShineArialUni",
+                None,
+                "C:/Windows/Fonts/arialuni.ttf",
+                None,
+            ),
+        ]
+        for reg, reg_bold, path, path_bold in candidates:
+            p = Path(path)
+            if not p.exists():
+                continue
+            try:
+                pdfmetrics.registerFont(TTFont(reg, str(p)))
+                _BODY_FONT = reg
+                if path_bold:
+                    pb = Path(path_bold)
+                    if pb.exists():
+                        pdfmetrics.registerFont(TTFont(reg_bold, str(pb)))
+                        _BODY_FONT_BOLD = reg_bold
+                    else:
+                        _BODY_FONT_BOLD = reg
+                else:
+                    _BODY_FONT_BOLD = reg
+                return
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+
+_setup_unicode_font()
+
 
 def money(value):
     amount = Decimal(value or 0).quantize(Decimal("0.01"))
@@ -95,6 +156,9 @@ def quote_item_service_label(item):
     icon = ""
     if item.service_id and item.service:
         icon = str(item.service.icon or "").strip()
+    if icon and _BODY_FONT == "Helvetica":
+        # Helvetica only covers Latin-1; strip characters it can't render
+        icon = "".join(c for c in icon if ord(c) <= 0xFF).strip()
     return f"{icon} {item.description}" if icon else item.description
 
 
@@ -163,21 +227,21 @@ def style_sheet():
         ),
         "body": ParagraphStyle(
             "QuoteBody",
-            fontName="Helvetica",
+            fontName=_BODY_FONT,
             fontSize=8.8,
             leading=12,
             textColor=INK,
         ),
         "small": ParagraphStyle(
             "QuoteSmall",
-            fontName="Helvetica",
+            fontName=_BODY_FONT,
             fontSize=8,
             leading=10,
             textColor=MUTED,
         ),
         "service_note": ParagraphStyle(
             "QuoteServiceNote",
-            fontName="Helvetica",
+            fontName=_BODY_FONT,
             fontSize=7.8,
             leading=10,
             textColor=MUTED,
@@ -401,24 +465,24 @@ def business_logo_path(business_name):
     return bundled_logo_path()
 
 
-def logo_flowable(styles, business_name, business=None):
+def logo_flowable(styles, business_name, business=None, max_width=32 * mm, max_height=22 * mm):
     try:
         profile = BusinessProfile.get_solo(business=business)
     except Exception:
         profile = None
 
     if profile and profile.logo:
-        logo = storage_logo(profile.logo)
+        logo = storage_logo(profile.logo, max_width=max_width, max_height=max_height)
         if logo:
             return logo
 
     default_logo = business_logo_path(business_name)
     if default_logo:
-        logo = image_logo(default_logo)
+        logo = image_logo(default_logo, max_width=max_width, max_height=max_height)
         if logo:
             return logo
 
-    return fallback_logo(styles, business_name)
+    return fallback_logo(styles, business_name, col_width=max_width, row_height=max_height)
 
 
 def business_initials(name):
@@ -427,11 +491,11 @@ def business_initials(name):
     return initials or "SA"
 
 
-def fallback_logo(styles, business_name):
+def fallback_logo(styles, business_name, col_width=33 * mm, row_height=22 * mm):
     return Table(
         [[paragraph(business_initials(business_name), styles["fallback_logo"])]],
-        colWidths=[33 * mm],
-        rowHeights=[22 * mm],
+        colWidths=[col_width],
+        rowHeights=[row_height],
         style=TableStyle(
             [
                 ("BACKGROUND", (0, 0), (-1, -1), ACCENT_SOFT),
@@ -591,15 +655,47 @@ def note_box(title, text, styles):
     )
 
 
-def draw_page(canvas, doc):
-    width, height = A4
-    canvas.saveState()
-    canvas.setFillColor(WORKSPACE)
-    canvas.rect(0, 0, width, height, stroke=0, fill=1)
-    canvas.setFillColor(MUTED)
-    canvas.setFont("Helvetica", 7)
-    canvas.drawRightString(width - 14 * mm, 9 * mm, f"Pagina {doc.page}")
-    canvas.restoreState()
+def _make_draw_page(wm_logo_path=None):
+    def draw_page(canvas, doc):
+        width, height = A4
+        canvas.saveState()
+
+        # Page background
+        canvas.setFillColor(WORKSPACE)
+        canvas.rect(0, 0, width, height, stroke=0, fill=1)
+
+        # Footer: page number on the left
+        footer_y = 5 * mm
+        canvas.setFillColor(MUTED)
+        canvas.setFont("Helvetica", 7)
+        canvas.drawString(14 * mm, footer_y, f"Pagina {doc.page}")
+
+        # ShineApp watermark: bottom-right corner (logo + name horizontal)
+        wm_right = width - 14 * mm
+        logo_size = 5 * mm
+        logo_drawn = False
+        if wm_logo_path:
+            try:
+                canvas.drawImage(
+                    wm_logo_path,
+                    wm_right - logo_size,
+                    footer_y - 0.5 * mm,
+                    width=logo_size,
+                    height=logo_size,
+                    preserveAspectRatio=True,
+                    mask="auto",
+                )
+                logo_drawn = True
+            except Exception:
+                pass
+        canvas.setFont("Helvetica-Bold", 7)
+        canvas.setFillColor(colors.Color(0.04, 0.14, 0.28, alpha=0.45))
+        text_x = (wm_right - logo_size - 2) if logo_drawn else wm_right
+        canvas.drawRightString(text_x, footer_y, "ShineApp")
+
+        canvas.restoreState()
+
+    return draw_page
 
 
 def build_quote_pdf(quote):
@@ -623,14 +719,14 @@ def build_quote_pdf(quote):
     business_block = Table(
         [
             [
-                logo_flowable(styles, business_name, business=quote.business),
+                logo_flowable(styles, business_name, business=quote.business, max_width=24 * mm, max_height=18 * mm),
                 [
                     paragraph(business_name.upper(), styles["brand"]),
                     markup("<br/>".join(plain_text_as_markup(line) for line in header_meta), styles["brand_meta"]),
                 ],
             ]
         ],
-        colWidths=[24 * mm, 44 * mm],
+        colWidths=[26 * mm, 50 * mm],
     )
     business_block.setStyle(
         TableStyle(
@@ -647,7 +743,6 @@ def build_quote_pdf(quote):
         [
             [
                 business_block,
-                app_brand_block(styles),
                 [
                     paragraph("DOCUMENTO COMERCIAL", styles["code_label"]),
                     paragraph(f"COTIZACION {quote.public_code or quote.id}", styles["code"]),
@@ -658,7 +753,7 @@ def build_quote_pdf(quote):
                 ],
             ]
         ],
-        colWidths=[70 * mm, 40 * mm, 70 * mm],
+        colWidths=[86 * mm, 94 * mm],
     )
     header.setStyle(
         TableStyle(
@@ -666,7 +761,6 @@ def build_quote_pdf(quote):
                 ("BACKGROUND", (0, 0), (-1, -1), WHITE),
                 ("BOX", (0, 0), (-1, -1), 0.8, LINE),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("ALIGN", (1, 0), (1, 0), "CENTER"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 10),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 10),
                 ("TOPPADDING", (0, 0), (-1, -1), 10),
@@ -730,6 +824,8 @@ def build_quote_pdf(quote):
             story.append(Spacer(1, 8))
             story.append(box)
 
-    doc.build(story, onFirstPage=draw_page, onLaterPages=draw_page)
+    wm_logo = bundled_logo_path(variant="dark")
+    page_callback = _make_draw_page(str(wm_logo) if wm_logo else None)
+    doc.build(story, onFirstPage=page_callback, onLaterPages=page_callback)
     buffer.seek(0)
     return buffer

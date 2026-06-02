@@ -346,3 +346,92 @@
     padding: 12px;
   }
 }
+
+/* ── recall ─────────────────────────────────────────────────── */
+
+.public-recall-banner {
+  align-items: center;
+  background: rgba(59, 130, 246, 0.07);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: var(--radius-md);
+  color: var(--shop-ink);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  gap: 8px;
+  padding: 10px 14px;
+}
+
+.public-recall-banner > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.public-recall-banner-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.public-recall-banner-actions button {
+  background: var(--color-surface);
+  border: 1px solid var(--shop-border);
+  border-radius: var(--radius-md);
+  color: var(--shop-ink);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 28px;
+  padding: 4px 10px;
+}
+
+.public-recall-banner-actions button:first-child {
+  border-color: rgba(59, 130, 246, 0.5);
+  color: var(--color-primary);
+}
+
+.public-recall-trigger {
+  background: none;
+  border: none;
+  color: var(--shop-ink-soft);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  width: fit-content;
+}
+
+.public-recall-trigger:hover {
+  color: var(--shop-ink);
+}
+
+.public-recall-lookup {
+  display: grid;
+  gap: 8px;
+}
+
+.public-recall-lookup-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.public-recall-lookup-row > button {
+  align-self: end;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--shop-border);
+  border-radius: var(--radius-md);
+  color: var(--shop-ink);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 38px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.public-recall-lookup-row > button:disabled {
+  opacity: 0.55;
+}

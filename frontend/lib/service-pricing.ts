@@ -9,6 +9,7 @@ export const VEHICLE_TYPES = [
 	{ value: 'auto', label: 'Auto', priceField: 'price_auto' },
 	{ value: 'camioneta', label: 'Camioneta', priceField: 'price_camioneta' },
 	{ value: 'combi', label: 'Combi', priceField: 'price_combi' },
+	{ value: 'camion', label: 'Camion', priceField: 'price_camion' },
 ] as const
 
 export const VEHICLE_TYPE_OPTIONS = VEHICLE_TYPES.map(({ value, label }) => ({

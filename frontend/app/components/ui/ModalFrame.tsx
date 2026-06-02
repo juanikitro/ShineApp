@@ -7,6 +7,7 @@ import {
 	useEffect,
 	useId,
 	useRef,
+	useState,
 } from 'react'
 
 import { X } from 'lucide-react'
@@ -36,6 +37,8 @@ export function ModalFrame({
 }: ModalFrameProps) {
 	const panelRef = useRef<HTMLDivElement>(null)
 	const titleId = useId()
+	const [dirty, setDirty] = useState(false)
+	const [confirmingClose, setConfirmingClose] = useState(false)
 
 	useEffect(() => {
 		const previouslyFocused = document.activeElement
@@ -50,9 +53,27 @@ export function ModalFrame({
 		}
 	}, [])
 
+	useEffect(() => {
+		const panel = panelRef.current
+		if (!panel) return
+		function onInput() {
+			setDirty(true)
+		}
+		panel.addEventListener('input', onInput)
+		return () => panel.removeEventListener('input', onInput)
+	}, [])
+
+	function requestClose() {
+		if (dirty) {
+			setConfirmingClose(true)
+		} else {
+			onClose()
+		}
+	}
+
 	function handleBackdropMouseDown(event: MouseEvent<HTMLDivElement>) {
 		if (event.target === event.currentTarget) {
-			onClose()
+			requestClose()
 		}
 	}
 
@@ -60,10 +81,16 @@ export function ModalFrame({
 		if (event.key === 'Escape') {
 			event.preventDefault()
 			event.stopPropagation()
-			onClose()
+			if (confirmingClose) {
+				setConfirmingClose(false)
+			} else {
+				requestClose()
+			}
 			return
 		}
-		trapFocusWithin(event, panelRef.current)
+		if (!confirmingClose) {
+			trapFocusWithin(event, panelRef.current)
+		}
 	}
 
 	return (
@@ -89,19 +116,49 @@ export function ModalFrame({
 				initial="initial"
 				animate="animate"
 				exit="exit"
-		>
+			>
 				<div className="modal-head">
 					<h2 id={titleId}>{title}</h2>
 					<button
 						type="button"
 						className="ghost icon-button"
 						aria-label="Cerrar"
-						onClick={onClose}
+						onClick={requestClose}
 					>
 						<X size={17} />
 					</button>
 				</div>
 				{children}
+				{confirmingClose ? (
+					<div
+						className="modal-confirm-overlay"
+						role="alertdialog"
+						aria-label="Confirmar cierre"
+					>
+						<div className="modal-confirm-box">
+							<p className="modal-confirm-message">
+								¿Cerrar sin guardar los cambios?
+							</p>
+							<div className="modal-confirm-actions">
+								<button
+									type="button"
+									className="primary"
+									autoFocus
+									onClick={() => setConfirmingClose(false)}
+								>
+									Seguir editando
+								</button>
+								<button
+									type="button"
+									className="ghost"
+									onClick={onClose}
+								>
+									Cerrar de todos modos
+								</button>
+							</div>
+						</div>
+					</div>
+				) : null}
 			</m.div>
 		</m.div>
 	)

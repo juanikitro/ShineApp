@@ -1,18 +1,22 @@
 'use client'
 
 import {
+	type CSSProperties,
 	FocusEvent,
 	KeyboardEvent,
 	useEffect,
 	useId,
+	useLayoutEffect,
 	useRef,
 	useState,
 } from 'react'
+import { createPortal } from 'react-dom'
 
 import { Plus, Search } from 'lucide-react'
 import * as m from 'motion/react-m'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
+import { getFocusableElements } from '@/lib/a11y'
 import { comboMenuVariants } from '@/lib/motion-spec'
 import { cx } from '../utils'
 
@@ -55,6 +59,11 @@ export function SearchSelect({
 }: SearchSelectProps) {
 	const [open, setOpen] = useState(false)
 	const [query, setQuery] = useState('')
+	const [coords, setCoords] = useState<{
+		top: number
+		left: number
+		width: number
+	} | null>(null)
 	const triggerRef = useRef<HTMLButtonElement>(null)
 	const menuRef = useRef<HTMLDivElement>(null)
 	const pendingOptionFocusRef = useRef<'first' | 'last' | null>(null)
@@ -114,6 +123,57 @@ export function SearchSelect({
 		focusOptionAt(edge === 'first' ? 0 : buttons.length - 1)
 	}
 
+	function getPortalContainer() {
+		return (
+			document.querySelector<HTMLElement>('.app-shell') ?? document.body
+		)
+	}
+
+	function measurePosition() {
+		const trigger = triggerRef.current
+		if (!trigger) return
+		const rect = trigger.getBoundingClientRect()
+		const margin = 8
+		const gap = 6
+		const menuHeight = menuRef.current?.offsetHeight ?? 0
+		const viewportHeight = window.innerHeight
+		const viewportWidth = window.innerWidth
+		const spaceBelow = viewportHeight - rect.bottom - margin
+		const spaceAbove = rect.top - margin
+		let top = rect.bottom + gap
+		if (menuHeight > spaceBelow && spaceAbove > spaceBelow) {
+			top = rect.top - gap - menuHeight
+		}
+		if (menuHeight) {
+			top = Math.min(top, Math.max(margin, viewportHeight - margin - menuHeight))
+		}
+		top = Math.max(margin, top)
+		const width = rect.width
+		const left = Math.max(
+			margin,
+			Math.min(rect.left, viewportWidth - width - margin),
+		)
+		setCoords({ top, left, width })
+	}
+
+	function openMenu() {
+		const rect = triggerRef.current?.getBoundingClientRect()
+		if (rect) {
+			setCoords({ top: rect.bottom + 6, left: rect.left, width: rect.width })
+		}
+		setOpen(true)
+	}
+
+	function focusWithinControl(node: EventTarget | null) {
+		return (
+			node instanceof Node &&
+			Boolean(
+				triggerRef.current?.contains(node) ||
+					menuRef.current?.contains(node),
+			)
+		)
+	}
+
 	function closeMenu() {
 		pendingOptionFocusRef.current = null
 		setOpen(false)
@@ -143,21 +203,38 @@ export function SearchSelect({
 		window.requestAnimationFrame(() => focusEdgeOption(edge))
 	}, [open, visibleOptions.length])
 
-	function closeWhenFocusLeaves(event: FocusEvent<HTMLDivElement>) {
-		const currentTarget = event.currentTarget
-		const nextTarget = event.relatedTarget
-		if (
-			nextTarget instanceof Node &&
-			currentTarget.contains(nextTarget)
-		) {
+	useLayoutEffect(() => {
+		if (!open) return
+		measurePosition()
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [open, query, visibleOptions.length, canCreate])
+
+	useEffect(() => {
+		if (!open) return
+		function reposition() {
+			measurePosition()
+		}
+		function handleDocumentMouseDown(event: MouseEvent) {
+			if (focusWithinControl(event.target)) return
+			closeMenu()
+		}
+		window.addEventListener('resize', reposition)
+		window.addEventListener('scroll', reposition, true)
+		document.addEventListener('mousedown', handleDocumentMouseDown)
+		return () => {
+			window.removeEventListener('resize', reposition)
+			window.removeEventListener('scroll', reposition, true)
+			document.removeEventListener('mousedown', handleDocumentMouseDown)
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [open])
+
+	function handleFocusOut(event: FocusEvent<HTMLDivElement>) {
+		if (focusWithinControl(event.relatedTarget)) {
 			return
 		}
 		window.requestAnimationFrame(() => {
-			const activeElement = document.activeElement
-			if (
-				activeElement instanceof Node &&
-				currentTarget.contains(activeElement)
-			) {
+			if (focusWithinControl(document.activeElement)) {
 				return
 			}
 			closeMenu()
@@ -184,7 +261,7 @@ export function SearchSelect({
 		}
 
 		pendingOptionFocusRef.current = edge
-		setOpen(true)
+		openMenu()
 	}
 
 	function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -193,6 +270,27 @@ export function SearchSelect({
 			event.stopPropagation()
 			closeMenu()
 			triggerRef.current?.focus()
+			return
+		}
+
+		if (event.key === 'Tab') {
+			const focusables = getFocusableElements(menuRef.current)
+			if (!focusables.length) return
+			event.preventDefault()
+			event.stopPropagation()
+			const currentIndex = focusables.findIndex(
+				(element) => element === document.activeElement,
+			)
+			const direction = event.shiftKey ? -1 : 1
+			const base =
+				currentIndex === -1
+					? event.shiftKey
+						? focusables.length - 1
+						: 0
+					: currentIndex + direction
+			const nextIndex =
+				(base + focusables.length) % focusables.length
+			focusables[nextIndex]?.focus()
 			return
 		}
 
@@ -228,7 +326,7 @@ export function SearchSelect({
 		<MotionFlashSurface
 			className={cx('combo-field', open && 'combo-field--open', className)}
 			data-focus-key={focusKey}
-			onBlur={closeWhenFocusLeaves}
+			onBlur={handleFocusOut}
 		>
 			<span className="field-label" id={`${fieldId}-label`}>
 				{label}
@@ -246,7 +344,7 @@ export function SearchSelect({
 					if (open) {
 						closeMenu()
 					} else {
-						setOpen(true)
+						openMenu()
 					}
 				}}
 				onKeyDown={handleTriggerKeyDown}
@@ -260,17 +358,26 @@ export function SearchSelect({
 				<span>{selected?.label ?? placeholder}</span>
 				<Search size={14} />
 			</button>
-			{open ? (
-				<m.div
-					id={`${fieldId}-menu`}
-					className="combo-menu"
-					ref={menuRef}
-					aria-labelledby={`${fieldId}-label`}
-					variants={comboMenuVariants}
-					initial="initial"
-					animate="animate"
-					onKeyDown={handleMenuKeyDown}
-				>
+			{open && typeof document !== 'undefined'
+				? createPortal(
+					<m.div
+						id={`${fieldId}-menu`}
+						className="combo-menu"
+						ref={menuRef}
+						aria-labelledby={`${fieldId}-label`}
+						variants={comboMenuVariants}
+						initial="initial"
+						animate="animate"
+						onKeyDown={handleMenuKeyDown}
+						onBlur={handleFocusOut}
+						style={
+							{
+								top: coords?.top ?? 0,
+								left: coords?.left ?? 0,
+								width: coords?.width || undefined,
+							} as CSSProperties
+						}
+					>
 						<input
 							className="combo-search-input"
 							placeholder="Buscar..."
@@ -352,8 +459,10 @@ export function SearchSelect({
 								</div>
 							)}
 						</div>
-				</m.div>
-			) : null}
+					</m.div>,
+					getPortalContainer(),
+				)
+				: null}
 		</MotionFlashSurface>
 	)
 }

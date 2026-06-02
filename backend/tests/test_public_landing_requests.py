@@ -453,6 +453,150 @@ def test_public_request_collects_vehicle_type_and_prices_conversion_by_type(api_
     assert reservation.items.get().unit_price == Decimal("8000.00")
 
 
+# ── recall ────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=False)
+def clear_recall_cache():
+    from django.core.cache import cache
+    cache.clear()
+    yield
+    cache.clear()
+
+
+@pytest.mark.django_db
+def test_public_landing_recall_returns_customer_and_vehicles_by_phone(clear_recall_cache):
+    business = create_business()
+    customer = Customer.objects.create(
+        business=business,
+        name="Ana Garcia",
+        phone="11 6432-1234",
+        email="ana@example.com",
+    )
+    Vehicle.objects.create(
+        business=business,
+        customer=customer,
+        license_plate="ABC123",
+        brand="Toyota",
+        model="Corolla",
+        vehicle_type="auto",
+    )
+    client = APIClient()
+    url = reverse("public-landing-recall", args=[business.slug])
+
+    resp = client.post(url, {"phone": "1164321234"}, format="json")
+
+    assert resp.status_code == 200
+    assert resp.data["customer_name"] == "Ana Garcia"
+    assert resp.data["customer_phone"] == "11 6432-1234"
+    assert resp.data["customer_email"] == "ana@example.com"
+    assert len(resp.data["vehicles"]) == 1
+    assert resp.data["vehicles"][0]["license_plate"] == "ABC123"
+    assert resp.data["vehicles"][0]["brand"] == "Toyota"
+    assert resp.data["vehicles"][0]["vehicle_type"] == "auto"
+
+
+@pytest.mark.django_db
+def test_public_landing_recall_returns_customer_by_email(clear_recall_cache):
+    business = create_business()
+    Customer.objects.create(
+        business=business,
+        name="Luis Torres",
+        phone="",
+        email="luis@example.com",
+    )
+    client = APIClient()
+    url = reverse("public-landing-recall", args=[business.slug])
+
+    resp = client.post(url, {"email": "Luis@EXAMPLE.COM"}, format="json")
+
+    assert resp.status_code == 200
+    assert resp.data["customer_name"] == "Luis Torres"
+    assert resp.data["vehicles"] == []
+
+
+@pytest.mark.django_db
+def test_public_landing_recall_returns_nulls_when_no_match(clear_recall_cache):
+    business = create_business()
+    client = APIClient()
+    url = reverse("public-landing-recall", args=[business.slug])
+
+    resp = client.post(url, {"phone": "9999999999"}, format="json")
+
+    assert resp.status_code == 200
+    assert resp.data["customer_name"] is None
+    assert resp.data["customer_phone"] is None
+    assert resp.data["customer_email"] is None
+    assert resp.data["vehicles"] == []
+
+
+@pytest.mark.django_db
+def test_public_landing_recall_requires_phone_or_email(clear_recall_cache):
+    business = create_business()
+    client = APIClient()
+    url = reverse("public-landing-recall", args=[business.slug])
+
+    resp = client.post(url, {}, format="json")
+
+    assert resp.status_code == 400
+
+
+@pytest.mark.django_db
+def test_public_landing_recall_does_not_expose_other_business_customers(clear_recall_cache):
+    business_a = create_business("Shine A", "shine-a")
+    business_b = create_business("Shine B", "shine-b")
+    Customer.objects.create(
+        business=business_b,
+        name="Privado B",
+        phone="1164321234",
+        email="privado@b.test",
+    )
+    client = APIClient()
+
+    resp = client.post(
+        reverse("public-landing-recall", args=[business_a.slug]),
+        {"phone": "1164321234"},
+        format="json",
+    )
+
+    assert resp.status_code == 200
+    assert resp.data["customer_name"] is None
+
+
+@pytest.mark.django_db
+def test_public_landing_recall_rate_limited(clear_recall_cache):
+    business = create_business()
+    client = APIClient()
+    url = reverse("public-landing-recall", args=[business.slug])
+    ip = "203.0.113.55"
+
+    for _ in range(3):
+        r = client.post(url, {"phone": "1112223333"}, format="json", REMOTE_ADDR=ip)
+        assert r.status_code == 200
+
+    limited = client.post(url, {"phone": "1112223333"}, format="json", REMOTE_ADDR=ip)
+    assert limited.status_code == 429
+
+
+@pytest.mark.django_db
+def test_public_landing_recall_inactive_customer_is_not_returned(clear_recall_cache):
+    business = create_business()
+    customer = Customer.objects.create(
+        business=business,
+        name="Inactivo",
+        phone="1164320000",
+        email="inactivo@example.com",
+    )
+    customer.delete()
+    client = APIClient()
+    url = reverse("public-landing-recall", args=[business.slug])
+
+    resp = client.post(url, {"phone": "1164320000"}, format="json")
+
+    assert resp.status_code == 200
+    assert resp.data["customer_name"] is None
+
+
 FAKE_PUSH_SUBSCRIPTION = {
     "endpoint": "https://fcm.googleapis.com/fcm/send/fake-endpoint",
     "expirationTime": None,
