@@ -414,6 +414,8 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "default_quote_discount_rate",
             "default_quote_terms",
             "default_quote_payment_instructions",
+            "opening_time",
+            "closing_time",
             "use_reservation_times",
             "show_stay_days_in_agenda",
             "public_landing_enabled",

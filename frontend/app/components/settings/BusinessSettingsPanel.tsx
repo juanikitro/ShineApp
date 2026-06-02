@@ -344,6 +344,32 @@ export function BusinessSettingsPanel({
 							}
 						/>
 					</Field>
+					<div className="form-row">
+						<Field label="Apertura">
+							<input
+								type="time"
+								name="business_opening_time"
+								value={businessForm.opening_time ?? ''}
+								onChange={(event) =>
+									onPatchBusinessForm({
+										opening_time: event.target.value || null,
+									})
+								}
+							/>
+						</Field>
+						<Field label="Cierre">
+							<input
+								type="time"
+								name="business_closing_time"
+								value={businessForm.closing_time ?? ''}
+								onChange={(event) =>
+									onPatchBusinessForm({
+										closing_time: event.target.value || null,
+									})
+								}
+							/>
+						</Field>
+					</div>
 				</div>
 			</form>
 		</section>

@@ -214,6 +214,8 @@ function blankBusinessForm() {
 		public_landing_intro: '',
 		allow_public_booking_requests: true,
 		allow_public_quote_requests: true,
+		opening_time: null,
+		closing_time: null,
 		income_category_tree: normalizeIncomeCategoryTree(
 			DEFAULT_INCOME_CATEGORY_TREE,
 		),
