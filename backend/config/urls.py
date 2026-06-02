@@ -9,7 +9,7 @@ from core.views import AuditLogView
 from customers.views import CustomerViewSet, VehicleViewSet
 from dashboard.views import DashboardSummaryView
 from debts.views import DebtPaymentViewSet, DebtViewSet
-from finance.views import CashCloseView, CashDailyView, CashMovementViewSet, PaymentViewSet
+from finance.views import CashCloseView, CashDailyView, CashMovementViewSet, CashReopenView, PaymentViewSet
 from inventory.views import (
     MaterialConsumptionViewSet,
     MaterialOpenUnitViewSet,
@@ -80,6 +80,7 @@ urlpatterns = [
     path("api/agenda/daily/", DailyAgendaView.as_view(), name="agenda-daily"),
     path("api/cash/daily/", CashDailyView.as_view(), name="cash-daily"),
     path("api/cash/close/", CashCloseView.as_view(), name="cash-close"),
+    path("api/cash/reopen/", CashReopenView.as_view(), name="cash-reopen"),
     path("api/dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
     path("api/public/landing/<slug:slug>/", PublicLandingView.as_view(), name="public-landing"),
     path(

@@ -714,6 +714,7 @@ export default function Home() {
 		price_auto: '',
 		price_camioneta: '',
 		price_combi: '',
+		price_camion: '',
 		estimated_duration_minutes: '60',
 		notes: '',
 	})
@@ -5593,6 +5594,21 @@ export default function Home() {
 		)
 	}
 
+	function reopenCashDay() {
+		return runAction(
+			() =>
+				apiFetch('/cash/reopen/', {
+					method: 'POST',
+					body: JSON.stringify({ date: selectedDay }),
+				}),
+			{
+				successTitle: 'Caja reabierta',
+				successDescription: () =>
+					`La caja de ${formatDateLabel(selectedDay)} fue reabierta.`,
+			},
+		)
+	}
+
 	function openFormModal(kind: FormModalKind) {
 		if (!canViewEconomy && !['customer', 'vehicle'].includes(kind)) return
 		if (kind === 'customer') {
@@ -5624,6 +5640,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -5798,6 +5815,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -5883,6 +5901,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -8940,6 +8959,7 @@ export default function Home() {
 				price_auto: '',
 				price_camioneta: '',
 				price_combi: '',
+				price_camion: '',
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
@@ -12148,6 +12168,7 @@ export default function Home() {
 						onCashSummaryModeChange={setCashSummaryMode}
 						onClearCashFilters={() => setCashFilters(CASH_FILTER_DEFAULTS)}
 						onCloseDay={closeCashDay}
+						onReopenDay={reopenCashDay}
 						onCollectWork={() => openFormModal('payment')}
 						onCreateMovement={() => openFormModal('cash-movement')}
 						onMoveSelectedDay={moveSelectedCashDay}
