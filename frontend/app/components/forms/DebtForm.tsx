@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 
 import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { ReceiptText } from 'lucide-react'
 
 import { Field } from '@/app/components/ui/Field'
+import { NumericInput } from '@/app/components/ui/NumericInput'
 import {
 	SearchSelect,
 	type SelectOption,
@@ -92,16 +93,15 @@ export function DebtForm({
 			/>
 			<div className="form-row">
 				<Field label="Total deuda">
-					<input
+					<NumericInput
 						data-focus-key="debt.amount"
 						required
-						type="number"
-						min="0"
+						prefix="$"
 						value={debtForm.principal_amount}
-						onChange={(event) =>
+						onChange={(raw) =>
 							setDebtForm({
 								...debtForm,
-								principal_amount: event.target.value,
+								principal_amount: raw,
 							})
 						}
 						onKeyDown={focusNextOnEnter('debt.origin_date')}
