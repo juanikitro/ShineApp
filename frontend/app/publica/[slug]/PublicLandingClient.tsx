@@ -40,6 +40,8 @@ type PublicLandingPayload = {
 		contact_email?: string
 		address?: string
 		intro?: string
+		opening_time?: string | null
+		closing_time?: string | null
 	}
 	actions: {
 		booking_requests: boolean
@@ -291,12 +293,22 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	}
 
 	const business = landing.business
+	const hoursLabel =
+		business.opening_time && business.closing_time
+			? `${business.opening_time} – ${business.closing_time}`
+			: business.opening_time
+				? `Desde ${business.opening_time}`
+				: business.closing_time
+					? `Hasta ${business.closing_time}`
+					: null
+
 	const contact = [
 		business.contact_phone
 			? { icon: Phone, label: business.contact_phone }
 			: null,
 		business.contact_email ? { icon: Mail, label: business.contact_email } : null,
 		business.address ? { icon: MapPin, label: business.address } : null,
+		hoursLabel ? { icon: Clock, label: hoursLabel } : null,
 	].filter(Boolean) as Array<{ icon: typeof Phone; label: string }>
 
 	return (
@@ -504,6 +516,8 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 								type="time"
 								disabled={!form.preferred_day}
 								value={form.preferred_time}
+								min={landing.business.opening_time ?? undefined}
+								max={landing.business.closing_time ?? undefined}
 								onChange={(event) => patchForm({ preferred_time: event.target.value })}
 							/>
 						</label>

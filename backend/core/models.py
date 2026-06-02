@@ -284,6 +284,8 @@ class BusinessProfile(models.Model):
     )
     default_quote_terms = models.TextField(blank=True)
     default_quote_payment_instructions = models.TextField(blank=True)
+    opening_time = models.TimeField(null=True, blank=True)
+    closing_time = models.TimeField(null=True, blank=True)
     use_reservation_times = models.BooleanField(default=True)
     show_stay_days_in_agenda = models.BooleanField(default=True)
     public_landing_enabled = models.BooleanField(default=True)

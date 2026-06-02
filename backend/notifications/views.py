@@ -60,6 +60,8 @@ class PublicLandingView(APIView):
                     "contact_email": profile.contact_email,
                     "address": profile.address,
                     "intro": profile.public_landing_intro,
+                    "opening_time": profile.opening_time.strftime("%H:%M") if profile.opening_time else None,
+                    "closing_time": profile.closing_time.strftime("%H:%M") if profile.closing_time else None,
                 },
                 "actions": {
                     "booking_requests": profile.allow_public_booking_requests,

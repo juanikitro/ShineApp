@@ -12,6 +12,7 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-02
 - [Precios por tipo de vehiculo](docs/registro/cambios/2026-06-02-precios-por-tipo-vehiculo.md)
+- [Horario de apertura y cierre en la pagina publica](docs/registro/cambios/2026-06-02-horario-apertura-cierre.md)
 - [Changelog automatico (CHANGELOG.md + hook de commit)](docs/registro/cambios/2026-06-02-changelog-automatico.md)
 
 ## 2026-06-01
