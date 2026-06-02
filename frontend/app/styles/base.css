@@ -362,14 +362,12 @@ label {
   display: grid;
   gap: 10px;
   isolation: isolate;
-  left: 0;
-  min-width: min(100%, 260px);
+  max-width: calc(100vw - 16px);
+  min-width: min(260px, calc(100vw - 16px));
   overscroll-behavior: contain;
   padding: 10px;
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: var(--z-popover);
+  position: fixed;
+  z-index: calc(var(--z-modal-panel) + 20);
 }
 
 .record,
@@ -462,12 +460,6 @@ label {
 }
 
 @media (max-width: 620px) {
-  .combo-menu {
-    margin-top: 6px;
-    position: static;
-    width: 100%;
-  }
-
   .combo-options {
     max-height: min(220px, 40vh);
   }

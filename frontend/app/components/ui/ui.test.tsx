@@ -393,6 +393,30 @@ test('SearchSelect blocks duplicate creates and exposes empty results', async ()
 	assert.deepEqual(created, ['Nuevo'])
 })
 
+test('SearchSelect renders its menu in a portal anchored with fixed coordinates', async () => {
+	const user = userEvent.setup()
+	const { container } = render(
+		<SearchSelect
+			label="Cliente"
+			value=""
+			options={[{ value: '1', label: 'Ana Lopez' }]}
+			onChange={vi.fn()}
+		/>,
+	)
+
+	await user.click(screen.getByRole('combobox', { name: 'Cliente' }))
+
+	const field = container.querySelector('.combo-field')
+	const menu = document.querySelector('.combo-menu')
+	assert.ok(field)
+	assert.ok(menu)
+	// The menu must escape the field (and therefore the modal's scroll
+	// container) so opening it never forces the modal to scroll.
+	assert.equal(field?.contains(menu), false)
+	assert.equal(menu?.parentElement, document.body)
+	assert.ok(menu?.getAttribute('style')?.includes('top'))
+})
+
 test('ServiceIconPicker normalizes selected and cleared emojis', async () => {
 	const user = userEvent.setup()
 	const changes: string[] = []
