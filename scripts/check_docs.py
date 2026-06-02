@@ -26,6 +26,7 @@ class GeneratedIndex:
     output: Path
     title: str
     description: str
+    reverse: bool = False
 
 
 GENERATED_INDICES = (
@@ -35,8 +36,9 @@ GENERATED_INDICES = (
         title="Cambios Registrados",
         description=(
             "Indice generado de cambios funcionales o visibles registrados en "
-            "`docs/registro/cambios/`."
+            "`docs/registro/cambios/`, mas nuevo arriba."
         ),
+        reverse=True,
     ),
     GeneratedIndex(
         directory=DOCS_DIR / "registro" / "decisiones",
@@ -86,7 +88,10 @@ def iter_index_sources(directory: Path, output: Path) -> list[Path]:
 
 def render_index(config: GeneratedIndex) -> str:
     rows = []
-    for path in iter_index_sources(config.directory, config.output):
+    sources = iter_index_sources(config.directory, config.output)
+    if config.reverse:
+        sources = list(reversed(sources))
+    for path in sources:
         title = read_h1(path)
         rows.append(f"- [{title}]({path.name})")
 
