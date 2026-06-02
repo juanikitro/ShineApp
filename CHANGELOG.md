@@ -12,6 +12,7 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-02
 - [Precios por tipo de vehiculo](docs/registro/cambios/2026-06-02-precios-por-tipo-vehiculo.md)
+- [Cotizacion PDF: logo sin overlap, marca de agua ShineApp y soporte emoji](docs/registro/cambios/2026-06-02-cotizacion-pdf-mejoras.md)
 - [Changelog automatico (CHANGELOG.md + hook de commit)](docs/registro/cambios/2026-06-02-changelog-automatico.md)
 
 ## 2026-06-01
