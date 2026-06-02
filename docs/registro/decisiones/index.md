@@ -16,3 +16,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [2026-05-19 - Politica de testing IA y coverage 90](2026-05-19-politica-testing-ia-coverage.md)
 - [MkDocs Material para documentacion viva](2026-05-20-mkdocs-material-documentacion-viva.md)
 - [Pricing por tipo de vehiculo](2026-06-02-pricing-por-tipo-vehiculo.md)
+- [Regla: toda feature nueva debe tener su ModelAdmin registrado](2026-06-02-regla-feature-nueva-admin-registrado.md)
