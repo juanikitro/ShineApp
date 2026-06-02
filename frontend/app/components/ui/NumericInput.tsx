@@ -1,6 +1,6 @@
 'use client'
 
-import { type ChangeEvent, type InputHTMLAttributes } from 'react'
+import { type ChangeEvent, type InputHTMLAttributes, useEffect, useState } from 'react'
 
 type NumericInputProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
@@ -21,8 +21,15 @@ function formatWithSeparators(raw: string | number): string {
 }
 
 export function NumericInput({ value, onChange, prefix, ...props }: NumericInputProps) {
+  const [display, setDisplay] = useState(() => formatWithSeparators(value))
+
+  useEffect(() => {
+    setDisplay(formatWithSeparators(value))
+  }, [value])
+
   function handleChange(e: ChangeEvent<HTMLInputElement>) {
     const stripped = e.target.value.replace(/\./g, '').replace(/\D/g, '')
+    setDisplay(formatWithSeparators(stripped))
     onChange(stripped)
   }
 
@@ -31,7 +38,7 @@ export function NumericInput({ value, onChange, prefix, ...props }: NumericInput
       {...props}
       type="text"
       inputMode="numeric"
-      value={formatWithSeparators(value)}
+      value={display}
       onChange={handleChange}
     />
   )
@@ -39,11 +46,11 @@ export function NumericInput({ value, onChange, prefix, ...props }: NumericInput
   if (!prefix) return input
 
   return (
-    <div className="numeric-input-wrapper">
+    <span className="numeric-input-wrapper">
       <span className="numeric-input-prefix" aria-hidden="true">
         {prefix}
       </span>
       {input}
-    </div>
+    </span>
   )
 }
