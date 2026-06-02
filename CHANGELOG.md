@@ -17,6 +17,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Push notification al confirmar turno](docs/registro/cambios/2026-06-02-push-notificaciones-turno-confirmado.md)
 - [Precios por tipo de vehiculo](docs/registro/cambios/2026-06-02-precios-por-tipo-vehiculo.md)
 - [Separadores de miles y prefijo $ en inputs monetarios](docs/registro/cambios/2026-06-02-numeric-input-separadores-miles.md)
+- [Horario de apertura y cierre en la pagina publica](docs/registro/cambios/2026-06-02-horario-apertura-cierre.md)
 - [Django Admin completo para ShineApp](docs/registro/cambios/2026-06-02-django-admin-completo.md)
 - [Cotizacion PDF: logo sin overlap, marca de agua ShineApp y soporte emoji](docs/registro/cambios/2026-06-02-cotizacion-pdf-mejoras.md)
 - [Desplegable de SearchSelect en portal fijo](docs/registro/cambios/2026-06-02-combo-desplegable-portal.md)
