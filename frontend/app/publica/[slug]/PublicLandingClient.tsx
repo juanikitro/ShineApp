@@ -9,6 +9,7 @@ import {
 	Mail,
 	MapPin,
 	Phone,
+	RotateCcw,
 	Send,
 	ShieldCheck,
 	Sparkles,
@@ -65,6 +66,43 @@ type PublicRequestForm = {
 	service_ids: string[]
 }
 
+type SavedClientData = {
+	customer_name: string
+	customer_phone: string
+	customer_email: string
+	vehicle_license_plate: string
+	vehicle_brand: string
+	vehicle_model: string
+	vehicle_type: string
+}
+
+const STORAGE_PREFIX = 'shine_client_'
+
+function saveClientData(slug: string, data: SavedClientData) {
+	try { localStorage.setItem(STORAGE_PREFIX + slug, JSON.stringify(data)) } catch {}
+}
+
+function loadClientData(slug: string): SavedClientData | null {
+	try {
+		const raw = localStorage.getItem(STORAGE_PREFIX + slug)
+		if (!raw) return null
+		const parsed = JSON.parse(raw)
+		return typeof parsed?.customer_name === 'string' ? (parsed as SavedClientData) : null
+	} catch { return null }
+}
+
+function clearClientData(slug: string) {
+	try { localStorage.removeItem(STORAGE_PREFIX + slug) } catch {}
+}
+
+type RecallVehicle = { license_plate: string; brand: string; model: string; vehicle_type: string }
+type RecallResult = {
+	customer_name: string | null
+	customer_phone: string | null
+	customer_email: string | null
+	vehicles: RecallVehicle[]
+}
+
 const blankForm: PublicRequestForm = {
 	customer_name: '',
 	customer_phone: '',
@@ -78,6 +116,30 @@ const blankForm: PublicRequestForm = {
 	message: '',
 	website: '',
 	service_ids: [],
+}
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
+	const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+	const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+	const rawData = atob(base64)
+	return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)))
+}
+
+async function registerPushSubscription(): Promise<object | null> {
+	const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+	if (!vapidKey) return null
+	if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null
+	const permission = await Notification.requestPermission()
+	if (permission !== 'granted') return null
+	const registration = await navigator.serviceWorker.register('/sw.js')
+	await navigator.serviceWorker.ready
+	const existing = await registration.pushManager.getSubscription()
+	if (existing) return existing.toJSON()
+	const subscription = await registration.pushManager.subscribe({
+		userVisibleOnly: true,
+		applicationServerKey: urlBase64ToUint8Array(vapidKey),
+	})
+	return subscription.toJSON()
 }
 
 function serviceDurationLabel(service: PublicService) {
@@ -165,6 +227,12 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	const [success, setSuccess] = useState(false)
 	const [logoLoadFailed, setLogoLoadFailed] = useState(false)
 
+	const [savedData, setSavedData] = useState<SavedClientData | null>(null)
+	const [recallOpen, setRecallOpen] = useState(false)
+	const [recallIdentifier, setRecallIdentifier] = useState('')
+	const [recalling, setRecalling] = useState(false)
+	const [recallFeedback, setRecallFeedback] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+
 	useEffect(() => {
 		let mounted = true
 		async function loadLanding() {
@@ -188,6 +256,10 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		return () => {
 			mounted = false
 		}
+	}, [slug])
+
+	useEffect(() => {
+		setSavedData(loadClientData(slug))
 	}, [slug])
 
 	const logoSource = landing?.business.logo_url ?? null
@@ -218,6 +290,78 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 				? current.service_ids.filter((item) => item !== value)
 				: [...current.service_ids, value],
 		}))
+	}
+
+	function applySavedData() {
+		if (!savedData) return
+		patchForm({
+			customer_name: savedData.customer_name,
+			customer_phone: savedData.customer_phone,
+			customer_email: savedData.customer_email,
+			vehicle_license_plate: savedData.vehicle_license_plate,
+			vehicle_brand: savedData.vehicle_brand,
+			vehicle_model: savedData.vehicle_model,
+			vehicle_type: savedData.vehicle_type,
+		})
+		setSavedData(null)
+	}
+
+	function dismissSavedData() {
+		clearClientData(slug)
+		setSavedData(null)
+	}
+
+	async function recallCustomer() {
+		if (!recallIdentifier.trim() || recalling) return
+		setRecalling(true)
+		setRecallFeedback(null)
+		try {
+			const data = await publicApiFetch<RecallResult>(
+				`/public/landing/${encodeURIComponent(slug)}/recall/`,
+				{
+					method: 'POST',
+					body: JSON.stringify(
+						recallIdentifier.includes('@')
+							? { email: recallIdentifier.trim() }
+							: { phone: recallIdentifier.trim() }
+					),
+				}
+			)
+			if (data.customer_name) {
+				const vehicle = data.vehicles[0] ?? null
+				patchForm({
+					customer_name: data.customer_name,
+					customer_phone: data.customer_phone ?? '',
+					customer_email: data.customer_email ?? '',
+					...(vehicle
+						? {
+								vehicle_license_plate: vehicle.license_plate,
+								vehicle_brand: vehicle.brand,
+								vehicle_model: vehicle.model,
+								vehicle_type: vehicle.vehicle_type,
+							}
+						: {}),
+				})
+				saveClientData(slug, {
+					customer_name: data.customer_name,
+					customer_phone: data.customer_phone ?? '',
+					customer_email: data.customer_email ?? '',
+					vehicle_license_plate: vehicle?.license_plate ?? '',
+					vehicle_brand: vehicle?.brand ?? '',
+					vehicle_model: vehicle?.model ?? '',
+					vehicle_type: vehicle?.vehicle_type ?? 'auto',
+				})
+				setRecallOpen(false)
+				setRecallIdentifier('')
+				setRecallFeedback({ type: 'ok', text: 'Datos autocompletados.' })
+			} else {
+				setRecallFeedback({ type: 'err', text: 'No encontramos un cliente con ese dato.' })
+			}
+		} catch (err) {
+			setRecallFeedback({ type: 'err', text: errorMessage(err) })
+		} finally {
+			setRecalling(false)
+		}
 	}
 
 	async function submitRequest(event: FormEvent) {
@@ -256,6 +400,10 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		setSubmitting(true)
 		setError(null)
 		setSuccess(false)
+		let pushSubscription: object | null = null
+		try {
+			pushSubscription = await registerPushSubscription()
+		} catch (_) {}
 		try {
 			await publicApiFetch(`/public/landing/${encodeURIComponent(slug)}/requests/`, {
 				method: 'POST',
@@ -263,7 +411,17 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 					...form,
 					request_type: requestType,
 					service_ids: form.service_ids.map(Number),
+					push_subscription: pushSubscription,
 				}),
+			})
+			saveClientData(slug, {
+				customer_name: form.customer_name,
+				customer_phone: form.customer_phone,
+				customer_email: form.customer_email,
+				vehicle_license_plate: form.vehicle_license_plate,
+				vehicle_brand: form.vehicle_brand,
+				vehicle_model: form.vehicle_model,
+				vehicle_type: form.vehicle_type,
 			})
 			setSuccess(true)
 			setForm(blankForm)
@@ -419,6 +577,20 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							solicita una cotizacion; con fecha se solicita una reserva.
 						</p>
 					</div>
+					{savedData && !success && (
+						<div className="public-recall-banner">
+							<RotateCcw size={15} />
+							<span>Tenemos tus datos del turno anterior guardados.</span>
+							<div className="public-recall-banner-actions">
+								<button type="button" onClick={applySavedData}>
+									Usar mis datos
+								</button>
+								<button type="button" onClick={dismissSavedData}>
+									Descartar
+								</button>
+							</div>
+						</div>
+					)}
 					<input
 						className="public-honeypot"
 						tabIndex={-1}
@@ -455,6 +627,54 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							/>
 						</label>
 					</div>
+					{recallFeedback && !recallOpen && (
+						<div className={recallFeedback.type === 'ok' ? 'public-form-success' : 'public-form-error'}>
+							{recallFeedback.type === 'ok' && <CheckCircle2 size={16} />}
+							{recallFeedback.text}
+						</div>
+					)}
+					{!recallOpen ? (
+						<button
+							type="button"
+							className="public-recall-trigger"
+							onClick={() => { setRecallOpen(true); setRecallFeedback(null) }}
+						>
+							¿Ya sos cliente? Recuperar mis datos
+						</button>
+					) : (
+						<div className="public-recall-lookup">
+							<label>
+								Telefono o email para buscar
+								<div className="public-recall-lookup-row">
+									<input
+										autoFocus
+										value={recallIdentifier}
+										placeholder="1164321234 o usuario@email.com"
+										onChange={(e) => setRecallIdentifier(e.target.value)}
+										onKeyDown={(e) => {
+											if (e.key === 'Enter') { e.preventDefault(); recallCustomer() }
+										}}
+									/>
+									<button type="button" disabled={recalling} onClick={recallCustomer}>
+										{recalling ? 'Buscando...' : 'Buscar'}
+									</button>
+								</div>
+							</label>
+							{recallFeedback && (
+								<div className={recallFeedback.type === 'ok' ? 'public-form-success' : 'public-form-error'}>
+									{recallFeedback.type === 'ok' && <CheckCircle2 size={16} />}
+									{recallFeedback.text}
+								</div>
+							)}
+							<button
+								type="button"
+								className="public-recall-trigger"
+								onClick={() => { setRecallOpen(false); setRecallIdentifier(''); setRecallFeedback(null) }}
+							>
+								Cancelar
+							</button>
+						</div>
+					)}
 					<div className="public-form-row">
 						<label>
 							Patente

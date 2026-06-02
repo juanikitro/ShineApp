@@ -18,6 +18,7 @@ class Service(models.Model):
     price_auto = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     price_camioneta = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     price_combi = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    price_camion = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     estimated_duration_minutes = models.PositiveIntegerField(default=60)
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
@@ -36,6 +37,7 @@ class Service(models.Model):
             VehicleType.AUTO: self.price_auto,
             VehicleType.CAMIONETA: self.price_camioneta,
             VehicleType.COMBI: self.price_combi,
+            VehicleType.CAMION: self.price_camion,
         }
         value = prices.get(vehicle_type)
         return value if value is not None else self.base_price

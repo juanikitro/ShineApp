@@ -9,8 +9,16 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Tipo de vehiculo "Camion"](2026-06-02-tipo-vehiculo-camion.md)
+- [Autocompletar datos del cliente en página pública](2026-06-02-recall-cliente-publico.md)
+- [Reabrir caja](2026-06-02-reabrir-caja.md)
+- [Push notification al confirmar turno](2026-06-02-push-notificaciones-turno-confirmado.md)
 - [Precios por tipo de vehiculo](2026-06-02-precios-por-tipo-vehiculo.md)
+- [Separadores de miles y prefijo $ en inputs monetarios](2026-06-02-numeric-input-separadores-miles.md)
 - [Horario de apertura y cierre en la pagina publica](2026-06-02-horario-apertura-cierre.md)
+- [Django Admin completo para ShineApp](2026-06-02-django-admin-completo.md)
+- [Cotizacion PDF: logo sin overlap, marca de agua ShineApp y soporte emoji](2026-06-02-cotizacion-pdf-mejoras.md)
+- [Desplegable de SearchSelect en portal fijo](2026-06-02-combo-desplegable-portal.md)
 - [Changelog automatico (CHANGELOG.md + hook de commit)](2026-06-02-changelog-automatico.md)
 - [Performance: funcion API co-ubicada en gru1 (Sao Paulo)](2026-06-01-perf-region-funcion-gru1.md)
 - [Performance: Fluid Compute en la funcion API](2026-06-01-perf-fluid-compute.md)

@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 
 import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { FileText, Plus } from 'lucide-react'
 
 import { Field } from '@/app/components/ui/Field'
+import { NumericInput } from '@/app/components/ui/NumericInput'
 import {
 	SearchSelect,
 	type SelectOption,
@@ -175,14 +176,13 @@ export function QuoteForm({
 									/>
 								</Field>
 								<Field label="Precio">
-									<input
+									<NumericInput
 										data-focus-key={`quote.item.${index}.price`}
-										type="number"
-										min="0"
+										prefix="$"
 										value={item.unit_price}
-										onChange={(event) =>
+										onChange={(raw) =>
 											updateQuoteItem(index, {
-												unit_price: event.target.value,
+												unit_price: raw,
 											})
 										}
 										onKeyDown={focusNextOnEnter(

@@ -4,8 +4,12 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
 
-from .models import BusinessAccount, BusinessProfile, UserProfile
+from .models import AuditLog, BusinessAccount, BusinessProfile, PasswordResetToken, UserProfile
 from .permissions import EMPLOYEE_ROLE, EMPLOYER_ROLE
+
+admin.site.site_header = "ShineApp Backoffice"
+admin.site.site_title = "ShineApp"
+admin.site.index_title = "Panel de operaciones"
 
 
 class BusinessAccountForm(forms.ModelForm):
@@ -213,3 +217,49 @@ class BusinessUserAdmin(UserAdmin):
 user_model = get_user_model()
 admin.site.unregister(user_model)
 admin.site.register(user_model, BusinessUserAdmin)
+
+
+@admin.register(AuditLog)
+class AuditLogAdmin(admin.ModelAdmin):
+    list_display = ["created_at", "actor_username", "action", "module", "entity_type", "entity_id", "entity_label"]
+    list_filter = ["action", "module", "created_at"]
+    search_fields = ["actor_username", "actor_email", "entity_type", "entity_id", "entity_label", "request_path"]
+    date_hierarchy = "created_at"
+    list_per_page = 25
+    ordering = ["-created_at", "-id"]
+    readonly_fields = [
+        "business", "actor", "actor_username", "actor_email", "actor_role",
+        "action", "module", "entity_type", "entity_id", "entity_label",
+        "before", "after", "changes", "metadata",
+        "request_path", "request_method", "created_at",
+    ]
+    list_select_related = ["actor"]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+
+@admin.register(PasswordResetToken)
+class PasswordResetTokenAdmin(admin.ModelAdmin):
+    list_display = ["user", "expires_at", "used", "created_at"]
+    list_filter = ["used", "created_at"]
+    search_fields = ["user__username", "user__email"]
+    list_per_page = 25
+    ordering = ["-created_at"]
+    readonly_fields = ["user", "expires_at", "used", "created_at"]
+    list_select_related = ["user"]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser

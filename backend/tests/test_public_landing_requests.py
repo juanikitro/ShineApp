@@ -1,5 +1,6 @@
 from datetime import date, time
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -572,3 +573,252 @@ def test_public_request_time_restriction_ignored_when_no_preferred_time():
     )
 
     assert resp.status_code == 201
+
+
+# ── recall ────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=False)
+def clear_recall_cache():
+    from django.core.cache import cache
+    cache.clear()
+    yield
+    cache.clear()
+
+
+@pytest.mark.django_db
+def test_public_landing_recall_returns_customer_and_vehicles_by_phone(clear_recall_cache):
+    business = create_business()
+    customer = Customer.objects.create(
+        business=business,
+        name="Ana Garcia",
+        phone="11 6432-1234",
+        email="ana@example.com",
+    )
+    Vehicle.objects.create(
+        business=business,
+        customer=customer,
+        license_plate="ABC123",
+        brand="Toyota",
+        model="Corolla",
+        vehicle_type="auto",
+    )
+    client = APIClient()
+    url = reverse("public-landing-recall", args=[business.slug])
+
+    resp = client.post(url, {"phone": "1164321234"}, format="json")
+
+    assert resp.status_code == 200
+    assert resp.data["customer_name"] == "Ana Garcia"
+    assert resp.data["customer_phone"] == "11 6432-1234"
+    assert resp.data["customer_email"] == "ana@example.com"
+    assert len(resp.data["vehicles"]) == 1
+    assert resp.data["vehicles"][0]["license_plate"] == "ABC123"
+    assert resp.data["vehicles"][0]["brand"] == "Toyota"
+    assert resp.data["vehicles"][0]["vehicle_type"] == "auto"
+
+
+@pytest.mark.django_db
+def test_public_landing_recall_returns_customer_by_email(clear_recall_cache):
+    business = create_business()
+    Customer.objects.create(
+        business=business,
+        name="Luis Torres",
+        phone="",
+        email="luis@example.com",
+    )
+    client = APIClient()
+    url = reverse("public-landing-recall", args=[business.slug])
+
+    resp = client.post(url, {"email": "Luis@EXAMPLE.COM"}, format="json")
+
+    assert resp.status_code == 200
+    assert resp.data["customer_name"] == "Luis Torres"
+    assert resp.data["vehicles"] == []
+
+
+@pytest.mark.django_db
+def test_public_landing_recall_returns_nulls_when_no_match(clear_recall_cache):
+    business = create_business()
+    client = APIClient()
+    url = reverse("public-landing-recall", args=[business.slug])
+
+    resp = client.post(url, {"phone": "9999999999"}, format="json")
+
+    assert resp.status_code == 200
+    assert resp.data["customer_name"] is None
+    assert resp.data["customer_phone"] is None
+    assert resp.data["customer_email"] is None
+    assert resp.data["vehicles"] == []
+
+
+@pytest.mark.django_db
+def test_public_landing_recall_requires_phone_or_email(clear_recall_cache):
+    business = create_business()
+    client = APIClient()
+    url = reverse("public-landing-recall", args=[business.slug])
+
+    resp = client.post(url, {}, format="json")
+
+    assert resp.status_code == 400
+
+
+@pytest.mark.django_db
+def test_public_landing_recall_does_not_expose_other_business_customers(clear_recall_cache):
+    business_a = create_business("Shine A", "shine-a")
+    business_b = create_business("Shine B", "shine-b")
+    Customer.objects.create(
+        business=business_b,
+        name="Privado B",
+        phone="1164321234",
+        email="privado@b.test",
+    )
+    client = APIClient()
+
+    resp = client.post(
+        reverse("public-landing-recall", args=[business_a.slug]),
+        {"phone": "1164321234"},
+        format="json",
+    )
+
+    assert resp.status_code == 200
+    assert resp.data["customer_name"] is None
+
+
+@pytest.mark.django_db
+def test_public_landing_recall_rate_limited(clear_recall_cache):
+    business = create_business()
+    client = APIClient()
+    url = reverse("public-landing-recall", args=[business.slug])
+    ip = "203.0.113.55"
+
+    for _ in range(3):
+        r = client.post(url, {"phone": "1112223333"}, format="json", REMOTE_ADDR=ip)
+        assert r.status_code == 200
+
+    limited = client.post(url, {"phone": "1112223333"}, format="json", REMOTE_ADDR=ip)
+    assert limited.status_code == 429
+
+
+@pytest.mark.django_db
+def test_public_landing_recall_inactive_customer_is_not_returned(clear_recall_cache):
+    business = create_business()
+    customer = Customer.objects.create(
+        business=business,
+        name="Inactivo",
+        phone="1164320000",
+        email="inactivo@example.com",
+    )
+    customer.delete()
+    client = APIClient()
+    url = reverse("public-landing-recall", args=[business.slug])
+
+    resp = client.post(url, {"phone": "1164320000"}, format="json")
+
+    assert resp.status_code == 200
+    assert resp.data["customer_name"] is None
+
+
+FAKE_PUSH_SUBSCRIPTION = {
+    "endpoint": "https://fcm.googleapis.com/fcm/send/fake-endpoint",
+    "expirationTime": None,
+    "keys": {"p256dh": "BFAKE_P256DH_KEY", "auth": "FAKE_AUTH"},
+}
+
+
+@pytest.mark.django_db
+def test_public_request_stores_push_subscription():
+    business = create_business()
+    service = create_service(business)
+    client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    response = client.post(
+        url,
+        {**public_request_payload(service), "push_subscription": FAKE_PUSH_SUBSCRIPTION},
+        format="json",
+        REMOTE_ADDR="203.0.113.20",
+    )
+
+    assert response.status_code == 201, response.data
+    public_request = PublicRequest.objects.get(pk=response.data["id"])
+    assert public_request.push_subscription == FAKE_PUSH_SUBSCRIPTION
+    assert "push_subscription" not in response.data
+
+
+@pytest.mark.django_db
+def test_public_request_push_subscription_validates_format():
+    business = create_business()
+    service = create_service(business)
+    client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    response = client.post(
+        url,
+        {**public_request_payload(service), "push_subscription": {"no_endpoint": True}},
+        format="json",
+        REMOTE_ADDR="203.0.113.21",
+    )
+
+    assert response.status_code == 400
+    assert "push_subscription" in response.data
+
+
+@pytest.mark.django_db
+def test_confirm_reservation_triggers_push_for_linked_public_request(api_client):
+    business = api_client.user.profile.business
+    service = create_service(business)
+    public_client = APIClient()
+    created = public_client.post(
+        reverse("public-landing-requests", args=[business.slug]),
+        {**public_request_payload(service), "push_subscription": FAKE_PUSH_SUBSCRIPTION},
+        format="json",
+        REMOTE_ADDR="203.0.113.22",
+    )
+    assert created.status_code == 201
+    public_request = PublicRequest.objects.get(pk=created.data["id"])
+
+    convert_response = api_client.post(
+        reverse("publicrequest-convert", args=[public_request.id]),
+        {},
+        format="json",
+    )
+    assert convert_response.status_code == 201
+    reservation_id = convert_response.data["reservation"]["id"]
+
+    with patch("scheduling.views.send_public_request_push") as mock_push:
+        confirm_response = api_client.post(
+            reverse("reservation-confirm", args=[reservation_id])
+        )
+
+    assert confirm_response.status_code == 200
+    mock_push.assert_called_once()
+    called_with = mock_push.call_args[0][0]
+    assert called_with.push_subscription == FAKE_PUSH_SUBSCRIPTION
+
+
+@pytest.mark.django_db
+def test_confirm_reservation_without_public_request_does_not_fail(api_client):
+    business = api_client.user.profile.business
+    service = create_service(business)
+    from customers.models import Customer, Vehicle
+    customer = Customer.objects.create(business=business, name="Carlos", phone="1111111111")
+    vehicle = Vehicle.objects.create(
+        business=business, customer=customer, license_plate="ZZ999ZZ", brand="Honda", model="Civic",
+    )
+    from scheduling.models import Reservation
+    reservation = Reservation.objects.create(
+        business=business,
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        day=date(2026, 6, 10),
+    )
+
+    with patch("scheduling.views.send_public_request_push") as mock_push:
+        response = api_client.post(
+            reverse("reservation-confirm", args=[reservation.id])
+        )
+
+    assert response.status_code == 200
+    mock_push.assert_not_called()

@@ -6,7 +6,7 @@ from core.serializers import BusinessScopedSerializerMixin
 from .models import Service
 
 
-PRICE_BY_TYPE_FIELDS = ["price_moto", "price_auto", "price_camioneta", "price_combi"]
+PRICE_BY_TYPE_FIELDS = ["price_moto", "price_auto", "price_camioneta", "price_combi", "price_camion"]
 
 
 class ServiceSerializer(BusinessScopedSerializerMixin, EconomyFieldsMixin, serializers.ModelSerializer):

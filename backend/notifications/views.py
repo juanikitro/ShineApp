@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import decorators, mixins, permissions, response, status, viewsets
@@ -21,6 +22,12 @@ from .serializers import (
 
 
 PUBLIC_REQUESTS_PER_IP_PER_HOUR = 5
+PUBLIC_RECALL_PER_IP = 3
+PUBLIC_RECALL_WINDOW_SECONDS = 15 * 60
+
+
+def recall_cache_key(ip):
+    return f"public_recall_ip_{ip}"
 
 
 def client_ip(request):
@@ -110,6 +117,79 @@ class PublicLandingRequestCreateView(APIView):
             PublicRequestSerializer(public_request, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class PublicLandingRecallView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, slug):
+        business, _ = public_business_or_404(slug)
+        ip_address = client_ip(request)
+        if ip_address:
+            key = recall_cache_key(ip_address)
+            attempts = cache.get(key, 0)
+            if attempts >= PUBLIC_RECALL_PER_IP:
+                return response.Response(
+                    {"detail": "Demasiados intentos. Proba en unos minutos."},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+            cache.set(key, attempts + 1, timeout=PUBLIC_RECALL_WINDOW_SECONDS)
+
+        phone = (request.data.get("phone") or "").strip()
+        email = (request.data.get("email") or "").strip().lower()
+        if not phone and not email:
+            return response.Response(
+                {"detail": "Ingresa tu telefono o email."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        customer = self._find_customer(business, phone, email)
+        vehicles = []
+        if customer:
+            from customers.models import Vehicle
+
+            vehicles = list(
+                Vehicle.objects.filter(
+                    business=business,
+                    customer=customer,
+                    is_active=True,
+                ).order_by("license_plate")[:5]
+            )
+
+        return response.Response({
+            "customer_name": customer.name if customer else None,
+            "customer_phone": customer.phone if customer else None,
+            "customer_email": customer.email if customer else None,
+            "vehicles": [
+                {
+                    "license_plate": v.license_plate,
+                    "brand": v.brand,
+                    "model": v.model,
+                    "vehicle_type": v.vehicle_type,
+                }
+                for v in vehicles
+            ],
+        })
+
+    @staticmethod
+    def _find_customer(business, phone, email):
+        from customers.models import Customer
+
+        qs = Customer.objects.filter(business=business, is_active=True)
+
+        if email:
+            customer = qs.filter(email__iexact=email).first()
+            if customer:
+                return customer
+
+        phone_digits = "".join(c for c in phone if c.isdigit())
+        if phone_digits:
+            for customer in qs.exclude(phone="").only("id", "name", "phone", "email"):
+                if "".join(c for c in customer.phone if c.isdigit()) == phone_digits:
+                    return customer
+
+        return None
 
 
 class PublicRequestViewSet(

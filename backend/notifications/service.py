@@ -1,3 +1,4 @@
+import json
 import logging
 
 from django.conf import settings
@@ -49,6 +50,35 @@ def send_work_order_ready(work_order):
         f"para retirar. Servicio: {work_order.service.name}."
     )
     return _send_customer_email(work_order.customer, "Tu vehiculo esta listo", body)
+
+
+def send_public_request_push(public_request):
+    """Envía una push notification al cliente cuando el negocio confirma el turno.
+
+    Requiere que `public_request.push_subscription` esté cargado y que las VAPID keys
+    estén configuradas via env vars. Devuelve True si el envío fue exitoso, False en
+    cualquier otro caso (suscripción ausente, VAPID no configurado, error de red).
+    """
+    if not public_request.push_subscription:
+        return False
+    private_key = getattr(settings, "VAPID_PRIVATE_KEY", "")
+    if not private_key:
+        return False
+    try:
+        from pywebpush import webpush  # noqa: PLC0415
+        webpush(
+            subscription_info=public_request.push_subscription,
+            data=json.dumps({
+                "title": "Turno confirmado",
+                "body": f"Hola {public_request.customer_name}, tu turno fue confirmado.",
+            }),
+            vapid_private_key=private_key,
+            vapid_claims={"sub": getattr(settings, "VAPID_CLAIMS_EMAIL", "mailto:no-reply@shineapp.local")},
+        )
+        return True
+    except Exception:
+        logger.exception("No se pudo enviar push notification a public_request %s", public_request.id)
+        return False
 
 
 def send_password_reset_email(user_email, reset_token):
