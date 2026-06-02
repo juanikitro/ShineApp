@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Autocompletar datos del cliente en página pública](2026-06-02-recall-cliente-publico.md)
 - [Tipo de vehiculo "Camion"](2026-06-02-tipo-vehiculo-camion.md)
 - [Reabrir caja](2026-06-02-reabrir-caja.md)
 - [Precios por tipo de vehiculo](2026-06-02-precios-por-tipo-vehiculo.md)
