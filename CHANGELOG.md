@@ -11,10 +11,8 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-02
-- [Tipo de vehiculo "Camion"](docs/registro/cambios/2026-06-02-tipo-vehiculo-camion.md)
-- [Reabrir caja](docs/registro/cambios/2026-06-02-reabrir-caja.md)
 - [Precios por tipo de vehiculo](docs/registro/cambios/2026-06-02-precios-por-tipo-vehiculo.md)
-- [Desplegable de SearchSelect en portal fijo](docs/registro/cambios/2026-06-02-combo-desplegable-portal.md)
+- [Separadores de miles y prefijo $ en inputs monetarios](docs/registro/cambios/2026-06-02-numeric-input-separadores-miles.md)
 - [Changelog automatico (CHANGELOG.md + hook de commit)](docs/registro/cambios/2026-06-02-changelog-automatico.md)
 
 ## 2026-06-01

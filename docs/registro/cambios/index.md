@@ -9,10 +9,8 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
-- [Tipo de vehiculo "Camion"](2026-06-02-tipo-vehiculo-camion.md)
-- [Reabrir caja](2026-06-02-reabrir-caja.md)
 - [Precios por tipo de vehiculo](2026-06-02-precios-por-tipo-vehiculo.md)
-- [Desplegable de SearchSelect en portal fijo](2026-06-02-combo-desplegable-portal.md)
+- [Separadores de miles y prefijo $ en inputs monetarios](2026-06-02-numeric-input-separadores-miles.md)
 - [Changelog automatico (CHANGELOG.md + hook de commit)](2026-06-02-changelog-automatico.md)
 - [Performance: funcion API co-ubicada en gru1 (Sao Paulo)](2026-06-01-perf-region-funcion-gru1.md)
 - [Performance: Fluid Compute en la funcion API](2026-06-01-perf-fluid-compute.md)
