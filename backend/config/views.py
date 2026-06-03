@@ -204,7 +204,22 @@ class HealthCheckView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, _request):
-        checks = {"app": "ok", "database": "ok"}
+        import logging as _logging
+        import os as _os
+        from django.conf import settings as _settings
+        storage_backend = _settings.STORAGES["default"]["BACKEND"]
+        supabase_enabled_env = _os.environ.get("SUPABASE_STORAGE_ENABLED", "(not set)")
+        _logging.getLogger("shineapp.health").warning(
+            "[shineapp:health] storage_backend=%r supabase_enabled_env=%r",
+            storage_backend,
+            supabase_enabled_env,
+        )
+        checks = {
+            "app": "ok",
+            "database": "ok",
+            "storage_backend": storage_backend,
+            "supabase_enabled_env": supabase_enabled_env,
+        }
         try:
             connection.ensure_connection()
         except Exception:
