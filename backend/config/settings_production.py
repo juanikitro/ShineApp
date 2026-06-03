@@ -1,4 +1,5 @@
 import os
+import sys
 
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
@@ -163,3 +164,48 @@ if SUPABASE_STORAGE_ENABLED:
     }
 
     MEDIA_URL = f"{SUPABASE_STORAGE_PUBLIC_URL}/" if SUPABASE_STORAGE_PUBLIC_URL else "/media/"
+
+# ---------------------------------------------------------------------------
+# Logging — sends Django error tracebacks to stdout (captured by Vercel)
+# ---------------------------------------------------------------------------
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "%(levelname)s %(name)s: %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "WARNING",
+    },
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.security": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
+
+# Startup diagnostic — visible on every cold start in Vercel runtime logs.
+print(
+    "[shineapp:startup]"
+    f" SUPABASE_STORAGE_ENABLED={os.getenv('SUPABASE_STORAGE_ENABLED', '(not set)')!r}"
+    f" storage_backend={STORAGES['default']['BACKEND']!r}"
+    f" SUPABASE_STORAGE_QUERYSTRING_AUTH={os.getenv('SUPABASE_STORAGE_QUERYSTRING_AUTH', '(not set)')!r}",
+    file=sys.stderr,
+)
