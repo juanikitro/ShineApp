@@ -11982,24 +11982,6 @@ export default function Home() {
 									hint="Mantenemos el tablero listo mientras llegan las reservas."
 								/>
 							) : null}
-							{!loading &&
-							!agendaLoadError &&
-							!agendaBoardModel.segments.length ? (
-								<Empty
-									text="Sin reservas en este rango."
-									hint="Crea una reserva para el dia seleccionado o cambia el filtro de servicio para revisar otra carga."
-									action={
-										<button
-											type="button"
-											className="primary"
-											onClick={() => openQuickReservation(selectedDay)}
-										>
-											<Plus size={16} />
-											Crear reserva
-										</button>
-									}
-								/>
-							) : null}
 							<DndContext
 								sensors={agendaSensors}
 								collisionDetection={closestCenter}
