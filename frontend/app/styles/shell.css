@@ -238,6 +238,66 @@
   width: 100%;
 }
 
+.profile-avatar-block {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  margin-bottom: 4px;
+}
+
+.profile-avatar-preview {
+  align-items: center;
+  appearance: none;
+  background: var(--color-workspace-surface);
+  border: 1px solid var(--shop-border);
+  border-radius: 999px;
+  color: var(--shop-ink);
+  cursor: pointer;
+  display: flex;
+  font-size: 30px;
+  font-weight: 800;
+  height: 96px;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  transition: border-color 0.15s ease;
+  width: 96px;
+}
+
+.profile-avatar-preview:hover {
+  border-color: var(--shop-border-strong);
+}
+
+.profile-avatar-preview > * {
+  pointer-events: none;
+}
+
+.profile-avatar-preview img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.profile-avatar-overlay {
+  align-items: center;
+  background: var(--color-primary);
+  bottom: 0;
+  color: var(--color-primary-foreground);
+  display: flex;
+  height: 26px;
+  justify-content: center;
+  left: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.profile-avatar-hint {
+  color: var(--shop-ink-soft);
+  font-size: 12px;
+}
+
 .sidebar-profile-copy {
   display: grid;
   gap: 2px;
