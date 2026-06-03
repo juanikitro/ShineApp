@@ -19,7 +19,9 @@ export function safeImageAssetSource(value: string | null | undefined) {
 	try {
 		const parsed = new URL(source, 'http://localhost')
 		if (['http:', 'https:', 'blob:'].includes(parsed.protocol)) {
-			return parsed.href
+			// Relative paths must be returned as-is; absolute URLs go through
+			// parsed.href so the URL parser normalises them before reaching the DOM.
+			return source.startsWith('/') ? source : parsed.href
 		}
 	} catch {
 		return null
