@@ -10,6 +10,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 - [Fix: reabrir caja no persistía el estado abierto (2026-06-03)](2026-06-03-fix-reabrir-caja.md)
+- [Eliminar reservas canceladas](2026-06-03-eliminar-reservas-canceladas.md)
 - [Tipo de vehiculo "Camion"](2026-06-02-tipo-vehiculo-camion.md)
 - [Autocompletar datos del cliente en página pública](2026-06-02-recall-cliente-publico.md)
 - [Reabrir caja](2026-06-02-reabrir-caja.md)
