@@ -76,6 +76,15 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         serializer = self.get_serializer(rows, many=True)
         return response.Response(serializer.data)
 
+    def destroy(self, request, *args, **kwargs):
+        reservation = self.get_object()
+        if reservation.status != Reservation.Status.CANCELED:
+            return response.Response(
+                {"detail": "Solo se pueden eliminar reservas canceladas."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)
+
     @decorators.action(detail=True, methods=["post"])
     def confirm(self, request, pk=None):
         reservation = self.get_object()

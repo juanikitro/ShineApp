@@ -2423,6 +2423,17 @@ export default function Home() {
 		row: AgendaOperationalRow,
 	) {
 		if (action.kind === 'reservation') {
+			if (action.action === 'delete') {
+				return runAction(
+					() =>
+						apiFetch(`/reservations/${reservation.id}/`, {
+							method: 'DELETE',
+						}),
+					{
+						successTitle: entityFeedbackTitle('reservation', 'deleted'),
+					},
+				)
+			}
 			const previousStatus = reservation.status
 			return runAction(
 				() =>
@@ -2478,14 +2489,20 @@ export default function Home() {
 
 	function agendaActionIcon(action: AgendaReservationAction) {
 		if (action.kind === 'work-order-charge') return <CreditCard size={15} />
-		if (action.kind === 'reservation' && action.action === 'cancel') {
+		if (
+			action.kind === 'reservation' &&
+			(action.action === 'cancel' || action.action === 'delete')
+		) {
 			return <Trash2 size={15} />
 		}
 		return <CheckCircle2 size={15} />
 	}
 
 	function agendaActionTone(action: AgendaReservationAction): QuickAction['tone'] {
-		if (action.kind === 'reservation' && action.action === 'cancel') {
+		if (
+			action.kind === 'reservation' &&
+			(action.action === 'cancel' || action.action === 'delete')
+		) {
 			return 'danger'
 		}
 		return action.variant === 'filled' ? 'primary' : 'default'
@@ -2569,7 +2586,8 @@ export default function Home() {
 				icon: agendaActionIcon(action),
 				tone: agendaActionTone(action),
 				requiresConfirm:
-					action.kind === 'reservation' && action.action === 'cancel',
+					action.kind === 'reservation' &&
+					(action.action === 'cancel' || action.action === 'delete'),
 				onSelect: () =>
 					runAgendaReservationAction(
 						action,

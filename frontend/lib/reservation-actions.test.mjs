@@ -3,7 +3,7 @@ import { test } from 'vitest'
 
 import { buildAgendaReservationActions, reservationStatusActions } from './reservation-actions'
 
-test('canceled reservations expose an activation action through the confirm endpoint', () => {
+test('canceled reservations expose an activation action and a delete action', () => {
 	assert.deepEqual(reservationStatusActions('canceled'), [
 		{
 			action: 'confirm',
@@ -11,6 +11,15 @@ test('canceled reservations expose an activation action through the confirm endp
 			label: 'Activar',
 			priority: 'high',
 			variant: 'filled',
+		},
+		{
+			action: 'delete',
+			ariaLabel: 'Eliminar reserva',
+			icon: 'trash',
+			kind: 'reservation',
+			label: 'Eliminar',
+			priority: 'low',
+			variant: 'icon-danger',
 		},
 	])
 })
@@ -228,6 +237,15 @@ test('unknown or non-chargeable states expose no work-order actions', () => {
 				label: 'Activar',
 				priority: 'high',
 				variant: 'filled',
+			},
+			{
+				action: 'delete',
+				ariaLabel: 'Eliminar reserva',
+				icon: 'trash',
+				kind: 'reservation',
+				label: 'Eliminar',
+				priority: 'low',
+				variant: 'icon-danger',
 			},
 		],
 	)
