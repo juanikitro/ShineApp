@@ -244,7 +244,7 @@ test('unknown or non-chargeable states expose no work-order actions', () => {
 				icon: 'trash',
 				kind: 'reservation',
 				label: 'Eliminar',
-				priority: 'low',
+				priority: 'high',
 				variant: 'icon-danger',
 			},
 		],
