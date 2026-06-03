@@ -1283,6 +1283,12 @@ export default function Home() {
 	const safeBusinessLogoPdfThumbnail = safeImageAssetSource(
 		businessLogoPdfThumbnail,
 	)
+	const sidebarBusinessLogoSrc =
+		safeBusinessLogoPreview && !businessLogoIsPdf
+			? safeBusinessLogoPreview
+			: businessLogoIsPdf && safeBusinessLogoPdfThumbnail
+				? safeBusinessLogoPdfThumbnail
+				: null
 
 	const {
 		thumbnail: sidebarAvatarPdfThumbnail,
@@ -11339,24 +11345,13 @@ export default function Home() {
 											) : null}
 										</span>
 									</button>
-									{businessProfile ? (
+									{businessProfile && sidebarBusinessLogoSrc ? (
 										<div className="sidebar-business-card">
-											{safeBusinessLogoPreview && !businessLogoIsPdf ? (
-												<img
-													src={encodeURI(safeBusinessLogoPreview)}
-													alt=""
-													className="sidebar-business-logo"
-												/>
-											) : businessLogoIsPdf && safeBusinessLogoPdfThumbnail ? (
-												<img
-													src={encodeURI(safeBusinessLogoPdfThumbnail)}
-													alt=""
-													className="sidebar-business-logo"
-												/>
-											) : null}
-											<span className="sidebar-business-name">
-												{String(businessProfile.name ?? '')}
-											</span>
+											<img
+												src={encodeURI(sidebarBusinessLogoSrc)}
+												alt={String(businessProfile.name ?? '')}
+												className="sidebar-business-logo"
+											/>
 										</div>
 									) : null}
 								</div>

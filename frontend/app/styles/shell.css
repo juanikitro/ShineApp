@@ -266,27 +266,18 @@
   border: 1px solid var(--shop-border);
   border-radius: var(--radius-md);
   display: flex;
-  gap: 10px;
-  padding: 8px 10px;
+  justify-content: center;
+  overflow: hidden;
+  padding: 8px;
 }
 
 .sidebar-business-logo {
   border-radius: var(--radius-sm);
-  flex: 0 0 auto;
-  height: 28px;
+  display: block;
+  height: auto;
+  max-height: 64px;
   object-fit: contain;
-  width: 28px;
-}
-
-.sidebar-business-name {
-  color: var(--shop-ink-soft);
-  flex: 1 1 0;
-  font-size: 12px;
-  font-weight: 650;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  width: 100%;
 }
 
 .theme-switch {

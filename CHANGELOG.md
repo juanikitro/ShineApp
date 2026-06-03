@@ -11,6 +11,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-03
+- [Sidebar: solo el logo del negocio a ancho completo](docs/registro/cambios/2026-06-03-sidebar-logo-negocio-solo-logo.md)
 - [Fix: reabrir caja no persistía el estado abierto (2026-06-03)](docs/registro/cambios/2026-06-03-fix-reabrir-caja.md)
 - [Fix: imagenes de storage (logo, avatar) no se ven en Vercel](docs/registro/cambios/2026-06-03-fix-logo-presigned-url.md)
 - [Eliminar reservas canceladas](docs/registro/cambios/2026-06-03-eliminar-reservas-canceladas.md)
