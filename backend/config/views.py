@@ -6,7 +6,7 @@ from pathlib import Path
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group, update_last_login
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import DisallowedHost, ValidationError as DjangoValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.text import slugify
@@ -24,7 +24,7 @@ from core.models import (
     normalize_expense_category_tree,
     normalize_income_category_tree,
 )
-from core.permissions import EMPLOYEE_ROLE, EMPLOYER_ROLE, EmployerOnly, can_view_economy, user_context_payload
+from core.permissions import EMPLOYEE_ROLE, EMPLOYER_ROLE, EmployerOnly, can_view_economy, file_url, user_context_payload
 from core.permissions import business_for_user, business_from_request
 from notifications.service import send_password_reset_email, send_trial_welcome_email
 
@@ -427,15 +427,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
         ]
 
     def get_logo_url(self, obj):
-        if not obj.logo:
-            return None
-        request = self.context.get("request")
-        if request is None:
-            return obj.logo.url
-        try:
-            return request.build_absolute_uri(obj.logo.url)
-        except DisallowedHost:
-            return obj.logo.url
+        return file_url(obj.logo, request=self.context.get("request"))
 
     def validate_logo(self, value):
         return validate_profile_asset_upload(value)

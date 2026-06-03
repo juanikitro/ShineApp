@@ -88,12 +88,15 @@ def context_can_view_economy(context):
 def file_url(file_field, request=None):
     if not file_field:
         return None
+    url = file_field.url
+    if url.startswith(("http://", "https://")):
+        return url
     if request is None:
-        return file_field.url
+        return url
     try:
-        return request.build_absolute_uri(file_field.url)
+        return request.build_absolute_uri(url)
     except DisallowedHost:
-        return file_field.url
+        return url
 
 
 def trial_days_remaining(trial_ends_at, *, now=None):

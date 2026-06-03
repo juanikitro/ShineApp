@@ -11322,9 +11322,9 @@ export default function Home() {
 									>
 										<span className="sidebar-profile-avatar" aria-hidden="true">
 											{safeSidebarAvatarUrl && !sidebarAvatarIsPdf ? (
-												<img src={encodeURI(safeSidebarAvatarUrl)} alt="" />
+												<img src={safeSidebarAvatarUrl} alt="" />
 											) : safeSidebarAvatarPdfThumbnail ? (
-												<img src={encodeURI(safeSidebarAvatarPdfThumbnail)} alt="" />
+												<img src={safeSidebarAvatarPdfThumbnail} alt="" />
 											) : currentUser.avatar_url ? (
 												<FileText size={18} />
 											) : (
