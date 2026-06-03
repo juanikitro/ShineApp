@@ -36,6 +36,7 @@ import {
 	ReceiptText,
 	RefreshCw,
 	Search,
+	Sparkles,
 	Trash2,
 	Users,
 	Wrench,
@@ -453,6 +454,7 @@ type SettingsSection =
 	| 'agenda'
 	| 'users'
 	| 'history'
+	| 'novedades'
 
 const settingsSectionOptions: Array<{
 	value: SettingsSection
@@ -465,6 +467,7 @@ const settingsSectionOptions: Array<{
 	{ value: 'agenda', label: 'Agenda', icon: CalendarDays },
 	{ value: 'users', label: 'Usuarios', icon: Users },
 	{ value: 'history', label: 'Historial', icon: History },
+	{ value: 'novedades', label: 'Novedades', icon: Sparkles },
 ]
 const navigationConfig = {
 	sections: Object.keys(sectionMeta),
