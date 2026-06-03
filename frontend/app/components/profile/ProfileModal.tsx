@@ -1,8 +1,8 @@
 'use client'
 
-import { type FormEvent } from 'react'
+import { type ChangeEvent, type FormEvent, type RefObject } from 'react'
 
-import { LogOut } from 'lucide-react'
+import { Camera, FileText, LogOut } from 'lucide-react'
 
 import { type AnyRecord } from '@/lib/page-support'
 
@@ -35,6 +35,15 @@ type ProfileModalProps = {
 	trialText: string | null
 	joinedText: string
 	lastLoginText: string
+	avatarInputRef: RefObject<HTMLInputElement | null>
+	avatarInputKey: number
+	avatarPreview: string | null
+	avatarPdfThumbnail: string | null
+	avatarIsPdf: boolean
+	avatarInitial: string
+	hasStoredAvatar: boolean
+	onAvatarChange: (event: ChangeEvent<HTMLInputElement>) => void
+	onOpenAvatarPicker: () => void
 }
 
 export function ProfileModal({
@@ -49,9 +58,56 @@ export function ProfileModal({
 	trialText,
 	joinedText,
 	lastLoginText,
+	avatarInputRef,
+	avatarInputKey,
+	avatarPreview,
+	avatarPdfThumbnail,
+	avatarIsPdf,
+	avatarInitial,
+	hasStoredAvatar,
+	onAvatarChange,
+	onOpenAvatarPicker,
 }: ProfileModalProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
+			<div className="profile-avatar-block">
+				<button
+					type="button"
+					className="profile-avatar-preview"
+					onClick={onOpenAvatarPicker}
+					aria-label={
+						hasStoredAvatar
+							? 'Cambiar foto de perfil'
+							: 'Agregar foto de perfil'
+					}
+				>
+					{avatarPreview && !avatarIsPdf ? (
+						<img src={avatarPreview} alt="" />
+					) : avatarPdfThumbnail ? (
+						<img src={avatarPdfThumbnail} alt="" />
+					) : avatarIsPdf ? (
+						<FileText size={28} aria-hidden="true" />
+					) : (
+						<span className="profile-avatar-initial">{avatarInitial}</span>
+					)}
+					<span className="profile-avatar-overlay" aria-hidden="true">
+						<Camera size={15} />
+					</span>
+				</button>
+				<input
+					ref={avatarInputRef}
+					key={`profile-avatar-${avatarInputKey}`}
+					className="visually-hidden-input"
+					type="file"
+					aria-label="Archivo de foto de perfil"
+					accept="image/png,image/jpeg,image/webp,image/svg+xml,application/pdf,.pdf"
+					onChange={onAvatarChange}
+					tabIndex={-1}
+				/>
+				<span className="profile-avatar-hint">
+					Toca la foto para {hasStoredAvatar ? 'cambiarla' : 'agregarla'}
+				</span>
+			</div>
 			<div className="detail-grid profile-detail-grid">
 				<div className="detail-row">
 					<span>ID</span>
