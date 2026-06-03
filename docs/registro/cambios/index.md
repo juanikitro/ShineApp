@@ -16,6 +16,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Fix: card de reserva en agenda recorta el ultimo renglon a la mitad](2026-06-03-fix-recorte-card-reserva-agenda.md)
 - [Fix: reabrir caja no persistía el estado abierto (2026-06-03)](2026-06-03-fix-reabrir-caja.md)
 - [Fix: imagenes de storage (logo, avatar) no se ven en Vercel](2026-06-03-fix-logo-presigned-url.md)
+- [Filtro de tipos de servicio en la landing publica](2026-06-03-filtro-tipos-servicio-landing-publica.md)
 - [Eliminar reservas canceladas](2026-06-03-eliminar-reservas-canceladas.md)
 - [Avatar editable en el popup de perfil](2026-06-03-avatar-editable-en-perfil.md)
 - [Tipo de vehiculo "Camion"](2026-06-02-tipo-vehiculo-camion.md)

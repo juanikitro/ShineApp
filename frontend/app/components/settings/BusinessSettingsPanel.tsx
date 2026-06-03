@@ -59,6 +59,9 @@ export function BusinessSettingsPanel({
 		businessForm.allow_public_booking_requests !== false
 	const quoteRequestsEnabled =
 		businessForm.allow_public_quote_requests !== false
+	const showWashServices = businessForm.public_show_wash_services !== false
+	const showDetailingServices =
+		businessForm.public_show_detailing_services !== false
 
 	return (
 		<section className="panel">
@@ -328,6 +331,34 @@ export function BusinessSettingsPanel({
 								}
 							/>
 							Recibir pedidos de cotizacion
+						</label>
+					</div>
+					<div className="form-row">
+						<label>
+							<input
+								type="checkbox"
+								name="business_public_show_wash_services"
+								checked={showWashServices}
+								onChange={(event) =>
+									onPatchBusinessForm({
+										public_show_wash_services: event.target.checked,
+									})
+								}
+							/>
+							Mostrar servicios de lavadero
+						</label>
+						<label>
+							<input
+								type="checkbox"
+								name="business_public_show_detailing_services"
+								checked={showDetailingServices}
+								onChange={(event) =>
+									onPatchBusinessForm({
+										public_show_detailing_services: event.target.checked,
+									})
+								}
+							/>
+							Mostrar servicios de detailing
 						</label>
 					</div>
 					<Field label="Texto corto para la landing">
