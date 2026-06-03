@@ -175,9 +175,22 @@
 }
 
 .nav-children {
+  animation: nav-children-reveal var(--motion-duration-base) var(--motion-ease-emphasis);
   display: grid;
   gap: 2px;
   padding-left: 10px;
+}
+
+@keyframes nav-children-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--motion-distance-sm)));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .nav button.nav-child {
@@ -238,6 +251,66 @@
   width: 100%;
 }
 
+.profile-avatar-block {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  margin-bottom: 4px;
+}
+
+.profile-avatar-preview {
+  align-items: center;
+  appearance: none;
+  background: var(--color-workspace-surface);
+  border: 1px solid var(--shop-border);
+  border-radius: 999px;
+  color: var(--shop-ink);
+  cursor: pointer;
+  display: flex;
+  font-size: 30px;
+  font-weight: 800;
+  height: 96px;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  transition: border-color 0.15s ease;
+  width: 96px;
+}
+
+.profile-avatar-preview:hover {
+  border-color: var(--shop-border-strong);
+}
+
+.profile-avatar-preview > * {
+  pointer-events: none;
+}
+
+.profile-avatar-preview img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.profile-avatar-overlay {
+  align-items: center;
+  background: var(--color-primary);
+  bottom: 0;
+  color: var(--color-primary-foreground);
+  display: flex;
+  height: 26px;
+  justify-content: center;
+  left: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.profile-avatar-hint {
+  color: var(--shop-ink-soft);
+  font-size: 12px;
+}
+
 .sidebar-profile-copy {
   display: grid;
   gap: 2px;
@@ -266,27 +339,18 @@
   border: 1px solid var(--shop-border);
   border-radius: var(--radius-md);
   display: flex;
-  gap: 10px;
-  padding: 8px 10px;
+  justify-content: center;
+  overflow: hidden;
+  padding: 8px;
 }
 
 .sidebar-business-logo {
   border-radius: var(--radius-sm);
-  flex: 0 0 auto;
-  height: 28px;
+  display: block;
+  height: auto;
+  max-height: 64px;
   object-fit: contain;
-  width: 28px;
-}
-
-.sidebar-business-name {
-  color: var(--shop-ink-soft);
-  flex: 1 1 0;
-  font-size: 12px;
-  font-weight: 650;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  width: 100%;
 }
 
 .theme-switch {
