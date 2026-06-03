@@ -3050,7 +3050,8 @@ export default function Home() {
 				reservationStatusValue={reservationStatusValue}
 				serviceLines={serviceLines}
 				statusMode={options.statusMode}
-				title={reservationCustomerTitle(reservation)}
+				timeLabel={reservationStartTimeLabel(reservation, 'Sin hora')}
+				title={String(reservation.customer_name ?? '')}
 				vehicleModel={vehicleModel}
 				workDebt={
 					showWork ? renderAgendaWorkDebt(workOrder as AnyRecord) : null
@@ -3222,6 +3223,7 @@ export default function Home() {
 			options.statusMode === 'work-order' && Boolean(workOrder)
 		const serviceLines = reservationAgendaServices(reservation)
 		const vehicleModel = reservationVehicleModel(reservation)
+		const timeLabel = reservationStartTimeLabel(reservation, 'Sin hora')
 		const workStatusValue = String(
 			workStatusForReservation(reservation, workOrderByReservation) ??
 				reservation.status ??
@@ -3240,11 +3242,16 @@ export default function Home() {
 					<div className="agenda-entry-card agenda-entry-card--reservation">
 						<div className="agenda-entry-head">
 							<div className="agenda-entry-copy">
-								<span className="agenda-entry-eyebrow">
-									{showWorkStatus ? 'Trabajo' : 'Reserva'}
-								</span>
+								<div className="agenda-entry-kicker">
+									<span className="agenda-entry-eyebrow">
+										{showWorkStatus ? 'Trabajo' : 'Reserva'}
+									</span>
+									{timeLabel ? (
+										<span className="agenda-entry-time">{timeLabel}</span>
+									) : null}
+								</div>
 								<div className="record-title">
-									{reservationCustomerTitle(reservation)}
+									{String(reservation.customer_name ?? '')}
 								</div>
 								{serviceLines.length ? (
 									<div className="agenda-service-stack" aria-label="Servicios">

@@ -27,6 +27,7 @@ type AgendaReservationCardProps = {
 	workStatusLabels: Record<string, string>
 	statusMode?: 'reservation' | 'work-order'
 	title: string
+	timeLabel?: string
 	serviceLines: AgendaServiceLine[]
 	vehicleModel?: string
 	rangeLabel?: string
@@ -47,6 +48,7 @@ export function AgendaReservationCard({
 	workStatusLabels,
 	statusMode = 'reservation',
 	title,
+	timeLabel,
 	serviceLines,
 	vehicleModel,
 	rangeLabel,
@@ -80,6 +82,9 @@ export function AgendaReservationCard({
 								{reservationStatusLabel || reservationStatusValue}
 							</span>
 						)}
+						{timeLabel ? (
+							<span className="agenda-entry-time">{timeLabel}</span>
+						) : null}
 					</div>
 					<div className="record-title">{title}</div>
 					{serviceLines.length ? (
