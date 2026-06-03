@@ -7,7 +7,7 @@ export type AgendaReservationActionPriority = 'high' | 'medium' | 'low'
 
 export type AgendaReservationActionIcon = 'trash'
 
-type ReservationEndpointAction = 'confirm' | 'cancel'
+type ReservationEndpointAction = 'confirm' | 'cancel' | 'delete'
 type WorkOrderStatusValue = 'in_progress' | 'ready' | 'delivered'
 
 export type ReservationStatusAction = {
@@ -200,6 +200,15 @@ export function reservationStatusActions(
 				label: 'Activar',
 				priority: 'high',
 				variant: 'filled',
+			},
+			{
+				action: 'delete',
+				ariaLabel: 'Eliminar reserva',
+				icon: 'trash',
+				kind: 'reservation',
+				label: 'Eliminar',
+				priority: 'low',
+				variant: 'icon-danger',
 			},
 		]
 	}

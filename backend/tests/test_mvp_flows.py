@@ -1508,6 +1508,47 @@ def test_confirm_action_rejects_canceled_reservation_when_day_is_full(api_client
 
 
 @pytest.mark.django_db
+def test_delete_canceled_reservation_removes_it(api_client, base_data):
+    customer, vehicle, service = base_data
+    reservation = Reservation.objects.create(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        day=date(2026, 4, 28),
+        start_time=time(10, 0),
+        status=Reservation.Status.CANCELED,
+    )
+
+    response = api_client.delete(reverse("reservation-detail", args=[reservation.id]))
+
+    assert response.status_code == 204
+    assert not Reservation.objects.filter(pk=reservation.pk).exists()
+
+
+@pytest.mark.django_db
+def test_delete_non_canceled_reservation_is_rejected(api_client, base_data):
+    customer, vehicle, service = base_data
+    for active_status in (
+        Reservation.Status.PENDING,
+        Reservation.Status.CONFIRMED,
+    ):
+        reservation = Reservation.objects.create(
+            customer=customer,
+            vehicle=vehicle,
+            service=service,
+            day=date(2026, 4, 28),
+            start_time=time(10, 0),
+            status=active_status,
+        )
+
+        response = api_client.delete(reverse("reservation-detail", args=[reservation.id]))
+
+        assert response.status_code == 400
+        assert Reservation.objects.filter(pk=reservation.pk).exists()
+        reservation.delete()
+
+
+@pytest.mark.django_db
 def test_reservation_patch_can_move_it_to_another_day_with_capacity(api_client, base_data):
     customer, vehicle, service = base_data
     reservation = Reservation.objects.create(
