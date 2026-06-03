@@ -3946,17 +3946,45 @@ export default function Home() {
 	).length
 	const inactiveEmployeeCount = employees.length - activeEmployeeCount
 	const title = sectionMeta[displayedActive]
-	const navItems: SidebarNavItem[] = (Object.keys(sectionMeta) as Section[])
-		.filter((key) => canViewEconomy || !sectionRequiresEmployer(key))
-		.map((key) => ({
-			key,
-			label: sectionMeta[key].label,
-			icon: sectionMeta[key].icon,
-			badge:
-				key === 'notifications' && pendingPublicRequestsCount
-					? pendingPublicRequestsCount
-					: undefined,
-		}))
+	const buildNavItem = (key: Section): SidebarNavItem => ({
+		key,
+		label: sectionMeta[key].label,
+		icon: sectionMeta[key].icon,
+		badge:
+			key === 'notifications' && pendingPublicRequestsCount
+				? pendingPublicRequestsCount
+				: undefined,
+	})
+	const navItems: SidebarNavItem[] = [
+		buildNavItem('dashboard'),
+		{
+			...buildNavItem('agenda'),
+			children: canViewEconomy
+				? [buildNavItem('quotes'), buildNavItem('notifications')]
+				: [],
+		},
+		{
+			...buildNavItem('customers'),
+			children: [
+				buildNavItem('vehicles'),
+				...(canViewEconomy ? [buildNavItem('services')] : []),
+			],
+		},
+		...(canViewEconomy
+			? [
+					{
+						...buildNavItem('cash'),
+						children: [
+							buildNavItem('debts'),
+							buildNavItem('suppliers'),
+							buildNavItem('inventory'),
+							buildNavItem('tools'),
+						],
+					},
+					buildNavItem('settings'),
+				]
+			: []),
+	]
 	const customerVehicles = vehicles.filter(
 		(vehicle) =>
 			String(vehicle.customer) === String(reservationForm.customer),
@@ -11311,6 +11339,26 @@ export default function Home() {
 											) : null}
 										</span>
 									</button>
+									{businessProfile ? (
+										<div className="sidebar-business-card">
+											{safeBusinessLogoPreview && !businessLogoIsPdf ? (
+												<img
+													src={encodeURI(safeBusinessLogoPreview)}
+													alt=""
+													className="sidebar-business-logo"
+												/>
+											) : businessLogoIsPdf && safeBusinessLogoPdfThumbnail ? (
+												<img
+													src={encodeURI(safeBusinessLogoPdfThumbnail)}
+													alt=""
+													className="sidebar-business-logo"
+												/>
+											) : null}
+											<span className="sidebar-business-name">
+												{String(businessProfile.name ?? '')}
+											</span>
+										</div>
+									) : null}
 								</div>
 							) : null
 						}
