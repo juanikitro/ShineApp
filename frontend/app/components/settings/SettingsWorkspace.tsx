@@ -4,10 +4,12 @@ import {
 	type ChangeEvent,
 	type FormEvent,
 	type RefObject,
+	useState,
 } from 'react'
 
 import {
 	CalendarDays,
+	ChevronDown,
 	Eye,
 	FileText,
 	Pencil,
@@ -16,6 +18,8 @@ import {
 	Search,
 	Trash2,
 } from 'lucide-react'
+
+import changelogData from '@/app/data/changelog.generated.json'
 
 import { BusinessSettingsPanel } from '@/app/components/settings/BusinessSettingsPanel'
 import { Empty, LoadingState } from '@/app/components/ui/Empty'
@@ -48,6 +52,7 @@ export type SettingsSection =
 	| 'agenda'
 	| 'users'
 	| 'history'
+	| 'novedades'
 
 type CashClassificationPair = AnyRecord & {
 	movement_type: string
@@ -248,6 +253,7 @@ export function SettingsWorkspace({
 						onUpdateAuditFilter={onUpdateAuditFilter}
 					/>
 				) : null}
+				{settingsSection === 'novedades' ? <NewsSettingsPanel /> : null}
 			</div>
 		</div>
 	)
@@ -884,6 +890,194 @@ function HistorySettingsPanel({
 						/>
 					)}
 				</div>
+			)}
+		</section>
+	)
+}
+
+// ── Types for changelog JSON ──────────────────────────────────────────────────
+
+type ChangelogSection = {
+	heading: string
+	text: string
+}
+
+type ChangelogItem = {
+	slug: string
+	title: string
+	sections: ChangelogSection[]
+}
+
+type ChangelogGroup = {
+	date: string
+	items: ChangelogItem[]
+}
+
+const changelog = changelogData as unknown as ChangelogGroup[]
+
+const CHANGELOG_PAGE_SIZE = 5
+
+// ── NewsSettingsPanel ─────────────────────────────────────────────────────────
+
+export function NewsSettingsPanel() {
+	const firstDate = changelog.length > 0 ? changelog[0].date : null
+	const [expandedDate, setExpandedDate] = useState<string | null>(firstDate)
+	const [showAll, setShowAll] = useState(false)
+
+	const visibleGroups = showAll ? changelog : changelog.slice(0, CHANGELOG_PAGE_SIZE)
+	const hasMore = changelog.length > CHANGELOG_PAGE_SIZE
+
+	function formatVersionDate(date: string) {
+		const [year, month, day] = date.split('-').map(Number)
+		return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString('es-AR', {
+			day: 'numeric',
+			month: 'long',
+			year: 'numeric',
+			timeZone: 'UTC',
+		})
+	}
+
+	function renderSectionText(text: string) {
+		const blocks = text.split(/\n\n+/).filter((b) => b.trim())
+		return blocks.map((block, i) => {
+			const lines = block.split('\n').filter((l) => l.trim())
+			const allList =
+				lines.length > 0 && lines.every((l) => l.trimStart().startsWith('- '))
+			if (allList) {
+				return (
+					<ul key={i} className="changelog-section-list">
+						{lines.map((l, j) => (
+							<li key={j}>{l.replace(/^\s*-\s+/, '').trim()}</li>
+						))}
+					</ul>
+				)
+			}
+			return (
+				<p key={i} className="changelog-section-para">
+					{lines.join(' ')}
+				</p>
+			)
+		})
+	}
+
+	return (
+		<section className="panel">
+			<div className="panel-head">
+				<div>
+					<span className="panel-kicker">Sistema</span>
+					<h2>Novedades</h2>
+					<p>Cambios funcionales recientes de ShineApp.</p>
+				</div>
+			</div>
+			{changelog.length === 0 ? (
+				<div className="record-sub">Sin novedades registradas todavia.</div>
+			) : (
+				<>
+					<div className="changelog-timeline">
+						{visibleGroups.map((group, groupIndex) => {
+							const isFirst = groupIndex === 0
+							const isLast =
+								groupIndex === visibleGroups.length - 1 && !hasMore
+							const isExpanded = expandedDate === group.date
+							return (
+								<div
+									key={group.date}
+									className={
+										isLast
+											? 'changelog-group changelog-group--last'
+											: 'changelog-group'
+									}
+								>
+									<div className="changelog-spine">
+										<div
+											className={
+												isFirst
+													? 'changelog-version-icon changelog-version-icon--latest'
+													: 'changelog-version-icon'
+											}
+											aria-hidden="true"
+										>
+											<FileText size={16} />
+										</div>
+										{isLast ? null : (
+											<div className="changelog-spine-line" />
+										)}
+									</div>
+									<div className="changelog-content">
+										<button
+											type="button"
+											className={
+												isExpanded
+													? 'changelog-version-header changelog-version-header--expanded'
+													: 'changelog-version-header'
+											}
+											onClick={() =>
+												setExpandedDate(
+													isExpanded ? null : group.date,
+												)
+											}
+										>
+											<div className="changelog-version-copy">
+												<span className="changelog-version-label">
+													{isFirst
+														? 'Ultima version'
+														: `Version ${group.date}`}
+												</span>
+												<span className="changelog-version-date">
+													{formatVersionDate(group.date)}
+												</span>
+											</div>
+											<ChevronDown
+												size={14}
+												className={
+													isExpanded
+														? 'changelog-chevron changelog-chevron--open'
+														: 'changelog-chevron'
+												}
+											/>
+										</button>
+										{isExpanded ? (
+											<div className="changelog-items">
+												{group.items.map((item) => (
+													<div
+														key={item.slug}
+														className="changelog-item"
+													>
+														<div className="changelog-item-title">
+															{item.title}
+														</div>
+														{item.sections.map((sec) => (
+															<div
+																key={sec.heading}
+																className="changelog-item-section"
+															>
+																<div className="changelog-item-section-heading">
+																	{sec.heading}
+																</div>
+																<div className="changelog-item-section-body">
+																	{renderSectionText(sec.text)}
+																</div>
+															</div>
+														))}
+													</div>
+												))}
+											</div>
+										) : null}
+									</div>
+								</div>
+							)
+						})}
+					</div>
+					{hasMore && !showAll ? (
+						<button
+							type="button"
+							className="ghost changelog-show-more"
+							onClick={() => setShowAll(true)}
+						>
+							Mostrar todas las versiones
+						</button>
+					) : null}
+				</>
 			)}
 		</section>
 	)
