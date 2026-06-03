@@ -3,6 +3,40 @@
     "date": "2026-06-03",
     "items": [
       {
+        "slug": "ux-dashboard-cliente-simetria",
+        "title": "fix(ui): simetria y espacios en blanco en Dashboard y Dashboard de cliente",
+        "sections": [
+          {
+            "heading": "Problema",
+            "text": "- Dashboard: la cabina economica (dashboard-insight-grid) dejaba un gran hueco\n  vacio debajo de la columna izquierda (\"Composicion economica\"). La columna derecha\n  (alertas + lectura rapida + a cobrar primero + comparacion) era mucho mas alta y\n  estiraba la fila, dejando ~460px de workspace vacio a la izquierda.\n- Dashboard de cliente: el badge de cumpleanos se estiraba a todo el ancho del\n  titulo (barra rara en el hero). Los pares \"Vehiculos / Agenda\" y \"Cotizaciones /\n  Historial de ventas\" usaban grid two (columna angosta 300-390px + columna ancha),\n  lo que dejaba la agenda vacia ocupando una franja ancha y los vehiculos apretados."
+          },
+          {
+            "heading": "Causa raiz",
+            "text": "- dashboard-insight-grid es un grid de 2 columnas con alturas muy desparejas. Con\n  align-items: stretch (default) la fila toma la altura de la columna mas alta y la\n  mas corta queda con un vacio debajo. El panel \"Comparacion\" (lista vertical de 5\n  registros) inflaba la columna derecha ~300px.\n- El badge (.birthday-badge, display: inline-flex) es item de un grid de una sola\n  columna (.customer-dashboard-title); con justify-self: stretch (default) se\n  estiraba a todo el ancho.\n- grid two esta pensado para layout lista+detalle (columna fija angosta + flexible),\n  no para pares de paneles equivalentes."
+          }
+        ]
+      },
+      {
+        "slug": "sidebar-logo-negocio-solo-logo",
+        "title": "Sidebar: solo el logo del negocio a ancho completo",
+        "sections": [
+          {
+            "heading": "Que cambio",
+            "text": "- La tarjeta de negocio en el footer del sidebar deja de mostrar el nombre del negocio: ahora muestra unicamente el logo.\n- El logo se ajusta al ancho del sidebar (width: 100%) en vez de quedar fijo en un cuadro de 28x28, con max-height para acotar logos altos o cuadrados.\n- Si el negocio no tiene logo visible (ni imagen ni miniatura de PDF), la tarjeta ya no se renderiza (antes podia quedar el recuadro con solo el nombre).\n- El alt de la imagen pasa a ser el nombre del negocio para mantener el nombre accesible al lector de pantalla ahora que el texto visible se quito."
+          }
+        ]
+      },
+      {
+        "slug": "sidebar-desplegables-animacion",
+        "title": "Animacion de despliegue en el sidebar",
+        "sections": [
+          {
+            "heading": "Cambio",
+            "text": "Las secciones desplegables del sidebar ahora revelan su grupo de hijos con una animacion breve de entrada: fade combinado con un leve deslizamiento vertical (translateY) cuando el grupo se expande.\n\n- La animacion vive en .nav-children (frontend/app/styles/shell.css) como keyframes nav-children-reveal.\n- Usa los tokens de motion existentes: --motion-duration-base y --motion-ease-emphasis, con distancia --motion-distance-sm.\n- El chevron del padre ya rotaba con transicion; este cambio acompana esa rotacion con la aparicion suave del contenido.\n- Respeta prefers-reduced-motion sin codigo extra: el reset global de frontend/app/styles/forms.css neutraliza la animacion cuando el usuario lo pide."
+          }
+        ]
+      },
+      {
         "slug": "novedades-ui",
         "title": "Configuracion: panel Novedades con timeline del changelog",
         "sections": [
@@ -13,6 +47,16 @@
           {
             "heading": "Cambio",
             "text": "- Nueva pestana Novedades en Configuracion (icono Sparkles), al final de la barra de secciones.\n- Muestra un timeline vertical con un nodo por fecha de cambios, mas reciente arriba.\n- El nodo de la version mas reciente tiene el icono destacado en azul.\n- Click en un nodo expande/colapsa los cambios de esa fecha. La primera fecha queda expandida por defecto.\n- Cada cambio muestra titulo y descripcion (secciones Contexto y/o Cambio del .md correspondiente).\n- Boton \"Mostrar todas las versiones\" aparece cuando hay mas de 5 fechas.\n- El dato viene de frontend/app/data/changelog.generated.json, generado desde docs/registro/cambios/ por scripts/check_docs.py.\n- El hook pre-commit y el job CI docs mantienen el JSON sincronizado automaticamente en cada commit."
+          }
+        ]
+      },
+      {
+        "slug": "fix-recorte-card-reserva-agenda",
+        "title": "Fix: card de reserva en agenda recorta el ultimo renglon a la mitad",
+        "sections": [
+          {
+            "heading": "Contexto",
+            "text": "En las vistas apiladas de la agenda (lista de trabajo y tablero por estado), la\ncard de reserva mostraba el ultimo renglon de la cabecera (modelo de vehiculo o\nnombre de servicio) cortado a la mitad: solo se veian las puntas superiores de\nlos glifos. Se dispara cuando el titulo (hora - cliente) envuelve a dos lineas,\nempujando el contenido por encima de la altura de la card."
           }
         ]
       },
@@ -42,6 +86,16 @@
           {
             "heading": "Cambio",
             "text": "- Las reservas canceladas exponen una segunda accion en la agenda: Eliminar (icono papelera, tono danger).\n- La accion dispara DELETE /api/reservations/{id}/.\n- El backend valida que la reserva este en estado canceled antes de permitir el borrado; cualquier otro estado retorna 400.\n- Se pide confirmacion al usuario antes de ejecutar la eliminacion (igual que el flujo de cancelacion).\n- No hay undo (el borrado es destructivo).\n- El evento de auditoria delete ya estaba cubierto por AuditedModelViewSetMixin."
+          }
+        ]
+      },
+      {
+        "slug": "avatar-editable-en-perfil",
+        "title": "Avatar editable en el popup de perfil",
+        "sections": [
+          {
+            "heading": "Contexto",
+            "text": "docs/registro/cambios/2026-05-09-perfil-usuario-sidebar.md decia que el popup \"Mi perfil\" permitia cambiar la foto clickeando el preview, pero la UI nunca tuvo el control: ProfileModal no renderizaba preview ni input, blankProfileForm no incluia avatar y saveProfile no adjuntaba el archivo. El avatar solo se mostraba de solo-lectura en el footer del sidebar.\n\nEl backend ya soportaba la subida: PATCH /api/auth/me/ acepta el campo multipart avatar (MeUpdateSerializer.avatar, validado por validate_profile_asset_upload) y tiene tests para PNG y PDF en backend/tests/test_mvp_flows.py. El hueco era 100% frontend."
           }
         ]
       }
