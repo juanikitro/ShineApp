@@ -293,6 +293,8 @@ class BusinessProfile(models.Model):
     public_landing_intro = models.CharField(max_length=240, blank=True)
     allow_public_booking_requests = models.BooleanField(default=True)
     allow_public_quote_requests = models.BooleanField(default=True)
+    public_show_wash_services = models.BooleanField(default=True)
+    public_show_detailing_services = models.BooleanField(default=True)
     income_category_tree = models.JSONField(
         default=default_income_category_tree,
         blank=True,

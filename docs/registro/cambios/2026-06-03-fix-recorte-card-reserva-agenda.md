@@ -29,16 +29,30 @@ quedaba oculto por completo y el nombre de servicio cortado.
   La altura fija queda solo en `.workspace .record.agenda-operational-card--spanning`
   (board), que ya la declaraba. Las cards apiladas (lista de trabajo, tablero por
   estado) ahora crecen con su contenido y no recortan texto.
+- Horario movido al lado del badge de estado: el titulo de la card pasa a ser
+  solo el nombre del cliente (antes `hora - cliente`) y el horario (`10:00` /
+  `Sin hora`) se muestra en el kicker, alineado a la derecha del badge. Esto
+  ademas acorta el titulo y reduce la altura de la cabecera. Nuevo prop opcional
+  `timeLabel` en `AgendaReservationCard` y nueva clase `.agenda-entry-time`.
 
 ## Archivos modificados
 
 - `frontend/app/styles/agenda.css`
+- `frontend/app/components/agenda/AgendaReservationCard.tsx`
+- `frontend/app/page.tsx`
 
 ## Validacion
 
 - Visual: reproduccion aislada del card en navegador con mediciones before/after.
   BEFORE: altura 268px, cabecera desborda 52px, servicio cortado y modelo oculto.
-  AFTER: altura 320px (segun contenido), cabecera sin desborde, servicio y modelo
-  completos. El board (`--spanning`) conserva la altura fija 268/284px.
-- Sin tests que referencien `.agenda-operational-card` ni `.agenda-entry-head`.
-- Build/Vitest pendientes: worktree fresco requiere `npm install` previo.
+  AFTER (vistas apiladas, nombre largo): altura segun contenido, cabecera sin
+  desborde, servicio y modelo completos, horario a la derecha del badge. El board
+  (`--spanning`) conserva la altura fija 268/284px (truncado por diseno en esa vista).
+- `tsc --noEmit`: sin errores. `vitest run`: 278 tests pasan (31 archivos).
+
+## Nota de reaplicacion (2026-06-03)
+
+El fix de altura entro a `development` con el PR #38, pero el cambio del horario
+junto al badge fue sobrescrito por un merge concurrente (otra branch `claude/*`
+que tocaba los mismos archivos). Se reaplico el horario sobre el `development`
+actual preservando el trabajo concurrente de `page.tsx`.

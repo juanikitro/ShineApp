@@ -657,6 +657,15 @@
   text-transform: uppercase;
 }
 
+.agenda-entry-time {
+  color: var(--shop-ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 .agenda-service-stack {
   border-left: 3px solid var(--shop-action);
   display: grid;

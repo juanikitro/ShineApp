@@ -54,9 +54,17 @@ class PublicLandingView(APIView):
 
     def get(self, request, slug):
         business, profile = public_business_or_404(slug)
+        enabled_types = []
+        if profile.public_show_wash_services:
+            enabled_types.append("wash")
+        if profile.public_show_detailing_services:
+            enabled_types.append("detailing")
+        if profile.public_show_wash_services and profile.public_show_detailing_services:
+            enabled_types.append("combo")
         services = Service.objects.filter(
             business=business,
             is_active=True,
+            service_type__in=enabled_types,
         ).order_by("service_type", "name")
         landing = response.Response(
             {

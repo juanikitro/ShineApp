@@ -76,6 +76,16 @@
         ]
       },
       {
+        "slug": "filtro-tipos-servicio-landing-publica",
+        "title": "Filtro de tipos de servicio en la landing publica",
+        "sections": [
+          {
+            "heading": "Que cambia",
+            "text": "El empleador puede controlar desde la configuracion del negocio que tipos de servicios aparecen en la pagina publica de turnos:\n\n- Mostrar servicios de lavadero (wash): activa/desactiva los servicios de tipo wash\n- Mostrar servicios de detailing: activa/desactiva los servicios de tipo detailing\n- Los servicios de tipo combo solo se muestran cuando ambos estan activados\n\nPor defecto ambos estan activados, lo que preserva el comportamiento anterior."
+          }
+        ]
+      },
+      {
         "slug": "eliminar-reservas-canceladas",
         "title": "Eliminar reservas canceladas",
         "sections": [

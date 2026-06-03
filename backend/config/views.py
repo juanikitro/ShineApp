@@ -437,6 +437,8 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "public_landing_intro",
             "allow_public_booking_requests",
             "allow_public_quote_requests",
+            "public_show_wash_services",
+            "public_show_detailing_services",
             "income_category_tree",
             "expense_category_tree",
         ]
