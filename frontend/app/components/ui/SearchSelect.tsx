@@ -124,9 +124,7 @@ export function SearchSelect({
 	}
 
 	function getPortalContainer() {
-		return (
-			document.querySelector<HTMLElement>('.app-shell') ?? document.body
-		)
+		return document.body
 	}
 
 	function measurePosition() {

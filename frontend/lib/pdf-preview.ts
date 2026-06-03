@@ -16,20 +16,20 @@ export function safeImageAssetSource(value: string | null | undefined) {
 	if (!source) return null
 	if (SAFE_IMAGE_DATA_URL_PATTERN.test(source)) return source
 
-	const base =
-		typeof window !== 'undefined' && window.location?.origin
-			? window.location.origin
-			: 'http://localhost'
-
 	try {
-		const parsed = new URL(source, base)
-		if (['http:', 'https:', 'blob:'].includes(parsed.protocol)) {
-			return source
+		const parsed = new URL(source, 'http://localhost')
+		if (!['http:', 'https:', 'blob:'].includes(parsed.protocol)) return null
+		// blob: URLs and all external origins return the normalised href.
+		// Relative paths resolved against the dummy http://localhost base are
+		// reconstructed from pathname/search/hash so callers receive the
+		// original relative form rather than an absolutised localhost URL.
+		if (parsed.origin === 'http://localhost' && parsed.protocol !== 'blob:') {
+			return parsed.pathname + parsed.search + parsed.hash
 		}
+		return parsed.href
 	} catch {
 		return null
 	}
-	return null
 }
 
 type RenderPdfPreviewOptions = {

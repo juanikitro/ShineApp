@@ -108,8 +108,7 @@ export function QuickActionsMenu({
 	) {
 		return null
 	}
-	const portalContainer =
-		document.querySelector<HTMLElement>('.app-shell') ?? document.body
+	const portalContainer = document.body
 
 	function enabledItems() {
 		return Array.from(

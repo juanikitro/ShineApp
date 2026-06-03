@@ -2,12 +2,12 @@ import json
 from datetime import datetime, time
 from decimal import Decimal
 
-from django.core.exceptions import DisallowedHost
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
 from core.models import register_expense_classification, register_income_classification
+from core.permissions import file_url
 from core.serializers import BusinessScopedSerializerMixin
 from finance.cash import ensure_cash_day_open, request_user_from_context
 from finance.models import CashMovement
@@ -602,15 +602,7 @@ class StockMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSe
         return str(obj.work_order) if obj.work_order_id else None
 
     def get_document_file_url(self, obj):
-        if not obj.document_file:
-            return None
-        request = self.context.get("request")
-        if request is None:
-            return obj.document_file.url
-        try:
-            return request.build_absolute_uri(obj.document_file.url)
-        except DisallowedHost:
-            return obj.document_file.url
+        return file_url(obj.document_file, request=self.context.get("request"))
 
     def validate(self, attrs):
         lines_data = attrs.get("lines")

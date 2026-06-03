@@ -19,10 +19,10 @@ class PublicRequestItemInline(admin.TabularInline):
 @admin.register(PublicRequest)
 class PublicRequestAdmin(admin.ModelAdmin):
     list_display = [
-        "id", "request_type", "customer_name", "customer_phone",
+        "id", "business", "request_type", "customer_name", "customer_phone",
         "status", "preferred_day", "created_at",
     ]
-    list_filter = ["request_type", "status", "vehicle_type", "created_at"]
+    list_filter = ["business", "request_type", "status", "vehicle_type", "created_at"]
     search_fields = [
         "customer_name", "customer_phone", "customer_email",
         "vehicle_license_plate", "vehicle_brand",
@@ -35,12 +35,13 @@ class PublicRequestAdmin(admin.ModelAdmin):
         "converted_reservation", "converted_quote", "converted_at",
         "archived_at", "created_at", "updated_at",
     ]
+    autocomplete_fields = ["business"]
     inlines = [PublicRequestItemInline]
     save_on_top = True
-    list_select_related = True
+    list_select_related = ["business"]
     actions = ["mark_as_archived"]
     fieldsets = (
-        (None, {"fields": ("request_type", "status", "message")}),
+        (None, {"fields": ("business", "request_type", "status", "message")}),
         ("Cliente", {"fields": ("customer_name", "customer_phone", "customer_email")}),
         ("Vehículo", {"fields": ("vehicle_type", "vehicle_license_plate", "vehicle_brand", "vehicle_model", "vehicle_color")}),
         ("Preferencias", {"fields": ("preferred_day", "preferred_time")}),

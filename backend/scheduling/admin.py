@@ -17,17 +17,17 @@ class ReservationItemInline(admin.TabularInline):
 
 @admin.register(Reservation)
 class ReservationAdmin(admin.ModelAdmin):
-    list_display = ["id", "day", "customer", "vehicle", "service", "status", "created_at"]
-    list_filter = ["status", "day"]
+    list_display = ["id", "business", "day", "customer", "vehicle", "service", "status", "created_at"]
+    list_filter = ["business", "status", "day"]
     search_fields = ["customer__name", "vehicle__license_plate", "customer__email", "customer__phone"]
     date_hierarchy = "day"
     list_per_page = 25
     ordering = ["-day", "-id"]
-    readonly_fields = ["created_at", "updated_at"]
+    readonly_fields = ["business", "created_at", "updated_at"]
     autocomplete_fields = ["customer", "vehicle", "service"]
     inlines = [ReservationItemInline]
     save_on_top = True
-    list_select_related = ["customer", "vehicle", "service"]
+    list_select_related = ["business", "customer", "vehicle", "service"]
     actions = ["confirm_reservations", "cancel_reservations", "export_as_csv"]
 
     @admin.action(description="Confirmar reservas seleccionadas")
@@ -51,10 +51,10 @@ class ReservationAdmin(admin.ModelAdmin):
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = "attachment; filename=reservas.csv"
         writer = csv.writer(response)
-        writer.writerow(["ID", "Día", "Cliente", "Vehículo", "Servicio", "Estado", "Hora inicio", "Notas"])
-        for obj in queryset.select_related("customer", "vehicle", "service"):
+        writer.writerow(["ID", "Negocio", "Día", "Cliente", "Vehículo", "Servicio", "Estado", "Hora inicio", "Notas"])
+        for obj in queryset.select_related("business", "customer", "vehicle", "service"):
             writer.writerow([
-                obj.id, obj.day, obj.customer.name, str(obj.vehicle),
+                obj.id, obj.business.name, obj.day, obj.customer.name, str(obj.vehicle),
                 obj.service.name, obj.get_status_display(),
                 obj.start_time or "", obj.notes,
             ])
@@ -63,8 +63,11 @@ class ReservationAdmin(admin.ModelAdmin):
 
 @admin.register(DailyCapacity)
 class DailyCapacityAdmin(admin.ModelAdmin):
-    list_display = ["day", "max_slots", "notes"]
+    list_display = ["day", "business", "max_slots", "notes"]
     list_editable = ["max_slots"]
+    list_filter = ["business"]
     search_fields = ["day", "notes"]
     list_per_page = 25
     ordering = ["-day"]
+    autocomplete_fields = ["business"]
+    list_select_related = ["business"]

@@ -1508,6 +1508,47 @@ def test_confirm_action_rejects_canceled_reservation_when_day_is_full(api_client
 
 
 @pytest.mark.django_db
+def test_delete_canceled_reservation_removes_it(api_client, base_data):
+    customer, vehicle, service = base_data
+    reservation = Reservation.objects.create(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        day=date(2026, 4, 28),
+        start_time=time(10, 0),
+        status=Reservation.Status.CANCELED,
+    )
+
+    response = api_client.delete(reverse("reservation-detail", args=[reservation.id]))
+
+    assert response.status_code == 204
+    assert not Reservation.objects.filter(pk=reservation.pk).exists()
+
+
+@pytest.mark.django_db
+def test_delete_non_canceled_reservation_is_rejected(api_client, base_data):
+    customer, vehicle, service = base_data
+    for active_status in (
+        Reservation.Status.PENDING,
+        Reservation.Status.CONFIRMED,
+    ):
+        reservation = Reservation.objects.create(
+            customer=customer,
+            vehicle=vehicle,
+            service=service,
+            day=date(2026, 4, 28),
+            start_time=time(10, 0),
+            status=active_status,
+        )
+
+        response = api_client.delete(reverse("reservation-detail", args=[reservation.id]))
+
+        assert response.status_code == 400
+        assert Reservation.objects.filter(pk=reservation.pk).exists()
+        reservation.delete()
+
+
+@pytest.mark.django_db
 def test_reservation_patch_can_move_it_to_another_day_with_capacity(api_client, base_data):
     customer, vehicle, service = base_data
     reservation = Reservation.objects.create(
@@ -2226,6 +2267,32 @@ def test_cash_reopen_removes_closure_and_rejects_if_not_closed(api_client):
     second = api_client.post(reverse("cash-reopen"), {"date": cash_day.isoformat()}, format="json")
     assert second.status_code == 400
     assert "cerrad" in str(second.data).lower()
+
+
+@pytest.mark.django_db
+def test_cash_daily_after_reopen_returns_open_state(api_client):
+    cash_day = date(2026, 5, 9)
+    CashMovement.objects.create(
+        movement_type=CashMovement.MovementType.INCOME,
+        category="Pago",
+        amount=Decimal("1000.00"),
+        occurred_at=timezone.make_aware(datetime.combine(cash_day, time(10, 0))),
+    )
+    CashClosure.objects.create(
+        day=cash_day,
+        total_income=Decimal("1000.00"),
+        total_expense=Decimal("0.00"),
+        balance=Decimal("1000.00"),
+        cashflow_income=Decimal("1000.00"),
+        cashflow_expense=Decimal("0.00"),
+        cashflow_balance=Decimal("1000.00"),
+    )
+
+    api_client.post(reverse("cash-reopen"), {"date": cash_day.isoformat()}, format="json")
+
+    daily = api_client.get(reverse("cash-daily"), {"date": cash_day.isoformat()})
+    assert daily.status_code == 200
+    assert daily.data["is_closed"] is False
 
 
 @pytest.mark.django_db

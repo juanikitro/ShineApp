@@ -15,23 +15,23 @@ class QuoteItemInline(admin.TabularInline):
 
 @admin.register(Quote)
 class QuoteAdmin(admin.ModelAdmin):
-    list_display = ["public_code", "customer", "quote_date", "total", "get_status_badge", "valid_until"]
-    list_filter = ["status", "quote_date"]
+    list_display = ["public_code", "business", "customer", "quote_date", "total", "get_status_badge", "valid_until"]
+    list_filter = ["business", "status", "quote_date"]
     search_fields = ["public_code", "customer__name", "customer__email", "customer_snapshot_name"]
     date_hierarchy = "quote_date"
     list_per_page = 25
     ordering = ["-quote_date", "-id"]
     readonly_fields = [
-        "public_code", "subtotal", "discount_amount", "taxable_amount",
+        "business", "public_code", "subtotal", "discount_amount", "taxable_amount",
         "tax_amount", "total", "sent_at", "created_at", "updated_at",
     ]
     autocomplete_fields = ["customer", "vehicle"]
     inlines = [QuoteItemInline]
     save_on_top = True
-    list_select_related = ["customer"]
+    list_select_related = ["business", "customer"]
     actions = ["approve_quotes", "reject_quotes"]
     fieldsets = (
-        (None, {"fields": ("public_code", "customer", "vehicle", "status", "quote_date", "valid_until", "observations")}),
+        (None, {"fields": ("business", "public_code", "customer", "vehicle", "status", "quote_date", "valid_until", "observations")}),
         ("Montos", {"fields": ("subtotal", "discount_rate", "discount_amount", "tax_rate", "taxable_amount", "tax_amount", "total")}),
         ("Datos del negocio (snapshot)", {
             "classes": ("collapse",),

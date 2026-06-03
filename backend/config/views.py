@@ -6,7 +6,7 @@ from pathlib import Path
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group, update_last_login
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import DisallowedHost, ValidationError as DjangoValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.text import slugify
@@ -24,7 +24,7 @@ from core.models import (
     normalize_expense_category_tree,
     normalize_income_category_tree,
 )
-from core.permissions import EMPLOYEE_ROLE, EMPLOYER_ROLE, EmployerOnly, can_view_economy, user_context_payload
+from core.permissions import EMPLOYEE_ROLE, EMPLOYER_ROLE, EmployerOnly, can_view_economy, file_url, user_context_payload
 from core.permissions import business_for_user, business_from_request
 from notifications.service import send_password_reset_email, send_trial_welcome_email
 
@@ -427,15 +427,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
         ]
 
     def get_logo_url(self, obj):
-        if not obj.logo:
-            return None
-        request = self.context.get("request")
-        if request is None:
-            return obj.logo.url
-        try:
-            return request.build_absolute_uri(obj.logo.url)
-        except DisallowedHost:
-            return obj.logo.url
+        return file_url(obj.logo, request=self.context.get("request"))
 
     def validate_logo(self, value):
         return validate_profile_asset_upload(value)
@@ -501,6 +493,7 @@ class MeUpdateSerializer(serializers.Serializer):
         choices=BusinessProfile.SubscriptionType.choices,
         required=False,
     )
+    push_subscription = serializers.JSONField(required=False, allow_null=True)
 
     def validate_avatar(self, value):
         return validate_profile_asset_upload(value)
@@ -510,6 +503,13 @@ class MeUpdateSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         return value.strip()
+
+    def validate_push_subscription(self, value):
+        if value is None:
+            return None
+        if not isinstance(value, dict) or not value.get("endpoint"):
+            raise serializers.ValidationError("Formato de suscripcion invalido.")
+        return value
 
 
 class LoginView(APIView):
@@ -609,6 +609,8 @@ class MeView(APIView):
                 profile.phone_country_code = validated_data["phone_country_code"]
             if "phone_number" in validated_data:
                 profile.phone_number = validated_data["phone_number"]
+            if "push_subscription" in validated_data:
+                profile.push_subscription = validated_data["push_subscription"]
             profile.save()
 
             if "subscription_type" in validated_data:

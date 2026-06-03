@@ -23,21 +23,21 @@ STATUS_COLORS = {
 @admin.register(Debt)
 class DebtAdmin(admin.ModelAdmin):
     list_display = [
-        "concept", "creditor", "supplier", "principal_amount",
+        "concept", "business", "creditor", "supplier", "principal_amount",
         "get_status_badge", "origin_date", "due_date",
     ]
-    list_filter = ["origin_date", "due_date", "expense_category"]
+    list_filter = ["business", "origin_date", "due_date", "expense_category"]
     search_fields = ["concept", "creditor", "supplier__name"]
     date_hierarchy = "origin_date"
     list_per_page = 25
     ordering = ["-origin_date", "-id"]
     readonly_fields = ["created_at", "updated_at", "total_paid", "balance_due"]
-    autocomplete_fields = ["supplier"]
+    autocomplete_fields = ["business", "supplier"]
     inlines = [DebtPaymentInline]
     save_on_top = True
-    list_select_related = ["supplier"]
+    list_select_related = ["business", "supplier"]
     fieldsets = (
-        (None, {"fields": ("concept", "creditor", "supplier", "principal_amount", "origin_date", "due_date")}),
+        (None, {"fields": ("business", "concept", "creditor", "supplier", "principal_amount", "origin_date", "due_date")}),
         ("Clasificación", {"fields": ("expense_category", "expense_subcategory")}),
         ("Resumen", {"fields": ("total_paid", "balance_due")}),
         ("Notas y auditoría", {"fields": ("notes", "cash_movement", "created_at", "updated_at")}),
@@ -67,12 +67,12 @@ class DebtAdmin(admin.ModelAdmin):
 
 @admin.register(DebtPayment)
 class DebtPaymentAdmin(admin.ModelAdmin):
-    list_display = ["id", "debt", "amount", "method", "paid_at"]
-    list_filter = ["method", "paid_at"]
+    list_display = ["id", "business", "debt", "amount", "method", "paid_at"]
+    list_filter = ["business", "method", "paid_at"]
     search_fields = ["debt__concept", "notes"]
     date_hierarchy = "paid_at"
     list_per_page = 25
     ordering = ["-paid_at", "-id"]
-    readonly_fields = ["created_at"]
+    readonly_fields = ["business", "created_at"]
     autocomplete_fields = ["debt"]
-    list_select_related = ["debt"]
+    list_select_related = ["business", "debt"]

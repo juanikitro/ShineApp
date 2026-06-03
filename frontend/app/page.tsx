@@ -583,6 +583,13 @@ function usePdfThumbnailPreview(
 	}
 }
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
+	const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+	const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+	const rawData = atob(base64)
+	return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)))
+}
+
 export default function Home() {
 	useButtonHoverTitles()
 
@@ -2047,6 +2054,34 @@ export default function Home() {
 	}, [currentUser, displayedActive, selectedDay, settingsSection, token])
 
 	useEffect(() => {
+		if (!token || !currentUser) return
+		const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+		if (!vapidKey) return
+		if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+
+		const registerBusinessPush = async () => {
+			try {
+				const permission = await Notification.requestPermission()
+				if (permission !== 'granted') return
+				const registration = await navigator.serviceWorker.register('/sw.js')
+				await navigator.serviceWorker.ready
+				const existing = await registration.pushManager.getSubscription()
+				const subscription = existing ?? await registration.pushManager.subscribe({
+					userVisibleOnly: true,
+					applicationServerKey: urlBase64ToUint8Array(vapidKey),
+				})
+				await apiFetch('/auth/me/', {
+					method: 'PATCH',
+					body: JSON.stringify({ push_subscription: subscription.toJSON() }),
+				})
+			} catch {
+				// Silencioso: el negocio sigue operando sin push
+			}
+		}
+		registerBusinessPush()
+	}, [token, currentUser])
+
+	useEffect(() => {
 		if (
 			!canViewEconomy ||
 			displayedActive !== 'settings' ||
@@ -2423,6 +2458,17 @@ export default function Home() {
 		row: AgendaOperationalRow,
 	) {
 		if (action.kind === 'reservation') {
+			if (action.action === 'delete') {
+				return runAction(
+					() =>
+						apiFetch(`/reservations/${reservation.id}/`, {
+							method: 'DELETE',
+						}),
+					{
+						successTitle: entityFeedbackTitle('reservation', 'deleted'),
+					},
+				)
+			}
 			const previousStatus = reservation.status
 			return runAction(
 				() =>
@@ -2478,14 +2524,20 @@ export default function Home() {
 
 	function agendaActionIcon(action: AgendaReservationAction) {
 		if (action.kind === 'work-order-charge') return <CreditCard size={15} />
-		if (action.kind === 'reservation' && action.action === 'cancel') {
+		if (
+			action.kind === 'reservation' &&
+			(action.action === 'cancel' || action.action === 'delete')
+		) {
 			return <Trash2 size={15} />
 		}
 		return <CheckCircle2 size={15} />
 	}
 
 	function agendaActionTone(action: AgendaReservationAction): QuickAction['tone'] {
-		if (action.kind === 'reservation' && action.action === 'cancel') {
+		if (
+			action.kind === 'reservation' &&
+			(action.action === 'cancel' || action.action === 'delete')
+		) {
 			return 'danger'
 		}
 		return action.variant === 'filled' ? 'primary' : 'default'
@@ -2569,7 +2621,8 @@ export default function Home() {
 				icon: agendaActionIcon(action),
 				tone: agendaActionTone(action),
 				requiresConfirm:
-					action.kind === 'reservation' && action.action === 'cancel',
+					action.kind === 'reservation' &&
+					(action.action === 'cancel' || action.action === 'delete'),
 				onSelect: () =>
 					runAgendaReservationAction(
 						action,
@@ -3893,17 +3946,45 @@ export default function Home() {
 	).length
 	const inactiveEmployeeCount = employees.length - activeEmployeeCount
 	const title = sectionMeta[displayedActive]
-	const navItems: SidebarNavItem[] = (Object.keys(sectionMeta) as Section[])
-		.filter((key) => canViewEconomy || !sectionRequiresEmployer(key))
-		.map((key) => ({
-			key,
-			label: sectionMeta[key].label,
-			icon: sectionMeta[key].icon,
-			badge:
-				key === 'notifications' && pendingPublicRequestsCount
-					? pendingPublicRequestsCount
-					: undefined,
-		}))
+	const buildNavItem = (key: Section): SidebarNavItem => ({
+		key,
+		label: sectionMeta[key].label,
+		icon: sectionMeta[key].icon,
+		badge:
+			key === 'notifications' && pendingPublicRequestsCount
+				? pendingPublicRequestsCount
+				: undefined,
+	})
+	const navItems: SidebarNavItem[] = [
+		buildNavItem('dashboard'),
+		{
+			...buildNavItem('agenda'),
+			children: canViewEconomy
+				? [buildNavItem('quotes'), buildNavItem('notifications')]
+				: [],
+		},
+		{
+			...buildNavItem('customers'),
+			children: [
+				buildNavItem('vehicles'),
+				...(canViewEconomy ? [buildNavItem('services')] : []),
+			],
+		},
+		...(canViewEconomy
+			? [
+					{
+						...buildNavItem('cash'),
+						children: [
+							buildNavItem('debts'),
+							buildNavItem('suppliers'),
+							buildNavItem('inventory'),
+							buildNavItem('tools'),
+						],
+					},
+					buildNavItem('settings'),
+				]
+			: []),
+	]
 	const customerVehicles = vehicles.filter(
 		(vehicle) =>
 			String(vehicle.customer) === String(reservationForm.customer),
@@ -11241,9 +11322,9 @@ export default function Home() {
 									>
 										<span className="sidebar-profile-avatar" aria-hidden="true">
 											{safeSidebarAvatarUrl && !sidebarAvatarIsPdf ? (
-												<img src={encodeURI(safeSidebarAvatarUrl)} alt="" />
+												<img src={safeSidebarAvatarUrl} alt="" />
 											) : safeSidebarAvatarPdfThumbnail ? (
-												<img src={encodeURI(safeSidebarAvatarPdfThumbnail)} alt="" />
+												<img src={safeSidebarAvatarPdfThumbnail} alt="" />
 											) : currentUser.avatar_url ? (
 												<FileText size={18} />
 											) : (
@@ -11258,6 +11339,26 @@ export default function Home() {
 											) : null}
 										</span>
 									</button>
+									{businessProfile ? (
+										<div className="sidebar-business-card">
+											{safeBusinessLogoPreview && !businessLogoIsPdf ? (
+												<img
+													src={encodeURI(safeBusinessLogoPreview)}
+													alt=""
+													className="sidebar-business-logo"
+												/>
+											) : businessLogoIsPdf && safeBusinessLogoPdfThumbnail ? (
+												<img
+													src={encodeURI(safeBusinessLogoPdfThumbnail)}
+													alt=""
+													className="sidebar-business-logo"
+												/>
+											) : null}
+											<span className="sidebar-business-name">
+												{String(businessProfile.name ?? '')}
+											</span>
+										</div>
+									) : null}
 								</div>
 							) : null
 						}
@@ -11879,24 +11980,6 @@ export default function Home() {
 								<LoadingState
 									text="Cargando agenda..."
 									hint="Mantenemos el tablero listo mientras llegan las reservas."
-								/>
-							) : null}
-							{!loading &&
-							!agendaLoadError &&
-							!agendaBoardModel.segments.length ? (
-								<Empty
-									text="Sin reservas en este rango."
-									hint="Crea una reserva para el dia seleccionado o cambia el filtro de servicio para revisar otra carga."
-									action={
-										<button
-											type="button"
-											className="primary"
-											onClick={() => openQuickReservation(selectedDay)}
-										>
-											<Plus size={16} />
-											Crear reserva
-										</button>
-									}
 								/>
 							) : null}
 							<DndContext
