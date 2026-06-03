@@ -677,89 +677,90 @@ export function DashboardPanel({
 											</div>
 										) : null}
 									</Panel>
-									<Panel
-										title="Comparacion"
-										subtitle={
-											dashboardPreviousHasActivity
-												? `${formatDateLabel(
-														dashboardPreviousPeriod.from,
-													)} a ${formatDateLabel(dashboardPreviousPeriod.to)}`
-												: 'Sin actividad registrada en el periodo anterior'
-										}
-									>
-										<div className="records dashboard-comparison-records">
-											<RecordCard className="dashboard-comparison-record">
-												<div className="record-head">
-													<span>Facturado</span>
-													<strong>{money(dashboardBilledTotal)}</strong>
-												</div>
-												<small>
-													{dashboardDeltaHint(
-														dashboardBilledTotal,
-														dashboardPreviousPeriod.billed_total,
-														{ metricKey: 'billed_total' },
-													)}
-												</small>
-											</RecordCard>
-											<RecordCard className="dashboard-comparison-record">
-												<div className="record-head">
-													<span>Cobrado</span>
-													<strong>{money(dashboardCollectedTotal)}</strong>
-												</div>
-												<small>
-													{dashboardDeltaHint(
-														dashboardCollectedTotal,
-														dashboardPreviousPeriod.collected_total,
-														{ metricKey: 'collected_total' },
-													)}
-												</small>
-											</RecordCard>
-											<RecordCard className="dashboard-comparison-record">
-												<div className="record-head">
-													<span>Margen estimado</span>
-													<strong>{money(dashboardEstimatedMarginTotal)}</strong>
-												</div>
-												<small>
-													{dashboardDeltaHint(
-														dashboardEstimatedMarginTotal,
-														dashboardPreviousPeriod.estimated_margin_total,
-														{ metricKey: 'estimated_margin_total' },
-													)}
-												</small>
-											</RecordCard>
-											<RecordCard className="dashboard-comparison-record">
-												<div className="record-head">
-													<span>Caja real</span>
-													<strong>{money(dashboardCashflowBalance)}</strong>
-												</div>
-												<small>
-													{dashboardDeltaHint(
-														dashboardCashflowBalance,
-														dashboardPreviousPeriod.cashflow_balance,
-														{ metricKey: 'cashflow_balance' },
-													)}
-												</small>
-											</RecordCard>
-											<RecordCard className="dashboard-comparison-record">
-												<div className="record-head">
-													<span>Por cobrar</span>
-													<strong>{money(dashboardBalanceDueTotal)}</strong>
-												</div>
-												<small>
-													{dashboardDeltaHint(
-														dashboardBalanceDueTotal,
-														dashboardPreviousPeriod.balance_due_total,
-														{
-															metricKey: 'balance_due_total',
-															polarity: 'higher-is-bad',
-														},
-													)}
-												</small>
-											</RecordCard>
-										</div>
-									</Panel>
 								</div>
 							</div>
+							<Panel
+								className="dashboard-comparison-panel"
+								title="Comparacion"
+								subtitle={
+									dashboardPreviousHasActivity
+										? `${formatDateLabel(
+												dashboardPreviousPeriod.from,
+											)} a ${formatDateLabel(dashboardPreviousPeriod.to)}`
+										: 'Sin actividad registrada en el periodo anterior'
+								}
+							>
+								<div className="records dashboard-comparison-records">
+									<RecordCard className="dashboard-comparison-record">
+										<div className="record-head">
+											<span>Facturado</span>
+											<strong>{money(dashboardBilledTotal)}</strong>
+										</div>
+										<small>
+											{dashboardDeltaHint(
+												dashboardBilledTotal,
+												dashboardPreviousPeriod.billed_total,
+												{ metricKey: 'billed_total' },
+											)}
+										</small>
+									</RecordCard>
+									<RecordCard className="dashboard-comparison-record">
+										<div className="record-head">
+											<span>Cobrado</span>
+											<strong>{money(dashboardCollectedTotal)}</strong>
+										</div>
+										<small>
+											{dashboardDeltaHint(
+												dashboardCollectedTotal,
+												dashboardPreviousPeriod.collected_total,
+												{ metricKey: 'collected_total' },
+											)}
+										</small>
+									</RecordCard>
+									<RecordCard className="dashboard-comparison-record">
+										<div className="record-head">
+											<span>Margen estimado</span>
+											<strong>{money(dashboardEstimatedMarginTotal)}</strong>
+										</div>
+										<small>
+											{dashboardDeltaHint(
+												dashboardEstimatedMarginTotal,
+												dashboardPreviousPeriod.estimated_margin_total,
+												{ metricKey: 'estimated_margin_total' },
+											)}
+										</small>
+									</RecordCard>
+									<RecordCard className="dashboard-comparison-record">
+										<div className="record-head">
+											<span>Caja real</span>
+											<strong>{money(dashboardCashflowBalance)}</strong>
+										</div>
+										<small>
+											{dashboardDeltaHint(
+												dashboardCashflowBalance,
+												dashboardPreviousPeriod.cashflow_balance,
+												{ metricKey: 'cashflow_balance' },
+											)}
+										</small>
+									</RecordCard>
+									<RecordCard className="dashboard-comparison-record">
+										<div className="record-head">
+											<span>Por cobrar</span>
+											<strong>{money(dashboardBalanceDueTotal)}</strong>
+										</div>
+										<small>
+											{dashboardDeltaHint(
+												dashboardBalanceDueTotal,
+												dashboardPreviousPeriod.balance_due_total,
+												{
+													metricKey: 'balance_due_total',
+													polarity: 'higher-is-bad',
+												},
+											)}
+										</small>
+									</RecordCard>
+								</div>
+							</Panel>
 							{dashboardTopCustomersByBilled.length ||
 							dashboardTopServicesByBilled.length ||
 							dashboardTopWorkOrdersByMargin.length ||
