@@ -549,6 +549,63 @@ def test_public_request_no_time_restriction_when_hours_not_configured():
 
 
 @pytest.mark.django_db
+def test_public_request_create_sends_email_to_business_users(mailoutbox):
+    business = create_business()
+    service = create_service(business)
+    employer_client = create_employer_client(business)
+    employer_client.user.email = "dueno@kingshine.test"
+    employer_client.user.save(update_fields=["email"])
+    public_client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    resp = public_client.post(url, public_request_payload(service), format="json")
+
+    assert resp.status_code == 201
+    assert len(mailoutbox) == 1
+    sent = mailoutbox[0]
+    assert "dueno@kingshine.test" in sent.to
+    assert "Juan Perez" in sent.subject
+    assert "turno" in sent.subject
+    assert "Juan Perez" in sent.body
+    assert "Lavado premium" in sent.body
+    assert "shineapp-web.vercel.app" in sent.body
+
+
+@pytest.mark.django_db
+def test_public_request_create_returns_201_even_if_email_fails():
+    business = create_business()
+    service = create_service(business)
+    employer_client = create_employer_client(business)
+    employer_client.user.email = "dueno@kingshine.test"
+    employer_client.user.save(update_fields=["email"])
+    public_client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    with patch("notifications.service.send_mail", side_effect=Exception("SMTP error")):
+        resp = public_client.post(url, public_request_payload(service), format="json")
+
+    assert resp.status_code == 201
+    assert "id" in resp.data
+
+
+@pytest.mark.django_db
+def test_public_request_create_no_email_when_no_users_have_email():
+    business = create_business()
+    service = create_service(business)
+    employer_client = create_employer_client(business)
+    employer_client.user.email = ""
+    employer_client.user.save(update_fields=["email"])
+    public_client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    with patch("notifications.service.send_mail") as mock_send:
+        resp = public_client.post(url, public_request_payload(service), format="json")
+
+    assert resp.status_code == 201
+    mock_send.assert_not_called()
+
+
+@pytest.mark.django_db
 def test_public_request_time_restriction_ignored_when_no_preferred_time():
     business = create_business()
     service = create_service(business)

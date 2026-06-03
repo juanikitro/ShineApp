@@ -52,6 +52,66 @@ def send_work_order_ready(work_order):
     return _send_customer_email(work_order.customer, "Tu vehiculo esta listo", body)
 
 
+def send_new_public_request_notification(public_request):
+    """Notifica por email a los usuarios del negocio cuando llega una nueva solicitud pública.
+
+    No lanza excepcion si el envio falla; el error se registra en el logger.
+    Devuelve True si se envio al menos un email, False en caso contrario.
+    """
+    emails = list(
+        public_request.business.user_profiles
+        .select_related("user")
+        .values_list("user__email", flat=True)
+    )
+    emails = [e for e in emails if e]
+    if not emails:
+        return False
+
+    request_type_label = (
+        "turno" if public_request.request_type == "booking" else "cotizacion"
+    )
+    service_names = ", ".join(
+        item.service.name for item in public_request.items.select_related("service").all()
+    )
+    day_part = (
+        f" para el {public_request.preferred_day:%d/%m/%Y}" if public_request.preferred_day else ""
+    )
+    time_part = (
+        f" a las {public_request.preferred_time:%H:%M}" if public_request.preferred_time else ""
+    )
+
+    subject = f"Nueva solicitud de {request_type_label} — {public_request.customer_name}"
+    body = (
+        f"Hola,\n\n"
+        f"Recibiste una nueva solicitud de {request_type_label}"
+        f"{day_part}{time_part}.\n\n"
+        f"Cliente: {public_request.customer_name}\n"
+        f"Telefono: {public_request.customer_phone or '—'}\n"
+        f"Email: {public_request.customer_email or '—'}\n"
+        f"Vehiculo: {public_request.vehicle_license_plate or '—'} "
+        f"{public_request.vehicle_brand or ''} {public_request.vehicle_model or ''}\n"
+        f"Servicios: {service_names or '—'}\n"
+    )
+    if public_request.message:
+        body += f"Mensaje: {public_request.message}\n"
+    body += (
+        f"\nPodés gestionarla desde tu bandeja en ShineApp:\n"
+        f"https://shineapp-web.vercel.app\n\n"
+        f"El equipo ShineApp."
+    )
+
+    try:
+        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, emails, fail_silently=False)
+        return True
+    except Exception:
+        logger.exception(
+            "No se pudo enviar notificacion de nueva solicitud %s al negocio %s",
+            public_request.id,
+            public_request.business_id,
+        )
+        return False
+
+
 def send_public_request_push(public_request):
     """Envía una push notification al cliente cuando el negocio confirma el turno.
 

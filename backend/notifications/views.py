@@ -12,6 +12,7 @@ from core.models import BusinessAccount, BusinessProfile
 from core.permissions import EmployerOnly, business_from_request, file_url
 
 from .models import PublicRequest
+from .service import send_new_public_request_notification
 from .serializers import (
     build_public_request_suggestions_map,
     PublicLandingRequestSerializer,
@@ -113,6 +114,7 @@ class PublicLandingRequestCreateView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         public_request = serializer.save()
+        send_new_public_request_notification(public_request)
         return response.Response(
             PublicRequestSerializer(public_request, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
