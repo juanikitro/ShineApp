@@ -179,7 +179,7 @@ class CashDailyView(APIView):
     def get(self, request):
         day = date.fromisoformat(request.query_params.get("date")) if request.query_params.get("date") else date.today()
         business = business_from_request(request)
-        sync_past_cash_closures(user=request.user if request.user.is_authenticated else None, business=business)
+        sync_past_cash_closures(reference_day=day, user=request.user if request.user.is_authenticated else None, business=business)
         economic_totals = economic_totals_for_day(day, business)
         cashflow_totals = cashflow_totals_for_day(day, business)
         expense_category_tree = expense_category_tree_for_profile(business)
