@@ -36,6 +36,7 @@ import {
 import {
 	DataList,
 	formatDateTimeLabel,
+	formatFullDateLabel,
 	type AnyRecord,
 } from '@/lib/page-support'
 import {
@@ -80,6 +81,7 @@ type SettingsWorkspaceProps = {
 	incomeClassificationPairs: AnyRecord[]
 	useReservationTimes: boolean
 	showStayDaysInAgenda: boolean
+	dailyCapacities: AnyRecord[]
 	employees: AnyRecord[]
 	activeEmployeeCount: number
 	inactiveEmployeeCount: number
@@ -97,6 +99,9 @@ type SettingsWorkspaceProps = {
 	onOpenBusinessLogoPicker: () => void
 	onPatchBusinessForm: (patch: AnyRecord) => void
 	onSaveBusinessProfile: (event: FormEvent) => void
+	onOpenDailyCapacityForm: () => void
+	onEditDailyCapacity: (item: AnyRecord) => void
+	onDeleteDailyCapacity: (item: AnyRecord) => void
 	onOpenExpenseClassificationForm: () => void
 	onEditExpenseClassification: (item: CashClassificationPair) => void
 	onDeleteExpenseClassification: (
@@ -135,6 +140,7 @@ export function SettingsWorkspace({
 	incomeClassificationPairs,
 	useReservationTimes,
 	showStayDaysInAgenda,
+	dailyCapacities,
 	employees,
 	activeEmployeeCount,
 	inactiveEmployeeCount,
@@ -152,6 +158,9 @@ export function SettingsWorkspace({
 	onOpenBusinessLogoPicker,
 	onPatchBusinessForm,
 	onSaveBusinessProfile,
+	onOpenDailyCapacityForm,
+	onEditDailyCapacity,
+	onDeleteDailyCapacity,
 	onOpenExpenseClassificationForm,
 	onEditExpenseClassification,
 	onDeleteExpenseClassification,
@@ -217,12 +226,20 @@ export function SettingsWorkspace({
 					/>
 				) : null}
 				{settingsSection === 'agenda' ? (
-					<AgendaSettingsPanel
-						showStayDaysInAgenda={showStayDaysInAgenda}
-						useReservationTimes={useReservationTimes}
-						onPatchBusinessForm={onPatchBusinessForm}
-						onSaveBusinessProfile={onSaveBusinessProfile}
-					/>
+					<>
+						<AgendaSettingsPanel
+							showStayDaysInAgenda={showStayDaysInAgenda}
+							useReservationTimes={useReservationTimes}
+							onPatchBusinessForm={onPatchBusinessForm}
+							onSaveBusinessProfile={onSaveBusinessProfile}
+						/>
+						<DailyCapacitiesPanel
+							dailyCapacities={dailyCapacities}
+							onOpenDailyCapacityForm={onOpenDailyCapacityForm}
+							onEditDailyCapacity={onEditDailyCapacity}
+							onDeleteDailyCapacity={onDeleteDailyCapacity}
+						/>
+					</>
 				) : null}
 				{settingsSection === 'users' ? (
 					<UsersSettingsPanel
@@ -581,6 +598,101 @@ function AgendaSettingsPanel({
 					mostrarse y las nuevas reservas se guardan sin horario.
 				</div>
 			</form>
+		</section>
+	)
+}
+
+function DailyCapacitiesPanel({
+	dailyCapacities,
+	onOpenDailyCapacityForm,
+	onEditDailyCapacity,
+	onDeleteDailyCapacity,
+}: {
+	dailyCapacities: AnyRecord[]
+	onOpenDailyCapacityForm: () => void
+	onEditDailyCapacity: (item: AnyRecord) => void
+	onDeleteDailyCapacity: (item: AnyRecord) => void
+}) {
+	return (
+		<section className="panel">
+			<div className="panel-head">
+				<div>
+					<span className="panel-kicker">Operacion diaria</span>
+					<h2>Capacidad de turnos</h2>
+					<p>
+						Define cuantos turnos acepta la agenda en dias puntuales. Los dias
+						sin un cupo propio usan la capacidad por defecto del negocio.
+					</p>
+				</div>
+				<div className="settings-action-rail">
+					<div className="settings-primary-actions">
+						<button
+							type="button"
+							className="primary"
+							onClick={onOpenDailyCapacityForm}
+						>
+							<Plus size={16} />
+							Nueva capacidad
+						</button>
+					</div>
+				</div>
+			</div>
+			<section className="settings-operational-metrics section-block-end">
+				<MetricCard label="Dias con cupo propio" value={dailyCapacities.length} />
+			</section>
+			<div className="records compact-records">
+				{dailyCapacities.length ? (
+					dailyCapacities.map((item) => (
+						<RecordCard key={item.id}>
+							<RecordCardHeader
+								title={formatFullDateLabel(item.day)}
+								subtitle={`${item.max_slots} turnos - ${
+									item.used_slots ?? 0
+								} usados - ${item.available_slots ?? 0} disponibles`}
+								actions={
+									<>
+										<button
+											type="button"
+											className="ghost"
+											onClick={() => onEditDailyCapacity(item)}
+											aria-label={`Editar cupo del ${formatFullDateLabel(item.day)}`}
+										>
+											<Pencil size={16} />
+										</button>
+										<button
+											type="button"
+											className="danger"
+											onClick={() => onDeleteDailyCapacity(item)}
+											aria-label={`Eliminar cupo del ${formatFullDateLabel(item.day)}`}
+										>
+											<Trash2 size={16} />
+										</button>
+									</>
+								}
+							>
+								{item.notes ? (
+									<div className="record-sub">{item.notes}</div>
+								) : null}
+							</RecordCardHeader>
+						</RecordCard>
+					))
+				) : (
+					<Empty
+						text="Sin cupos personalizados."
+						hint="Agrega un cupo cuando un dia tenga mas o menos turnos que la capacidad por defecto."
+						action={
+							<button
+								type="button"
+								className="primary"
+								onClick={onOpenDailyCapacityForm}
+							>
+								<Plus size={16} />
+								Nueva capacidad
+							</button>
+						}
+					/>
+				)}
+			</div>
 		</section>
 	)
 }

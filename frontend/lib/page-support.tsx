@@ -69,6 +69,7 @@ type FormModalKind =
 	| 'material-consumption'
 	| 'tool'
 	| 'employee'
+	| 'daily-capacity'
 
 type Section =
 	| 'dashboard'
@@ -635,6 +636,11 @@ const entityFeedbackTitles: Record<
 		created: 'Cotizacion creada',
 		updated: 'Cotizacion editada',
 		deleted: 'Cotizacion eliminada',
+	},
+	'daily-capacity': {
+		created: 'Capacidad creada',
+		updated: 'Capacidad editada',
+		deleted: 'Capacidad eliminada',
 	},
 }
 
