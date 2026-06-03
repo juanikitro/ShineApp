@@ -810,6 +810,11 @@ export default function Home() {
 	const [businessLogoPreview, setBusinessLogoPreview] = useState<string | null>(
 		null,
 	)
+	const [profileAvatarFile, setProfileAvatarFile] = useState<File | null>(null)
+	const [profileAvatarInputKey, setProfileAvatarInputKey] = useState(0)
+	const [profileAvatarPreview, setProfileAvatarPreview] = useState<
+		string | null
+	>(null)
 	const [quickReservationDay, setQuickReservationDay] = useState<string | null>(
 		null,
 	)
@@ -1033,6 +1038,7 @@ export default function Home() {
 	}
 
 	useEffect(() => revokeBusinessLogoObjectUrl, [])
+	useEffect(() => revokeProfileAvatarObjectUrl, [])
 	const { flashTarget, flash } = useFlashTarget(FEEDBACK_PULSE_MS)
 
 	function setError(notice: ApiErrorNotice | null) {
@@ -1148,6 +1154,8 @@ export default function Home() {
 
 	const businessLogoObjectUrlRef = useRef<string | null>(null)
 	const businessLogoInputRef = useRef<HTMLInputElement | null>(null)
+	const profileAvatarObjectUrlRef = useRef<string | null>(null)
+	const profileAvatarInputRef = useRef<HTMLInputElement | null>(null)
 	const suppressAgendaClickRef = useRef(false)
 	const suppressAgendaClickTimeoutRef = useRef<number | null>(null)
 	const suppressQuoteClickRef = useRef(false)
@@ -1170,6 +1178,19 @@ export default function Home() {
 		businessLogoObjectUrlRef.current = null
 	}
 
+	function revokeProfileAvatarObjectUrl() {
+		if (!profileAvatarObjectUrlRef.current) return
+		window.URL.revokeObjectURL(profileAvatarObjectUrlRef.current)
+		profileAvatarObjectUrlRef.current = null
+	}
+
+	function resetProfileAvatarSelection() {
+		revokeProfileAvatarObjectUrl()
+		setProfileAvatarFile(null)
+		setProfileAvatarInputKey((key) => key + 1)
+		setProfileAvatarPreview(currentUser?.avatar_url ?? null)
+	}
+
 	function isPdfFile(file: File | null) {
 		if (!file) return false
 		return file.type === 'application/pdf' || isPdfAssetName(file.name)
@@ -1185,6 +1206,7 @@ export default function Home() {
 	}
 
 	function openProfileModal() {
+		resetProfileAvatarSelection()
 		setProfileModalOpen(true)
 	}
 
@@ -1274,6 +1296,23 @@ export default function Home() {
 		businessLogoInputRef.current?.click()
 	}
 
+	function handleProfileAvatarChange(event: ChangeEvent<HTMLInputElement>) {
+		const file = event.target.files?.[0] ?? null
+		setProfileAvatarFile(file)
+		revokeProfileAvatarObjectUrl()
+		if (!file) {
+			setProfileAvatarPreview(currentUser?.avatar_url ?? null)
+			return
+		}
+		const objectUrl = window.URL.createObjectURL(file)
+		profileAvatarObjectUrlRef.current = objectUrl
+		setProfileAvatarPreview(objectUrl)
+	}
+
+	function openProfileAvatarPicker() {
+		profileAvatarInputRef.current?.click()
+	}
+
 	const businessLogoIsPdf = businessLogoFile
 		? isPdfFile(businessLogoFile)
 		: isPdfAssetSource(businessLogoPreview)
@@ -1286,6 +1325,12 @@ export default function Home() {
 	const safeBusinessLogoPdfThumbnail = safeImageAssetSource(
 		businessLogoPdfThumbnail,
 	)
+	const sidebarBusinessLogoSrc =
+		safeBusinessLogoPreview && !businessLogoIsPdf
+			? safeBusinessLogoPreview
+			: businessLogoIsPdf && safeBusinessLogoPdfThumbnail
+				? safeBusinessLogoPdfThumbnail
+				: null
 
 	const {
 		thumbnail: sidebarAvatarPdfThumbnail,
@@ -1295,8 +1340,22 @@ export default function Home() {
 		sidebarAvatarPdfThumbnail,
 	)
 
+	const profileAvatarIsPdf = profileAvatarFile
+		? isPdfFile(profileAvatarFile)
+		: isPdfAssetSource(profileAvatarPreview)
+	const { thumbnail: profileAvatarPdfThumbnail } = usePdfThumbnailPreview(
+		profileAvatarPreview,
+		profileAvatarIsPdf,
+		256,
+	)
+	const safeProfileAvatarPreview = safeImageAssetSource(profileAvatarPreview)
+	const safeProfileAvatarPdfThumbnail = safeImageAssetSource(
+		profileAvatarPdfThumbnail,
+	)
+
 	useEffect(() => {
 		syncProfileForm(currentUser)
+		resetProfileAvatarSelection()
 	}, [currentUser])
 
 	useEffect(() => {
@@ -6140,6 +6199,9 @@ export default function Home() {
 			'phone_number',
 			String(profileForm.phone_number ?? '').trim(),
 		)
+		if (profileAvatarFile) {
+			payload.append('avatar', profileAvatarFile)
+		}
 		if (canViewEconomy) {
 			payload.append(
 				'subscription_type',
@@ -10321,6 +10383,15 @@ export default function Home() {
 							trialText={profileTrialText(currentUser)}
 							joinedText={profileJoinedText(currentUser)}
 							lastLoginText={profileLastLoginText(currentUser)}
+							avatarInputRef={profileAvatarInputRef}
+							avatarInputKey={profileAvatarInputKey}
+							avatarPreview={safeProfileAvatarPreview}
+							avatarPdfThumbnail={safeProfileAvatarPdfThumbnail}
+							avatarIsPdf={profileAvatarIsPdf}
+							avatarInitial={profileInitial(currentUser)}
+							hasStoredAvatar={Boolean(currentUser.avatar_url)}
+							onAvatarChange={handleProfileAvatarChange}
+							onOpenAvatarPicker={openProfileAvatarPicker}
 						/>
 					) : null}
 					</Modal>
@@ -11342,24 +11413,13 @@ export default function Home() {
 											) : null}
 										</span>
 									</button>
-									{businessProfile ? (
+									{businessProfile && sidebarBusinessLogoSrc ? (
 										<div className="sidebar-business-card">
-											{safeBusinessLogoPreview && !businessLogoIsPdf ? (
-												<img
-													src={encodeURI(safeBusinessLogoPreview)}
-													alt=""
-													className="sidebar-business-logo"
-												/>
-											) : businessLogoIsPdf && safeBusinessLogoPdfThumbnail ? (
-												<img
-													src={encodeURI(safeBusinessLogoPdfThumbnail)}
-													alt=""
-													className="sidebar-business-logo"
-												/>
-											) : null}
-											<span className="sidebar-business-name">
-												{String(businessProfile.name ?? '')}
-											</span>
+											<img
+												src={encodeURI(sidebarBusinessLogoSrc)}
+												alt={String(businessProfile.name ?? '')}
+												className="sidebar-business-logo"
+											/>
 										</div>
 									) : null}
 								</div>
@@ -11983,24 +12043,6 @@ export default function Home() {
 								<LoadingState
 									text="Cargando agenda..."
 									hint="Mantenemos el tablero listo mientras llegan las reservas."
-								/>
-							) : null}
-							{!loading &&
-							!agendaLoadError &&
-							!agendaBoardModel.segments.length ? (
-								<Empty
-									text="Sin reservas en este rango."
-									hint="Crea una reserva para el dia seleccionado o cambia el filtro de servicio para revisar otra carga."
-									action={
-										<button
-											type="button"
-											className="primary"
-											onClick={() => openQuickReservation(selectedDay)}
-										>
-											<Plus size={16} />
-											Crear reserva
-										</button>
-									}
 								/>
 							) : null}
 							<DndContext

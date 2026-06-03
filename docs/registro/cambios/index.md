@@ -9,10 +9,13 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Sidebar: solo el logo del negocio a ancho completo](2026-06-03-sidebar-logo-negocio-solo-logo.md)
+- [Animacion de despliegue en el sidebar](2026-06-03-sidebar-desplegables-animacion.md)
 - [Configuracion: panel Novedades con timeline del changelog](2026-06-03-novedades-ui.md)
 - [Fix: reabrir caja no persistía el estado abierto (2026-06-03)](2026-06-03-fix-reabrir-caja.md)
 - [Fix: imagenes de storage (logo, avatar) no se ven en Vercel](2026-06-03-fix-logo-presigned-url.md)
 - [Eliminar reservas canceladas](2026-06-03-eliminar-reservas-canceladas.md)
+- [Avatar editable en el popup de perfil](2026-06-03-avatar-editable-en-perfil.md)
 - [Tipo de vehiculo "Camion"](2026-06-02-tipo-vehiculo-camion.md)
 - [Autocompletar datos del cliente en página pública](2026-06-02-recall-cliente-publico.md)
 - [Reabrir caja](2026-06-02-reabrir-caja.md)
