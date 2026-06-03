@@ -2,3 +2,9 @@
 # Si quedan en CRLF, el shebang `#!/bin/sh` rompe en POSIX.
 .githooks/* text eol=lf
 *.sh text eol=lf
+
+# Archivos auto-generados por el pre-commit hook: resolver conflictos de merge
+# combinando ambos lados (union) en lugar de dejar markers. El driver union-docs
+# esta definido en .git/config del repo (y aplica a todos los worktrees).
+CHANGELOG.md merge=union-docs
+docs/registro/cambios/index.md merge=union-docs
