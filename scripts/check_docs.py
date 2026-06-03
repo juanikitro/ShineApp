@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -13,11 +14,29 @@ DOCS_DIR = REPO_ROOT / "docs"
 INDICE_PATH = DOCS_DIR / "indice.md"
 CAMBIOS_DIR = DOCS_DIR / "registro" / "cambios"
 CHANGELOG_PATH = REPO_ROOT / "CHANGELOG.md"
+CHANGELOG_JSON_PATH = REPO_ROOT / "frontend" / "app" / "data" / "changelog.generated.json"
 
 GENERATED_MARKER = "<!-- AUTO-GENERATED: scripts/check_docs.py -->"
 INLINE_BACKTICK_RE = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
 H1_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
 DATE_PREFIX_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})-")
+
+# Headings that describe the "what" of a change (shown in the UI).
+# Technical sections (Archivos modificados, Validacion, etc.) are excluded.
+DISPLAY_SECTION_HEADINGS: frozenset[str] = frozenset({
+    "contexto",
+    "cambio",
+    "que cambio",
+    "que cambia",
+    "descripcion",
+    "descripción",
+    "resumen",
+    "overview",
+})
+
+_CODE_BLOCK_RE = re.compile(r"```[\s\S]*?```")
+_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
+_INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
 
 
 @dataclass(frozen=True)
@@ -167,12 +186,91 @@ def render_changelog() -> str:
     return "\n".join([*header, *body])
 
 
+# ── Changelog JSON (for the Novedades UI panel) ──────────────────────────────
+
+
+def _strip_md_inline(text: str) -> str:
+    """Remove code blocks, inline code, and bold markers; collapse extra blank lines."""
+    text = _CODE_BLOCK_RE.sub("", text)
+    text = _INLINE_CODE_RE.sub(r"\1", text)
+    text = _BOLD_RE.sub(r"\1", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+def _parse_md_sections(text: str) -> list[dict]:
+    """Extract ## sections from a markdown document as [{heading, text}]."""
+    sections: list[dict] = []
+    current_heading: str | None = None
+    current_lines: list[str] = []
+
+    for line in text.splitlines():
+        m = re.match(r"^##\s+(.+?)\s*$", line)
+        if m:
+            if current_heading is not None:
+                content = _strip_md_inline("\n".join(current_lines))
+                if content:
+                    sections.append({"heading": current_heading, "text": content})
+            current_heading = m.group(1)
+            current_lines = []
+        elif current_heading is not None:
+            current_lines.append(line)
+
+    if current_heading is not None:
+        content = _strip_md_inline("\n".join(current_lines))
+        if content:
+            sections.append({"heading": current_heading, "text": content})
+
+    return sections
+
+
+def _select_display_sections(sections: list[dict]) -> list[dict]:
+    """Pick up to 2 display sections: prefer known headings, else take the first two."""
+    preferred = [
+        s for s in sections
+        if s["heading"].lower() in DISPLAY_SECTION_HEADINGS and s["text"]
+    ]
+    if preferred:
+        return preferred[:2]
+    return [s for s in sections if s["text"]][:2]
+
+
+def render_changelog_json() -> str:
+    """Generate the JSON consumed by the Novedades UI panel."""
+    grouped: dict[str, list[dict]] = {}
+    for path in iter_changelog_sources():
+        m = DATE_PREFIX_RE.match(path.name)
+        if not m:
+            continue
+        date = m.group(1)
+        slug = DATE_PREFIX_RE.sub("", path.stem)
+        text = path.read_text(encoding="utf-8")
+        title = read_h1(path)
+        all_sections = _parse_md_sections(text)
+        display_sections = _select_display_sections(all_sections)
+        grouped.setdefault(date, []).append(
+            {"slug": slug, "title": title, "sections": display_sections}
+        )
+
+    result = []
+    for date in sorted(grouped, reverse=True):
+        items = sorted(grouped[date], key=lambda x: x["slug"], reverse=True)
+        result.append({"date": date, "items": items})
+
+    return json.dumps(result, ensure_ascii=False, indent=2) + "\n"
+
+
+# ── Write / check ────────────────────────────────────────────────────────────
+
+
 def write_indices() -> None:
     for config in GENERATED_INDICES:
         config.output.write_text(render_index(config), encoding="utf-8", newline="\n")
         print(f"generated {relpath(config.output)}")
     CHANGELOG_PATH.write_text(render_changelog(), encoding="utf-8", newline="\n")
     print(f"generated {relpath(CHANGELOG_PATH)}")
+    CHANGELOG_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CHANGELOG_JSON_PATH.write_text(render_changelog_json(), encoding="utf-8", newline="\n")
+    print(f"generated {relpath(CHANGELOG_JSON_PATH)}")
 
 
 def check_indices() -> None:
@@ -193,6 +291,15 @@ def check_indices() -> None:
     if CHANGELOG_PATH.read_text(encoding="utf-8") != expected_changelog:
         fail(
             f"{relpath(CHANGELOG_PATH)} is stale. "
+            "Run: py -3 scripts/check_docs.py --write --skip-build"
+        )
+
+    expected_json = render_changelog_json()
+    if not CHANGELOG_JSON_PATH.exists():
+        fail(f"Missing generated changelog JSON: {relpath(CHANGELOG_JSON_PATH)}")
+    if CHANGELOG_JSON_PATH.read_text(encoding="utf-8") != expected_json:
+        fail(
+            f"{relpath(CHANGELOG_JSON_PATH)} is stale. "
             "Run: py -3 scripts/check_docs.py --write --skip-build"
         )
 
