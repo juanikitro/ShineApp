@@ -24,7 +24,7 @@ export function safeImageAssetSource(value: string | null | undefined) {
 	try {
 		const parsed = new URL(source, base)
 		if (['http:', 'https:', 'blob:'].includes(parsed.protocol)) {
-			return source
+			return parsed.href
 		}
 	} catch {
 		return null
