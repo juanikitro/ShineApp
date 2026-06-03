@@ -364,6 +364,7 @@ class UserProfile(models.Model):
         default=PhoneCountryCode.ARGENTINA,
     )
     phone_number = models.CharField(max_length=32, blank=True)
+    push_subscription = models.JSONField(null=True, blank=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
