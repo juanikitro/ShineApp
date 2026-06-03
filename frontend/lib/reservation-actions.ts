@@ -207,7 +207,7 @@ export function reservationStatusActions(
 				icon: 'trash',
 				kind: 'reservation',
 				label: 'Eliminar',
-				priority: 'low',
+				priority: 'high',
 				variant: 'icon-danger',
 			},
 		]
