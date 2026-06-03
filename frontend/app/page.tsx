@@ -11513,7 +11513,7 @@ export default function Home() {
 									{businessProfile && sidebarBusinessLogoSrc ? (
 										<div className="sidebar-business-card">
 											<img
-												src={encodeURI(sidebarBusinessLogoSrc)}
+												src={sidebarBusinessLogoSrc}
 												alt={String(businessProfile.name ?? '')}
 												className="sidebar-business-logo"
 											/>
