@@ -464,6 +464,7 @@ button.primary.quote-action-button--filled {
   .app-shell,
   .two,
   .three,
+  .customer-dashboard-duo,
   .inventory-metrics {
     grid-template-columns: 1fr;
   }

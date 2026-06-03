@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [fix(ui): simetria y espacios en blanco en Dashboard y Dashboard de cliente](2026-06-03-ux-dashboard-cliente-simetria.md)
 - [Fix: card de reserva en agenda recorta el ultimo renglon a la mitad](2026-06-03-fix-recorte-card-reserva-agenda.md)
 - [Sidebar: solo el logo del negocio a ancho completo](2026-06-03-sidebar-logo-negocio-solo-logo.md)
 - [Animacion de despliegue en el sidebar](2026-06-03-sidebar-desplegables-animacion.md)

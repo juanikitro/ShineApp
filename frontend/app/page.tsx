@@ -5131,7 +5131,7 @@ export default function Home() {
 					recentQuotes,
 				)}
 
-				<div className="grid two">
+				<div className="grid customer-dashboard-duo">
 					{renderCustomerVehicles(customerVehicles)}
 					{renderCustomerUpcomingReservations(upcomingReservations)}
 				</div>
@@ -5157,7 +5157,7 @@ export default function Home() {
 					)}
 				</div>
 
-				<div className="grid two">
+				<div className="grid customer-dashboard-duo">
 					{renderCustomerRecentQuotes(recentQuotes)}
 					{renderCustomerSalesHistory(orders)}
 				</div>

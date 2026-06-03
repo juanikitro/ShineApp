@@ -1858,6 +1858,7 @@
 }
 
 .dashboard-insight-grid {
+  align-items: start;
   display: grid;
   gap: 18px;
   grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
@@ -2084,6 +2085,10 @@
 .dashboard-comparison-record small {
   display: block;
   margin-top: 6px;
+}
+
+.dashboard-comparison-panel .dashboard-comparison-records {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
 }
 
 .dashboard-alert-records,
@@ -2901,6 +2906,15 @@
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.customer-dashboard-duo {
+  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.customer-dashboard-title .birthday-badge {
+  justify-self: start;
 }
 
 .customer-dashboard-profile {
