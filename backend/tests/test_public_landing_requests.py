@@ -1,6 +1,9 @@
+import json
+import sys
 from datetime import date, time
 from decimal import Decimal
-from unittest.mock import patch
+from types import ModuleType
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -603,6 +606,91 @@ def test_public_request_create_no_email_when_no_users_have_email():
 
     assert resp.status_code == 201
     mock_send.assert_not_called()
+
+
+def _make_pywebpush_mock():
+    mock_webpush = MagicMock()
+    fake_module = ModuleType("pywebpush")
+    fake_module.webpush = mock_webpush
+    return fake_module, mock_webpush
+
+
+@pytest.mark.django_db
+def test_public_request_create_sends_push_to_business_users_with_subscription():
+    from django.test import override_settings
+    from core.models import UserProfile
+
+    business = create_business()
+    service = create_service(business)
+    employer_client = create_employer_client(business)
+    subscription = {"endpoint": "https://push.example.com/sub1", "keys": {"p256dh": "key", "auth": "auth"}}
+    profile = UserProfile.objects.get(user=employer_client.user)
+    profile.push_subscription = subscription
+    profile.save(update_fields=["push_subscription"])
+    public_client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    fake_module, mock_webpush = _make_pywebpush_mock()
+    with override_settings(VAPID_PRIVATE_KEY="fake-key", VAPID_CLAIMS_EMAIL="mailto:test@test.com"):
+        with patch.dict(sys.modules, {"pywebpush": fake_module}):
+            resp = public_client.post(url, public_request_payload(service), format="json")
+
+    assert resp.status_code == 201
+    mock_webpush.assert_called_once()
+    call_kwargs = mock_webpush.call_args.kwargs
+    assert call_kwargs["subscription_info"] == subscription
+    payload = json.loads(call_kwargs["data"])
+    assert "turno" in payload["title"]
+    assert "Juan Perez" in payload["body"]
+
+
+@pytest.mark.django_db
+def test_public_request_create_no_push_when_no_subscription():
+    business = create_business()
+    service = create_service(business)
+    create_employer_client(business)
+    public_client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    fake_module, mock_webpush = _make_pywebpush_mock()
+    with patch.dict(sys.modules, {"pywebpush": fake_module}):
+        resp = public_client.post(url, public_request_payload(service), format="json")
+
+    assert resp.status_code == 201
+    mock_webpush.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_me_patch_saves_push_subscription():
+    business = create_business()
+    employer_client = create_employer_client(business)
+    subscription = {"endpoint": "https://push.example.com/abc", "keys": {"p256dh": "k", "auth": "a"}}
+
+    resp = employer_client.patch(
+        reverse("auth-me"),
+        {"push_subscription": subscription},
+        format="json",
+    )
+
+    assert resp.status_code == 200
+    from core.models import UserProfile
+    profile = UserProfile.objects.get(user=employer_client.user)
+    assert profile.push_subscription == subscription
+
+
+@pytest.mark.django_db
+def test_me_patch_rejects_invalid_push_subscription():
+    business = create_business()
+    employer_client = create_employer_client(business)
+
+    resp = employer_client.patch(
+        reverse("auth-me"),
+        {"push_subscription": {"keys": "sin-endpoint"}},
+        format="json",
+    )
+
+    assert resp.status_code == 400
+    assert "push_subscription" in resp.data
 
 
 @pytest.mark.django_db

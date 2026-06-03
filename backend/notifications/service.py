@@ -112,6 +112,51 @@ def send_new_public_request_notification(public_request):
         return False
 
 
+def send_business_push_notification(public_request):
+    """Envía una push notification a los usuarios del negocio cuando llega una nueva solicitud pública.
+
+    Itera sobre todos los UserProfile del negocio que tengan push_subscription guardada.
+    Devuelve True si se envió al menos una notificación, False en caso contrario.
+    """
+    private_key = getattr(settings, "VAPID_PRIVATE_KEY", "")
+    if not private_key:
+        return False
+
+    subscriptions = list(
+        public_request.business.user_profiles
+        .exclude(push_subscription__isnull=True)
+        .values_list("push_subscription", flat=True)
+    )
+    if not subscriptions:
+        return False
+
+    request_type_label = "turno" if public_request.request_type == "booking" else "cotizacion"
+    payload = json.dumps({
+        "title": f"Nueva solicitud de {request_type_label}",
+        "body": f"{public_request.customer_name} pidió un {request_type_label}.",
+    })
+    vapid_claims = {"sub": getattr(settings, "VAPID_CLAIMS_EMAIL", "mailto:no-reply@shineapp.local")}
+
+    sent_any = False
+    for subscription in subscriptions:
+        try:
+            from pywebpush import webpush  # noqa: PLC0415
+            webpush(
+                subscription_info=subscription,
+                data=payload,
+                vapid_private_key=private_key,
+                vapid_claims=vapid_claims,
+            )
+            sent_any = True
+        except Exception:
+            logger.exception(
+                "No se pudo enviar push al negocio %s para solicitud %s",
+                public_request.business_id,
+                public_request.id,
+            )
+    return sent_any
+
+
 def send_public_request_push(public_request):
     """Envía una push notification al cliente cuando el negocio confirma el turno.
 

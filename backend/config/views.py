@@ -501,6 +501,7 @@ class MeUpdateSerializer(serializers.Serializer):
         choices=BusinessProfile.SubscriptionType.choices,
         required=False,
     )
+    push_subscription = serializers.JSONField(required=False, allow_null=True)
 
     def validate_avatar(self, value):
         return validate_profile_asset_upload(value)
@@ -510,6 +511,13 @@ class MeUpdateSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         return value.strip()
+
+    def validate_push_subscription(self, value):
+        if value is None:
+            return None
+        if not isinstance(value, dict) or not value.get("endpoint"):
+            raise serializers.ValidationError("Formato de suscripcion invalido.")
+        return value
 
 
 class LoginView(APIView):
@@ -609,6 +617,8 @@ class MeView(APIView):
                 profile.phone_country_code = validated_data["phone_country_code"]
             if "phone_number" in validated_data:
                 profile.phone_number = validated_data["phone_number"]
+            if "push_subscription" in validated_data:
+                profile.push_subscription = validated_data["push_subscription"]
             profile.save()
 
             if "subscription_type" in validated_data:
