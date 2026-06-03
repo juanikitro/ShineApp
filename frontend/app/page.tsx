@@ -70,6 +70,7 @@ import { ProfileModal } from '@/app/components/profile/ProfileModal'
 import { PublicRequestCard } from '@/app/components/requests/PublicRequestCard'
 import { CashMovementForm } from '@/app/components/forms/CashMovementForm'
 import { CustomerForm } from '@/app/components/forms/CustomerForm'
+import { DailyCapacityForm } from '@/app/components/forms/DailyCapacityForm'
 import { DebtForm } from '@/app/components/forms/DebtForm'
 import { DebtPaymentForm } from '@/app/components/forms/DebtPaymentForm'
 import { MaterialForm } from '@/app/components/forms/MaterialForm'
@@ -660,6 +661,7 @@ export default function Home() {
 	const [vehicles, setVehicles] = useState<AnyRecord[]>([])
 	const [services, setServices] = useState<AnyRecord[]>([])
 	const [reservations, setReservations] = useState<AnyRecord[]>([])
+	const [dailyCapacities, setDailyCapacities] = useState<AnyRecord[]>([])
 	const [workOrders, setWorkOrders] = useState<AnyRecord[]>([])
 	const [payments, setPayments] = useState<AnyRecord[]>([])
 	const [debts, setDebts] = useState<AnyRecord[]>([])
@@ -723,6 +725,12 @@ export default function Home() {
 		price_combi: '',
 		price_camion: '',
 		estimated_duration_minutes: '60',
+		notes: '',
+	})
+	const [dailyCapacityForm, setDailyCapacityForm] = useState<AnyRecord>({
+		id: '',
+		day: today,
+		max_slots: '',
 		notes: '',
 	})
 	const [reservationForm, setReservationForm] = useState<AnyRecord>(
@@ -1316,6 +1324,7 @@ export default function Home() {
 			'material-consumption': 'material-consumption.work_order',
 			tool: 'tool.name',
 			employee: 'employee.username',
+			'daily-capacity': 'daily-capacity.max_slots',
 		}
 		focusField(firstFocus[formModal.kind], formModal.kind !== 'customer')
 	}, [formModal?.kind])
@@ -1937,6 +1946,7 @@ export default function Home() {
 		vehicles: setVehicles,
 		services: setServices,
 		reservations: setReservations,
+		dailyCapacities: setDailyCapacities,
 		workOrders: setWorkOrders,
 		payments: setPayments,
 		debts: setDebts,
@@ -5736,6 +5746,14 @@ export default function Home() {
 		if (kind === 'stock-movement') {
 			setStockMovementDocumentFile(null)
 		}
+		if (kind === 'daily-capacity') {
+			setDailyCapacityForm({
+				id: '',
+				day: selectedDay,
+				max_slots: '',
+				notes: '',
+			})
+		}
 		setFormModal({ kind })
 	}
 
@@ -8989,6 +9007,63 @@ export default function Home() {
 		})
 	}
 
+	function editDailyCapacity(item: AnyRecord) {
+		if (!canViewEconomy) return
+		setDailyCapacityForm({
+			id: item.id,
+			day: item.day,
+			max_slots: String(item.max_slots ?? ''),
+			notes: item.notes ?? '',
+		})
+		setFormModal({ kind: 'daily-capacity' })
+	}
+
+	async function saveDailyCapacity(event: FormEvent) {
+		event.preventDefault()
+		if (!canViewEconomy) return
+		const currentId = dailyCapacityForm.id
+		await runAction(
+			async () => {
+				const path = currentId
+					? `/daily-capacities/${currentId}/`
+					: '/daily-capacities/'
+				const method = currentId ? 'PATCH' : 'POST'
+				const saved = await apiFetch<AnyRecord>(path, {
+					method,
+					body: JSON.stringify(asPayload(dailyCapacityForm)),
+				})
+				setDailyCapacityForm({
+					id: '',
+					day: selectedDay,
+					max_slots: '',
+					notes: '',
+				})
+				formModalExit.close()
+				return saved
+			},
+			{
+				successTitle: entityFeedbackTitle(
+					'daily-capacity',
+					currentId ? 'updated' : 'created',
+				),
+			},
+		)
+	}
+
+	async function deleteDailyCapacity(item: AnyRecord) {
+		if (!canViewEconomy || !item?.id) return
+		await runAction(
+			async () => {
+				await apiFetch(`/daily-capacities/${item.id}/`, {
+					method: 'DELETE',
+				})
+			},
+			{
+				successTitle: entityFeedbackTitle('daily-capacity', 'deleted'),
+			},
+		)
+	}
+
 	async function saveReservation(event: FormEvent) {
 		event.preventDefault()
 		const reservationItems = (reservationForm.items ?? []).filter(
@@ -10407,6 +10482,28 @@ export default function Home() {
 						focusNextOnEnter={focusNextOnEnter}
 						focusField={focusField}
 					/>
+					</Modal>
+				) : null}
+				{canViewEconomy && formModal?.kind === 'daily-capacity' ? (
+					<Modal
+						key="form-daily-capacity"
+						title={
+							dailyCapacityForm.id
+								? 'Editar capacidad'
+								: 'Nueva capacidad'
+						}
+						onClose={formModalExit.close}
+					>
+						<DailyCapacityForm
+							submitLabel={
+								dailyCapacityForm.id
+									? 'Guardar cambios'
+									: 'Crear capacidad'
+							}
+							onSubmit={saveDailyCapacity}
+							dailyCapacityForm={dailyCapacityForm}
+							setDailyCapacityForm={setDailyCapacityForm}
+						/>
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'payment' ? (
@@ -12367,6 +12464,7 @@ export default function Home() {
 						businessSlug={String(currentUser?.business?.slug ?? '')}
 						cashClassificationPairs={cashClassificationPairs}
 						currentUserId={currentUser?.id ?? null}
+						dailyCapacities={dailyCapacities}
 						employees={employees}
 						expandedAuditLogId={expandedAuditLogId}
 						expenseClassificationPairs={expenseClassificationPairs}
@@ -12385,9 +12483,12 @@ export default function Home() {
 						onAuditModuleLabel={auditModuleLabel}
 						onBusinessLogoChange={handleBusinessLogoChange}
 						onClearAuditFilters={clearAuditFilters}
+						onDeleteDailyCapacity={deleteDailyCapacity}
 						onDeleteExpenseClassification={deleteExpenseClassification}
+						onEditDailyCapacity={editDailyCapacity}
 						onEditExpenseClassification={openExpenseClassificationEditor}
 						onOpenBusinessLogoPicker={openBusinessLogoPicker}
+						onOpenDailyCapacityForm={() => openFormModal('daily-capacity')}
 						onOpenEmployeeForm={() => openFormModal('employee')}
 						onOpenExpenseClassificationForm={() =>
 							openFormModal('expense-classification')
