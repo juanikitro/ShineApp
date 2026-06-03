@@ -20,7 +20,7 @@ import { type FormEvent, useEffect, useState } from 'react'
 import { publicApiFetch } from '@/lib/api'
 import { formatApiError } from '@/lib/api-errors'
 import { joinDisplayParts } from '@/lib/display-text'
-import { isPdfAssetSource, renderPdfPreviewDataUrl } from '@/lib/pdf-preview'
+import { isPdfAssetSource, renderPdfPreviewDataUrl, safeImageAssetSource } from '@/lib/pdf-preview'
 import { VEHICLE_TYPE_OPTIONS } from '@/lib/service-pricing'
 
 type PublicService = {
@@ -269,7 +269,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		logoIsPdf,
 		960,
 	)
-	const businessImageSource = logoIsPdf ? logoPdfThumbnail : logoSource
+	const businessImageSource = logoIsPdf ? logoPdfThumbnail : safeImageAssetSource(logoSource)
 	const canShowBusinessImage = Boolean(businessImageSource && !logoLoadFailed)
 
 	useEffect(() => {

@@ -107,12 +107,12 @@ export function BusinessSettingsPanel({
 				>
 					{safeBusinessLogoPreview && !businessLogoIsPdf ? (
 						<img
-							src={encodeURI(safeBusinessLogoPreview)}
+							src={safeBusinessLogoPreview}
 							alt={`Logo de ${businessForm.name || 'tu negocio'}`}
 						/>
 					) : safeBusinessLogoPdfThumbnail ? (
 						<img
-							src={encodeURI(safeBusinessLogoPdfThumbnail)}
+							src={safeBusinessLogoPdfThumbnail}
 							alt={`Preview del PDF de ${businessForm.name || 'tu negocio'}`}
 						/>
 					) : businessLogoPreview ? (
