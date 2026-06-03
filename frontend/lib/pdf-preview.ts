@@ -16,13 +16,8 @@ export function safeImageAssetSource(value: string | null | undefined) {
 	if (!source) return null
 	if (SAFE_IMAGE_DATA_URL_PATTERN.test(source)) return source
 
-	const base =
-		typeof window !== 'undefined' && window.location?.origin
-			? window.location.origin
-			: 'http://localhost'
-
 	try {
-		const parsed = new URL(source, base)
+		const parsed = new URL(source, 'http://localhost')
 		if (['http:', 'https:', 'blob:'].includes(parsed.protocol)) {
 			return parsed.href
 		}
