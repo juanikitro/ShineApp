@@ -4,10 +4,12 @@ import {
 	type ChangeEvent,
 	type FormEvent,
 	type RefObject,
+	useState,
 } from 'react'
 
 import {
 	CalendarDays,
+	ChevronDown,
 	Eye,
 	FileText,
 	Pencil,
@@ -16,6 +18,8 @@ import {
 	Search,
 	Trash2,
 } from 'lucide-react'
+
+import changelogData from '@/app/data/changelog.generated.json'
 
 import { BusinessSettingsPanel } from '@/app/components/settings/BusinessSettingsPanel'
 import { Empty, LoadingState } from '@/app/components/ui/Empty'
@@ -32,6 +36,7 @@ import {
 import {
 	DataList,
 	formatDateTimeLabel,
+	formatFullDateLabel,
 	type AnyRecord,
 } from '@/lib/page-support'
 import {
@@ -48,6 +53,7 @@ export type SettingsSection =
 	| 'agenda'
 	| 'users'
 	| 'history'
+	| 'novedades'
 
 type CashClassificationPair = AnyRecord & {
 	movement_type: string
@@ -75,6 +81,7 @@ type SettingsWorkspaceProps = {
 	incomeClassificationPairs: AnyRecord[]
 	useReservationTimes: boolean
 	showStayDaysInAgenda: boolean
+	dailyCapacities: AnyRecord[]
 	employees: AnyRecord[]
 	activeEmployeeCount: number
 	inactiveEmployeeCount: number
@@ -92,6 +99,9 @@ type SettingsWorkspaceProps = {
 	onOpenBusinessLogoPicker: () => void
 	onPatchBusinessForm: (patch: AnyRecord) => void
 	onSaveBusinessProfile: (event: FormEvent) => void
+	onOpenDailyCapacityForm: () => void
+	onEditDailyCapacity: (item: AnyRecord) => void
+	onDeleteDailyCapacity: (item: AnyRecord) => void
 	onOpenExpenseClassificationForm: () => void
 	onEditExpenseClassification: (item: CashClassificationPair) => void
 	onDeleteExpenseClassification: (
@@ -130,6 +140,7 @@ export function SettingsWorkspace({
 	incomeClassificationPairs,
 	useReservationTimes,
 	showStayDaysInAgenda,
+	dailyCapacities,
 	employees,
 	activeEmployeeCount,
 	inactiveEmployeeCount,
@@ -147,6 +158,9 @@ export function SettingsWorkspace({
 	onOpenBusinessLogoPicker,
 	onPatchBusinessForm,
 	onSaveBusinessProfile,
+	onOpenDailyCapacityForm,
+	onEditDailyCapacity,
+	onDeleteDailyCapacity,
 	onOpenExpenseClassificationForm,
 	onEditExpenseClassification,
 	onDeleteExpenseClassification,
@@ -212,12 +226,20 @@ export function SettingsWorkspace({
 					/>
 				) : null}
 				{settingsSection === 'agenda' ? (
-					<AgendaSettingsPanel
-						showStayDaysInAgenda={showStayDaysInAgenda}
-						useReservationTimes={useReservationTimes}
-						onPatchBusinessForm={onPatchBusinessForm}
-						onSaveBusinessProfile={onSaveBusinessProfile}
-					/>
+					<>
+						<AgendaSettingsPanel
+							showStayDaysInAgenda={showStayDaysInAgenda}
+							useReservationTimes={useReservationTimes}
+							onPatchBusinessForm={onPatchBusinessForm}
+							onSaveBusinessProfile={onSaveBusinessProfile}
+						/>
+						<DailyCapacitiesPanel
+							dailyCapacities={dailyCapacities}
+							onOpenDailyCapacityForm={onOpenDailyCapacityForm}
+							onEditDailyCapacity={onEditDailyCapacity}
+							onDeleteDailyCapacity={onDeleteDailyCapacity}
+						/>
+					</>
 				) : null}
 				{settingsSection === 'users' ? (
 					<UsersSettingsPanel
@@ -248,6 +270,7 @@ export function SettingsWorkspace({
 						onUpdateAuditFilter={onUpdateAuditFilter}
 					/>
 				) : null}
+				{settingsSection === 'novedades' ? <NewsSettingsPanel /> : null}
 			</div>
 		</div>
 	)
@@ -579,6 +602,101 @@ function AgendaSettingsPanel({
 	)
 }
 
+function DailyCapacitiesPanel({
+	dailyCapacities,
+	onOpenDailyCapacityForm,
+	onEditDailyCapacity,
+	onDeleteDailyCapacity,
+}: {
+	dailyCapacities: AnyRecord[]
+	onOpenDailyCapacityForm: () => void
+	onEditDailyCapacity: (item: AnyRecord) => void
+	onDeleteDailyCapacity: (item: AnyRecord) => void
+}) {
+	return (
+		<section className="panel">
+			<div className="panel-head">
+				<div>
+					<span className="panel-kicker">Operacion diaria</span>
+					<h2>Capacidad de turnos</h2>
+					<p>
+						Define cuantos turnos acepta la agenda en dias puntuales. Los dias
+						sin un cupo propio usan la capacidad por defecto del negocio.
+					</p>
+				</div>
+				<div className="settings-action-rail">
+					<div className="settings-primary-actions">
+						<button
+							type="button"
+							className="primary"
+							onClick={onOpenDailyCapacityForm}
+						>
+							<Plus size={16} />
+							Nueva capacidad
+						</button>
+					</div>
+				</div>
+			</div>
+			<section className="settings-operational-metrics section-block-end">
+				<MetricCard label="Dias con cupo propio" value={dailyCapacities.length} />
+			</section>
+			<div className="records compact-records">
+				{dailyCapacities.length ? (
+					dailyCapacities.map((item) => (
+						<RecordCard key={item.id}>
+							<RecordCardHeader
+								title={formatFullDateLabel(item.day)}
+								subtitle={`${item.max_slots} turnos - ${
+									item.used_slots ?? 0
+								} usados - ${item.available_slots ?? 0} disponibles`}
+								actions={
+									<>
+										<button
+											type="button"
+											className="ghost"
+											onClick={() => onEditDailyCapacity(item)}
+											aria-label={`Editar cupo del ${formatFullDateLabel(item.day)}`}
+										>
+											<Pencil size={16} />
+										</button>
+										<button
+											type="button"
+											className="danger"
+											onClick={() => onDeleteDailyCapacity(item)}
+											aria-label={`Eliminar cupo del ${formatFullDateLabel(item.day)}`}
+										>
+											<Trash2 size={16} />
+										</button>
+									</>
+								}
+							>
+								{item.notes ? (
+									<div className="record-sub">{item.notes}</div>
+								) : null}
+							</RecordCardHeader>
+						</RecordCard>
+					))
+				) : (
+					<Empty
+						text="Sin cupos personalizados."
+						hint="Agrega un cupo cuando un dia tenga mas o menos turnos que la capacidad por defecto."
+						action={
+							<button
+								type="button"
+								className="primary"
+								onClick={onOpenDailyCapacityForm}
+							>
+								<Plus size={16} />
+								Nueva capacidad
+							</button>
+						}
+					/>
+				)}
+			</div>
+		</section>
+	)
+}
+
 function UsersSettingsPanel({
 	activeEmployeeCount,
 	employees,
@@ -884,6 +1002,194 @@ function HistorySettingsPanel({
 						/>
 					)}
 				</div>
+			)}
+		</section>
+	)
+}
+
+// ── Types for changelog JSON ──────────────────────────────────────────────────
+
+type ChangelogSection = {
+	heading: string
+	text: string
+}
+
+type ChangelogItem = {
+	slug: string
+	title: string
+	sections: ChangelogSection[]
+}
+
+type ChangelogGroup = {
+	date: string
+	items: ChangelogItem[]
+}
+
+const changelog = changelogData as unknown as ChangelogGroup[]
+
+const CHANGELOG_PAGE_SIZE = 5
+
+// ── NewsSettingsPanel ─────────────────────────────────────────────────────────
+
+export function NewsSettingsPanel() {
+	const firstDate = changelog.length > 0 ? changelog[0].date : null
+	const [expandedDate, setExpandedDate] = useState<string | null>(firstDate)
+	const [showAll, setShowAll] = useState(false)
+
+	const visibleGroups = showAll ? changelog : changelog.slice(0, CHANGELOG_PAGE_SIZE)
+	const hasMore = changelog.length > CHANGELOG_PAGE_SIZE
+
+	function formatVersionDate(date: string) {
+		const [year, month, day] = date.split('-').map(Number)
+		return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString('es-AR', {
+			day: 'numeric',
+			month: 'long',
+			year: 'numeric',
+			timeZone: 'UTC',
+		})
+	}
+
+	function renderSectionText(text: string) {
+		const blocks = text.split(/\n\n+/).filter((b) => b.trim())
+		return blocks.map((block, i) => {
+			const lines = block.split('\n').filter((l) => l.trim())
+			const allList =
+				lines.length > 0 && lines.every((l) => l.trimStart().startsWith('- '))
+			if (allList) {
+				return (
+					<ul key={i} className="changelog-section-list">
+						{lines.map((l, j) => (
+							<li key={j}>{l.replace(/^\s*-\s+/, '').trim()}</li>
+						))}
+					</ul>
+				)
+			}
+			return (
+				<p key={i} className="changelog-section-para">
+					{lines.join(' ')}
+				</p>
+			)
+		})
+	}
+
+	return (
+		<section className="panel">
+			<div className="panel-head">
+				<div>
+					<span className="panel-kicker">Sistema</span>
+					<h2>Novedades</h2>
+					<p>Cambios funcionales recientes de ShineApp.</p>
+				</div>
+			</div>
+			{changelog.length === 0 ? (
+				<div className="record-sub">Sin novedades registradas todavia.</div>
+			) : (
+				<>
+					<div className="changelog-timeline">
+						{visibleGroups.map((group, groupIndex) => {
+							const isFirst = groupIndex === 0
+							const isLast =
+								groupIndex === visibleGroups.length - 1 && !hasMore
+							const isExpanded = expandedDate === group.date
+							return (
+								<div
+									key={group.date}
+									className={
+										isLast
+											? 'changelog-group changelog-group--last'
+											: 'changelog-group'
+									}
+								>
+									<div className="changelog-spine">
+										<div
+											className={
+												isFirst
+													? 'changelog-version-icon changelog-version-icon--latest'
+													: 'changelog-version-icon'
+											}
+											aria-hidden="true"
+										>
+											<FileText size={16} />
+										</div>
+										{isLast ? null : (
+											<div className="changelog-spine-line" />
+										)}
+									</div>
+									<div className="changelog-content">
+										<button
+											type="button"
+											className={
+												isExpanded
+													? 'changelog-version-header changelog-version-header--expanded'
+													: 'changelog-version-header'
+											}
+											onClick={() =>
+												setExpandedDate(
+													isExpanded ? null : group.date,
+												)
+											}
+										>
+											<div className="changelog-version-copy">
+												<span className="changelog-version-label">
+													{isFirst
+														? 'Ultima version'
+														: `Version ${group.date}`}
+												</span>
+												<span className="changelog-version-date">
+													{formatVersionDate(group.date)}
+												</span>
+											</div>
+											<ChevronDown
+												size={14}
+												className={
+													isExpanded
+														? 'changelog-chevron changelog-chevron--open'
+														: 'changelog-chevron'
+												}
+											/>
+										</button>
+										{isExpanded ? (
+											<div className="changelog-items">
+												{group.items.map((item) => (
+													<div
+														key={item.slug}
+														className="changelog-item"
+													>
+														<div className="changelog-item-title">
+															{item.title}
+														</div>
+														{item.sections.map((sec) => (
+															<div
+																key={sec.heading}
+																className="changelog-item-section"
+															>
+																<div className="changelog-item-section-heading">
+																	{sec.heading}
+																</div>
+																<div className="changelog-item-section-body">
+																	{renderSectionText(sec.text)}
+																</div>
+															</div>
+														))}
+													</div>
+												))}
+											</div>
+										) : null}
+									</div>
+								</div>
+							)
+						})}
+					</div>
+					{hasMore && !showAll ? (
+						<button
+							type="button"
+							className="ghost changelog-show-more"
+							onClick={() => setShowAll(true)}
+						>
+							Mostrar todas las versiones
+						</button>
+					) : null}
+				</>
 			)}
 		</section>
 	)

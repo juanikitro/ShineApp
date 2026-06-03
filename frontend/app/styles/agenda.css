@@ -521,10 +521,7 @@
   --agenda-card-hover-border: transparent;
   background: var(--agenda-card-bg);
   border-color: var(--agenda-card-border);
-  height: var(--agenda-instance-card-height, 268px);
   gap: 10px;
-  max-height: var(--agenda-instance-card-height, 268px);
-  min-height: var(--agenda-instance-card-height, 268px);
   min-width: 0;
   overflow: hidden;
   padding: 10px;
@@ -532,6 +529,12 @@
   z-index: 1;
 }
 
+/*
+ * La altura fija solo aplica al board temporal (--spanning), donde las cards
+ * se posicionan por franja horaria y deben tener altura uniforme. En las vistas
+ * apiladas (lista de trabajo y tablero por estado) la card crece con su
+ * contenido: fijarla cortaba el ultimo renglon a la mitad (modelo / servicio).
+ */
 .workspace .record.agenda-operational-card--spanning {
   height: var(--agenda-instance-card-height, 268px);
   max-height: var(--agenda-instance-card-height, 268px);

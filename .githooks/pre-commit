@@ -27,4 +27,5 @@ $PY scripts/check_docs.py --write --skip-build >/dev/null
 git add CHANGELOG.md \
   docs/registro/cambios/index.md \
   docs/registro/decisiones/index.md \
-  docs/plans/index.md
+  docs/plans/index.md \
+  frontend/app/data/changelog.generated.json

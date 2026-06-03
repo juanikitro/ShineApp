@@ -90,7 +90,12 @@ test('settings history does not eager-load audit logs', () => {
 		canViewEconomy: true,
 	})
 
-	assert.deepEqual(keys, ['businessProfile', 'employees', 'publicRequests'])
+	assert.deepEqual(keys, [
+		'businessProfile',
+		'employees',
+		'dailyCapacities',
+		'publicRequests',
+	])
 	assert.equal(keys.includes('auditLogs'), false)
 })
 
