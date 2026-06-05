@@ -50,11 +50,13 @@
 - [x] separar `apiPage<T>(path)` (no recorre next).
 - [x] validar: `npx vitest run lib/api`.
 
-### T2: `useRunAction` hook
-- [ ] hook con `{run, pending, isPending(key), pendingKeys}` en `page-support.tsx`.
-- [ ] manejar setError, reload, flash, undo, toast.
-- [ ] tests basicos.
-- [ ] validar: `npx vitest run lib/use-run-action`.
+### T2: `useRunAction` hook → implementado como `usePendingActions`
+- [x] hook `usePendingActions` con `{begin, end, isPending(key), pending, pendingKeys}` en `page-support.tsx`.
+- [x] `runAction` en `page.tsx` lo usa: begin(key) al inicio, end(key) en finally; soporta `options.key`.
+- [x] tests (4 casos): toggle, multiple keys, idempotencia, no-op.
+- [x] validar: `vitest run lib/use-pending-actions` + tsc verde.
+
+Nota: el plan original tenia un hook `useRunAction` que tomaba todos los handlers (setError, reload, flash, undo, toast). Se eligio un primitive mas chico (`usePendingActions`) que se compone con el `runAction` existente — diff menor, mismo objetivo (exponer pending por key).
 
 ### T3: `<Button>` reutilizable
 - [ ] `frontend/app/components/ui/Button.tsx` con `loading`, `variant`, `size`, `disabled`, `aria-busy`.

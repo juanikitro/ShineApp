@@ -361,6 +361,7 @@ import {
 	useButtonHoverTitles,
 	useFlashTarget,
 	useNoticeToasts,
+	usePendingActions,
 } from '@/lib/page-support'
 
 type QuickActionsMenuState = {
@@ -382,6 +383,7 @@ type RunActionOptions<T> = {
 	successTitle?: ActionMessage<T>
 	successDescription?: ActionMessage<T>
 	undo?: UndoAction<T>
+	key?: string
 }
 
 type PendingUndoAction = {
@@ -620,6 +622,8 @@ export default function Home() {
 	const [loadErrorNotice, setLoadErrorNotice] =
 		useState<ApiErrorNotice | null>(null)
 	const { toasts, showToast, dismissToast } = useNoticeToasts()
+	const pendingActions = usePendingActions()
+	const runActionCounterRef = useRef(0)
 	const undoTimerRef = useRef<number | null>(null)
 	const pendingUndoRef = useRef<PendingUndoAction | null>(null)
 	const executeUndoRef = useRef<(id?: number) => void>(() => undefined)
@@ -3329,6 +3333,9 @@ export default function Home() {
 		action: () => Promise<T>,
 		options?: RunActionOptions<T>,
 	) {
+		const pendingKey =
+			options?.key ?? `runAction:${++runActionCounterRef.current}`
+		pendingActions.begin(pendingKey)
 		setError(null)
 		try {
 			const result = await action()
@@ -3366,8 +3373,12 @@ export default function Home() {
 			return result
 		} catch (err: any) {
 			setError(formatApiError(err))
+		} finally {
+			pendingActions.end(pendingKey)
 		}
 	}
+
+	const isActionPending = pendingActions.isPending
 
 	function apiPathForRecord(kind: string, id: string | number | null | undefined) {
 		if (id === null || id === undefined || id === '') return ''
