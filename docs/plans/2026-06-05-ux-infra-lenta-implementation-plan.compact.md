@@ -137,18 +137,21 @@ Nota: el plan original tenia un hook `useRunAction` que tomaba todos los handler
 - [x] validar: `makemigrations --check --dry-run` -> no changes; pytest -> 235 passed.
 
 ### T13: N+1 customers + dashboard
-- [ ] `CustomerViewSet.history`: `.select_related('vehicle','service').prefetch_related('payments','material_consumptions__material')`.
-- [ ] `build_customer_list_insights`: `.select_related('service','vehicle')`.
-- [ ] `dashboard work_order_financials`: prefetch consistente antes del loop.
-- [ ] validar: `py -3 -m pytest backend/customers backend/dashboard`.
+- [x] `CustomerViewSet.history` (customers/views.py:284-290): YA tiene `.select_related("service", "vehicle").prefetch_related("payments", "material_consumptions__material")`. Sin diff.
+- [x] `build_customer_list_insights` (customers/views.py:154-160): YA tiene `.select_related("service", "vehicle")` y `.annotate(paid_total=Sum("payments__amount"))`. Sin diff.
+- [x] `dashboard work_order_financials` (dashboard/views.py:201-205): YA hace `.select_related("customer", "vehicle", "service", "reservation")`. El loop posterior solo accede prefetched fields.
+- [x] `build_work_order_financial_metrics` (workorders/metrics.py): YA hace 3 aggregate queries con `__in` y `.values().annotate(Sum())` en lugar de loop. Sin N+1.
+- [x] `ReservationViewSet.queryset` y `WorkOrderViewSet.queryset` ya tienen los select_related/prefetch correctos.
+- [x] La auditoria original era de un snapshot mas viejo del codigo; las optimizaciones ya estaban hechas. T13 cierra sin diff.
+- [x] validar: pytest -> 235 passed (T12).
 
 ### T14: Cache HTTP semi-estaticos
-- [ ] `patch_cache_control(response, private=True, max_age=60)` en `MeView`.
-- [ ] `max_age=300` en BusinessProfile.
-- [ ] `max_age=120` en `/services/`, `/materials/`.
-- [ ] `apiFetch` respeta `options.cache` (no forzar `no-store` siempre).
-- [ ] llamadas a estos endpoints con `{ cache: 'default' }`.
-- [ ] validar: `py -3 -m pytest`.
+- [x] `MeView.get`: `patch_cache_control(response, private=True, max_age=60)` — bootstrap user context cacheado 60s.
+- [x] `BusinessProfileView.get`: `private, max_age=300` — perfil de negocio cambia raro.
+- [x] apiFetch ya respeta `options.cache` (T1).
+- [x] `/auth/me/` y `/settings/business-profile/` ahora pasan `{ cache: 'default' }` en sus call sites (page.tsx y app-data.ts).
+- [x] `/services/` y `/materials/` quedan fuera por ahora: son mutables y la invalidacion via PATCH/POST en mismo endpoint no es automatica en fetch API. Se evalua en iteracion posterior si la UX lo amerita.
+- [x] validar: pytest 235 passed + tsc verde.
 
 ### T15: `CONN_MAX_AGE` Supabase
 - [ ] `DATABASES['default']['CONN_MAX_AGE']=300` en `settings_production.py`.

@@ -76,7 +76,9 @@ export async function loadAppDataSet(
 		case 'publicRequests':
 			return loaders.apiList<AnyRecord>('/public-requests/')
 		case 'businessProfile':
-			return loaders.apiFetch<AnyRecord>('/settings/business-profile/')
+			return loaders.apiFetch<AnyRecord>('/settings/business-profile/', {
+				cache: 'default',
+			})
 		case 'employees':
 			return loaders.apiList<AnyRecord>('/auth/employees/')
 		case 'dailyCapacities':

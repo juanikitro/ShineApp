@@ -9,6 +9,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import connection, transaction
 from django.utils import timezone
+from django.utils.cache import patch_cache_control
 from django.utils.text import slugify
 from rest_framework import parsers, permissions, serializers, status
 from rest_framework.authtoken.models import Token
@@ -601,7 +602,9 @@ class MeView(APIView):
     ]
 
     def get(self, request):
-        return Response(user_context_payload(request.user, request=request))
+        response = Response(user_context_payload(request.user, request=request))
+        patch_cache_control(response, private=True, max_age=60)
+        return response
 
     def patch(self, request):
         serializer = MeUpdateSerializer(data=request.data, partial=True)
@@ -703,7 +706,9 @@ class BusinessProfileView(APIView):
             self.get_profile(),
             context={"request": request},
         )
-        return Response(serializer.data)
+        response = Response(serializer.data)
+        patch_cache_control(response, private=True, max_age=300)
+        return response
 
     def patch(self, request):
         profile = self.get_profile()
