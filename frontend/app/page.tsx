@@ -2631,30 +2631,27 @@ export default function Home() {
 		if (action.kind === 'work-order-status') {
 			if (!workOrder) return undefined
 			const previousStatus = workOrder.status ?? reservation.status
-			return runAction(
-				() =>
+			const previousWorkOrders = workOrders
+			return runOptimistic({
+				key: `wo-status:${workOrder.id}`,
+				optimistic: () =>
+					setWorkOrders((current) =>
+						current.map((item) =>
+							String(item.id) === String(workOrder.id)
+								? { ...item, status: action.status }
+								: item,
+						),
+					),
+				rollback: () => setWorkOrders(previousWorkOrders),
+				action: () =>
 					apiFetch(`/work-orders/${workOrder.id}/status/`, {
 						method: 'POST',
 						body: JSON.stringify({
 							status: action.status,
 						}),
 					}),
-				{
-					flashTarget: agendaCardFlashKey(row.key),
-					successTitle: entityFeedbackTitle('workorder', 'updated'),
-					undo: {
-						execute: async () => {
-							await apiFetch(`/work-orders/${workOrder.id}/status/`, {
-								method: 'POST',
-								body: JSON.stringify({
-									status: previousStatus,
-								}),
-							})
-						},
-						successTitle: 'Estado anterior restaurado',
-					},
-				},
-			)
+				successTitle: entityFeedbackTitle('workorder', 'updated'),
+			})
 		}
 
 		if (workOrder) {
@@ -3444,6 +3441,40 @@ export default function Home() {
 	}
 
 	const isActionPending = pendingActions.isPending
+
+	async function runOptimistic<T>(args: {
+		key: string
+		optimistic: () => void
+		rollback: () => void
+		action: () => Promise<T>
+		successTitle?: string
+		successDescription?: string
+	}): Promise<T | undefined> {
+		pendingActions.begin(args.key)
+		args.optimistic()
+		setError(null)
+		try {
+			const result = await args.action()
+			await loadData({ force: true })
+			if (args.successTitle) {
+				const description =
+					args.successDescription ?? successToastDescription(args.successTitle)
+				clearPendingUndo()
+				showToast({
+					tone: 'success',
+					title: args.successTitle,
+					description,
+				})
+			}
+			return result
+		} catch (err: any) {
+			args.rollback()
+			setError(formatApiError(err))
+			return undefined
+		} finally {
+			pendingActions.end(args.key)
+		}
+	}
 
 	function apiPathForRecord(kind: string, id: string | number | null | undefined) {
 		if (id === null || id === undefined || id === '') return ''

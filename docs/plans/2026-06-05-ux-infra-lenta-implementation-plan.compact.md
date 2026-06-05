@@ -115,10 +115,11 @@ Nota: el plan original tenia un hook `useRunAction` que tomaba todos los handler
 - [x] validar: tsc verde.
 
 ### T10: Optimistic en work order status (solo)
-- [ ] helper `runOptimistic({key, optimistic, rollback, action})`.
-- [ ] aplicar a `setWorkOrderStatus` (PATCH `/work-orders/{id}/status/`).
-- [ ] NO aplicar a stock/cash/payments/debts.
-- [ ] validar: `npm run build`.
+- [x] helper `runOptimistic<T>({key, optimistic, rollback, action, successTitle, successDescription})` definido cerca de `runAction` en page.tsx. Misma logica de pending/error/reload, pero con optimistic + rollback explicito.
+- [x] aplicado a la rama `action.kind === 'work-order-status'` de `runAgendaReservationAction`: optimistic muta `workOrders` con el nuevo status; rollback restaura el state previo si falla.
+- [x] el handler de inline status drag/click en agenda (linea ~3845) ya implementa optimistic manualmente desde antes; no se toca.
+- [x] NO se aplica a stock/cash/payments/debts (regla del plan: side effects sensibles).
+- [x] validar: tsc verde.
 
 ### T11: `next/image` para avatares
 - [ ] sidebar avatar (~page.tsx:11501): `<Image unoptimized width={32} height={32} loading="lazy">`.
