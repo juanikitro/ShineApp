@@ -111,6 +111,77 @@ class Reservation(models.Model):
             cls.Status.DELIVERED,
         ]
 
+    FLOW_ORDER = [
+        Status.PENDING,
+        Status.CONFIRMED,
+        Status.IN_PROGRESS,
+        Status.READY,
+        Status.DELIVERED,
+    ]
+
+    REQUIRED_STATUSES = {Status.CONFIRMED, Status.DELIVERED}
+
+    OPTIONAL_FLAG_BY_STATUS = {
+        Status.PENDING: "reservation_use_pending",
+        Status.IN_PROGRESS: "reservation_use_in_progress",
+        Status.READY: "reservation_use_ready",
+    }
+
+    @classmethod
+    def status_is_enabled(cls, status, profile):
+        if status == cls.Status.CANCELED:
+            return bool(getattr(profile, "reservation_use_canceled", True))
+        if status in cls.REQUIRED_STATUSES:
+            return True
+        flag = cls.OPTIONAL_FLAG_BY_STATUS.get(status)
+        if not flag:
+            return True
+        return bool(getattr(profile, flag, True))
+
+    @classmethod
+    def enabled_flow_statuses(cls, profile):
+        return [status for status in cls.FLOW_ORDER if cls.status_is_enabled(status, profile)]
+
+    @classmethod
+    def initial_status_for_profile(cls, profile):
+        if cls.status_is_enabled(cls.Status.PENDING, profile):
+            return cls.Status.PENDING
+        return cls.Status.CONFIRMED
+
+    @classmethod
+    def next_active_status(cls, current_status, profile):
+        if current_status == cls.Status.CANCELED:
+            return cls.initial_status_for_profile(profile)
+        flow = cls.enabled_flow_statuses(profile)
+        if current_status not in cls.FLOW_ORDER:
+            return current_status
+        try:
+            current_index = cls.FLOW_ORDER.index(current_status)
+        except ValueError:
+            return current_status
+        for status in cls.FLOW_ORDER[current_index + 1 :]:
+            if status in flow:
+                return status
+        return cls.Status.DELIVERED
+
+    @classmethod
+    def normalize_status_for_profile(cls, status, profile):
+        if status == cls.Status.CANCELED:
+            return cls.Status.CANCELED if cls.status_is_enabled(status, profile) else None
+        if cls.status_is_enabled(status, profile):
+            return status
+        flow = cls.enabled_flow_statuses(profile)
+        if status not in cls.FLOW_ORDER:
+            return status
+        index = cls.FLOW_ORDER.index(status)
+        for candidate in cls.FLOW_ORDER[index + 1 :]:
+            if candidate in flow:
+                return candidate
+        for candidate in reversed(cls.FLOW_ORDER[:index]):
+            if candidate in flow:
+                return candidate
+        return cls.Status.DELIVERED
+
     @classmethod
     def capacity_for_day(cls, day, business=None):
         queryset = DailyCapacity.objects.filter(day=day)

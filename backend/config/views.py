@@ -433,6 +433,10 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "closing_time",
             "use_reservation_times",
             "show_stay_days_in_agenda",
+            "reservation_use_pending",
+            "reservation_use_in_progress",
+            "reservation_use_ready",
+            "reservation_use_canceled",
             "public_landing_enabled",
             "public_landing_intro",
             "allow_public_booking_requests",
@@ -706,8 +710,16 @@ class BusinessProfileView(APIView):
         return Response(serializer.data)
 
     def patch(self, request):
+        from scheduling.services import realign_reservations_to_profile
+
         profile = self.get_profile()
         before = audit_snapshot(profile)
+        previous_flags = {
+            "reservation_use_pending": profile.reservation_use_pending,
+            "reservation_use_in_progress": profile.reservation_use_in_progress,
+            "reservation_use_ready": profile.reservation_use_ready,
+            "reservation_use_canceled": profile.reservation_use_canceled,
+        }
         serializer = BusinessProfileSerializer(
             profile,
             data=request.data,
@@ -716,6 +728,7 @@ class BusinessProfileView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         profile = serializer.save()
+        realignment = realign_reservations_to_profile(profile.business, profile, previous_flags)
         record_audit_event(
             request=request,
             action="update",
@@ -723,5 +736,6 @@ class BusinessProfileView(APIView):
             before=before,
             after=audit_snapshot(profile),
             module="settings",
+            metadata={"reservation_status_realignment": realignment} if realignment else None,
         )
         return Response(serializer.data)

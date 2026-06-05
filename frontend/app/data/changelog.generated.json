@@ -6,6 +6,11 @@
         "slug": "fix-auto-cierre-por-vista-futura",
         "title": "Fix: caja del dia se cerraba al ver un dia futuro (2026-06-05)",
         "sections": []
+      },
+      {
+        "slug": "estados-reserva-configurables",
+        "title": "Estados de reserva configurables (2026-06-05)",
+        "sections": []
       }
     ]
   },

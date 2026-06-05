@@ -2,6 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from rest_framework import serializers
 
+from core.models import BusinessProfile
 from core.permissions import context_can_view_economy
 from core.serializers import BusinessScopedSerializerMixin
 
@@ -152,11 +153,25 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
 
     def validate_status(self, value):
         if value == "completed":
-            return Reservation.Status.DELIVERED
+            value = Reservation.Status.DELIVERED
         allowed = [choice[0] for choice in Reservation.Status.choices]
         if value not in allowed:
             raise serializers.ValidationError("Estado invalido.")
-        return value
+        profile = self._profile_for_validation()
+        if profile is None:
+            return value
+        normalized = Reservation.normalize_status_for_profile(value, profile)
+        if normalized is None:
+            raise serializers.ValidationError(
+                "Este estado esta deshabilitado en la configuracion del negocio."
+            )
+        return normalized
+
+    def _profile_for_validation(self):
+        business = self.get_business() or getattr(self.instance, "business", None)
+        if business is None:
+            return None
+        return BusinessProfile.get_solo(business=business)
 
     def validate(self, attrs):
         attrs = self._with_preserved_exit_offset(attrs)
@@ -256,6 +271,10 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
             items_data = [{"service": service}]
         validated_data["service"] = items_data[0]["service"]
         validated_data.setdefault("estimated_duration_minutes", self._duration_from_items(items_data))
+        if "status" not in validated_data:
+            profile = self._profile_for_validation()
+            if profile is not None:
+                validated_data["status"] = Reservation.initial_status_for_profile(profile)
         reservation = Reservation.objects.create(**validated_data)
         self._replace_items(reservation, items_data)
         self._ensure_work_order(reservation)
