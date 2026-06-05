@@ -13,7 +13,7 @@ from core.models import BusinessProfile
 from core.permissions import business_from_request
 from workorders.metrics import build_work_order_financial_metrics
 
-from .models import DailyCapacity, Reservation
+from .models import DETAILING_BUCKET, WASH_BUCKET, DailyCapacity, Reservation
 from .serializers import DailyCapacitySerializer, ReservationSerializer
 from .services import ensure_reservation_work_order
 
@@ -182,7 +182,12 @@ class DailyAgendaView(APIView):
             day = date.today()
         business = business_from_request(request)
         capacity_row = DailyCapacity.objects.filter(business=business, day=day).first()
-        max_slots = capacity_row.max_slots if capacity_row else Reservation.capacity_for_day(day, business=business)
+        if capacity_row:
+            max_slots_wash = capacity_row.max_slots_wash
+            max_slots_detailing = capacity_row.max_slots_detailing
+        else:
+            max_slots_wash = Reservation.capacity_for_day(day, business=business, bucket=WASH_BUCKET)
+            max_slots_detailing = Reservation.capacity_for_day(day, business=business, bucket=DETAILING_BUCKET)
         profile = BusinessProfile.get_solo(business=business)
         reservations = Reservation.objects.select_related(
             "customer",
@@ -203,14 +208,22 @@ class DailyAgendaView(APIView):
         work_order_metrics = build_work_order_financial_metrics(
             work_orders_for_reservations(reservation_rows)
         )
-        used_slots = Reservation.used_slots_for_day(day, business=business)
+        used_slots_wash = Reservation.used_slots_for_day(day, business=business, bucket=WASH_BUCKET)
+        used_slots_detailing = Reservation.used_slots_for_day(day, business=business, bucket=DETAILING_BUCKET)
         return response.Response(
             {
                 "date": day.isoformat(),
                 "capacity_id": capacity_row.id if capacity_row else None,
-                "max_slots": max_slots,
-                "used_slots": used_slots,
-                "available_slots": max(max_slots - used_slots, 0),
+                "wash": {
+                    "max_slots": max_slots_wash,
+                    "used_slots": used_slots_wash,
+                    "available_slots": max(max_slots_wash - used_slots_wash, 0),
+                },
+                "detailing": {
+                    "max_slots": max_slots_detailing,
+                    "used_slots": used_slots_detailing,
+                    "available_slots": max(max_slots_detailing - used_slots_detailing, 0),
+                },
                 "reservations": ReservationSerializer(
                     reservation_rows,
                     many=True,

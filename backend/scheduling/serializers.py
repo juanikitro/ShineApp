@@ -5,24 +5,55 @@ from rest_framework import serializers
 from core.permissions import context_can_view_economy
 from core.serializers import BusinessScopedSerializerMixin
 
-from .models import DailyCapacity, Reservation, ReservationItem
+from .models import (
+    DETAILING_BUCKET,
+    WASH_BUCKET,
+    DailyCapacity,
+    Reservation,
+    ReservationItem,
+    bucket_for_service_type,
+)
 from .services import ensure_reservation_work_order
 
 
 class DailyCapacitySerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
-    used_slots = serializers.SerializerMethodField()
-    available_slots = serializers.SerializerMethodField()
+    used_slots_wash = serializers.SerializerMethodField()
+    used_slots_detailing = serializers.SerializerMethodField()
+    available_slots_wash = serializers.SerializerMethodField()
+    available_slots_detailing = serializers.SerializerMethodField()
 
     class Meta:
         model = DailyCapacity
-        fields = ["id", "day", "max_slots", "notes", "used_slots", "available_slots"]
-        read_only_fields = ["id", "used_slots", "available_slots"]
+        fields = [
+            "id",
+            "day",
+            "max_slots_wash",
+            "max_slots_detailing",
+            "notes",
+            "used_slots_wash",
+            "used_slots_detailing",
+            "available_slots_wash",
+            "available_slots_detailing",
+        ]
+        read_only_fields = [
+            "id",
+            "used_slots_wash",
+            "used_slots_detailing",
+            "available_slots_wash",
+            "available_slots_detailing",
+        ]
 
-    def get_used_slots(self, obj):
-        return Reservation.used_slots_for_day(obj.day, business=obj.business)
+    def get_used_slots_wash(self, obj):
+        return Reservation.used_slots_for_day(obj.day, business=obj.business, bucket=WASH_BUCKET)
 
-    def get_available_slots(self, obj):
-        return max(obj.max_slots - Reservation.used_slots_for_day(obj.day, business=obj.business), 0)
+    def get_used_slots_detailing(self, obj):
+        return Reservation.used_slots_for_day(obj.day, business=obj.business, bucket=DETAILING_BUCKET)
+
+    def get_available_slots_wash(self, obj):
+        return max(obj.max_slots_wash - self.get_used_slots_wash(obj), 0)
+
+    def get_available_slots_detailing(self, obj):
+        return max(obj.max_slots_detailing - self.get_used_slots_detailing(obj), 0)
 
 
 class ReservationItemSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
@@ -218,15 +249,20 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
                     )
                 }
             )
-        if day and status in Reservation.active_statuses():
+        if day and status in Reservation.active_statuses() and service:
             business = self.get_business() or getattr(self.instance, "business", None)
+            bucket = bucket_for_service_type(getattr(service, "service_type", None))
             used_slots = Reservation.used_slots_for_day(
                 day,
                 exclude_id=getattr(self.instance, "id", None),
                 business=business,
+                bucket=bucket,
             )
-            if used_slots >= Reservation.capacity_for_day(day, business=business):
-                raise serializers.ValidationError({"day": "La capacidad de turnos para este dia ya esta completa."})
+            if used_slots >= Reservation.capacity_for_day(day, business=business, bucket=bucket):
+                bucket_label = "detailing" if bucket == DETAILING_BUCKET else "lavado"
+                raise serializers.ValidationError(
+                    {"day": f"La capacidad de turnos de {bucket_label} para este dia ya esta completa."}
+                )
         return attrs
 
     def _with_preserved_exit_offset(self, attrs):
