@@ -3,6 +3,20 @@
     "date": "2026-06-05",
     "items": [
       {
+        "slug": "pwa-instalable-ios-android",
+        "title": "Frontend: PWA instalable en iOS y Android (CRM y landing publica)",
+        "sections": [
+          {
+            "heading": "Contexto",
+            "text": "El frontend no exponia manifest ni meta tags PWA. En Android Chrome aparecia\n\"Agregar a pantalla de inicio\" pero solo creaba un atajo; en iOS Safari el\natajo abria la web dentro del navegador en vez de comportarse como app\nstandalone. No habia apple-touch-icon ni configuracion de display, theme color\nni splash. El unico public/sw.js cubria push notifications."
+          },
+          {
+            "heading": "Cambio",
+            "text": "- Nuevo frontend/app/manifest.ts para el CRM (/manifest.webmanifest)\n  con display: standalone, theme_color, background_color, iconos any\n  y maskable, y start_url=/?source=pwa.\n- Nuevo route handler frontend/app/publica/[slug]/manifest.webmanifest/route.ts\n  que fetchea el endpoint publico /api/public/landing/<slug>/ (server side,\n  con revalidate: 300) y devuelve un manifest por negocio con name del\n  negocio, scope=/publica/<slug> y start_url=/publica/<slug>?source=pwa.\n- frontend/app/publica/[slug]/page.tsx ahora exporta generateMetadata\n  que vincula ese manifest dinamico, fija applicationName y\n  appleWebApp.title con el nombre del negocio.\n- frontend/app/layout.tsx agrega viewport (themeColor por light/dark,\n  viewportFit: cover para notch), iconos apple-touch-icon, applicationName,\n  appleWebApp.capable y formatDetection.telephone=false.\n- Nuevos PNGs PWA en frontend/public/icons/:\n  icon-192.png, icon-512.png (transparentes, logo color brand),\n  icon-maskable-192.png, icon-maskable-512.png (logo blanco sobre azul\n  brand con safe area 70%) y apple-touch-icon.png (180x180, fondo azul brand).\n- Script reproducible frontend/scripts/generate-pwa-icons.mjs (usa sharp,\n  ya disponible como dep transitiva de Next)."
+          }
+        ]
+      },
+      {
         "slug": "listado-caja-denso",
         "title": "Caja: listado denso con contraparte, orden y filtros rapidos",
         "sections": [
