@@ -12,6 +12,7 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-05
 - [Fix: caja del dia se cerraba al ver un dia futuro (2026-06-05)](docs/registro/cambios/2026-06-05-fix-auto-cierre-por-vista-futura.md)
+- [Duracion de servicios en minutos / horas / dias / semanas (2026-06-05)](docs/registro/cambios/2026-06-05-duracion-servicio-en-unidades.md)
 
 ## 2026-06-03
 - [fix(ui): simetria y espacios en blanco en Dashboard y Dashboard de cliente](docs/registro/cambios/2026-06-03-ux-dashboard-cliente-simetria.md)

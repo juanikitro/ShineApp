@@ -122,6 +122,7 @@ import {
 	type SidebarNavItem,
 } from '@/app/components/layout/SidebarNav'
 import { DetailModal } from '@/app/components/ui/DetailModal'
+import { DurationInput } from '@/app/components/ui/DurationInput'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
 import { BirthdayFields } from '@/app/components/ui/BirthdayFields'
 import { Field } from '@/app/components/ui/Field'
@@ -7507,19 +7508,10 @@ export default function Home() {
 								}
 							/>
 						</Field>
-						<Field label="Duracion min.">
-							<input
-								type="number"
-								min="1"
-								value={data.estimated_duration_minutes ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										estimated_duration_minutes:
-											event.target.value,
-									})
-								}
-							/>
-						</Field>
+						<DurationInput
+							form={data}
+							onPatch={(patch) => updateDetailEdit(patch)}
+						/>
 					</div>
 					<div className="form-row">
 						{VEHICLE_TYPES.map((type) => (
@@ -11174,19 +11166,12 @@ export default function Home() {
 										}
 									/>
 								</Field>
-								<Field label="Duracion min.">
-									<input
-										type="number"
-										min="1"
-										value={serviceForm.estimated_duration_minutes}
-										onChange={(event) =>
-											setServiceForm({
-												...serviceForm,
-												estimated_duration_minutes: event.target.value,
-											})
-										}
-									/>
-								</Field>
+								<DurationInput
+									form={serviceForm}
+									onPatch={(patch) =>
+										setServiceForm({ ...serviceForm, ...patch })
+									}
+								/>
 							</div>
 							<div className="form-row">
 								{VEHICLE_TYPES.map((type) => (
