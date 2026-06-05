@@ -237,14 +237,18 @@ import {
 } from '@/lib/service-pricing'
 import { shouldHandleUndoShortcut } from '@/lib/undo-shortcut'
 import {
+	type CashQuickFilter,
+	type CashSortKey,
 	buildCashFlowSummary,
 	cashEntryDescriptionText,
 	cashEntryMatchesFilters,
+	cashEntryMatchesQuickFilter,
 	cashEntryTitleText,
 	cashSourceKindLabel,
 	compareExpenseClassificationPair,
 	hasCashFilters,
 	normalizedCashText,
+	sortCashEntries,
 } from '@/lib/cash-entry'
 import {
 	debtMatchesFilters,
@@ -637,6 +641,10 @@ export default function Home() {
 		useState<CashSummaryMode>('cashflow')
 	const [cashFilters, setCashFilters] =
 		useState<CashFilterState>(CASH_FILTER_DEFAULTS)
+	const [cashQuickFilter, setCashQuickFilter] =
+		useState<CashQuickFilter>('all')
+	const [cashSortKey, setCashSortKey] =
+		useState<CashSortKey>('occurred_desc')
 	const [debtFilters, setDebtFilters] =
 		useState<DebtFilterState>(DEBT_FILTER_DEFAULTS)
 	const cashMovementDateTimeFor = (day: string) => `${day}T12:00`
@@ -737,7 +745,8 @@ export default function Home() {
 	const [dailyCapacityForm, setDailyCapacityForm] = useState<AnyRecord>({
 		id: '',
 		day: today,
-		max_slots: '',
+		max_slots_wash: '',
+		max_slots_detailing: '',
 		notes: '',
 	})
 	const [reservationForm, setReservationForm] = useState<AnyRecord>(
@@ -1293,12 +1302,20 @@ export default function Home() {
 
 	function handleBusinessLogoChange(event: ChangeEvent<HTMLInputElement>) {
 		const file = event.target.files?.[0] ?? null
-		setBusinessLogoFile(file)
 		revokeBusinessLogoObjectUrl()
 		if (!file) {
+			setBusinessLogoFile(null)
 			setBusinessLogoPreview(businessProfile?.logo_url ?? null)
 			return
 		}
+		const isAllowedLogoFile =
+			file.type.startsWith('image/') || isPdfFile(file)
+		if (!isAllowedLogoFile) {
+			setBusinessLogoFile(null)
+			setBusinessLogoPreview(businessProfile?.logo_url ?? null)
+			return
+		}
+		setBusinessLogoFile(file)
 		const objectUrl = window.URL.createObjectURL(file)
 		businessLogoObjectUrlRef.current = objectUrl
 		setBusinessLogoPreview(objectUrl)
@@ -1390,7 +1407,7 @@ export default function Home() {
 			'material-consumption': 'material-consumption.work_order',
 			tool: 'tool.name',
 			employee: 'employee.username',
-			'daily-capacity': 'daily-capacity.max_slots',
+			'daily-capacity': 'daily-capacity.max_slots_wash',
 		}
 		focusField(firstFocus[formModal.kind], formModal.kind !== 'customer')
 	}, [formModal?.kind])
@@ -4434,10 +4451,15 @@ export default function Home() {
 	)
 	const filteredCashEntries = useMemo(
 		() =>
-			cashEntries.filter((item: AnyRecord) =>
-				cashEntryMatchesFilters(item, cashFilters),
+			sortCashEntries(
+				cashEntries.filter(
+					(item: AnyRecord) =>
+						cashEntryMatchesFilters(item, cashFilters) &&
+						cashEntryMatchesQuickFilter(item, cashQuickFilter),
+				),
+				cashSortKey,
 			),
-		[cashEntries, cashFilters],
+		[cashEntries, cashFilters, cashQuickFilter, cashSortKey],
 	)
 
 	if (!token) {
@@ -5688,14 +5710,6 @@ export default function Home() {
 		setFormModal({ kind: 'cash-movement' })
 	}
 
-	function cashEntryTitle(item: AnyRecord) {
-		return cashEntryTitleText(item)
-	}
-
-	function cashEntryDescription(item: AnyRecord) {
-		return cashEntryDescriptionText(item)
-	}
-
 	function cashEntryKey(item: AnyRecord) {
 		return `${item.source_kind ?? 'cash'}-${item.source_id ?? item.id}`
 	}
@@ -5841,7 +5855,8 @@ export default function Home() {
 			setDailyCapacityForm({
 				id: '',
 				day: selectedDay,
-				max_slots: '',
+				max_slots_wash: '',
+				max_slots_detailing: '',
 				notes: '',
 			})
 		}
@@ -9106,7 +9121,8 @@ export default function Home() {
 		setDailyCapacityForm({
 			id: item.id,
 			day: item.day,
-			max_slots: String(item.max_slots ?? ''),
+			max_slots_wash: String(item.max_slots_wash ?? ''),
+			max_slots_detailing: String(item.max_slots_detailing ?? ''),
 			notes: item.notes ?? '',
 		})
 		setFormModal({ kind: 'daily-capacity' })
@@ -9129,7 +9145,8 @@ export default function Home() {
 				setDailyCapacityForm({
 					id: '',
 					day: selectedDay,
-					max_slots: '',
+					max_slots_wash: '',
+					max_slots_detailing: '',
 					notes: '',
 				})
 				formModalExit.close()
@@ -12420,10 +12437,8 @@ export default function Home() {
 					<CashPanel
 						cashClosure={cash.closure}
 						cashEntries={cashEntries}
-						cashEntryDescription={cashEntryDescription}
 						cashEntryKey={cashEntryKey}
 						cashEntryQuickActions={cashEntryQuickActions}
-						cashEntryTitle={cashEntryTitle}
 						cashFilterCategoryOptions={selectOptionsFromValues(
 							cashFilterCategoryValues,
 							cashFilters.category,
@@ -12437,6 +12452,8 @@ export default function Home() {
 						cashflowTotals={cashflowTotals}
 						cashFlowSummary={cashFlowSummary}
 						cashIsClosed={cashIsClosed}
+						cashQuickFilter={cashQuickFilter}
+						cashSortKey={cashSortKey}
 						cashSourceKindLabel={cashSourceKindLabel}
 						cashSourceKindOptions={cashSourceKindOptions}
 						cashSummaryMode={cashSummaryMode}
@@ -12449,8 +12466,13 @@ export default function Home() {
 						renderQuickActionsTrigger={renderQuickActionsTrigger}
 						selectedDay={selectedDay}
 						onCashFilterChange={updateCashFilter}
+						onCashQuickFilterChange={setCashQuickFilter}
+						onCashSortChange={setCashSortKey}
 						onCashSummaryModeChange={setCashSummaryMode}
-						onClearCashFilters={() => setCashFilters(CASH_FILTER_DEFAULTS)}
+						onClearCashFilters={() => {
+							setCashFilters(CASH_FILTER_DEFAULTS)
+							setCashQuickFilter('all')
+						}}
 						onCloseDay={closeCashDay}
 						onReopenDay={reopenCashDay}
 						onCollectWork={() => openFormModal('payment')}

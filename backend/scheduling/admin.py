@@ -63,8 +63,8 @@ class ReservationAdmin(admin.ModelAdmin):
 
 @admin.register(DailyCapacity)
 class DailyCapacityAdmin(admin.ModelAdmin):
-    list_display = ["day", "business", "max_slots", "notes"]
-    list_editable = ["max_slots"]
+    list_display = ["day", "business", "max_slots_wash", "max_slots_detailing", "notes"]
+    list_editable = ["max_slots_wash", "max_slots_detailing"]
     list_filter = ["business"]
     search_fields = ["day", "notes"]
     list_per_page = 25
