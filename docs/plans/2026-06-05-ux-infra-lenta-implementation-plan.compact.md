@@ -154,10 +154,9 @@ Nota: el plan original tenia un hook `useRunAction` que tomaba todos los handler
 - [x] validar: pytest 235 passed + tsc verde.
 
 ### T15: `CONN_MAX_AGE` Supabase
-- [ ] `DATABASES['default']['CONN_MAX_AGE']=300` en `settings_production.py`.
-- [ ] `CONN_HEALTH_CHECKS=True`.
-- [ ] documentar pooler 6543 en `docs/deployment/supabase.md` (sin cambiar URL).
-- [ ] validar: `py -3 manage.py check`.
+- [x] `conn_max_age=env_int("DATABASE_CONN_MAX_AGE", 300)` + `conn_health_checks=env_bool("DATABASE_CONN_HEALTH_CHECKS", True)` en `settings_production.py`. Configurables via env si Vercel se comporta raro.
+- [x] documentado en `docs/deployment/supabase.md`: explicacion del beneficio (-50-200ms por request mientras el contenedor vive) y el upgrade path al transaction pooler de Supabase puerto 6543 cuando haga falta mas concurrencia (no requiere cambios de codigo).
+- [x] validar: manage.py check OK + pytest 235 passed.
 
 ### T16: Registro spec-as-source
 - [ ] `docs/registro/cambios/2026-06-05-ux-infra-lenta.md` estilo caveman.
