@@ -1289,12 +1289,20 @@ export default function Home() {
 
 	function handleBusinessLogoChange(event: ChangeEvent<HTMLInputElement>) {
 		const file = event.target.files?.[0] ?? null
-		setBusinessLogoFile(file)
 		revokeBusinessLogoObjectUrl()
 		if (!file) {
+			setBusinessLogoFile(null)
 			setBusinessLogoPreview(businessProfile?.logo_url ?? null)
 			return
 		}
+		const isAllowedLogoFile =
+			file.type.startsWith('image/') || isPdfFile(file)
+		if (!isAllowedLogoFile) {
+			setBusinessLogoFile(null)
+			setBusinessLogoPreview(businessProfile?.logo_url ?? null)
+			return
+		}
+		setBusinessLogoFile(file)
 		const objectUrl = window.URL.createObjectURL(file)
 		businessLogoObjectUrlRef.current = objectUrl
 		setBusinessLogoPreview(objectUrl)
