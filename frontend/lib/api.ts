@@ -79,7 +79,15 @@ export function clearStoredToken() {
   window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
 }
 
-export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+export type ApiRequestInit = RequestInit & { signal?: AbortSignal };
+
+const inflightGets = new Map<string, Promise<unknown>>();
+
+function inflightKey(path: string) {
+  return `GET:${apiRequestUrl(path)}`;
+}
+
+async function performFetch<T>(path: string, options: ApiRequestInit): Promise<T> {
   const token = getStoredToken();
   const headers = new Headers(options.headers);
   if (!(options.body instanceof FormData) && !headers.has("Content-Type")) {
@@ -92,7 +100,8 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   const response = await fetch(apiRequestUrl(path), {
     ...options,
     headers,
-    cache: "no-store"
+    cache: options.cache ?? "no-store",
+    signal: options.signal,
   });
 
   if (!response.ok) {
@@ -105,7 +114,24 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   return response.json() as Promise<T>;
 }
 
-export async function publicApiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function apiFetch<T>(path: string, options: ApiRequestInit = {}): Promise<T> {
+  const method = (options.method ?? "GET").toUpperCase();
+  if (method !== "GET" || options.body !== undefined) {
+    return performFetch<T>(path, options);
+  }
+  const key = inflightKey(path);
+  const existing = inflightGets.get(key) as Promise<T> | undefined;
+  if (existing) {
+    return existing;
+  }
+  const promise = performFetch<T>(path, options).finally(() => {
+    inflightGets.delete(key);
+  });
+  inflightGets.set(key, promise);
+  return promise;
+}
+
+export async function publicApiFetch<T>(path: string, options: ApiRequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
   if (!(options.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -116,7 +142,8 @@ export async function publicApiFetch<T>(path: string, options: RequestInit = {})
   const response = await fetch(apiRequestUrl(path), {
     ...options,
     headers,
-    cache: options.cache ?? "no-store"
+    cache: options.cache ?? "no-store",
+    signal: options.signal,
   });
 
   if (!response.ok) {
@@ -129,15 +156,36 @@ export async function publicApiFetch<T>(path: string, options: RequestInit = {})
   return response.json() as Promise<T>;
 }
 
-export async function apiList<T>(path: string): Promise<T[]> {
-  const payload = await apiFetch<T[] | PaginatedPayload<T>>(path);
+export type ApiPage<T> = {
+  results: T[];
+  next: string | null;
+  previous: string | null;
+  count: number | null;
+};
+
+export async function apiPage<T>(path: string, options: ApiRequestInit = {}): Promise<ApiPage<T>> {
+  const payload = await apiFetch<T[] | PaginatedPayload<T>>(path, options);
+  if (Array.isArray(payload)) {
+    return { results: payload, next: null, previous: null, count: payload.length };
+  }
+  const anyPayload = payload as PaginatedPayload<T> & { previous?: string | null; count?: number };
+  return {
+    results: Array.isArray(anyPayload.results) ? anyPayload.results : [],
+    next: anyPayload.next ?? null,
+    previous: anyPayload.previous ?? null,
+    count: typeof anyPayload.count === "number" ? anyPayload.count : null,
+  };
+}
+
+export async function apiList<T>(path: string, options: ApiRequestInit = {}): Promise<T[]> {
+  const payload = await apiFetch<T[] | PaginatedPayload<T>>(path, options);
   if (Array.isArray(payload)) return payload;
 
   const results = Array.isArray(payload.results) ? [...payload.results] : [];
   let next = payload.next ?? null;
 
   while (next) {
-    const nextPayload = await apiFetch<T[] | PaginatedPayload<T>>(next);
+    const nextPayload = await apiFetch<T[] | PaginatedPayload<T>>(next, options);
     if (Array.isArray(nextPayload)) {
       results.push(...nextPayload);
       break;

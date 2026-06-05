@@ -4,10 +4,19 @@ from django.conf import settings
 from django.db import models
 
 
+WASH_BUCKET = "wash"
+DETAILING_BUCKET = "detailing"
+
+
+def bucket_for_service_type(service_type):
+    return DETAILING_BUCKET if service_type == "detailing" else WASH_BUCKET
+
+
 class DailyCapacity(models.Model):
     business = models.ForeignKey("core.BusinessAccount", related_name="daily_capacities", on_delete=models.PROTECT)
     day = models.DateField()
-    max_slots = models.PositiveIntegerField(default=settings.DEFAULT_DAILY_CAPACITY)
+    max_slots_wash = models.PositiveIntegerField(default=settings.DEFAULT_DAILY_CAPACITY)
+    max_slots_detailing = models.PositiveIntegerField(default=settings.DEFAULT_DAILY_CAPACITY)
     notes = models.CharField(max_length=180, blank=True)
 
     class Meta:
@@ -17,7 +26,12 @@ class DailyCapacity(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.day}: {self.max_slots} turnos"
+        return f"{self.day}: lavado {self.max_slots_wash} / detailing {self.max_slots_detailing}"
+
+    def slots_for_bucket(self, bucket):
+        if bucket == DETAILING_BUCKET:
+            return self.max_slots_detailing
+        return self.max_slots_wash
 
     def save(self, *args, **kwargs):
         if not self.business_id:
@@ -52,6 +66,12 @@ class Reservation(models.Model):
 
     class Meta:
         ordering = ["day", "start_time", "id"]
+        indexes = [
+            models.Index(
+                fields=["business", "day", "status"],
+                name="resv_biz_day_status_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.day} - {self.customer} - {self.service}"
@@ -111,22 +131,103 @@ class Reservation(models.Model):
             cls.Status.DELIVERED,
         ]
 
+    FLOW_ORDER = [
+        Status.PENDING,
+        Status.CONFIRMED,
+        Status.IN_PROGRESS,
+        Status.READY,
+        Status.DELIVERED,
+    ]
+
+    REQUIRED_STATUSES = {Status.CONFIRMED, Status.DELIVERED}
+
+    OPTIONAL_FLAG_BY_STATUS = {
+        Status.PENDING: "reservation_use_pending",
+        Status.IN_PROGRESS: "reservation_use_in_progress",
+        Status.READY: "reservation_use_ready",
+    }
+
     @classmethod
-    def capacity_for_day(cls, day, business=None):
+    def status_is_enabled(cls, status, profile):
+        if status == cls.Status.CANCELED:
+            return bool(getattr(profile, "reservation_use_canceled", True))
+        if status in cls.REQUIRED_STATUSES:
+            return True
+        flag = cls.OPTIONAL_FLAG_BY_STATUS.get(status)
+        if not flag:
+            return True
+        return bool(getattr(profile, flag, True))
+
+    @classmethod
+    def enabled_flow_statuses(cls, profile):
+        return [status for status in cls.FLOW_ORDER if cls.status_is_enabled(status, profile)]
+
+    @classmethod
+    def initial_status_for_profile(cls, profile):
+        if cls.status_is_enabled(cls.Status.PENDING, profile):
+            return cls.Status.PENDING
+        return cls.Status.CONFIRMED
+
+    @classmethod
+    def next_active_status(cls, current_status, profile):
+        if current_status == cls.Status.CANCELED:
+            return cls.initial_status_for_profile(profile)
+        flow = cls.enabled_flow_statuses(profile)
+        if current_status not in cls.FLOW_ORDER:
+            return current_status
+        try:
+            current_index = cls.FLOW_ORDER.index(current_status)
+        except ValueError:
+            return current_status
+        for status in cls.FLOW_ORDER[current_index + 1 :]:
+            if status in flow:
+                return status
+        return cls.Status.DELIVERED
+
+    @classmethod
+    def normalize_status_for_profile(cls, status, profile):
+        if status == cls.Status.CANCELED:
+            return cls.Status.CANCELED if cls.status_is_enabled(status, profile) else None
+        if cls.status_is_enabled(status, profile):
+            return status
+        flow = cls.enabled_flow_statuses(profile)
+        if status not in cls.FLOW_ORDER:
+            return status
+        index = cls.FLOW_ORDER.index(status)
+        for candidate in cls.FLOW_ORDER[index + 1 :]:
+            if candidate in flow:
+                return candidate
+        for candidate in reversed(cls.FLOW_ORDER[:index]):
+            if candidate in flow:
+                return candidate
+        return cls.Status.DELIVERED
+
+    @classmethod
+    def capacity_for_day(cls, day, business=None, bucket=WASH_BUCKET):
         queryset = DailyCapacity.objects.filter(day=day)
         if business is not None:
             queryset = queryset.filter(business=business)
         capacity = queryset.first()
-        return capacity.max_slots if capacity else settings.DEFAULT_DAILY_CAPACITY
+        if capacity:
+            return capacity.slots_for_bucket(bucket)
+        return settings.DEFAULT_DAILY_CAPACITY
 
     @classmethod
-    def used_slots_for_day(cls, day, exclude_id=None, business=None):
+    def used_slots_for_day(cls, day, exclude_id=None, business=None, bucket=None):
         queryset = cls.objects.filter(day=day, status__in=cls.active_statuses())
         if business is not None:
             queryset = queryset.filter(business=business)
+        if bucket == DETAILING_BUCKET:
+            queryset = queryset.filter(service__service_type="detailing")
+        elif bucket == WASH_BUCKET:
+            queryset = queryset.exclude(service__service_type="detailing")
         if exclude_id:
             queryset = queryset.exclude(pk=exclude_id)
         return queryset.count()
+
+    @classmethod
+    def bucket_for_service(cls, service):
+        return bucket_for_service_type(getattr(service, "service_type", None))
 
 
 class ReservationItem(models.Model):

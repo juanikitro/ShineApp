@@ -61,11 +61,16 @@ class PublicLandingView(APIView):
             enabled_types.append("detailing")
         if profile.public_show_wash_services and profile.public_show_detailing_services:
             enabled_types.append("combo")
+        hidden_ids = [
+            int(value)
+            for value in (profile.public_hidden_service_ids or [])
+            if isinstance(value, (int, str)) and str(value).lstrip("-").isdigit()
+        ]
         services = Service.objects.filter(
             business=business,
             is_active=True,
             service_type__in=enabled_types,
-        ).order_by("service_type", "name")
+        ).exclude(id__in=hidden_ids).order_by("service_type", "name")
         landing = response.Response(
             {
                 "business": {

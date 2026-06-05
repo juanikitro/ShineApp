@@ -4,6 +4,7 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { Package } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { type AnyRecord, money } from '@/lib/page-support'
 
@@ -15,6 +16,7 @@ type MaterialFormProps = {
 	focusNextOnEnter: (
 		key: string,
 	) => (event: KeyboardEvent<HTMLElement>) => void
+	submitting?: boolean
 }
 
 export function MaterialForm({
@@ -23,6 +25,7 @@ export function MaterialForm({
 	setMaterialForm,
 	onSubmit,
 	focusNextOnEnter,
+	submitting = false,
 }: MaterialFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -127,10 +130,14 @@ export function MaterialForm({
 				Costo unitario automatico por ultima compra:{' '}
 				<strong>{money(materialForm.estimated_unit_cost)}</strong>
 			</div>
-			<button className="primary">
-				<Package size={16} />
+			<Button
+				type="submit"
+				variant="primary"
+				loading={submitting}
+				leadingIcon={<Package size={16} />}
+			>
 				{submitLabel}
-			</button>
+			</Button>
 		</form>
 	)
 }

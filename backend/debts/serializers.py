@@ -10,7 +10,7 @@ from core.serializers import BusinessScopedSerializerMixin
 from finance.cash import cash_day, ensure_cash_day_open, request_user_from_context
 from finance.models import CashMovement
 
-from .models import Debt, DebtPayment
+from .models import Debt, DebtPayment, RecurringDebt
 
 
 def debt_origin_datetime(debt):
@@ -91,6 +91,7 @@ class DebtSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer)
     balance_due = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     status = serializers.CharField(read_only=True)
     cash_movement = serializers.PrimaryKeyRelatedField(read_only=True)
+    recurring_source = serializers.PrimaryKeyRelatedField(read_only=True)
     payments = DebtPaymentSerializer(many=True, read_only=True)
 
     class Meta:
@@ -110,6 +111,7 @@ class DebtSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer)
             "balance_due",
             "status",
             "cash_movement",
+            "recurring_source",
             "notes",
             "payments",
             "created_at",
@@ -122,6 +124,7 @@ class DebtSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer)
             "balance_due",
             "status",
             "cash_movement",
+            "recurring_source",
             "payments",
             "created_at",
             "updated_at",
@@ -174,4 +177,101 @@ class DebtSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer)
             setattr(instance, attr, value)
         instance.save()
         sync_debt_cash_movement(instance)
+        return instance
+
+
+class RecurringDebtSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+    next_occurrence = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RecurringDebt
+        fields = [
+            "id",
+            "concept",
+            "creditor",
+            "supplier",
+            "supplier_name",
+            "principal_amount",
+            "expense_category",
+            "expense_subcategory",
+            "notes",
+            "interval_unit",
+            "interval_count",
+            "start_date",
+            "due_offset_days",
+            "end_date",
+            "max_cycles",
+            "cycles_generated",
+            "last_generated_for",
+            "is_active",
+            "auto_settle",
+            "auto_settle_method",
+            "next_occurrence",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "supplier_name",
+            "cycles_generated",
+            "last_generated_for",
+            "next_occurrence",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_next_occurrence(self, obj):
+        from .recurrence import next_occurrence
+
+        result = next_occurrence(obj)
+        return result.isoformat() if result else None
+
+    def validate_principal_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("El monto recurrente debe ser mayor a cero.")
+        return value
+
+    def validate_interval_count(self, value):
+        if value < 1:
+            raise serializers.ValidationError("El intervalo debe ser de al menos 1.")
+        return value
+
+    def validate_expense_category(self, value):
+        category = str(value or "").strip()
+        if not category:
+            raise serializers.ValidationError("La categoria es obligatoria.")
+        return category
+
+    def validate_expense_subcategory(self, value):
+        subcategory = str(value or "").strip()
+        if not subcategory:
+            raise serializers.ValidationError("La subcategoria es obligatoria.")
+        return subcategory
+
+    def validate(self, attrs):
+        start_date = attrs.get("start_date", getattr(self.instance, "start_date", None))
+        end_date = attrs.get("end_date", getattr(self.instance, "end_date", None))
+        if start_date and end_date and end_date < start_date:
+            raise serializers.ValidationError(
+                {"end_date": "La fecha de fin no puede ser anterior al inicio."}
+            )
+        max_cycles = attrs.get("max_cycles", getattr(self.instance, "max_cycles", None))
+        if max_cycles is not None and max_cycles < 1:
+            raise serializers.ValidationError(
+                {"max_cycles": "La cantidad de ciclos debe ser mayor a cero."}
+            )
+        supplier = attrs.get("supplier", getattr(self.instance, "supplier", None))
+        self.validate_same_business(supplier)
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        return RecurringDebt.objects.create(**validated_data)
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
         return instance
