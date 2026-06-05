@@ -63,10 +63,7 @@ import {
 	supplierProfileSubtitle,
 } from '@/app/components/suppliers/SupplierDashboardPanel'
 import { WorkEntryDateView } from '@/app/components/work/WorkEntryDateView'
-import {
-	WorkStatusView,
-	workStatusColumns,
-} from '@/app/components/work/WorkStatusView'
+import { WorkStatusView } from '@/app/components/work/WorkStatusView'
 import { ProfileModal } from '@/app/components/profile/ProfileModal'
 import { PublicRequestCard } from '@/app/components/requests/PublicRequestCard'
 import { CashMovementForm } from '@/app/components/forms/CashMovementForm'
@@ -199,6 +196,7 @@ import {
 	type AgendaReservationAction,
 } from '@/lib/reservation-actions'
 import {
+	buildWorkStatusColumns,
 	filterFreeQuotesByServiceBucket,
 	groupReservationsByEntryDate,
 	groupReservationsByWorkOrderStatusColumns,
@@ -208,6 +206,11 @@ import {
 	type WorkOrderViewMode,
 	workOrderForReservation,
 } from '@/lib/work-orders'
+import {
+	DEFAULT_RESERVATION_STATUS_CONFIG,
+	reservationStatusConfigFromProfile,
+	type ReservationStatusConfig,
+} from '@/lib/reservation-status-config'
 import {
 	type AgendaSlideMotion,
 	agendaBoardVariants,
@@ -937,6 +940,19 @@ export default function Home() {
 	const useReservationTimes = businessForm.use_reservation_times !== false
 	const showStayDaysInAgenda =
 		businessForm.show_stay_days_in_agenda !== false
+	const reservationStatusConfig: ReservationStatusConfig = useMemo(
+		() => reservationStatusConfigFromProfile(businessForm),
+		[
+			businessForm.reservation_use_pending,
+			businessForm.reservation_use_in_progress,
+			businessForm.reservation_use_ready,
+			businessForm.reservation_use_canceled,
+		],
+	)
+	const workStatusColumns = useMemo(
+		() => buildWorkStatusColumns(reservationStatusConfig),
+		[reservationStatusConfig],
+	)
 	const effectiveActive =
 		canViewEconomy || !sectionRequiresEmployer(active) ? active : 'agenda'
 	const currentDay = toIsoDate(new Date())
@@ -1288,6 +1304,14 @@ export default function Home() {
 						profile.use_reservation_times !== false,
 					show_stay_days_in_agenda:
 						profile.show_stay_days_in_agenda !== false,
+					reservation_use_pending:
+						profile.reservation_use_pending !== false,
+					reservation_use_in_progress:
+						profile.reservation_use_in_progress !== false,
+					reservation_use_ready:
+						profile.reservation_use_ready !== false,
+					reservation_use_canceled:
+						profile.reservation_use_canceled !== false,
 					public_landing_enabled:
 						profile.public_landing_enabled !== false,
 					public_landing_intro: String(
@@ -1745,7 +1769,7 @@ export default function Home() {
 				workOrders,
 				workStatusColumns,
 			),
-		[visibleAgendaReservations, workOrders],
+		[visibleAgendaReservations, workOrders, workStatusColumns],
 	)
 	const workEntryDateGroups = useMemo(
 		() => groupReservationsByEntryDate(visibleAgendaReservations, currentDay),
@@ -3123,6 +3147,7 @@ export default function Home() {
 			canCharge: Boolean(showWork && workOrder && canViewEconomy),
 			reservationStatus: reservation.status,
 			workOrderStatus: showWork ? workOrder?.status : undefined,
+			config: reservationStatusConfig,
 		})
 		const quickActions = agendaReservationQuickActions(
 			reservation,
@@ -6265,6 +6290,22 @@ export default function Home() {
 		payload.append(
 			'show_stay_days_in_agenda',
 			String(currentBusinessForm.show_stay_days_in_agenda !== false),
+		)
+		payload.append(
+			'reservation_use_pending',
+			String(currentBusinessForm.reservation_use_pending !== false),
+		)
+		payload.append(
+			'reservation_use_in_progress',
+			String(currentBusinessForm.reservation_use_in_progress !== false),
+		)
+		payload.append(
+			'reservation_use_ready',
+			String(currentBusinessForm.reservation_use_ready !== false),
+		)
+		payload.append(
+			'reservation_use_canceled',
+			String(currentBusinessForm.reservation_use_canceled !== false),
 		)
 		payload.append(
 			'public_landing_enabled',
@@ -12555,6 +12596,7 @@ export default function Home() {
 						onDragOver={handleWorkStatusDragOver}
 						onDragEnd={handleWorkStatusDragEnd}
 						onDragCancel={handleWorkStatusDragCancel}
+						statusColumns={workStatusColumns}
 						workStatusGroups={workStatusGroups}
 						workStatusDropStatus={workStatusDropStatus}
 						workStatusMovePendingId={workStatusMovePendingId}
@@ -12832,6 +12874,10 @@ export default function Home() {
 						settingsSectionOptions={settingsSectionOptions}
 						showStayDaysInAgenda={showStayDaysInAgenda}
 						useReservationTimes={useReservationTimes}
+						reservationUsePending={reservationStatusConfig.usePending}
+						reservationUseInProgress={reservationStatusConfig.useInProgress}
+						reservationUseReady={reservationStatusConfig.useReady}
+						reservationUseCanceled={reservationStatusConfig.useCanceled}
 						onApplyAuditFilters={applyAuditFilters}
 						onAuditActionLabel={auditActionLabel}
 						onAuditModuleLabel={auditModuleLabel}

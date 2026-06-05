@@ -14,6 +14,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Caja: listado denso con contraparte, orden y filtros rapidos](2026-06-05-listado-caja-denso.md)
 - [Fix: regresion del logo de negocio en el sidebar (presigned URL)](2026-06-05-fix-sidebar-logo-presigned-url-regresion.md)
 - [Fix: caja del dia se cerraba al ver un dia futuro (2026-06-05)](2026-06-05-fix-auto-cierre-por-vista-futura.md)
+- [Estados de reserva configurables (2026-06-05)](2026-06-05-estados-reserva-configurables.md)
 - [Duracion de servicios en minutos / horas / dias / semanas (2026-06-05)](2026-06-05-duracion-servicio-en-unidades.md)
 - [Deudas recurrentes con materializacion lazy (2026-06-05)](2026-06-05-deudas-recurrentes.md)
 - [Capacidad de turnos por bucket lavado y detailing](2026-06-05-capacidad-turnos-por-bucket.md)

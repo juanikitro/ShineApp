@@ -1,3 +1,10 @@
+import {
+	DEFAULT_RESERVATION_STATUS_CONFIG,
+	nextActiveStatus,
+	type ReservationStatusConfig,
+	type ReservationStatusValue,
+} from './reservation-status-config'
+
 export type AgendaReservationActionVariant =
 	| 'filled'
 	| 'outline'
@@ -45,6 +52,7 @@ type BuildAgendaReservationActionsOptions = {
 	canCharge?: boolean
 	reservationStatus: unknown
 	workOrderStatus?: unknown
+	config?: ReservationStatusConfig
 }
 
 const actionPriorityOrder: Record<AgendaReservationActionPriority, number> = {
@@ -53,40 +61,41 @@ const actionPriorityOrder: Record<AgendaReservationActionPriority, number> = {
 	low: 2,
 }
 
+const WORK_STATUS_LABELS: Record<WorkOrderStatusValue, string> = {
+	in_progress: 'Iniciar',
+	ready: 'Marcar listo',
+	delivered: 'Entregar',
+}
+
+const PROGRESS_FROM_STATUSES = new Set<ReservationStatusValue>([
+	'confirmed',
+	'in_progress',
+	'ready',
+])
+
+function resolveConfig(config?: ReservationStatusConfig): ReservationStatusConfig {
+	return config ?? DEFAULT_RESERVATION_STATUS_CONFIG
+}
+
 function workOrderStatusAction(
 	status: unknown,
+	config: ReservationStatusConfig,
 ): WorkOrderStatusAgendaAction | null {
-	if (status === 'confirmed') {
-		return {
-			kind: 'work-order-status',
-			label: 'Iniciar',
-			priority: 'high',
-			status: 'in_progress',
-			variant: 'filled',
-		}
+	if (typeof status !== 'string') return null
+	if (!PROGRESS_FROM_STATUSES.has(status as ReservationStatusValue)) {
+		return null
 	}
-
-	if (status === 'in_progress') {
-		return {
-			kind: 'work-order-status',
-			label: 'Marcar listo',
-			priority: 'high',
-			status: 'ready',
-			variant: 'filled',
-		}
+	const target = nextActiveStatus(status as ReservationStatusValue, config)
+	if (target === status || target === 'pending' || target === 'confirmed') {
+		return null
 	}
-
-	if (status === 'ready') {
-		return {
-			kind: 'work-order-status',
-			label: 'Entregar',
-			priority: 'high',
-			status: 'delivered',
-			variant: 'filled',
-		}
+	return {
+		kind: 'work-order-status',
+		label: WORK_STATUS_LABELS[target as WorkOrderStatusValue] ?? 'Avanzar',
+		priority: 'high',
+		status: target as WorkOrderStatusValue,
+		variant: 'filled',
 	}
-
-	return null
 }
 
 function chargeAgendaAction(
@@ -113,6 +122,7 @@ function asSecondaryStatusAction(
 
 function buildWorkOrderActions(
 	options: BuildAgendaReservationActionsOptions,
+	config: ReservationStatusConfig,
 ): AgendaReservationAction[] {
 	if (
 		options.reservationStatus === 'pending' ||
@@ -121,7 +131,7 @@ function buildWorkOrderActions(
 		return []
 	}
 
-	const statusAction = workOrderStatusAction(options.workOrderStatus)
+	const statusAction = workOrderStatusAction(options.workOrderStatus, config)
 	const balanceDue = Number(options.balanceDue ?? 0)
 	const canCharge =
 		Boolean(options.canCharge) &&
@@ -134,7 +144,7 @@ function buildWorkOrderActions(
 
 	if (statusAction && canCharge) {
 		const prioritizeCharge =
-			options.workOrderStatus === 'ready' &&
+			statusAction.status === 'delivered' &&
 			balanceDue > 0
 
 		if (prioritizeCharge) {
@@ -154,9 +164,37 @@ function buildWorkOrderActions(
 	return [chargeAgendaAction('filled', 'high')]
 }
 
+function cancelOrDeleteAction(
+	config: ReservationStatusConfig,
+): ReservationStatusAction {
+	if (config.useCanceled) {
+		return {
+			action: 'cancel',
+			ariaLabel: 'Cancelar reserva',
+			icon: 'trash',
+			kind: 'reservation',
+			label: 'Cancelar',
+			priority: 'low',
+			variant: 'icon-danger',
+		}
+	}
+	return {
+		action: 'delete',
+		ariaLabel: 'Eliminar reserva',
+		icon: 'trash',
+		kind: 'reservation',
+		label: 'Eliminar',
+		priority: 'low',
+		variant: 'icon-danger',
+	}
+}
+
 export function reservationStatusActions(
 	status: unknown,
+	config?: ReservationStatusConfig,
 ): ReservationStatusAction[] {
+	const resolvedConfig = resolveConfig(config)
+
 	if (status === 'pending') {
 		return [
 			{
@@ -166,30 +204,12 @@ export function reservationStatusActions(
 				priority: 'high',
 				variant: 'filled',
 			},
-			{
-				action: 'cancel',
-				ariaLabel: 'Cancelar reserva',
-				icon: 'trash',
-				kind: 'reservation',
-				label: 'Cancelar',
-				priority: 'low',
-				variant: 'icon-danger',
-			},
+			cancelOrDeleteAction(resolvedConfig),
 		]
 	}
 
 	if (status === 'confirmed') {
-		return [
-			{
-				action: 'cancel',
-				ariaLabel: 'Cancelar reserva',
-				icon: 'trash',
-				kind: 'reservation',
-				label: 'Cancelar',
-				priority: 'low',
-				variant: 'icon-danger',
-			},
-		]
+		return [cancelOrDeleteAction(resolvedConfig)]
 	}
 
 	if (status === 'canceled') {
@@ -219,9 +239,10 @@ export function reservationStatusActions(
 export function buildAgendaReservationActions(
 	options: BuildAgendaReservationActionsOptions,
 ): AgendaReservationAction[] {
+	const config = resolveConfig(options.config)
 	return [
-		...buildWorkOrderActions(options),
-		...reservationStatusActions(options.reservationStatus),
+		...buildWorkOrderActions(options, config),
+		...reservationStatusActions(options.reservationStatus, config),
 	].sort(
 		(left, right) =>
 			actionPriorityOrder[left.priority] - actionPriorityOrder[right.priority],

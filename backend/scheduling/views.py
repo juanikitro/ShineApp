@@ -78,7 +78,8 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         reservation = self.get_object()
-        if reservation.status != Reservation.Status.CANCELED:
+        profile = BusinessProfile.get_solo(business=reservation.business)
+        if profile.reservation_use_canceled and reservation.status != Reservation.Status.CANCELED:
             return response.Response(
                 {"detail": "Solo se pueden eliminar reservas canceladas."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -110,6 +111,22 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     def cancel(self, request, pk=None):
         reservation = self.get_object()
         before = audit_snapshot(reservation)
+        profile = BusinessProfile.get_solo(business=reservation.business)
+        if not profile.reservation_use_canceled:
+            reservation_id = reservation.pk
+            reservation.delete()
+            record_audit_event(
+                request=request,
+                action="delete",
+                instance=None,
+                before=before,
+                after=None,
+                module="scheduling",
+                entity_type="reservation",
+                entity_id=str(reservation_id),
+                metadata={"reason": "cancel_without_canceled_status"},
+            )
+            return response.Response(status=status.HTTP_204_NO_CONTENT)
         reservation.status = Reservation.Status.CANCELED
         reservation.save(update_fields=["status", "updated_at"])
         record_audit_event(

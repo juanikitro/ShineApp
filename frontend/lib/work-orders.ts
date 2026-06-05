@@ -1,3 +1,7 @@
+import {
+	type ReservationStatusConfig,
+} from './reservation-status-config'
+
 export type AnyRecord = Record<string, any>
 
 export type WorkOrderViewMode = 'agenda' | 'status' | 'entry-date'
@@ -145,6 +149,39 @@ export function workStatusColumnForStatus(
 	return (
 		statusColumns.find((column) => column.statuses.includes(status)) ?? null
 	)
+}
+
+export function buildWorkStatusColumns(
+	config: ReservationStatusConfig,
+): WorkOrderStatusColumn[] {
+	const columns: WorkOrderStatusColumn[] = []
+	const notStartedStatuses: string[] = []
+	if (config.usePending) notStartedStatuses.push('pending')
+	notStartedStatuses.push('confirmed')
+	columns.push({
+		key: 'not_started',
+		label: 'Sin ingresar',
+		statuses: notStartedStatuses,
+		dropStatus: 'confirmed',
+	})
+	if (config.useInProgress) {
+		columns.push({
+			key: 'in_progress',
+			label: 'En proceso',
+			statuses: ['in_progress'],
+			dropStatus: 'in_progress',
+		})
+	}
+	const finishedStatuses: string[] = []
+	if (config.useReady) finishedStatuses.push('ready')
+	finishedStatuses.push('delivered')
+	columns.push({
+		key: 'finished',
+		label: 'Finalizados',
+		statuses: finishedStatuses,
+		dropStatus: config.useReady ? 'ready' : 'delivered',
+	})
+	return columns
 }
 
 export function serviceBucketForRecord(

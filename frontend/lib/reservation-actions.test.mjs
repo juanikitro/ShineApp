@@ -212,6 +212,93 @@ test('work-order status actions cover progress-only and charge-only states', () 
 	)
 })
 
+test('canceled-disabled config swaps reservation cancel for inline delete', () => {
+	assert.deepEqual(
+		reservationStatusActions('confirmed', {
+			usePending: true,
+			useInProgress: true,
+			useReady: true,
+			useCanceled: false,
+		}),
+		[
+			{
+				action: 'delete',
+				ariaLabel: 'Eliminar reserva',
+				icon: 'trash',
+				kind: 'reservation',
+				label: 'Eliminar',
+				priority: 'low',
+				variant: 'icon-danger',
+			},
+		],
+	)
+})
+
+test('in-progress and ready disabled jumps confirmed directly to delivered', () => {
+	assert.deepEqual(
+		buildAgendaReservationActions({
+			reservationStatus: 'confirmed',
+			workOrderStatus: 'confirmed',
+			config: {
+				usePending: true,
+				useInProgress: false,
+				useReady: false,
+				useCanceled: true,
+			},
+		}),
+		[
+			{
+				kind: 'work-order-status',
+				label: 'Entregar',
+				priority: 'high',
+				status: 'delivered',
+				variant: 'filled',
+			},
+			{
+				action: 'cancel',
+				ariaLabel: 'Cancelar reserva',
+				icon: 'trash',
+				kind: 'reservation',
+				label: 'Cancelar',
+				priority: 'low',
+				variant: 'icon-danger',
+			},
+		],
+	)
+})
+
+test('ready disabled jumps in-progress to delivered with charge priority on debt', () => {
+	assert.deepEqual(
+		buildAgendaReservationActions({
+			balanceDue: 5000,
+			canCharge: true,
+			reservationStatus: 'in_progress',
+			workOrderStatus: 'in_progress',
+			config: {
+				usePending: true,
+				useInProgress: true,
+				useReady: false,
+				useCanceled: true,
+			},
+		}),
+		[
+			{
+				kind: 'work-order-charge',
+				label: 'Cobrar',
+				priority: 'high',
+				variant: 'filled',
+			},
+			{
+				kind: 'work-order-status',
+				label: 'Entregar',
+				priority: 'medium',
+				status: 'delivered',
+				variant: 'outline',
+			},
+		],
+	)
+})
+
 test('unknown or non-chargeable states expose no work-order actions', () => {
 	assert.deepEqual(reservationStatusActions('unknown'), [])
 	assert.deepEqual(
