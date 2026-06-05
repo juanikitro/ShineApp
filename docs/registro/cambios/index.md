@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Frontend: PWA instalable en iOS y Android (CRM y landing publica)](2026-06-05-pwa-instalable-ios-android.md)
 - [fix(ui): simetria y espacios en blanco en Dashboard y Dashboard de cliente](2026-06-03-ux-dashboard-cliente-simetria.md)
 - [Sidebar: solo el logo del negocio a ancho completo](2026-06-03-sidebar-logo-negocio-solo-logo.md)
 - [Animacion de despliegue en el sidebar](2026-06-03-sidebar-desplegables-animacion.md)
