@@ -134,9 +134,12 @@ def sync_cash_closure_for_day(day, user=None, notes="Cierre automatico", busines
 
 
 def sync_past_cash_closures(reference_day=None, user=None, business=None):
-    reference_day = reference_day or date.today()
-    movement_days = CashMovement.objects.filter(business=business, occurred_at__date__lt=reference_day).dates("occurred_at", "day")
-    debt_payment_days = DebtPayment.objects.filter(business=business, paid_at__lt=reference_day).dates("paid_at", "day")
+    today = date.today()
+    if reference_day is None:
+        reference_day = today
+    cutoff = min(reference_day, today)
+    movement_days = CashMovement.objects.filter(business=business, occurred_at__date__lt=cutoff).dates("occurred_at", "day")
+    debt_payment_days = DebtPayment.objects.filter(business=business, paid_at__lt=cutoff).dates("paid_at", "day")
     days = sorted(set(movement_days) | set(debt_payment_days))
     for day in days:
         sync_cash_closure_for_day(day, user=user, business=business)
