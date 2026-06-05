@@ -16,6 +16,16 @@
         "slug": "fix-auto-cierre-por-vista-futura",
         "title": "Fix: caja del dia se cerraba al ver un dia futuro (2026-06-05)",
         "sections": []
+      },
+      {
+        "slug": "capacidad-turnos-por-bucket",
+        "title": "Capacidad de turnos por bucket lavado y detailing",
+        "sections": [
+          {
+            "heading": "Cambio",
+            "text": "DailyCapacity deja de tener un unico max_slots y pasa a tener dos cupos por dia:\n\n- max_slots_wash: cupos para la pestana Lavado de la agenda (incluye servicios wash y combo).\n- max_slots_detailing: cupos para la pestana Detailing (servicios detailing).\n\nLa regla de bucket sigue la misma logica que la agenda (frontend/lib/agenda.ts): solo\nservice_type == \"detailing\" cae en Detailing; todo lo demas cae en Lavado."
+          }
+        ]
       }
     ]
   },

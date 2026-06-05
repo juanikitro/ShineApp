@@ -733,7 +733,8 @@ export default function Home() {
 	const [dailyCapacityForm, setDailyCapacityForm] = useState<AnyRecord>({
 		id: '',
 		day: today,
-		max_slots: '',
+		max_slots_wash: '',
+		max_slots_detailing: '',
 		notes: '',
 	})
 	const [reservationForm, setReservationForm] = useState<AnyRecord>(
@@ -1394,7 +1395,7 @@ export default function Home() {
 			'material-consumption': 'material-consumption.work_order',
 			tool: 'tool.name',
 			employee: 'employee.username',
-			'daily-capacity': 'daily-capacity.max_slots',
+			'daily-capacity': 'daily-capacity.max_slots_wash',
 		}
 		focusField(firstFocus[formModal.kind], formModal.kind !== 'customer')
 	}, [formModal?.kind])
@@ -5827,7 +5828,8 @@ export default function Home() {
 			setDailyCapacityForm({
 				id: '',
 				day: selectedDay,
-				max_slots: '',
+				max_slots_wash: '',
+				max_slots_detailing: '',
 				notes: '',
 			})
 		}
@@ -9092,7 +9094,8 @@ export default function Home() {
 		setDailyCapacityForm({
 			id: item.id,
 			day: item.day,
-			max_slots: String(item.max_slots ?? ''),
+			max_slots_wash: String(item.max_slots_wash ?? ''),
+			max_slots_detailing: String(item.max_slots_detailing ?? ''),
 			notes: item.notes ?? '',
 		})
 		setFormModal({ kind: 'daily-capacity' })
@@ -9115,7 +9118,8 @@ export default function Home() {
 				setDailyCapacityForm({
 					id: '',
 					day: selectedDay,
-					max_slots: '',
+					max_slots_wash: '',
+					max_slots_detailing: '',
 					notes: '',
 				})
 				formModalExit.close()
