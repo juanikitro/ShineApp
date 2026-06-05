@@ -121,6 +121,8 @@ import {
 	SidebarNav,
 	type SidebarNavItem,
 } from '@/app/components/layout/SidebarNav'
+import NextImage from 'next/image'
+
 import { Button } from '@/app/components/ui/Button'
 import { DetailModal } from '@/app/components/ui/DetailModal'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
@@ -11631,9 +11633,23 @@ export default function Home() {
 									>
 										<span className="sidebar-profile-avatar" aria-hidden="true">
 											{safeSidebarAvatarUrl && !sidebarAvatarIsPdf ? (
-												<img src={safeSidebarAvatarUrl} alt="" />
+												<NextImage
+													src={safeSidebarAvatarUrl}
+													alt=""
+													width={42}
+													height={42}
+													loading="lazy"
+													unoptimized
+												/>
 											) : safeSidebarAvatarPdfThumbnail ? (
-												<img src={safeSidebarAvatarPdfThumbnail} alt="" />
+												<NextImage
+													src={safeSidebarAvatarPdfThumbnail}
+													alt=""
+													width={42}
+													height={42}
+													loading="lazy"
+													unoptimized
+												/>
 											) : currentUser.avatar_url ? (
 												<FileText size={18} />
 											) : (
@@ -11650,10 +11666,14 @@ export default function Home() {
 									</button>
 									{businessProfile && sidebarBusinessLogoSrc ? (
 										<div className="sidebar-business-card">
-											<img
+											<NextImage
 												src={encodeURI(sidebarBusinessLogoSrc)}
 												alt={String(businessProfile.name ?? '')}
 												className="sidebar-business-logo"
+												width={220}
+												height={64}
+												loading="lazy"
+												unoptimized
 											/>
 										</div>
 									) : null}

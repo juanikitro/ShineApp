@@ -122,9 +122,10 @@ Nota: el plan original tenia un hook `useRunAction` que tomaba todos los handler
 - [x] validar: tsc verde.
 
 ### T11: `next/image` para avatares
-- [ ] sidebar avatar (~page.tsx:11501): `<Image unoptimized width={32} height={32} loading="lazy">`.
-- [ ] `next.config` images.remotePatterns si requiere.
-- [ ] validar: `npm run build`.
+- [x] 3 `<img>` migrados a `NextImage`: avatar normal (42x42), avatar PDF thumbnail (42x42) y logo del negocio (220x64). Todos con `unoptimized` + `loading="lazy"`.
+- [x] `unoptimized` evita el optimizer de Vercel (consume invocations en free tier) y elimina la necesidad de `images.remotePatterns` para hosts de Supabase Storage.
+- [x] CSS existente (`.sidebar-profile-avatar img`, `.sidebar-business-logo`) sigue funcionando porque NextImage renderiza `<img>` directamente y la className se forwarda.
+- [x] validar: tsc verde.
 
 ### T12: Indices Postgres
 - [ ] listar migrations actuales antes:
