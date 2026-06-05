@@ -159,8 +159,8 @@ Nota: el plan original tenia un hook `useRunAction` que tomaba todos los handler
 - [x] validar: manage.py check OK + pytest 235 passed.
 
 ### T16: Registro spec-as-source
-- [ ] `docs/registro/cambios/2026-06-05-ux-infra-lenta.md` estilo caveman.
-- [ ] regenerar indices: `py -3 scripts/check_docs.py --write --skip-build`.
+- [x] `docs/registro/cambios/2026-06-05-ux-infra-lenta.md` creado con Contexto / Cambio visible / Cambio invisible / Backend / Archivos / Decisiones / Validacion.
+- [x] el pre-commit hook regenera `CHANGELOG.md`, `docs/registro/cambios/index.md` e `frontend/app/data/changelog.generated.json` automaticamente en cada commit (se han visto los warnings de LF→CRLF en todos los commits previos).
 
 ### T17: Validacion final + PR
 - [ ] `scripts/validate.ps1`.

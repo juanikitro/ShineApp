@@ -1,5 +1,20 @@
 [
   {
+    "date": "2026-06-05",
+    "items": [
+      {
+        "slug": "ux-infra-lenta",
+        "title": "UX para infraestructura lenta (free tier Vercel + Supabase)",
+        "sections": [
+          {
+            "heading": "Contexto",
+            "text": "La app corre en tiers gratuitos (Vercel + Supabase). La latencia base es alta y empeora con cold starts. La UX se sentia mala: botones doble-clickeables que duplicaban registros, pantalla vacia mientras llegaban datos, cambios de fecha sin feedback, todo refetcheaba de cero.\n\nPlan completo: docs/plans/2026-06-05-ux-infra-lenta-implementation-plan.md (y .compact.md)."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "date": "2026-06-03",
     "items": [
       {
