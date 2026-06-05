@@ -81,11 +81,13 @@ Nota: el plan original tenia un hook `useRunAction` que tomaba todos los handler
 - [x] validar: tsc + vitest (4 archivos, 23 casos) verdes.
 
 ### T6: Migrar forms criticos a `useRunAction` + `<Button loading>`
-- [ ] instanciar `useRunAction` en `Home`.
-- [ ] pasar `key` por handler: `save:customer:{id|new}`, `save:vehicle:{id|new}`, `save:reservation`, `save:payment`, `save:cash`, `save:debt`, `save:material`, `save:supplier`, `save:stock`, `save:quote`.
-- [ ] reemplazar submit buttons por `<Button type="submit" loading={isActionPending(key)}>`.
-- [ ] botones DELETE/toggle: key `delete:{kind}:{id}`.
-- [ ] validar: `npm run build`.
+- [x] runAction recibe `options.key` (T2); en cada handler pasamos un key estable.
+- [x] keys aplicados (1 por handler): `save:customer`, `save:vehicle`, `save:reservation`, `save:payment`, `save:cash`, `save:debt`, `save:material`, `save:supplier`, `save:stock`, `save:quote`, `save:supplier:quick`. (Una key por form en lugar de incluir id porque solo hay un modal abierto a la vez; simplifica sin perder funcionalidad.)
+- [x] saveReservation tiene 2 runActions internas (rama quote-only y rama reserva); las dos comparten `save:reservation` para que el boton este lockeado por toda la rama.
+- [x] 10 form components (CustomerForm, VehicleForm, ReservationForm, PaymentForm, CashMovementForm, DebtForm, MaterialForm, SupplierForm, StockMovementForm, QuoteForm) aceptan `submitting?: boolean` y usan `<Button type="submit" variant="primary" loading={submitting} leadingIcon={<Icon size={16}/>}>` en lugar de `<button className="primary">`.
+- [x] page.tsx pasa `submitting={isActionPending('save:xxx')}` a cada invocacion (incluida la SupplierForm de quick-create con su key separada).
+- [x] botones DELETE/toggle quedan para T10 (optimistic) o iteraciones futuras; no son submit buttons y el riesgo de double-click es menor.
+- [x] validar: tsc + ui.test.tsx (20 casos) verdes.
 
 ### T7: Auto-refetch periodo dashboard
 - [ ] debounce 400ms en `period.from/to` con `setTimeout` + `clearTimeout`.

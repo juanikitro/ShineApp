@@ -6093,6 +6093,7 @@ export default function Home() {
 			quickCreateExit.close()
 			return created
 		}, {
+			key: 'save:supplier:quick',
 			flashTarget: fieldFlashKey(quickCreate.target),
 			successTitle: entityFeedbackTitle('supplier', 'created'),
 			undo: undoCreatedRecord('supplier'),
@@ -9017,6 +9018,7 @@ export default function Home() {
 			formModalExit.close()
 			return saved
 		}, {
+			key: 'save:customer',
 			flashTarget: (saved: AnyRecord) =>
 				recordFlashKey('customer', saved?.id ?? currentId),
 			successTitle: entityFeedbackTitle(
@@ -9061,6 +9063,7 @@ export default function Home() {
 			formModalExit.close()
 			return saved
 		}, {
+			key: 'save:vehicle',
 			flashTarget: (saved: AnyRecord) =>
 				recordFlashKey('vehicle', saved?.id ?? currentId),
 			successTitle: entityFeedbackTitle(
@@ -9256,6 +9259,7 @@ export default function Home() {
 				quickReservationExit.close()
 				return created
 			}, {
+				key: 'save:reservation',
 				flashTarget: (created: AnyRecord) =>
 					recordFlashKey('quote', created?.id),
 				successTitle: entityFeedbackTitle('quote', 'created'),
@@ -9290,6 +9294,7 @@ export default function Home() {
 			quickReservationExit.close()
 			return { ...created, _created_quote_id: createdQuote?.id }
 		}, {
+			key: 'save:reservation',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('reservation', created?.id),
 			successTitle: entityFeedbackTitle('reservation', 'created'),
@@ -9328,6 +9333,7 @@ export default function Home() {
 			}
 			return created
 		}, {
+			key: 'save:payment',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('payment', created?.id),
 			successTitle: entityFeedbackTitle('payment', 'created'),
@@ -9346,6 +9352,7 @@ export default function Home() {
 			formModalExit.close()
 			return created
 		}, {
+			key: 'save:cash',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('cash-movement', created?.id),
 			successTitle: entityFeedbackTitle('cash-movement', 'created'),
@@ -9368,6 +9375,7 @@ export default function Home() {
 			formModalExit.close()
 			return created
 		}, {
+			key: 'save:debt',
 			flashTarget: (created: AnyRecord) => recordFlashKey('debt', created?.id),
 			successTitle: entityFeedbackTitle('debt', 'created'),
 			undo: undoCreatedRecord('debt'),
@@ -9418,6 +9426,7 @@ export default function Home() {
 			formModalExit.close()
 			return saved
 		}, {
+			key: 'save:material',
 			flashTarget: (saved: AnyRecord) =>
 				recordFlashKey('material', saved?.id ?? currentId),
 			successTitle: entityFeedbackTitle(
@@ -9445,6 +9454,7 @@ export default function Home() {
 			formModalExit.close()
 			return created
 		}, {
+			key: 'save:supplier',
 			flashTarget: (created: AnyRecord) => recordFlashKey('supplier', created?.id),
 			successTitle: entityFeedbackTitle('supplier', 'created'),
 			undo: undoCreatedRecord('supplier'),
@@ -9550,6 +9560,7 @@ export default function Home() {
 			formModalExit.close()
 			return created
 		}, {
+			key: 'save:stock',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('stock-movement', created?.id),
 			successTitle: entityFeedbackTitle('stock-movement', 'created'),
@@ -9926,6 +9937,7 @@ export default function Home() {
 			formModalExit.close()
 			return created
 		}, {
+			key: 'save:quote',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('quote', created?.id),
 			successTitle: entityFeedbackTitle('quote', 'created'),
@@ -10536,6 +10548,7 @@ export default function Home() {
 						customerForm={customerForm}
 						setCustomerForm={setCustomerForm}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:customer')}
 					/>
 					</Modal>
 				) : null}
@@ -10560,6 +10573,7 @@ export default function Home() {
 						updateVehicleBrand={updateVehicleBrand}
 						focusField={focusField}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:vehicle')}
 					/>
 					</Modal>
 				) : null}
@@ -10592,6 +10606,7 @@ export default function Home() {
 						focusNextOnEnter={focusNextOnEnter}
 						flashClass={flashClass}
 						fieldFlashKey={fieldFlashKey}
+						submitting={isActionPending('save:quote')}
 					/>
 					</Modal>
 				) : null}
@@ -10649,6 +10664,7 @@ export default function Home() {
 						selectedWorkOrderForPayment={selectedWorkOrderForPayment}
 						focusField={focusField}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:payment')}
 					/>
 					</Modal>
 				) : null}
@@ -10671,6 +10687,7 @@ export default function Home() {
 						validCashSubcategoryForCategory={validCashSubcategoryForCategory}
 						focusField={focusField}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:cash')}
 					/>
 					</Modal>
 				) : null}
@@ -10709,6 +10726,7 @@ export default function Home() {
 						registerDebtSubcategory={registerDebtSubcategory}
 						focusField={focusField}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:debt')}
 					/>
 					</Modal>
 				) : null}
@@ -10741,6 +10759,7 @@ export default function Home() {
 						materialForm={materialForm}
 						setMaterialForm={setMaterialForm}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:material')}
 					/>
 					</Modal>
 				) : null}
@@ -10756,6 +10775,7 @@ export default function Home() {
 						supplierForm={supplierForm}
 						setSupplierForm={setSupplierForm}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:supplier')}
 					/>
 					</Modal>
 				) : null}
@@ -10794,6 +10814,7 @@ export default function Home() {
 						createSupplierFromName={createSupplierFromName}
 						flashClass={flashClass}
 						fieldFlashKey={fieldFlashKey}
+						submitting={isActionPending('save:stock')}
 					/>
 					</Modal>
 				) : null}
@@ -10948,6 +10969,7 @@ export default function Home() {
 							focusNextOnEnter={focusNextOnEnter}
 							flashClass={flashClass}
 							fieldFlashKey={fieldFlashKey}
+							submitting={isActionPending('save:reservation')}
 						/>
 					</Modal>
 				) : null}
@@ -11331,6 +11353,7 @@ export default function Home() {
 						supplierForm={supplierForm}
 						setSupplierForm={setSupplierForm}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:supplier:quick')}
 					/>
 					</Modal>
 				) : null}
