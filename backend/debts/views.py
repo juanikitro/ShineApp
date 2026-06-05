@@ -32,25 +32,26 @@ class DebtViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             user=request.user if request.user.is_authenticated else None,
         )
         response = super().list(request, *args, **kwargs)
-        if skipped:
-            payload = response.data
-            skipped_payload = [
-                {
-                    "plan_id": item.plan_id,
-                    "plan_concept": item.plan_concept,
-                    "period_date": item.period_date.isoformat(),
-                    "reason": item.reason,
-                }
-                for item in skipped
-            ]
-            if isinstance(payload, dict):
-                payload["skipped_recurring_periods"] = skipped_payload
-                response.data = payload
-            else:
-                response.data = {
-                    "results": payload,
-                    "skipped_recurring_periods": skipped_payload,
-                }
+        if not skipped:
+            return response
+        skipped_payload = [
+            {
+                "plan_id": item.plan_id,
+                "plan_concept": item.plan_concept,
+                "period_date": item.period_date.isoformat(),
+                "reason": item.reason,
+            }
+            for item in skipped
+        ]
+        payload = response.data
+        if isinstance(payload, dict):
+            payload["skipped_recurring_periods"] = skipped_payload
+            response.data = payload
+        else:
+            response.data = {
+                "results": payload,
+                "skipped_recurring_periods": skipped_payload,
+            }
         return response
 
     @transaction.atomic
