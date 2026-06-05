@@ -26,7 +26,8 @@ La regresion entro con el commit `177b60c` ("fix(ui): mostrar solo el logo del n
 
 ## Validacion
 
-- Typecheck/tests frontend: pendiente correr con `node_modules` enlazado al checkout principal (ver [Verificar frontend en worktree](../../../README.md)).
+- Typecheck frontend: `tsc --noEmit` sin errores.
+- Tests frontend: `vitest run app/components/layout/layout.test.tsx` (4 passed).
 - Verificacion manual: abrir la app con un negocio que tenga `logo_url` apuntando a Supabase Storage y confirmar que el logo del sidebar carga sin error en la consola de red.
 
 ## Prevencion
