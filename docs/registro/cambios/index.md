@@ -9,6 +9,8 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Turnera: tab propia en Configuracion](2026-06-05-turnera-tab-configuracion.md)
+- [Turnera: control fino de servicios visibles + split en landing](2026-06-05-turnera-servicios-visibles.md)
 - [Fix: caja del dia se cerraba al ver un dia futuro (2026-06-05)](2026-06-05-fix-auto-cierre-por-vista-futura.md)
 - [fix(ui): simetria y espacios en blanco en Dashboard y Dashboard de cliente](2026-06-03-ux-dashboard-cliente-simetria.md)
 - [Sidebar: solo el logo del negocio a ancho completo](2026-06-03-sidebar-logo-negocio-solo-logo.md)

@@ -24,6 +24,7 @@ import {
 	CreditCard,
 	Eye,
 	FileText,
+	Globe,
 	Hammer,
 	History,
 	LockKeyhole,
@@ -450,6 +451,7 @@ const stockPaymentMethodOptions = [
 
 type SettingsSection =
 	| 'business'
+	| 'turnera'
 	| 'quotes'
 	| 'cash'
 	| 'agenda'
@@ -463,6 +465,7 @@ const settingsSectionOptions: Array<{
 	icon: typeof Building2
 }> = [
 	{ value: 'business', label: 'Negocio', icon: Building2 },
+	{ value: 'turnera', label: 'Turnera', icon: Globe },
 	{ value: 'quotes', label: 'Cotizaciones', icon: FileText },
 	{ value: 'cash', label: 'Caja', icon: CreditCard },
 	{ value: 'agenda', label: 'Agenda', icon: CalendarDays },
@@ -1269,6 +1272,19 @@ export default function Home() {
 						profile.allow_public_booking_requests !== false,
 					allow_public_quote_requests:
 						profile.allow_public_quote_requests !== false,
+					public_hidden_service_ids: Array.isArray(
+						profile.public_hidden_service_ids,
+					)
+						? profile.public_hidden_service_ids
+								.map((value) => Number(value))
+								.filter((value) => Number.isFinite(value) && value > 0)
+						: [],
+					opening_time: profile.opening_time
+						? String(profile.opening_time)
+						: null,
+					closing_time: profile.closing_time
+						? String(profile.closing_time)
+						: null,
 					income_category_tree: normalizeIncomeCategoryTree(
 						profile.income_category_tree,
 					),
@@ -6133,6 +6149,31 @@ export default function Home() {
 		payload.append(
 			'allow_public_quote_requests',
 			String(currentBusinessForm.allow_public_quote_requests !== false),
+		)
+		payload.append(
+			'public_hidden_service_ids',
+			JSON.stringify(
+				Array.isArray(currentBusinessForm.public_hidden_service_ids)
+					? currentBusinessForm.public_hidden_service_ids
+							.map((value: unknown) => Number(value))
+							.filter(
+								(value: number) =>
+									Number.isFinite(value) && value > 0,
+							)
+					: [],
+			),
+		)
+		payload.append(
+			'opening_time',
+			currentBusinessForm.opening_time
+				? String(currentBusinessForm.opening_time)
+				: '',
+		)
+		payload.append(
+			'closing_time',
+			currentBusinessForm.closing_time
+				? String(currentBusinessForm.closing_time)
+				: '',
 		)
 		payload.append(
 			'income_category_tree',
@@ -12525,6 +12566,7 @@ export default function Home() {
 						loading={loading}
 						safeBusinessLogoPdfThumbnail={safeBusinessLogoPdfThumbnail}
 						safeBusinessLogoPreview={safeBusinessLogoPreview}
+						services={services}
 						settingsSection={settingsSection}
 						settingsSectionLabel={settingsSectionLabel}
 						settingsSectionOptions={settingsSectionOptions}

@@ -15,7 +15,7 @@ import {
 	Sparkles,
 	Wrench,
 } from 'lucide-react'
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useMemo, useState } from 'react'
 
 import { publicApiFetch } from '@/lib/api'
 import { formatApiError } from '@/lib/api-errors'
@@ -30,6 +30,22 @@ type PublicService = {
 	service_type?: string
 	estimated_duration_minutes?: number | null
 	notes?: string
+}
+
+type ServiceGroupKey = 'wash' | 'combo' | 'detailing'
+
+const serviceGroupOrder: ServiceGroupKey[] = ['wash', 'combo', 'detailing']
+
+const serviceGroupLabels: Record<ServiceGroupKey, string> = {
+	wash: 'Lavadero',
+	combo: 'Combos',
+	detailing: 'Detailing',
+}
+
+function groupKeyForService(service: PublicService): ServiceGroupKey {
+	const type = String(service.service_type ?? '').toLowerCase()
+	if (type === 'wash' || type === 'combo' || type === 'detailing') return type
+	return 'wash'
 }
 
 type PublicLandingPayload = {
@@ -275,6 +291,19 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	useEffect(() => {
 		setLogoLoadFailed(false)
 	}, [logoPdfThumbnail, logoSource])
+
+	const servicesByGroup = useMemo(() => {
+		const groups: Record<ServiceGroupKey, PublicService[]> = {
+			wash: [],
+			combo: [],
+			detailing: [],
+		}
+		if (!landing) return groups
+		for (const service of landing.services) {
+			groups[groupKeyForService(service)].push(service)
+		}
+		return groups
+	}, [landing])
 
 	function patchForm(patch: Partial<PublicRequestForm>) {
 		setSuccess(false)
@@ -534,35 +563,50 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							<Wrench size={18} />
 							<h2>Servicios</h2>
 						</div>
-						<div className="public-service-list">
-							{landing.services.map((service) => {
-								const selected = form.service_ids.includes(String(service.id))
-								return (
-									<button
-										key={service.id}
-										type="button"
-										className="public-service-card"
-										data-selected={selected ? 'true' : 'false'}
-										onClick={() => toggleService(service.id)}
-									>
-										<span className="public-service-icon">
-											<PublicServiceIcon service={service} />
-										</span>
-										<span>
-											<strong>{service.name}</strong>
-											{service.notes ? <small>{service.notes}</small> : null}
-											{serviceDurationLabel(service) ? (
-												<em>
-													<Clock size={13} />
-													{serviceDurationLabel(service)}
-												</em>
-											) : null}
-										</span>
-										{selected ? <CheckCircle2 size={18} /> : null}
-									</button>
-								)
-							})}
-						</div>
+						{serviceGroupOrder.map((group) => {
+							const items = servicesByGroup[group]
+							if (!items.length) return null
+							return (
+								<div className="public-service-group" key={group}>
+									<h3 className="public-service-group-title">
+										{serviceGroupLabels[group]}
+									</h3>
+									<div className="public-service-list">
+										{items.map((service) => {
+											const selected = form.service_ids.includes(
+												String(service.id),
+											)
+											return (
+												<button
+													key={service.id}
+													type="button"
+													className="public-service-card"
+													data-selected={selected ? 'true' : 'false'}
+													onClick={() => toggleService(service.id)}
+												>
+													<span className="public-service-icon">
+														<PublicServiceIcon service={service} />
+													</span>
+													<span>
+														<strong>{service.name}</strong>
+														{service.notes ? (
+															<small>{service.notes}</small>
+														) : null}
+														{serviceDurationLabel(service) ? (
+															<em>
+																<Clock size={13} />
+																{serviceDurationLabel(service)}
+															</em>
+														) : null}
+													</span>
+													{selected ? <CheckCircle2 size={18} /> : null}
+												</button>
+											)
+										})}
+									</div>
+								</div>
+							)
+						})}
 					</div>
 				</div>
 

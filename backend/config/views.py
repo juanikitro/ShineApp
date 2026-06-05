@@ -439,6 +439,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "allow_public_quote_requests",
             "public_show_wash_services",
             "public_show_detailing_services",
+            "public_hidden_service_ids",
             "income_category_tree",
             "expense_category_tree",
         ]
@@ -486,6 +487,26 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
 
     def validate_public_landing_intro(self, value):
         return value.strip()
+
+    def validate_public_hidden_service_ids(self, value):
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Debe ser una lista de IDs.")
+        cleaned = []
+        seen = set()
+        for raw in value:
+            try:
+                identifier = int(raw)
+            except (TypeError, ValueError):
+                raise serializers.ValidationError(
+                    "Solo se aceptan IDs numericos de servicios."
+                )
+            if identifier <= 0 or identifier in seen:
+                continue
+            seen.add(identifier)
+            cleaned.append(identifier)
+        return cleaned
 
     def validate_income_category_tree(self, value):
         return validate_category_tree_payload(value, normalize_income_category_tree)

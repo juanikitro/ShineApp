@@ -11,6 +11,8 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-05
+- [Turnera: tab propia en Configuracion](docs/registro/cambios/2026-06-05-turnera-tab-configuracion.md)
+- [Turnera: control fino de servicios visibles + split en landing](docs/registro/cambios/2026-06-05-turnera-servicios-visibles.md)
 - [Fix: caja del dia se cerraba al ver un dia futuro (2026-06-05)](docs/registro/cambios/2026-06-05-fix-auto-cierre-por-vista-futura.md)
 
 ## 2026-06-03

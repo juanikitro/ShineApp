@@ -94,6 +94,7 @@ test('settings history does not eager-load audit logs', () => {
 		'businessProfile',
 		'employees',
 		'dailyCapacities',
+		'services',
 		'publicRequests',
 	])
 	assert.equal(keys.includes('auditLogs'), false)
