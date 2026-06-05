@@ -67,6 +67,9 @@ def income_category_tree_for_profile(business):
 
 
 def debt_payment_entry(payment):
+    debt = payment.debt
+    creditor = (debt.creditor or "").strip()
+    counterparty_label = creditor or getattr(getattr(debt, "supplier", None), "name", "") or ""
     return {
         "id": f"debt-payment-{payment.id}",
         "source_id": payment.id,
@@ -87,6 +90,10 @@ def debt_payment_entry(payment):
         "adjusts_closed_day": None,
         "cashflow_effect": True,
         "economic_effect": False,
+        "counterparty_kind": "creditor",
+        "counterparty_label": counterparty_label,
+        "reference_label": payment.debt.concept,
+        "payment_method": payment.get_method_display() if hasattr(payment, "get_method_display") else "",
         "created_by": None,
         "created_by_username": "",
         "created_at": payment.created_at,
@@ -94,14 +101,18 @@ def debt_payment_entry(payment):
 
 
 def cash_entries_for_day(day, request=None, business=None):
-    movements = CashMovement.objects.select_related("payment", "material_purchase", "stock_movement", "debt", "created_by").filter(
-        business=business,
-        occurred_at__date=day
-    )
+    movements = CashMovement.objects.select_related(
+        "payment__work_order__customer",
+        "material_purchase__material",
+        "stock_movement__supplier",
+        "stock_movement__customer",
+        "debt__supplier",
+        "created_by",
+    ).filter(business=business, occurred_at__date=day)
     movement_entries = CashMovementSerializer(movements, many=True, context={"request": request}).data
     debt_entries = [
         debt_payment_entry(payment)
-        for payment in DebtPayment.objects.select_related("debt").filter(business=business, paid_at=day)
+        for payment in DebtPayment.objects.select_related("debt__supplier").filter(business=business, paid_at=day)
     ]
     return sorted(
         [*movement_entries, *debt_entries],

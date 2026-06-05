@@ -1,5 +1,24 @@
 [
   {
+    "date": "2026-06-05",
+    "items": [
+      {
+        "slug": "listado-caja-denso",
+        "title": "Caja: listado denso con contraparte, orden y filtros rapidos",
+        "sections": [
+          {
+            "heading": "Contexto",
+            "text": "El listado de movimientos de caja usaba FinanceRecordCard (cards altas ~150-180px) por entrada. Solo entraban 3-4 movimientos en pantalla, no se veia de donde venia o a donde iba el dinero (cliente, proveedor, acreedor) sin abrir el detalle, no habia atajos rapidos para filtrar ingresos/egresos/efecto y no habia forma de cambiar el orden. Informacion repetida (fecha y categoria aparecian dos veces por card)."
+          },
+          {
+            "heading": "Cambio",
+            "text": "Listado rediseñado como filas compactas centradas en utilidad operativa.\n\n- Nueva fila compacta CashEntryRow (~52px de alto) por movimiento, con borde lateral coloreado segun direccion:\n  - Icono direccion (↑ verde para ingresos, ↓ rojo para egresos)\n  - Hora HH:MM\n  - Chip de origen con color por tipo (Cobro, Compra, Venta stock, Deuda, Ajuste, Manual)\n  - Contraparte con icono: Cliente: Juan Perez, Proveedor: ACME, Acreedor: ...\n  - Chip Solo resultado cuando no impacta caja\n  - Metalinea con clasificacion (categoria / subcategoria), referencia (Orden #42, concepto de deuda, material, numero de comprobante), metodo de pago y, si difiere de la referencia, la descripcion libre\n  - Monto firmado en color (verde ingreso, rojo egreso)\n  - Hover/focus accesible, click abre el detalle y context menu mantiene las acciones rapidas\n- Quick chips encima del listado: Todos · Ingresos · Egresos · Solo caja · Solo resultado. El chip activo se ve en negativo.\n- Selector de orden: Mas reciente · Mas antiguo · Mayor monto · Menor monto · Categoria A-Z.\n- Buscador principal ampliado: incluye contraparte, referencia y metodo de pago en el match. El placeholder ahora ejemplifica los campos.\n- Filtros avanzados colapsables detras de un boton Mas filtros (tipo, origen, categoria/subcategoria, efecto, rango de monto). El Limpiar ahora resetea tambien el chip rapido.\n- Backend enriquece cada entrada con counterparty_kind (customer/supplier/creditor/internal/none), counterparty_label, reference_label y payment_method. cash_entries_for_day agrega select_related para el cliente del payment, el supplier/customer del stock_movement, el material de la compra y el supplier de la deuda, evitando N+1."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "date": "2026-06-03",
     "items": [
       {

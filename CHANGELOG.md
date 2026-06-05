@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-06-05
+- [Caja: listado denso con contraparte, orden y filtros rapidos](docs/registro/cambios/2026-06-05-listado-caja-denso.md)
+
 ## 2026-06-03
 - [fix(ui): simetria y espacios en blanco en Dashboard y Dashboard de cliente](docs/registro/cambios/2026-06-03-ux-dashboard-cliente-simetria.md)
 - [Sidebar: solo el logo del negocio a ancho completo](docs/registro/cambios/2026-06-03-sidebar-logo-negocio-solo-logo.md)

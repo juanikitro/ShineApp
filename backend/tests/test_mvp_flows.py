@@ -2222,6 +2222,27 @@ def test_cash_daily_separates_cashflow_from_economic_totals(api_client, base_dat
     assert entries_by_kind["debt_payment"]["economic_effect"] is False
     assert entries_by_kind["debt_payment"]["signed_amount"] == "-7000.00"
 
+    payment_entry = entries_by_kind["payment"]
+    assert payment_entry["counterparty_kind"] == "customer"
+    assert payment_entry["counterparty_label"] == customer.name
+    assert payment_entry["reference_label"] == f"Orden #{order.id}"
+    assert payment_entry["payment_method"]
+
+    purchase_entry = entries_by_kind["material_purchase"]
+    assert purchase_entry["counterparty_kind"] == "supplier"
+    assert purchase_entry["reference_label"] == material.name
+
+    debt_origin_entry = entries_by_kind["debt_origin"]
+    assert debt_origin_entry["counterparty_kind"] == "creditor"
+    assert debt_origin_entry["counterparty_label"] == "Proveedor"
+    assert debt_origin_entry["reference_label"] == "Pulidora financiada"
+
+    debt_payment_entry_data = entries_by_kind["debt_payment"]
+    assert debt_payment_entry_data["counterparty_kind"] == "creditor"
+    assert debt_payment_entry_data["counterparty_label"] == "Proveedor"
+    assert debt_payment_entry_data["reference_label"] == "Pulidora financiada"
+    assert debt_payment_entry_data["payment_method"]
+
 
 @pytest.mark.django_db
 def test_cash_close_creates_snapshot_and_rejects_duplicate(api_client):
