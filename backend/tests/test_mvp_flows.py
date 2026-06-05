@@ -2296,6 +2296,26 @@ def test_cash_daily_after_reopen_returns_open_state(api_client):
 
 
 @pytest.mark.django_db
+def test_cash_daily_for_future_day_keeps_today_open(api_client):
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    CashMovement.objects.create(
+        movement_type=CashMovement.MovementType.INCOME,
+        category="Pago",
+        amount=Decimal("1000.00"),
+        occurred_at=timezone.make_aware(datetime.combine(today, time(10, 0))),
+    )
+
+    future = api_client.get(reverse("cash-daily"), {"date": tomorrow.isoformat()})
+    assert future.status_code == 200
+    assert not CashClosure.objects.filter(day=today).exists()
+
+    daily = api_client.get(reverse("cash-daily"), {"date": today.isoformat()})
+    assert daily.status_code == 200
+    assert daily.data["is_closed"] is False
+
+
+@pytest.mark.django_db
 def test_closed_cash_day_blocks_every_cash_impact_path(api_client, base_data):
     customer, vehicle, service = base_data
     closed_day = date(2026, 5, 8)
