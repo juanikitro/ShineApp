@@ -121,6 +121,7 @@ import {
 	SidebarNav,
 	type SidebarNavItem,
 } from '@/app/components/layout/SidebarNav'
+import { Button } from '@/app/components/ui/Button'
 import { DetailModal } from '@/app/components/ui/DetailModal'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
 import { BirthdayFields } from '@/app/components/ui/BirthdayFields'
@@ -2154,15 +2155,34 @@ export default function Home() {
 		if (token && currentUser) {
 			loadData()
 		}
-	}, [
-		currentUser,
-		displayedActive,
-		selectedDay,
-		settingsSection,
-		token,
-		period.from,
-		period.to,
-	])
+	}, [currentUser, displayedActive, selectedDay, settingsSection, token])
+
+	const periodReloadTimeoutRef = useRef<number | null>(null)
+	function schedulePeriodReload(next: { from: string; to: string }) {
+		setPeriod(next)
+		if (periodReloadTimeoutRef.current) {
+			window.clearTimeout(periodReloadTimeoutRef.current)
+		}
+		periodReloadTimeoutRef.current = window.setTimeout(() => {
+			periodReloadTimeoutRef.current = null
+			loadData({ force: true, section: 'dashboard' })
+		}, 400)
+	}
+	function triggerPeriodReloadNow() {
+		if (periodReloadTimeoutRef.current) {
+			window.clearTimeout(periodReloadTimeoutRef.current)
+			periodReloadTimeoutRef.current = null
+		}
+		loadData({ force: true, section: 'dashboard' })
+	}
+	useEffect(() => {
+		return () => {
+			if (periodReloadTimeoutRef.current) {
+				window.clearTimeout(periodReloadTimeoutRef.current)
+				periodReloadTimeoutRef.current = null
+			}
+		}
+	}, [])
 
 	useEffect(() => {
 		if (!token || !currentUser) return
@@ -11636,7 +11656,7 @@ export default function Home() {
 										className="toolbar dashboard-period-toolbar"
 										onSubmit={(event) => {
 											event.preventDefault()
-											loadData({ force: true, section: 'dashboard' })
+											triggerPeriodReloadNow()
 										}}
 									>
 										<Field label="Desde">
@@ -11644,7 +11664,7 @@ export default function Home() {
 												type="date"
 												value={period.from}
 												onChange={(event) =>
-													setPeriod({ ...period, from: event.target.value })
+													schedulePeriodReload({ ...period, from: event.target.value })
 												}
 											/>
 										</Field>
@@ -11653,14 +11673,23 @@ export default function Home() {
 												type="date"
 												value={period.to}
 												onChange={(event) =>
-													setPeriod({ ...period, to: event.target.value })
+													schedulePeriodReload({ ...period, to: event.target.value })
 												}
 											/>
 										</Field>
-										<button className="primary" type="submit">
-											<Search size={16} />
+										<Button
+											type="submit"
+											variant="primary"
+											loading={isDataSetLoading('dashboard')}
+											leadingIcon={<Search size={16} />}
+										>
 											Ver periodo
-										</button>
+										</Button>
+										{isDataSetLoading('dashboard') ? (
+											<span className="panel-stale-badge" role="status" aria-live="polite">
+												Actualizando
+											</span>
+										) : null}
 									</form>
 								) : null}
 								<div className="record-actions">

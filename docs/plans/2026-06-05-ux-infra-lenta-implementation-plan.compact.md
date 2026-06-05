@@ -90,10 +90,14 @@ Nota: el plan original tenia un hook `useRunAction` que tomaba todos los handler
 - [x] validar: tsc + ui.test.tsx (20 casos) verdes.
 
 ### T7: Auto-refetch periodo dashboard
-- [ ] debounce 400ms en `period.from/to` con `setTimeout` + `clearTimeout`.
-- [ ] mantener boton "Ver periodo" como fallback.
-- [ ] badge `.panel-stale-badge` cuando `isDataSetLoading('dashboard')`.
-- [ ] validar: `npm run build`.
+- [x] `schedulePeriodReload({from, to})` actualiza el state inmediatamente y dispara `loadData({force:true, section:'dashboard'})` 400ms despues; el clearTimeout coalesce cambios rapidos.
+- [x] `triggerPeriodReloadNow()` cancela timeout y dispara inmediato — lo usa el submit (Enter / boton).
+- [x] cleanup en useEffect umount.
+- [x] removidos `period.from/to` del useEffect global (eran solo del fix temporal de T5; ahora el control esta en el form).
+- [x] boton "Ver periodo" migrado a `<Button loading={isDataSetLoading('dashboard')} leadingIcon={<Search />}>` para feedback inmediato.
+- [x] badge `.panel-stale-badge` con spinner CSS al lado del boton mientras `isDataSetLoading('dashboard')`.
+- [x] estilos del badge en `shell.css` (light + dark) reusando `@keyframes button-spin`.
+- [x] validar: tsc verde.
 
 ### T8: Skeletons en vistas
 - [ ] dashboard: `!dashboard && isDataSetLoading('dashboard')` → `SkeletonMetric` x6.

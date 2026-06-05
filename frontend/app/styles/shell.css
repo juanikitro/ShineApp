@@ -3836,3 +3836,33 @@
   color: #ff9a8d;
 }
 
+/* Stale-while-revalidate badge: shown next to a panel header while datos
+   viejos siguen visibles y los nuevos estan llegando. */
+.panel-stale-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--shop-ink-soft, #6b7280);
+  background: var(--panel-muted, rgba(0, 0, 0, 0.04));
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.panel-stale-badge::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: button-spin 0.7s linear infinite;
+}
+
+[data-theme='dark'] .panel-stale-badge {
+  color: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.06);
+}
+
