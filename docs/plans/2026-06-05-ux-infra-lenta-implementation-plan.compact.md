@@ -128,25 +128,13 @@ Nota: el plan original tenia un hook `useRunAction` que tomaba todos los handler
 - [x] validar: tsc verde.
 
 ### T12: Indices Postgres
-- [ ] listar migrations actuales antes:
-```powershell
-ls backend/workorders/migrations
-ls backend/scheduling/migrations
-ls backend/finance/migrations
-ls backend/inventory/migrations
-```
-- [ ] `AddIndex(WorkOrder, ['business','-created_at'])` en `workorders/migrations/00XX`.
-- [ ] `AddIndex(Reservation, ['business','day','status'])` en `scheduling/migrations/00XX`.
-- [ ] `AddIndex(Payment, ['business','paid_at'])` en `finance/migrations/00XX`.
-- [ ] `AddIndex(CashMovement, ['business','occurred_at'])` en `finance/migrations/00XX`.
-- [ ] `AddIndex(MaterialConsumption, ['business','consumed_at'])` en `inventory/migrations/00XX`.
-- [ ] validar:
-```powershell
-cd backend
-.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run
-.\.venv\Scripts\python.exe manage.py migrate --plan
-.\.venv\Scripts\python.exe -m pytest -q
-```
+- [x] 4 migrations creadas (Payment+CashMovement comparten archivo):
+  - `workorders/0004_workorder_business_created_at_idx.py` → wo_biz_created_idx
+  - `scheduling/0007_reservation_business_day_status_idx.py` → resv_biz_day_status_idx
+  - `finance/0006_payment_cashmovement_business_date_idx.py` → pay_biz_paid_at_idx + cm_biz_occurred_at_idx
+  - `inventory/0008_materialconsumption_business_consumed_at_idx.py` → mc_biz_consumed_at_idx
+- [x] cada model declara `Meta.indexes` en sincronia con la migration (Django autodetect: "No changes detected").
+- [x] validar: `makemigrations --check --dry-run` -> no changes; pytest -> 235 passed.
 
 ### T13: N+1 customers + dashboard
 - [ ] `CustomerViewSet.history`: `.select_related('vehicle','service').prefetch_related('payments','material_consumptions__material')`.
