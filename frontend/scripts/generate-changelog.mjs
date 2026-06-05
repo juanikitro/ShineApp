@@ -3,12 +3,9 @@ import { fileURLToPath } from 'url'
 import path from 'path'
 import fs from 'fs'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const scriptPath = path.resolve(__dirname, '../../scripts/check_docs.py')
-const changelogPath = path.resolve(__dirname, '../app/data/changelog.generated.json')
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const scriptPath = path.resolve(__dirname, '../../scripts/check_docs.py')
+const dir = path.dirname(fileURLToPath(import.meta.url))
+const scriptPath = path.resolve(dir, '../../scripts/check_docs.py')
+const changelogPath = path.resolve(dir, '../app/data/changelog.generated.json')
 const cmds = process.platform === 'win32' ? ['py', 'python', 'python3'] : ['python3', 'python']
 
 for (const cmd of cmds) {
@@ -24,5 +21,3 @@ if (!fs.existsSync(changelogPath)) {
   fs.writeFileSync(changelogPath, '[]')
 }
 process.exit(0)
-console.error('Error: no se encontro interprete Python')
-process.exit(1)
