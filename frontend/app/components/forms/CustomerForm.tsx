@@ -5,6 +5,7 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 import { Plus } from 'lucide-react'
 
 import { BirthdayFields } from '@/app/components/ui/BirthdayFields'
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { type AnyRecord } from '@/lib/page-support'
 
@@ -17,6 +18,7 @@ type CustomerFormProps = {
 		key: string,
 		openCombo?: boolean,
 	) => (event: KeyboardEvent<HTMLElement>) => void
+	submitting?: boolean
 }
 
 export function CustomerForm({
@@ -25,6 +27,7 @@ export function CustomerForm({
 	setCustomerForm,
 	onSubmit,
 	focusNextOnEnter,
+	submitting = false,
 }: CustomerFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -147,10 +150,15 @@ export function CustomerForm({
 					}
 				/>
 			</Field>
-			<button className="primary" data-focus-key="customer.submit">
-				<Plus size={16} />
+			<Button
+				type="submit"
+				variant="primary"
+				loading={submitting}
+				leadingIcon={<Plus size={16} />}
+				data-focus-key="customer.submit"
+			>
 				{submitLabel}
-			</button>
+			</Button>
 		</form>
 	)
 }

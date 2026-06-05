@@ -2,27 +2,59 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from rest_framework import serializers
 
+from core.models import BusinessProfile
 from core.permissions import context_can_view_economy
 from core.serializers import BusinessScopedSerializerMixin
 
-from .models import DailyCapacity, Reservation, ReservationItem
+from .models import (
+    DETAILING_BUCKET,
+    WASH_BUCKET,
+    DailyCapacity,
+    Reservation,
+    ReservationItem,
+    bucket_for_service_type,
+)
 from .services import ensure_reservation_work_order
 
 
 class DailyCapacitySerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
-    used_slots = serializers.SerializerMethodField()
-    available_slots = serializers.SerializerMethodField()
+    used_slots_wash = serializers.SerializerMethodField()
+    used_slots_detailing = serializers.SerializerMethodField()
+    available_slots_wash = serializers.SerializerMethodField()
+    available_slots_detailing = serializers.SerializerMethodField()
 
     class Meta:
         model = DailyCapacity
-        fields = ["id", "day", "max_slots", "notes", "used_slots", "available_slots"]
-        read_only_fields = ["id", "used_slots", "available_slots"]
+        fields = [
+            "id",
+            "day",
+            "max_slots_wash",
+            "max_slots_detailing",
+            "notes",
+            "used_slots_wash",
+            "used_slots_detailing",
+            "available_slots_wash",
+            "available_slots_detailing",
+        ]
+        read_only_fields = [
+            "id",
+            "used_slots_wash",
+            "used_slots_detailing",
+            "available_slots_wash",
+            "available_slots_detailing",
+        ]
 
-    def get_used_slots(self, obj):
-        return Reservation.used_slots_for_day(obj.day, business=obj.business)
+    def get_used_slots_wash(self, obj):
+        return Reservation.used_slots_for_day(obj.day, business=obj.business, bucket=WASH_BUCKET)
 
-    def get_available_slots(self, obj):
-        return max(obj.max_slots - Reservation.used_slots_for_day(obj.day, business=obj.business), 0)
+    def get_used_slots_detailing(self, obj):
+        return Reservation.used_slots_for_day(obj.day, business=obj.business, bucket=DETAILING_BUCKET)
+
+    def get_available_slots_wash(self, obj):
+        return max(obj.max_slots_wash - self.get_used_slots_wash(obj), 0)
+
+    def get_available_slots_detailing(self, obj):
+        return max(obj.max_slots_detailing - self.get_used_slots_detailing(obj), 0)
 
 
 class ReservationItemSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
@@ -152,11 +184,25 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
 
     def validate_status(self, value):
         if value == "completed":
-            return Reservation.Status.DELIVERED
+            value = Reservation.Status.DELIVERED
         allowed = [choice[0] for choice in Reservation.Status.choices]
         if value not in allowed:
             raise serializers.ValidationError("Estado invalido.")
-        return value
+        profile = self._profile_for_validation()
+        if profile is None:
+            return value
+        normalized = Reservation.normalize_status_for_profile(value, profile)
+        if normalized is None:
+            raise serializers.ValidationError(
+                "Este estado esta deshabilitado en la configuracion del negocio."
+            )
+        return normalized
+
+    def _profile_for_validation(self):
+        business = self.get_business() or getattr(self.instance, "business", None)
+        if business is None:
+            return None
+        return BusinessProfile.get_solo(business=business)
 
     def validate(self, attrs):
         attrs = self._with_preserved_exit_offset(attrs)
@@ -218,15 +264,20 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
                     )
                 }
             )
-        if day and status in Reservation.active_statuses():
+        if day and status in Reservation.active_statuses() and service:
             business = self.get_business() or getattr(self.instance, "business", None)
+            bucket = bucket_for_service_type(getattr(service, "service_type", None))
             used_slots = Reservation.used_slots_for_day(
                 day,
                 exclude_id=getattr(self.instance, "id", None),
                 business=business,
+                bucket=bucket,
             )
-            if used_slots >= Reservation.capacity_for_day(day, business=business):
-                raise serializers.ValidationError({"day": "La capacidad de turnos para este dia ya esta completa."})
+            if used_slots >= Reservation.capacity_for_day(day, business=business, bucket=bucket):
+                bucket_label = "detailing" if bucket == DETAILING_BUCKET else "lavado"
+                raise serializers.ValidationError(
+                    {"day": f"La capacidad de turnos de {bucket_label} para este dia ya esta completa."}
+                )
         return attrs
 
     def _with_preserved_exit_offset(self, attrs):
@@ -256,6 +307,10 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
             items_data = [{"service": service}]
         validated_data["service"] = items_data[0]["service"]
         validated_data.setdefault("estimated_duration_minutes", self._duration_from_items(items_data))
+        if "status" not in validated_data:
+            profile = self._profile_for_validation()
+            if profile is not None:
+                validated_data["status"] = Reservation.initial_status_for_profile(profile)
         reservation = Reservation.objects.create(**validated_data)
         self._replace_items(reservation, items_data)
         self._ensure_work_order(reservation)

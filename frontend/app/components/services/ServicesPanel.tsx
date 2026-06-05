@@ -13,6 +13,7 @@ import { RecordCardHeader } from '@/app/components/ui/RecordCard'
 import { StatusPill } from '@/app/components/ui/StatusPill'
 import { joinDisplayParts } from '@/lib/display-text'
 import { serviceDisplayName } from '@/lib/service-display'
+import { formatDurationLabel } from '@/lib/service-duration'
 import {
 	servicePriceForVehicleType,
 	VEHICLE_TYPES,
@@ -374,7 +375,10 @@ export function ServicesPanel({
 						))}
 						<div>
 							<span>Duracion estimada</span>
-							<strong>{service.estimated_duration_minutes ?? 0} min</strong>
+							<strong>
+								{formatDurationLabel(service.estimated_duration_minutes) ??
+									'Sin estimar'}
+							</strong>
 						</div>
 						<div>
 							<span>Estado</span>
@@ -495,7 +499,7 @@ export function ServicesPanel({
 										subtitle={joinDisplayParts([
 											serviceTypeLabels[item.service_type],
 											money(item.base_price),
-											`${item.estimated_duration_minutes} min`,
+											formatDurationLabel(item.estimated_duration_minutes),
 										])}
 										primaryAction={{
 											ariaLabel: `Abrir servicio ${serviceDisplayName(item)}`,

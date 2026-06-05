@@ -96,6 +96,10 @@ class CashMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSer
     cashflow_effect = serializers.SerializerMethodField()
     economic_effect = serializers.SerializerMethodField()
     created_by_username = serializers.SerializerMethodField()
+    counterparty_kind = serializers.SerializerMethodField()
+    counterparty_label = serializers.SerializerMethodField()
+    reference_label = serializers.SerializerMethodField()
+    payment_method = serializers.SerializerMethodField()
 
     class Meta:
         model = CashMovement
@@ -118,6 +122,10 @@ class CashMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSer
             "signed_amount",
             "cashflow_effect",
             "economic_effect",
+            "counterparty_kind",
+            "counterparty_label",
+            "reference_label",
+            "payment_method",
             "created_by",
             "created_by_username",
             "created_at",
@@ -134,6 +142,10 @@ class CashMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSer
             "signed_amount",
             "cashflow_effect",
             "economic_effect",
+            "counterparty_kind",
+            "counterparty_label",
+            "reference_label",
+            "payment_method",
             "created_by",
             "created_by_username",
             "created_at",
@@ -183,6 +195,93 @@ class CashMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSer
 
     def get_created_by_username(self, obj):
         return obj.created_by.username if obj.created_by_id else ""
+
+    def _related_payment(self, obj):
+        return getattr(obj, "payment", None) if obj.payment_id else None
+
+    def _related_material_purchase(self, obj):
+        return getattr(obj, "material_purchase", None) if obj.material_purchase_id else None
+
+    def _related_stock_movement(self, obj):
+        return getattr(obj, "stock_movement", None) if obj.stock_movement_id else None
+
+    def get_counterparty_kind(self, obj):
+        source_kind = cash_movement_source_kind(obj)
+        if source_kind == "payment":
+            return "customer"
+        if source_kind in {"stock_purchase", "material_purchase"}:
+            return "supplier"
+        if source_kind == "stock_sale":
+            return "customer"
+        if source_kind in {"debt_origin", "debt_payment"}:
+            return "creditor"
+        if source_kind == "adjustment":
+            return "internal"
+        return "none"
+
+    def get_counterparty_label(self, obj):
+        source_kind = cash_movement_source_kind(obj)
+        if source_kind == "payment":
+            payment = self._related_payment(obj)
+            customer = getattr(getattr(payment, "work_order", None), "customer", None)
+            return getattr(customer, "name", "") or ""
+        if source_kind == "stock_purchase":
+            movement = self._related_stock_movement(obj)
+            supplier = getattr(movement, "supplier", None)
+            return getattr(supplier, "name", "") or ""
+        if source_kind == "stock_sale":
+            movement = self._related_stock_movement(obj)
+            customer = getattr(movement, "customer", None)
+            return getattr(customer, "name", "") or ""
+        if source_kind == "material_purchase":
+            return ""
+        if source_kind == "debt_origin":
+            debt = self.get_related_debt(obj)
+            if not debt:
+                return ""
+            creditor = (debt.creditor or "").strip()
+            if creditor:
+                return creditor
+            supplier = getattr(debt, "supplier", None)
+            return getattr(supplier, "name", "") or ""
+        return ""
+
+    def get_reference_label(self, obj):
+        source_kind = cash_movement_source_kind(obj)
+        if source_kind == "payment":
+            payment = self._related_payment(obj)
+            work_order_id = getattr(payment, "work_order_id", None)
+            return f"Orden #{work_order_id}" if work_order_id else ""
+        if source_kind == "material_purchase":
+            purchase = self._related_material_purchase(obj)
+            material = getattr(purchase, "material", None)
+            material_name = getattr(material, "name", "") or ""
+            return material_name
+        if source_kind in {"stock_purchase", "stock_sale"}:
+            movement = self._related_stock_movement(obj)
+            number = (getattr(movement, "document_number", "") or "").strip()
+            if number:
+                return number
+            return f"Movimiento #{getattr(movement, 'id', '')}" if movement else ""
+        if source_kind == "debt_origin":
+            debt = self.get_related_debt(obj)
+            return debt.concept if debt else ""
+        if source_kind == "adjustment":
+            target = obj.adjusts_closed_day
+            return f"Ajuste cierre {target.isoformat()}" if target else "Ajuste"
+        return ""
+
+    def get_payment_method(self, obj):
+        source_kind = cash_movement_source_kind(obj)
+        if source_kind == "payment":
+            payment = self._related_payment(obj)
+            method = getattr(payment, "get_method_display", None)
+            return method() if callable(method) else ""
+        if source_kind in {"stock_purchase", "stock_sale"}:
+            movement = self._related_stock_movement(obj)
+            method = getattr(movement, "get_payment_method_display", None)
+            return method() if callable(method) else ""
+        return ""
 
     def validate_amount(self, value):
         if value <= 0:

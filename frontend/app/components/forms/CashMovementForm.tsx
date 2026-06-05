@@ -4,6 +4,7 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { ReceiptText } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { NumericInput } from '@/app/components/ui/NumericInput'
 import {
@@ -38,6 +39,7 @@ type CashMovementFormProps = {
 		key: string,
 		openCombo?: boolean,
 	) => (event: KeyboardEvent<HTMLElement>) => void
+	submitting?: boolean
 }
 
 export function CashMovementForm({
@@ -53,6 +55,7 @@ export function CashMovementForm({
 	validCashSubcategoryForCategory,
 	focusField,
 	focusNextOnEnter,
+	submitting = false,
 }: CashMovementFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -193,10 +196,14 @@ export function CashMovementForm({
 					}
 				/>
 			</Field>
-			<button className="primary">
-				<ReceiptText size={16} />
+			<Button
+				type="submit"
+				variant="primary"
+				loading={submitting}
+				leadingIcon={<ReceiptText size={16} />}
+			>
 				{submitLabel}
-			</button>
+			</Button>
 		</form>
 	)
 }

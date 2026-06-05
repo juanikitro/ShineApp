@@ -1066,3 +1066,55 @@ def test_business_profile_patch_saves_service_type_filters(api_client):
     profile = BusinessProfile.objects.get(business=business)
     assert profile.public_show_wash_services is False
     assert profile.public_show_detailing_services is True
+
+
+@pytest.mark.django_db
+def test_public_landing_hides_services_listed_in_hidden_service_ids():
+    business = create_business()
+    visible_wash = create_service(business, name="Lavado exterior", service_type=Service.ServiceType.WASH)
+    hidden_wash = create_service(business, name="Lavado express", service_type=Service.ServiceType.WASH)
+    visible_detail = create_service(business, name="Full detail", service_type=Service.ServiceType.DETAILING)
+    hidden_detail = create_service(business, name="Pulido faros", service_type=Service.ServiceType.DETAILING)
+    profile = BusinessProfile.objects.get(business=business)
+    profile.public_hidden_service_ids = [hidden_wash.id, hidden_detail.id]
+    profile.save(update_fields=["public_hidden_service_ids", "updated_at"])
+    client = APIClient()
+
+    response = client.get(reverse("public-landing", args=[business.slug]))
+
+    assert response.status_code == 200
+    ids = {s["id"] for s in response.data["services"]}
+    assert visible_wash.id in ids
+    assert visible_detail.id in ids
+    assert hidden_wash.id not in ids
+    assert hidden_detail.id not in ids
+
+
+@pytest.mark.django_db
+def test_business_profile_patch_normalizes_hidden_service_ids(api_client):
+    url = reverse("business-profile")
+
+    response = api_client.patch(
+        url,
+        {"public_hidden_service_ids": [3, "5", 3, 0, -2, 7]},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["public_hidden_service_ids"] == [3, 5, 7]
+    business = api_client.user.profile.business
+    profile = BusinessProfile.objects.get(business=business)
+    assert profile.public_hidden_service_ids == [3, 5, 7]
+
+
+@pytest.mark.django_db
+def test_business_profile_rejects_non_numeric_hidden_service_ids(api_client):
+    url = reverse("business-profile")
+
+    response = api_client.patch(
+        url,
+        {"public_hidden_service_ids": ["abc"]},
+        format="json",
+    )
+
+    assert response.status_code == 400

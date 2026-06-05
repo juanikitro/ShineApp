@@ -24,33 +24,8 @@ import {
 	workStatusColumnForStatus,
 	workStatusForReservation,
 	type ReservationStatusGroup,
+	type WorkOrderStatusColumn,
 } from '@/lib/work-orders'
-
-export const workStatusColumns: Array<{
-	key: string
-	label: string
-	statuses: string[]
-	dropStatus?: string
-}> = [
-	{
-		key: 'not_started',
-		label: 'Sin ingresar',
-		statuses: ['pending', 'confirmed'],
-		dropStatus: 'confirmed',
-	},
-	{
-		key: 'in_progress',
-		label: 'En proceso',
-		statuses: ['in_progress'],
-		dropStatus: 'in_progress',
-	},
-	{
-		key: 'finished',
-		label: 'Finalizados',
-		statuses: ['ready', 'delivered'],
-		dropStatus: 'ready',
-	},
-]
 
 function agendaCardFlashKey(rowKey: string) {
 	return `agenda:${rowKey}`
@@ -72,10 +47,12 @@ type SharedCardProps = {
 
 type DraggableReservationProps = SharedCardProps & {
 	reservation: AnyRecord
+	statusColumns: readonly WorkOrderStatusColumn[]
 }
 
 function WorkStatusDraggableReservation({
 	reservation,
+	statusColumns,
 	workOrderByReservation,
 	workStatusMovePendingId,
 	recordClass,
@@ -97,7 +74,7 @@ function WorkStatusDraggableReservation({
 		workOrder,
 	}
 	const status = workStatusForReservation(reservation, workOrderByReservation)
-	const statusColumn = workStatusColumnForStatus(status, workStatusColumns)
+	const statusColumn = workStatusColumnForStatus(status, statusColumns)
 	const canDrag = reservationCanMoveWorkStatus(
 		reservation,
 		workOrderByReservation,
@@ -147,11 +124,13 @@ function WorkStatusDraggableReservation({
 
 type DroppableLaneProps = SharedCardProps & {
 	group: ReservationStatusGroup
+	statusColumns: readonly WorkOrderStatusColumn[]
 	workStatusDropStatus: string | null
 }
 
 function WorkStatusDroppableLane({
 	group,
+	statusColumns,
 	workStatusDropStatus,
 	workOrderByReservation,
 	workStatusMovePendingId,
@@ -188,6 +167,7 @@ function WorkStatusDroppableLane({
 						<WorkStatusDraggableReservation
 							key={`work-status-${group.key}-${reservation.id}`}
 							reservation={reservation}
+							statusColumns={statusColumns}
 							workOrderByReservation={workOrderByReservation}
 							workStatusMovePendingId={workStatusMovePendingId}
 							recordClass={recordClass}
@@ -213,6 +193,7 @@ type WorkStatusViewProps = SharedCardProps & {
 	onDragOver: (event: any) => void
 	onDragEnd: (event: DragEndEvent) => void
 	onDragCancel: () => void
+	statusColumns: readonly WorkOrderStatusColumn[]
 	workStatusGroups: ReservationStatusGroup[]
 	workStatusDropStatus: string | null
 	activeWorkStatusRow: AgendaOperationalRow | null
@@ -225,6 +206,7 @@ export function WorkStatusView({
 	onDragOver,
 	onDragEnd,
 	onDragCancel,
+	statusColumns,
 	workStatusGroups,
 	workStatusDropStatus,
 	workStatusMovePendingId,
@@ -250,6 +232,7 @@ export function WorkStatusView({
 					<WorkStatusDroppableLane
 						group={group}
 						key={group.key}
+						statusColumns={statusColumns}
 						workStatusDropStatus={workStatusDropStatus}
 						workOrderByReservation={workOrderByReservation}
 						workStatusMovePendingId={workStatusMovePendingId}

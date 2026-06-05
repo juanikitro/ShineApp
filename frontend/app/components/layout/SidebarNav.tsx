@@ -21,6 +21,7 @@ type SidebarNavProps = {
 	items: SidebarNavItem[]
 	active: string
 	onChange: (key: string) => void
+	onItemHover?: (key: string) => void
 	footer?: ReactNode
 }
 
@@ -36,6 +37,7 @@ export function SidebarNav({
 	items,
 	active,
 	onChange,
+	onItemHover,
 	footer,
 }: SidebarNavProps) {
 	return (
@@ -61,6 +63,8 @@ export function SidebarNav({
 								key={item.key}
 								className={cx(isActive && 'active')}
 								onClick={() => onChange(item.key)}
+								onMouseEnter={() => onItemHover?.(item.key)}
+								onFocus={() => onItemHover?.(item.key)}
 								type="button"
 								aria-label={item.label}
 								aria-current={isActive ? 'page' : undefined}
@@ -82,6 +86,8 @@ export function SidebarNav({
 							<button
 								className={cx((isActive || childActive) && 'active', 'nav-parent-button')}
 								onClick={() => onChange(item.key)}
+								onMouseEnter={() => onItemHover?.(item.key)}
+								onFocus={() => onItemHover?.(item.key)}
 								type="button"
 								aria-label={item.label}
 								aria-current={isActive ? 'page' : undefined}
@@ -118,6 +124,8 @@ export function SidebarNav({
 												key={child.key}
 												className={cx('nav-child', isChildActive && 'active')}
 												onClick={() => onChange(child.key)}
+												onMouseEnter={() => onItemHover?.(child.key)}
+												onFocus={() => onItemHover?.(child.key)}
 												type="button"
 												aria-label={child.label}
 												aria-current={isChildActive ? 'page' : undefined}

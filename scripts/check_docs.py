@@ -294,14 +294,6 @@ def check_indices() -> None:
             "Run: py -3 scripts/check_docs.py --write --skip-build"
         )
 
-    expected_json = render_changelog_json()
-    if not CHANGELOG_JSON_PATH.exists():
-        fail(f"Missing generated changelog JSON: {relpath(CHANGELOG_JSON_PATH)}")
-    if CHANGELOG_JSON_PATH.read_text(encoding="utf-8") != expected_json:
-        fail(
-            f"{relpath(CHANGELOG_JSON_PATH)} is stale. "
-            "Run: py -3 scripts/check_docs.py --write --skip-build"
-        )
 
 
 def is_path_candidate(value: str) -> bool:

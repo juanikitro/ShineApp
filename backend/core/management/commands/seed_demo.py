@@ -399,13 +399,18 @@ class Command(BaseCommand):
     def seed_capacities(self, business, today):
         for offset in range(-7, 15):
             day = today + timedelta(days=offset)
-            max_slots = 5 if day.weekday() == 5 else 8
+            max_slots_wash = 5 if day.weekday() == 5 else 8
             if day.weekday() == 6:
-                max_slots = 3
+                max_slots_wash = 3
+            max_slots_detailing = max(max_slots_wash - 4, 1)
             upsert(
                 DailyCapacity,
                 {"business": business, "day": day},
-                {"max_slots": max_slots, "notes": "Capacidad demo para agenda"},
+                {
+                    "max_slots_wash": max_slots_wash,
+                    "max_slots_detailing": max_slots_detailing,
+                    "notes": "Capacidad demo para agenda",
+                },
             )
 
     def seed_reservations(self, business, customers, vehicles, services, today):
