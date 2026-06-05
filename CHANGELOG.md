@@ -11,8 +11,13 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-05
+- [Frontend: PWA instalable en iOS y Android (CRM y landing publica)](docs/registro/cambios/2026-06-05-pwa-instalable-ios-android.md)
+- [Caja: listado denso con contraparte, orden y filtros rapidos](docs/registro/cambios/2026-06-05-listado-caja-denso.md)
+- [Fix: regresion del logo de negocio en el sidebar (presigned URL)](docs/registro/cambios/2026-06-05-fix-sidebar-logo-presigned-url-regresion.md)
 - [Fix: caja del dia se cerraba al ver un dia futuro (2026-06-05)](docs/registro/cambios/2026-06-05-fix-auto-cierre-por-vista-futura.md)
 - [Duracion de servicios en minutos / horas / dias / semanas (2026-06-05)](docs/registro/cambios/2026-06-05-duracion-servicio-en-unidades.md)
+- [Deudas recurrentes con materializacion lazy (2026-06-05)](docs/registro/cambios/2026-06-05-deudas-recurrentes.md)
+- [Capacidad de turnos por bucket lavado y detailing](docs/registro/cambios/2026-06-05-capacidad-turnos-por-bucket.md)
 
 ## 2026-06-03
 - [fix(ui): simetria y espacios en blanco en Dashboard y Dashboard de cliente](docs/registro/cambios/2026-06-03-ux-dashboard-cliente-simetria.md)
