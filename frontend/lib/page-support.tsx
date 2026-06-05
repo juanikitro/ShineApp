@@ -528,6 +528,14 @@ function blankDebtForm(originDate: string) {
 		expense_category: 'Servicios',
 		expense_subcategory: 'Otros',
 		notes: '',
+		is_recurring: false,
+		interval_unit: 'months',
+		interval_count: '1',
+		due_offset_days: '0',
+		end_date: '',
+		max_cycles: '',
+		auto_settle: false,
+		auto_settle_method: 'transfer',
 	}
 }
 
@@ -597,6 +605,11 @@ const entityFeedbackTitles: Record<
 		created: 'Pago de deuda registrado',
 		updated: 'Pago de deuda editado',
 		deleted: 'Pago de deuda eliminado',
+	},
+	'recurring-debt': {
+		created: 'Plantilla recurrente creada',
+		updated: 'Plantilla recurrente editada',
+		deleted: 'Plantilla recurrente eliminada',
 	},
 	material: {
 		created: 'Material creado',
@@ -952,6 +965,16 @@ const debtPaymentMethodLabels: Record<string, string> = {
 	transfer: 'Transferencia',
 	other: 'Otro',
 }
+
+const recurringDebtIntervalLabels: Record<string, string> = {
+	days: 'dias',
+	weeks: 'semanas',
+	months: 'meses',
+}
+
+const recurringDebtIntervalOptions = Object.entries(recurringDebtIntervalLabels).map(
+	([value, label]) => ({ value, label }),
+)
 
 const toolStatusLabels: Record<string, string> = {
 	in_use: 'En uso',
@@ -1403,6 +1426,50 @@ function resolveActionMessage<T>(
 	result: T,
 ) {
 	return typeof message === 'function' ? message(result) : message
+}
+
+export type PendingActionsApi = {
+	begin: (key: string) => void
+	end: (key: string) => void
+	isPending: (key: string) => boolean
+	pending: boolean
+	pendingKeys: ReadonlySet<string>
+}
+
+function usePendingActions(): PendingActionsApi {
+	const [pendingKeys, setPendingKeys] = useState<ReadonlySet<string>>(
+		() => new Set(),
+	)
+
+	function begin(key: string) {
+		setPendingKeys((prev) => {
+			if (prev.has(key)) return prev
+			const next = new Set(prev)
+			next.add(key)
+			return next
+		})
+	}
+
+	function end(key: string) {
+		setPendingKeys((prev) => {
+			if (!prev.has(key)) return prev
+			const next = new Set(prev)
+			next.delete(key)
+			return next
+		})
+	}
+
+	function isPending(key: string) {
+		return pendingKeys.has(key)
+	}
+
+	return {
+		begin,
+		end,
+		isPending,
+		pending: pendingKeys.size > 0,
+		pendingKeys,
+	}
 }
 
 function useNoticeToasts() {
@@ -1979,6 +2046,8 @@ export {
 	cleanCustomerPayload,
 	debtPaymentMethodLabels,
 	debtStatusLabels,
+	recurringDebtIntervalLabels,
+	recurringDebtIntervalOptions,
 	defaultCashCategory,
 	detailRequiresEconomy,
 	entityFeedbackTitle,
@@ -2025,5 +2094,6 @@ export {
 	useButtonHoverTitles,
 	useFlashTarget,
 	useNoticeToasts,
+	usePendingActions,
 }
 

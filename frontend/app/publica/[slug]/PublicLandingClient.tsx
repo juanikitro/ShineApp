@@ -21,6 +21,7 @@ import { publicApiFetch } from '@/lib/api'
 import { formatApiError } from '@/lib/api-errors'
 import { joinDisplayParts } from '@/lib/display-text'
 import { isPdfAssetSource, renderPdfPreviewDataUrl, safeImageAssetSource } from '@/lib/pdf-preview'
+import { formatDurationLabel } from '@/lib/service-duration'
 import { VEHICLE_TYPE_OPTIONS } from '@/lib/service-pricing'
 
 type PublicService = {
@@ -159,13 +160,7 @@ async function registerPushSubscription(): Promise<object | null> {
 }
 
 function serviceDurationLabel(service: PublicService) {
-	if (!service.estimated_duration_minutes) return null
-	if (service.estimated_duration_minutes < 60) {
-		return `${service.estimated_duration_minutes} min`
-	}
-	const hours = Math.floor(service.estimated_duration_minutes / 60)
-	const minutes = service.estimated_duration_minutes % 60
-	return minutes ? `${hours} h ${minutes} min` : `${hours} h`
+	return formatDurationLabel(service.estimated_duration_minutes)
 }
 
 function errorMessage(error: unknown) {

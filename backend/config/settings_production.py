@@ -83,7 +83,8 @@ if not CSRF_TRUSTED_ORIGINS:
 DATABASES = {
     "default": dj_database_url.parse(
         required_env("DATABASE_URL"),
-        conn_max_age=0,
+        conn_max_age=env_int("DATABASE_CONN_MAX_AGE", 300),
+        conn_health_checks=env_bool("DATABASE_CONN_HEALTH_CHECKS", True),
         ssl_require=env_bool("DATABASE_SSL_REQUIRE", True),
     )
 }

@@ -4,6 +4,7 @@ import { type FormEvent } from 'react'
 
 import { Package, Plus, Trash2 } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import {
 	SearchSelect,
@@ -44,6 +45,7 @@ type StockMovementFormProps = {
 	createSupplierFromName: (name: string, target: string) => Promise<void>
 	flashClass: (key: string | null) => string
 	fieldFlashKey: (target: string) => string
+	submitting?: boolean
 }
 
 export function StockMovementForm({
@@ -74,6 +76,7 @@ export function StockMovementForm({
 	createSupplierFromName,
 	flashClass,
 	fieldFlashKey,
+	submitting = false,
 }: StockMovementFormProps) {
 	return (
 		<form className="form-grid stock-movement-form" onSubmit={onSubmit}>
@@ -331,10 +334,14 @@ export function StockMovementForm({
 					}
 				/>
 			</Field>
-			<button className="primary">
-				<Package size={16} />
+			<Button
+				type="submit"
+				variant="primary"
+				loading={submitting}
+				leadingIcon={<Package size={16} />}
+			>
 				{submitLabel}
-			</button>
+			</Button>
 		</form>
 	)
 }

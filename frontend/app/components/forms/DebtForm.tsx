@@ -4,13 +4,22 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { ReceiptText } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { NumericInput } from '@/app/components/ui/NumericInput'
 import {
 	SearchSelect,
 	type SelectOption,
 } from '@/app/components/ui/SearchSelect'
-import { type AnyRecord } from '@/lib/page-support'
+import {
+	type AnyRecord,
+	debtPaymentMethodLabels,
+	recurringDebtIntervalOptions,
+} from '@/lib/page-support'
+
+const debtPaymentMethodSelectOptions: SelectOption[] = Object.entries(
+	debtPaymentMethodLabels,
+).map(([value, label]) => ({ value, label }))
 
 type DebtFormProps = {
 	submitLabel: string
@@ -28,6 +37,7 @@ type DebtFormProps = {
 		key: string,
 		openCombo?: boolean,
 	) => (event: KeyboardEvent<HTMLElement>) => void
+	submitting?: boolean
 }
 
 export function DebtForm({
@@ -43,6 +53,7 @@ export function DebtForm({
 	registerDebtSubcategory,
 	focusField,
 	focusNextOnEnter,
+	submitting = false,
 }: DebtFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -178,13 +189,129 @@ export function DebtForm({
 					}
 				/>
 			</Field>
+			<div className="debt-recurrence">
+				<label className="debt-recurrence-toggle">
+					<input
+						type="checkbox"
+						checked={Boolean(debtForm.is_recurring)}
+						onChange={(event) =>
+							setDebtForm({
+								...debtForm,
+								is_recurring: event.target.checked,
+							})
+						}
+					/>
+					<span>Repetir automaticamente</span>
+				</label>
+				{debtForm.is_recurring ? (
+					<div className="debt-recurrence-fields">
+						<div className="form-row">
+							<Field label="Cada">
+								<NumericInput
+									required
+									value={String(debtForm.interval_count ?? '1')}
+									onChange={(raw) =>
+										setDebtForm({
+											...debtForm,
+											interval_count: raw,
+										})
+									}
+								/>
+							</Field>
+							<SearchSelect
+								label="Unidad"
+								value={String(debtForm.interval_unit ?? 'months')}
+								options={recurringDebtIntervalOptions}
+								placeholder="Periodo"
+								onChange={(value) =>
+									setDebtForm({
+										...debtForm,
+										interval_unit: value,
+									})
+								}
+							/>
+						</div>
+						<div className="form-row">
+							<Field label="Vence a los (dias)">
+								<NumericInput
+									value={String(debtForm.due_offset_days ?? '0')}
+									onChange={(raw) =>
+										setDebtForm({
+											...debtForm,
+											due_offset_days: raw,
+										})
+									}
+								/>
+							</Field>
+							<Field label="Fecha de fin (opcional)">
+								<input
+									type="date"
+									value={String(debtForm.end_date ?? '')}
+									onChange={(event) =>
+										setDebtForm({
+											...debtForm,
+											end_date: event.target.value,
+										})
+									}
+								/>
+							</Field>
+						</div>
+						<Field label="Cantidad maxima de ciclos (opcional)">
+							<NumericInput
+								value={String(debtForm.max_cycles ?? '')}
+								onChange={(raw) =>
+									setDebtForm({
+										...debtForm,
+										max_cycles: raw,
+									})
+								}
+							/>
+						</Field>
+						<label className="debt-recurrence-toggle">
+							<input
+								type="checkbox"
+								checked={Boolean(debtForm.auto_settle)}
+								onChange={(event) =>
+									setDebtForm({
+										...debtForm,
+										auto_settle: event.target.checked,
+									})
+								}
+							/>
+							<span>Pago automatico (debito)</span>
+						</label>
+						{debtForm.auto_settle ? (
+							<SearchSelect
+								label="Metodo del debito"
+								value={String(debtForm.auto_settle_method ?? 'transfer')}
+								options={debtPaymentMethodSelectOptions}
+								placeholder="Metodo"
+								onChange={(value) =>
+									setDebtForm({
+										...debtForm,
+										auto_settle_method: value,
+									})
+								}
+							/>
+						) : null}
+						<div className="info-note">
+							La fecha de origen del formulario se usa como inicio del ciclo.
+							Cada generacion crea su deuda y, si activas pago automatico, queda saldada al instante.
+						</div>
+					</div>
+				) : null}
+			</div>
 			<div className="info-note">
 				El total crea el egreso original de la deuda. Los pagos parciales quedan trazados abajo y no generan otro egreso.
 			</div>
-			<button className="primary">
-				<ReceiptText size={16} />
+			<Button
+				type="submit"
+				variant="primary"
+				loading={submitting}
+				leadingIcon={<ReceiptText size={16} />}
+			>
 				{submitLabel}
-			</button>
+			</Button>
 		</form>
 	)
 }

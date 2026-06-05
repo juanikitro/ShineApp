@@ -11,8 +11,8 @@ export type AppDataScope = {
 }
 
 export type AppDataLoaders = {
-	apiFetch: <T>(path: string, options?: RequestInit) => Promise<T>
-	apiList: <T>(path: string) => Promise<T[]>
+	apiFetch: <T>(path: string, options?: RequestInit & { signal?: AbortSignal }) => Promise<T>
+	apiList: <T>(path: string, options?: RequestInit & { signal?: AbortSignal }) => Promise<T[]>
 }
 
 export type AppDataEntry = readonly [DataSetKey, unknown]
@@ -54,9 +54,13 @@ export async function loadAppDataSet(
 		case 'payments':
 			return loaders.apiList<AnyRecord>('/payments/')
 		case 'debts':
-			return loaders.apiList<AnyRecord>('/debts/')
+			return loaders.apiFetch<AnyRecord[] | { results: AnyRecord[]; skipped_recurring_periods?: AnyRecord[] }>(
+				'/debts/',
+			)
 		case 'debtPayments':
 			return loaders.apiList<AnyRecord>('/debt-payments/')
+		case 'recurringDebts':
+			return loaders.apiList<AnyRecord>('/recurring-debts/')
 		case 'materials':
 			return loaders.apiList<AnyRecord>('/materials/')
 		case 'suppliers':
@@ -76,7 +80,9 @@ export async function loadAppDataSet(
 		case 'publicRequests':
 			return loaders.apiList<AnyRecord>('/public-requests/')
 		case 'businessProfile':
-			return loaders.apiFetch<AnyRecord>('/settings/business-profile/')
+			return loaders.apiFetch<AnyRecord>('/settings/business-profile/', {
+				cache: 'default',
+			})
 		case 'employees':
 			return loaders.apiList<AnyRecord>('/auth/employees/')
 		case 'dailyCapacities':

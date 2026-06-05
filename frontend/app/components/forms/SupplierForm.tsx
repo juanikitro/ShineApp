@@ -4,6 +4,7 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { Building2 } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { type AnyRecord } from '@/lib/page-support'
 
@@ -15,6 +16,7 @@ type SupplierFormProps = {
 	focusNextOnEnter: (
 		key: string,
 	) => (event: KeyboardEvent<HTMLElement>) => void
+	submitting?: boolean
 }
 
 export function SupplierForm({
@@ -23,6 +25,7 @@ export function SupplierForm({
 	setSupplierForm,
 	onSubmit,
 	focusNextOnEnter,
+	submitting = false,
 }: SupplierFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -161,10 +164,14 @@ export function SupplierForm({
 					}
 				/>
 			</Field>
-			<button className="primary">
-				<Building2 size={16} />
+			<Button
+				type="submit"
+				variant="primary"
+				loading={submitting}
+				leadingIcon={<Building2 size={16} />}
+			>
 				{submitLabel}
-			</button>
+			</Button>
 		</form>
 	)
 }

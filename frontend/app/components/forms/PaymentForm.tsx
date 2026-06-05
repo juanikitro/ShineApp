@@ -4,6 +4,7 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { CreditCard } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { NumericInput } from '@/app/components/ui/NumericInput'
 import {
@@ -33,6 +34,7 @@ type PaymentFormProps = {
 		key: string,
 		openCombo?: boolean,
 	) => (event: KeyboardEvent<HTMLElement>) => void
+	submitting?: boolean
 }
 
 export function PaymentForm({
@@ -45,6 +47,7 @@ export function PaymentForm({
 	selectedWorkOrderForPayment,
 	focusField,
 	focusNextOnEnter,
+	submitting = false,
 }: PaymentFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -148,10 +151,15 @@ export function PaymentForm({
 					}
 				/>
 			</Field>
-			<button className="primary" data-focus-key="payment.submit">
-				<CreditCard size={16} />
+			<Button
+				type="submit"
+				variant="primary"
+				loading={submitting}
+				leadingIcon={<CreditCard size={16} />}
+				data-focus-key="payment.submit"
+			>
 				{submitLabel}
-			</button>
+			</Button>
 		</form>
 	)
 }

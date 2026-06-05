@@ -300,6 +300,12 @@ class MaterialConsumption(models.Model):
 
     class Meta:
         ordering = ["-consumed_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["business", "-consumed_at"],
+                name="mc_biz_consumed_at_idx",
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         if self.work_order_id and not self.business_id:

@@ -3,9 +3,11 @@
 import {
 	type MouseEvent,
 	type ReactNode,
+	useState,
 } from 'react'
 
 import {
+	ChevronDown,
 	ChevronLeft,
 	ChevronRight,
 	CreditCard,
@@ -15,11 +17,13 @@ import {
 	LockOpen,
 	ReceiptText,
 	RefreshCw,
+	SlidersHorizontal,
 } from 'lucide-react'
 
-import { FinanceRecordCard } from '@/app/components/finance/FinanceRecordCard'
+import { CashEntryRow } from '@/app/components/cash/CashEntryRow'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
 import { Field } from '@/app/components/ui/Field'
+import { SkeletonList } from '@/app/components/ui/Skeleton'
 import {
 	type QuickAction,
 } from '@/app/components/ui/QuickActionsMenu'
@@ -31,8 +35,13 @@ import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
 import { cx } from '@/app/components/utils'
 import { type ApiErrorNotice } from '@/lib/api-errors'
 import {
+	type CashQuickFilter,
+	type CashSortKey,
+	cashQuickFilterOptions,
+	cashSortOptions,
+} from '@/lib/cash-entry'
+import {
 	type AnyRecord,
-	formatDateTimeLabel,
 	money,
 } from '@/lib/page-support'
 
@@ -87,6 +96,8 @@ type CashPanelProps = {
 	cashFilterSubcategoryOptions: SelectOption[]
 	cashFlowSummary: CashFlowSummary
 	cashIsClosed: boolean
+	cashQuickFilter: CashQuickFilter
+	cashSortKey: CashSortKey
 	cashSourceKindLabel: (kind: any, fallback?: any) => string
 	cashSourceKindOptions: SelectOption[]
 	cashSummaryMode: CashSummaryMode
@@ -103,6 +114,8 @@ type CashPanelProps = {
 	) => ReactNode
 	selectedDay: string
 	onCashFilterChange: (key: keyof CashFilterState, value: string) => void
+	onCashQuickFilterChange: (value: CashQuickFilter) => void
+	onCashSortChange: (value: CashSortKey) => void
 	onCashSummaryModeChange: (value: CashSummaryMode) => void
 	onClearCashFilters: () => void
 	onCloseDay: () => void
@@ -120,10 +133,8 @@ type CashPanelProps = {
 	onRefresh: () => void
 	onRegisterAdjustment: () => void
 	onSelectedDayChange: (value: string) => void
-	cashEntryDescription: (entry: AnyRecord) => string
 	cashEntryKey: (entry: AnyRecord) => string
 	cashEntryQuickActions: (entry: AnyRecord) => QuickAction[]
-	cashEntryTitle: (entry: AnyRecord) => string
 	cashflowTotals: CashTotals
 }
 
@@ -161,10 +172,8 @@ function formatCashPercent(value: number) {
 export function CashPanel({
 	cashClosure,
 	cashEntries,
-	cashEntryDescription,
 	cashEntryKey,
 	cashEntryQuickActions,
-	cashEntryTitle,
 	cashFilterCategoryOptions,
 	cashFilters,
 	cashFiltersActive,
@@ -172,6 +181,8 @@ export function CashPanel({
 	cashflowTotals,
 	cashFlowSummary,
 	cashIsClosed,
+	cashQuickFilter,
+	cashSortKey,
 	cashSourceKindLabel,
 	cashSourceKindOptions,
 	cashSummaryMode,
@@ -184,6 +195,8 @@ export function CashPanel({
 	renderQuickActionsTrigger,
 	selectedDay,
 	onCashFilterChange,
+	onCashQuickFilterChange,
+	onCashSortChange,
 	onCashSummaryModeChange,
 	onClearCashFilters,
 	onCloseDay,
@@ -198,6 +211,7 @@ export function CashPanel({
 	onRegisterAdjustment,
 	onSelectedDayChange,
 }: CashPanelProps) {
+	const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false)
 	const cashStatusLabel = cashIsClosed ? 'Cerrada' : 'Abierta'
 	const cashStatusClass = cashIsClosed ? 'closed' : 'open'
 	const cashSummaryModeLabel =
@@ -395,10 +409,7 @@ export function CashPanel({
 					/>
 				) : null}
 				{!loadBlocked && loading && !cashEntries.length ? (
-					<LoadingState
-						text="Cargando caja del dia..."
-						hint="Estamos trayendo cobros, pagos, movimientos y cierre."
-					/>
+					<SkeletonList rows={6} columns={4} label="Cargando caja del dia" />
 				) : null}
 				{!loadBlocked && (!loading || cashEntries.length) ? (
 					<>
@@ -491,10 +502,9 @@ export function CashPanel({
 						>
 							<div className="cash-filters-head">
 								<div>
-									<h3 id="cash-filters-title">Filtros del listado</h3>
+									<h3 id="cash-filters-title">Movimientos del dia</h3>
 									<p>
-										Refina las entradas visibles sin modificar el resumen del
-										dia.
+										Filtra el listado sin modificar el resumen del dia.
 									</p>
 								</div>
 								<div className="cash-filter-actions">
@@ -507,122 +517,149 @@ export function CashPanel({
 										disabled={!cashFiltersActive}
 										onClick={onClearCashFilters}
 									>
-										Limpiar filtros
+										Limpiar
 									</button>
 								</div>
 							</div>
-							<div className="cash-filter-grid">
+							<div className="cash-quick-bar">
+								<div className="cash-quick-chips" role="tablist" aria-label="Filtro rapido">
+									{cashQuickFilterOptions.map((option) => (
+										<button
+											key={option.value}
+											type="button"
+											role="tab"
+											aria-selected={option.value === cashQuickFilter}
+											className={cx(
+												'cash-quick-chip',
+												option.value === cashQuickFilter && 'is-active',
+											)}
+											onClick={() => onCashQuickFilterChange(option.value)}
+										>
+											{option.label}
+										</button>
+									))}
+								</div>
+								<label className="cash-sort">
+									<span className="cash-sort-label">Orden</span>
+									<div className="cash-sort-select">
+										<select
+											aria-label="Orden del listado"
+											value={cashSortKey}
+											onChange={(event) =>
+												onCashSortChange(event.target.value as typeof cashSortKey)
+											}
+										>
+											{cashSortOptions.map((option) => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+										<ChevronDown size={14} aria-hidden="true" />
+									</div>
+								</label>
+							</div>
+							<div className="cash-search-row">
 								<Field label="Buscar">
 									<input
-										placeholder="Origen, detalle, categoria o monto"
+										placeholder="Buscar por cliente, proveedor, categoria, detalle o monto"
 										value={cashFilters.query}
 										onChange={(event) =>
 											onCashFilterChange('query', event.target.value)
 										}
 									/>
 								</Field>
-								<SearchSelect
-									label="Tipo"
-									value={cashFilters.movementType}
-									options={cashMovementTypeOptions}
-									placeholder="Todos"
-									onChange={(value) =>
-										onCashFilterChange('movementType', value)
-									}
-								/>
-								<SearchSelect
-									label="Origen"
-									value={cashFilters.sourceKind}
-									options={cashSourceKindOptions}
-									placeholder="Todos los origenes"
-									onChange={(value) =>
-										onCashFilterChange('sourceKind', value)
-									}
-								/>
-								<SearchSelect
-									label="Categoria"
-									value={cashFilters.category}
-									options={cashFilterCategoryOptions}
-									placeholder="Todas"
-									onChange={(value) => onCashFilterChange('category', value)}
-								/>
-								<SearchSelect
-									label="Subcategoria"
-									value={cashFilters.subcategory}
-									options={cashFilterSubcategoryOptions}
-									placeholder="Todas"
-									onChange={(value) =>
-										onCashFilterChange('subcategory', value)
-									}
-								/>
-								<SearchSelect
-									label="Efecto"
-									value={cashFilters.effect}
-									options={cashEffectOptions}
-									placeholder="Todos"
-									onChange={(value) => onCashFilterChange('effect', value)}
-								/>
-								<Field label="Monto minimo">
-									<input
-										type="number"
-										min="0"
-										step="0.01"
-										value={cashFilters.amountMin}
-										onChange={(event) =>
-											onCashFilterChange('amountMin', event.target.value)
-										}
-									/>
-								</Field>
-								<Field label="Monto maximo">
-									<input
-										type="number"
-										min="0"
-										step="0.01"
-										value={cashFilters.amountMax}
-										onChange={(event) =>
-											onCashFilterChange('amountMax', event.target.value)
-										}
-									/>
-								</Field>
+								<button
+									type="button"
+									className={cx(
+										'ghost cash-advanced-toggle',
+										advancedFiltersOpen && 'is-open',
+									)}
+									aria-expanded={advancedFiltersOpen}
+									onClick={() => setAdvancedFiltersOpen((open) => !open)}
+								>
+									<SlidersHorizontal size={14} aria-hidden="true" />
+									{advancedFiltersOpen ? 'Cerrar filtros' : 'Mas filtros'}
+								</button>
 							</div>
+							{advancedFiltersOpen ? (
+								<div className="cash-filter-grid">
+									<SearchSelect
+										label="Tipo"
+										value={cashFilters.movementType}
+										options={cashMovementTypeOptions}
+										placeholder="Todos"
+										onChange={(value) =>
+											onCashFilterChange('movementType', value)
+										}
+									/>
+									<SearchSelect
+										label="Origen"
+										value={cashFilters.sourceKind}
+										options={cashSourceKindOptions}
+										placeholder="Todos los origenes"
+										onChange={(value) =>
+											onCashFilterChange('sourceKind', value)
+										}
+									/>
+									<SearchSelect
+										label="Categoria"
+										value={cashFilters.category}
+										options={cashFilterCategoryOptions}
+										placeholder="Todas"
+										onChange={(value) => onCashFilterChange('category', value)}
+									/>
+									<SearchSelect
+										label="Subcategoria"
+										value={cashFilters.subcategory}
+										options={cashFilterSubcategoryOptions}
+										placeholder="Todas"
+										onChange={(value) =>
+											onCashFilterChange('subcategory', value)
+										}
+									/>
+									<SearchSelect
+										label="Efecto"
+										value={cashFilters.effect}
+										options={cashEffectOptions}
+										placeholder="Todos"
+										onChange={(value) => onCashFilterChange('effect', value)}
+									/>
+									<Field label="Monto minimo">
+										<input
+											type="number"
+											min="0"
+											step="0.01"
+											value={cashFilters.amountMin}
+											onChange={(event) =>
+												onCashFilterChange('amountMin', event.target.value)
+											}
+										/>
+									</Field>
+									<Field label="Monto maximo">
+										<input
+											type="number"
+											min="0"
+											step="0.01"
+											value={cashFilters.amountMax}
+											onChange={(event) =>
+												onCashFilterChange('amountMax', event.target.value)
+											}
+										/>
+									</Field>
+								</div>
+							) : null}
 						</section>
-						<div className="records cash-records">
+						<div className="cash-entry-list">
 							{filteredCashEntries.length ? (
 								filteredCashEntries.map((item: AnyRecord) => {
 									const quickActions = cashEntryQuickActions(item)
 									return (
-										<FinanceRecordCard
-											amount={{
-												label:
-													item.movement_type === 'income'
-														? 'Ingreso'
-														: 'Egreso',
-												value: item.signed_amount ?? money(item.amount),
-												tone:
-													item.movement_type === 'income'
-														? 'income'
-														: 'expense',
-											}}
-											badges={[
-												{
-													label:
-														item.source_label ??
-														cashSourceKindLabel(item.source_kind),
-													className: 'status',
-												},
-												{
-													label: item.cashflow_effect
-														? 'Impacta caja'
-														: 'Solo resultado',
-													className: 'status',
-												},
-											]}
-											className={cx(
-												recordClass('cash-movement', item.id),
-												'cash-entry',
-												!item.cashflow_effect && 'cash-entry-muted',
-											)}
+										<CashEntryRow
+											className={recordClass('cash-movement', item.id)}
+											entry={item}
 											key={cashEntryKey(item)}
+											onClick={() => onOpenCashEntryDetail(item)}
 											onContextMenu={(event) =>
 												onQuickActionsContext(
 													event,
@@ -630,35 +667,11 @@ export function CashPanel({
 													quickActions,
 												)
 											}
-											primaryAction={{
-												label: 'Abrir detalle',
-												icon: <Eye size={15} />,
-												onClick: () => onOpenCashEntryDetail(item),
-												variant: 'primary',
-											}}
 											quickActionsTrigger={renderQuickActionsTrigger(
 												'Acciones de caja',
 												quickActions,
 												'Acciones rapidas de caja',
 											)}
-											stats={[
-												{
-													label: 'Categoria',
-													value: item.category || 'Sin categoria',
-													hint: item.subcategory || 'Sin subcategoria',
-												},
-												{
-													label: 'Fecha',
-													value: item.occurred_at
-														? formatDateTimeLabel(item.occurred_at)
-														: 'Sin fecha',
-													hint: item.created_by_username
-														? `Registrado por ${item.created_by_username}`
-														: 'Origen automatico o manual',
-												},
-											]}
-											subtitle={cashEntryDescription(item)}
-											title={cashEntryTitle(item)}
 										/>
 									)
 								})
