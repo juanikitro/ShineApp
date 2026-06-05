@@ -155,15 +155,30 @@ def test_business_scoped_uniqueness_allows_same_operational_identifiers_in_diffe
     Vehicle.objects.create(business=business_b, customer=customer_b, license_plate="AA111AA")
     Material.objects.create(business=business_a, name="Shampoo", unit="ml", sku="SKU-1")
     Material.objects.create(business=business_b, name="Shampoo", unit="ml", sku="SKU-1")
-    DailyCapacity.objects.create(business=business_a, day=date(2026, 5, 18), max_slots=4)
-    DailyCapacity.objects.create(business=business_b, day=date(2026, 5, 18), max_slots=8)
+    DailyCapacity.objects.create(
+        business=business_a,
+        day=date(2026, 5, 18),
+        max_slots_wash=4,
+        max_slots_detailing=4,
+    )
+    DailyCapacity.objects.create(
+        business=business_b,
+        day=date(2026, 5, 18),
+        max_slots_wash=8,
+        max_slots_detailing=8,
+    )
 
     with pytest.raises(IntegrityError), transaction.atomic():
         Vehicle.objects.create(business=business_a, customer=customer_a, license_plate="AA111AA")
     with pytest.raises(IntegrityError), transaction.atomic():
         Material.objects.create(business=business_a, name="Cera", unit="ml", sku="SKU-1")
     with pytest.raises(IntegrityError), transaction.atomic():
-        DailyCapacity.objects.create(business=business_a, day=date(2026, 5, 18), max_slots=2)
+        DailyCapacity.objects.create(
+            business=business_a,
+            day=date(2026, 5, 18),
+            max_slots_wash=2,
+            max_slots_detailing=2,
+        )
 
 
 @pytest.mark.django_db

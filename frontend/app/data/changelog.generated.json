@@ -3,9 +3,71 @@
     "date": "2026-06-05",
     "items": [
       {
+        "slug": "pwa-instalable-ios-android",
+        "title": "Frontend: PWA instalable en iOS y Android (CRM y landing publica)",
+        "sections": [
+          {
+            "heading": "Contexto",
+            "text": "El frontend no exponia manifest ni meta tags PWA. En Android Chrome aparecia\n\"Agregar a pantalla de inicio\" pero solo creaba un atajo; en iOS Safari el\natajo abria la web dentro del navegador en vez de comportarse como app\nstandalone. No habia apple-touch-icon ni configuracion de display, theme color\nni splash. El unico public/sw.js cubria push notifications."
+          },
+          {
+            "heading": "Cambio",
+            "text": "- Nuevo frontend/app/manifest.ts para el CRM (/manifest.webmanifest)\n  con display: standalone, theme_color, background_color, iconos any\n  y maskable, y start_url=/?source=pwa.\n- Nuevo route handler frontend/app/publica/[slug]/manifest.webmanifest/route.ts\n  que fetchea el endpoint publico /api/public/landing/<slug>/ (server side,\n  con revalidate: 300) y devuelve un manifest por negocio con name del\n  negocio, scope=/publica/<slug> y start_url=/publica/<slug>?source=pwa.\n- frontend/app/publica/[slug]/page.tsx ahora exporta generateMetadata\n  que vincula ese manifest dinamico, fija applicationName y\n  appleWebApp.title con el nombre del negocio.\n- frontend/app/layout.tsx agrega viewport (themeColor por light/dark,\n  viewportFit: cover para notch), iconos apple-touch-icon, applicationName,\n  appleWebApp.capable y formatDetection.telephone=false.\n- Nuevos PNGs PWA en frontend/public/icons/:\n  icon-192.png, icon-512.png (transparentes, logo color brand),\n  icon-maskable-192.png, icon-maskable-512.png (logo blanco sobre azul\n  brand con safe area 70%) y apple-touch-icon.png (180x180, fondo azul brand).\n- Script reproducible frontend/scripts/generate-pwa-icons.mjs (usa sharp,\n  ya disponible como dep transitiva de Next)."
+          }
+        ]
+      },
+      {
+        "slug": "listado-caja-denso",
+        "title": "Caja: listado denso con contraparte, orden y filtros rapidos",
+        "sections": [
+          {
+            "heading": "Contexto",
+            "text": "El listado de movimientos de caja usaba FinanceRecordCard (cards altas ~150-180px) por entrada. Solo entraban 3-4 movimientos en pantalla, no se veia de donde venia o a donde iba el dinero (cliente, proveedor, acreedor) sin abrir el detalle, no habia atajos rapidos para filtrar ingresos/egresos/efecto y no habia forma de cambiar el orden. Informacion repetida (fecha y categoria aparecian dos veces por card)."
+          },
+          {
+            "heading": "Cambio",
+            "text": "Listado rediseñado como filas compactas centradas en utilidad operativa.\n\n- Nueva fila compacta CashEntryRow (~52px de alto) por movimiento, con borde lateral coloreado segun direccion:\n  - Icono direccion (↑ verde para ingresos, ↓ rojo para egresos)\n  - Hora HH:MM\n  - Chip de origen con color por tipo (Cobro, Compra, Venta stock, Deuda, Ajuste, Manual)\n  - Contraparte con icono: Cliente: Juan Perez, Proveedor: ACME, Acreedor: ...\n  - Chip Solo resultado cuando no impacta caja\n  - Metalinea con clasificacion (categoria / subcategoria), referencia (Orden #42, concepto de deuda, material, numero de comprobante), metodo de pago y, si difiere de la referencia, la descripcion libre\n  - Monto firmado en color (verde ingreso, rojo egreso)\n  - Hover/focus accesible, click abre el detalle y context menu mantiene las acciones rapidas\n- Quick chips encima del listado: Todos · Ingresos · Egresos · Solo caja · Solo resultado. El chip activo se ve en negativo.\n- Selector de orden: Mas reciente · Mas antiguo · Mayor monto · Menor monto · Categoria A-Z.\n- Buscador principal ampliado: incluye contraparte, referencia y metodo de pago en el match. El placeholder ahora ejemplifica los campos.\n- Filtros avanzados colapsables detras de un boton Mas filtros (tipo, origen, categoria/subcategoria, efecto, rango de monto). El Limpiar ahora resetea tambien el chip rapido.\n- Backend enriquece cada entrada con counterparty_kind (customer/supplier/creditor/internal/none), counterparty_label, reference_label y payment_method. cash_entries_for_day agrega select_related para el cliente del payment, el supplier/customer del stock_movement, el material de la compra y el supplier de la deuda, evitando N+1."
+          }
+        ]
+      },
+      {
+        "slug": "fix-sidebar-logo-presigned-url-regresion",
+        "title": "Fix: regresion del logo de negocio en el sidebar (presigned URL)",
+        "sections": [
+          {
+            "heading": "Contexto",
+            "text": "El logo del negocio en el footer del sidebar volvio a romperse en Vercel/demo: la imagen no carga y la URL del src aparece con %252F en el parametro X-Amz-Credential mientras que la misma URL renderiza bien en el panel de Configuracion.\n\nReproduccion concreta:\n- Configuracion (funciona): ...X-Amz-Credential=...%2F20260605%2Fsa-east-1%2Fs3%2Faws4_request...\n- Sidebar (rompe): ...X-Amz-Credential=...%252F20260605%252Fsa-east-1%252Fs3%252Faws4_request... -> Supabase responde InvalidSignature."
+          }
+        ]
+      },
+      {
         "slug": "fix-auto-cierre-por-vista-futura",
         "title": "Fix: caja del dia se cerraba al ver un dia futuro (2026-06-05)",
         "sections": []
+      },
+      {
+        "slug": "deudas-recurrentes",
+        "title": "Deudas recurrentes con materializacion lazy (2026-06-05)",
+        "sections": [
+          {
+            "heading": "Modelo",
+            "text": "Nuevo debts.RecurringDebt con:\n\n- concept, creditor, supplier, principal_amount,\n  expense_category/subcategory, notes: heredados a cada deuda generada.\n- interval_unit (days/weeks/months) + interval_count (>=1):\n  periodicidad libre.\n- start_date: primera generacion.\n- due_offset_days: vencimiento = origen + offset (0 = sin fecha de vencimiento).\n- end_date opcional + max_cycles opcional + is_active (pausa): tres\n  formas de detener la recurrencia, todas opcionales y combinables.\n- auto_settle + auto_settle_method: si esta activo, al generar la deuda\n  tambien crea un DebtPayment por el principal total con la fecha de origen.\n- last_generated_for y cycles_generated: sentinela de idempotencia.\n\nDebt gana un FK opcional recurring_source con on_delete=SET_NULL. Borrar\nla plantilla no toca las deudas ya generadas.\n\nMigracion: backend/debts/migrations/0005_recurring_debt.py."
+          },
+          {
+            "heading": "Materializacion lazy",
+            "text": "debts.recurrence.materialize_due(business, today) itera plantillas activas y\npara cada una genera los ciclos faltantes hasta today. Usa\nselect_for_update por plantilla para evitar duplicados en requests\nconcurrentes.\n\nSi un ciclo cae en un dia con caja cerrada\n(finance.cash.is_cash_day_closed), se omite la generacion, se avanza el\npuntero last_generated_for para no quedar bloqueado y se registra un\nSkippedPeriod. El endpoint GET /api/debts/ expone los skipped del request\nactual en skipped_recurring_periods (formato compatible: si no hay skipped\ndevuelve el array clasico; si hay, devuelve un objeto\n{results, skipped_recurring_periods})."
+          }
+        ]
+      },
+      {
+        "slug": "capacidad-turnos-por-bucket",
+        "title": "Capacidad de turnos por bucket lavado y detailing",
+        "sections": [
+          {
+            "heading": "Cambio",
+            "text": "DailyCapacity deja de tener un unico max_slots y pasa a tener dos cupos por dia:\n\n- max_slots_wash: cupos para la pestana Lavado de la agenda (incluye servicios wash y combo).\n- max_slots_detailing: cupos para la pestana Detailing (servicios detailing).\n\nLa regla de bucket sigue la misma logica que la agenda (frontend/lib/agenda.ts): solo\nservice_type == \"detailing\" cae en Detailing; todo lo demas cae en Lavado."
+          }
+        ]
       }
     ]
   },
