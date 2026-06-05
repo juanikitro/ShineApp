@@ -6,17 +6,20 @@ import { cleanup } from '@testing-library/react'
 import { spawnSync } from 'child_process'
 import { existsSync } from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
 
 // Generate changelog.generated.json if it doesn't exist
-const changelogPath = path.join(import.meta.dirname, 'app', 'data', 'changelog.generated.json')
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const changelogPath = path.join(__dirname, 'app', 'data', 'changelog.generated.json')
+
 if (!existsSync(changelogPath)) {
-	const generateScript = path.join(import.meta.dirname, 'scripts', 'generate-changelog.mjs')
+	const checkDocsPath = path.join(__dirname, '../scripts/check_docs.py')
 	const cmds = process.platform === 'win32' ? ['py', 'python', 'python3'] : ['python3', 'python']
 
 	for (const cmd of cmds) {
-		const result = spawnSync(cmd, [path.join(path.dirname(generateScript), '../scripts/check_docs.py'), '--write', '--skip-build'], {
-			stdio: 'inherit',
-			cwd: path.dirname(generateScript)
+		const result = spawnSync(cmd, [checkDocsPath, '--write', '--skip-build'], {
+			cwd: path.dirname(checkDocsPath)
 		})
 		if (result.status === 0) break
 	}
