@@ -18,8 +18,9 @@ import {
 } from 'lucide-react'
 
 import { FinanceRecordCard } from '@/app/components/finance/FinanceRecordCard'
-import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
+import { Empty, ErrorState } from '@/app/components/ui/Empty'
 import { Field } from '@/app/components/ui/Field'
+import { SkeletonList } from '@/app/components/ui/Skeleton'
 import {
 	type QuickAction,
 } from '@/app/components/ui/QuickActionsMenu'
@@ -395,10 +396,7 @@ export function CashPanel({
 					/>
 				) : null}
 				{!loadBlocked && loading && !cashEntries.length ? (
-					<LoadingState
-						text="Cargando caja del dia..."
-						hint="Estamos trayendo cobros, pagos, movimientos y cierre."
-					/>
+					<SkeletonList rows={6} columns={4} label="Cargando caja del dia" />
 				) : null}
 				{!loadBlocked && (!loading || cashEntries.length) ? (
 					<>

@@ -129,6 +129,7 @@ import { Field } from '@/app/components/ui/Field'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { ModalFrame as Modal } from '@/app/components/ui/ModalFrame'
 import { Panel } from '@/app/components/ui/Panel'
+import { SkeletonCard, SkeletonList } from '@/app/components/ui/Skeleton'
 import {
 	QuickActionsMenu,
 	type QuickAction,
@@ -11812,6 +11813,12 @@ export default function Home() {
 					<>
 						{customerDashboard && canViewEconomy ? (
 							renderCustomerDashboard()
+						) : isDataSetLoading('customers') && !customers.length ? (
+							<div className="grid">
+								<section className="panel">
+									<SkeletonList rows={8} columns={3} label="Cargando clientes" />
+								</section>
+							</div>
 						) : (
 					<div className="grid">
 						<CustomerListPanel
@@ -12242,10 +12249,16 @@ export default function Home() {
 							{loading &&
 							!agendaLoadError &&
 							!agendaBoardModel.segments.length ? (
-								<LoadingState
-									text="Cargando agenda..."
-									hint="Mantenemos el tablero listo mientras llegan las reservas."
-								/>
+								<div
+									className="agenda-skeleton-grid"
+									role="status"
+									aria-live="polite"
+									aria-label="Cargando agenda"
+								>
+									{Array.from({ length: AGENDA_VISIBLE_DAYS }).map((_, index) => (
+										<SkeletonCard key={index} lines={3} />
+									))}
+								</div>
 							) : null}
 							<DndContext
 								sensors={agendaSensors}
@@ -12488,7 +12501,13 @@ export default function Home() {
 						onSearchChange={setSearch}
 					/>
 				) : null}
-				{displayedActive === 'inventory' ? (
+				{displayedActive === 'inventory' && isDataSetLoading('materials') && !materials.length ? (
+					<div className="grid">
+						<section className="panel">
+							<SkeletonList rows={6} columns={4} label="Cargando inventario" />
+						</section>
+					</div>
+				) : displayedActive === 'inventory' ? (
 					<InventoryPanel
 						availableQuickActions={availableQuickActions}
 						consumptions={consumptions}

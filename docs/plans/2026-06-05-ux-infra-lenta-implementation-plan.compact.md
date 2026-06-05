@@ -100,11 +100,13 @@ Nota: el plan original tenia un hook `useRunAction` que tomaba todos los handler
 - [x] validar: tsc verde.
 
 ### T8: Skeletons en vistas
-- [ ] dashboard: `!dashboard && isDataSetLoading('dashboard')` → `SkeletonMetric` x6.
-- [ ] customers: `!customers.length && isDataSetLoading('customers')` → `SkeletonList rows=8 cols=3`.
-- [ ] agenda: skeleton cards x5.
-- [ ] cash, inventory: mismo patron.
-- [ ] validar: `npm run build`.
+- [x] DashboardPanel: replace `<LoadingState>` por `SkeletonMetric x6` en grid responsive `.dashboard-metric-skeleton-grid`. Reusa el `loading` prop existente; trigger interno `loading && !dashboardHasBusinessActivity`.
+- [x] CashPanel: replace `<LoadingState>` por `<SkeletonList rows=6 cols=4>` cuando `loading && !cashEntries.length`.
+- [x] Agenda (inline page.tsx): replace `<LoadingState>` por `SkeletonCard x5` en `.agenda-skeleton-grid` cuando `loading && !agendaLoadError && !agendaBoardModel.segments.length`.
+- [x] CustomerListPanel: wrap en page.tsx — si `isDataSetLoading('customers') && !customers.length` muestra `<SkeletonList rows=8 cols=3>`; sino el panel original.
+- [x] InventoryPanel: mismo patron con `isDataSetLoading('materials') && !materials.length` y `<SkeletonList rows=6 cols=4>`.
+- [x] CSS en `shell.css`: `.dashboard-metric-skeleton-grid` y `.agenda-skeleton-grid` (auto-fit responsive).
+- [x] validar: tsc + 39 tests UI verdes.
 
 ### T9: Prefetch hover sidebar
 - [ ] `prefetchSection(section)` con `prefetchedSectionsRef`.
