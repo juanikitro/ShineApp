@@ -66,6 +66,12 @@ class Reservation(models.Model):
 
     class Meta:
         ordering = ["day", "start_time", "id"]
+        indexes = [
+            models.Index(
+                fields=["business", "day", "status"],
+                name="resv_biz_day_status_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.day} - {self.customer} - {self.service}"

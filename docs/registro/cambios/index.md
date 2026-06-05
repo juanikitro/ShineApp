@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [UX para infraestructura lenta (free tier Vercel + Supabase)](2026-06-05-ux-infra-lenta.md)
 - [Frontend: PWA instalable en iOS y Android (CRM y landing publica)](2026-06-05-pwa-instalable-ios-android.md)
 - [Caja: listado denso con contraparte, orden y filtros rapidos](2026-06-05-listado-caja-denso.md)
 - [Fix: regresion del logo de negocio en el sidebar (presigned URL)](2026-06-05-fix-sidebar-logo-presigned-url-regresion.md)

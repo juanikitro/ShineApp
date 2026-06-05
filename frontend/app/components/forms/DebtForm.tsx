@@ -4,6 +4,7 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { ReceiptText } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { NumericInput } from '@/app/components/ui/NumericInput'
 import {
@@ -36,6 +37,7 @@ type DebtFormProps = {
 		key: string,
 		openCombo?: boolean,
 	) => (event: KeyboardEvent<HTMLElement>) => void
+	submitting?: boolean
 }
 
 export function DebtForm({
@@ -51,6 +53,7 @@ export function DebtForm({
 	registerDebtSubcategory,
 	focusField,
 	focusNextOnEnter,
+	submitting = false,
 }: DebtFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -301,10 +304,14 @@ export function DebtForm({
 			<div className="info-note">
 				El total crea el egreso original de la deuda. Los pagos parciales quedan trazados abajo y no generan otro egreso.
 			</div>
-			<button className="primary">
-				<ReceiptText size={16} />
+			<Button
+				type="submit"
+				variant="primary"
+				loading={submitting}
+				leadingIcon={<ReceiptText size={16} />}
+			>
 				{submitLabel}
-			</button>
+			</Button>
 		</form>
 	)
 }

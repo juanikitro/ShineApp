@@ -1427,6 +1427,50 @@ function resolveActionMessage<T>(
 	return typeof message === 'function' ? message(result) : message
 }
 
+export type PendingActionsApi = {
+	begin: (key: string) => void
+	end: (key: string) => void
+	isPending: (key: string) => boolean
+	pending: boolean
+	pendingKeys: ReadonlySet<string>
+}
+
+function usePendingActions(): PendingActionsApi {
+	const [pendingKeys, setPendingKeys] = useState<ReadonlySet<string>>(
+		() => new Set(),
+	)
+
+	function begin(key: string) {
+		setPendingKeys((prev) => {
+			if (prev.has(key)) return prev
+			const next = new Set(prev)
+			next.add(key)
+			return next
+		})
+	}
+
+	function end(key: string) {
+		setPendingKeys((prev) => {
+			if (!prev.has(key)) return prev
+			const next = new Set(prev)
+			next.delete(key)
+			return next
+		})
+	}
+
+	function isPending(key: string) {
+		return pendingKeys.has(key)
+	}
+
+	return {
+		begin,
+		end,
+		isPending,
+		pending: pendingKeys.size > 0,
+		pendingKeys,
+	}
+}
+
 function useNoticeToasts() {
 	const [toasts, setToasts] = useState<ToastNotice[]>([])
 	const nextIdRef = useRef(0)
@@ -2049,5 +2093,6 @@ export {
 	useButtonHoverTitles,
 	useFlashTarget,
 	useNoticeToasts,
+	usePendingActions,
 }
 

@@ -4,10 +4,11 @@ import { type ReactNode } from 'react'
 
 import { CalendarDays, CreditCard, Info } from 'lucide-react'
 
-import { Empty, LoadingState } from '@/app/components/ui/Empty'
+import { Empty } from '@/app/components/ui/Empty'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { Panel } from '@/app/components/ui/Panel'
 import { RecordCard } from '@/app/components/ui/RecordCard'
+import { SkeletonMetric } from '@/app/components/ui/Skeleton'
 import { cx } from '@/app/components/utils'
 import {
 	type AnyRecord,
@@ -316,10 +317,16 @@ export function DashboardPanel({
 			{canViewEconomy ? (
 				<>
 					{loading && !dashboardHasBusinessActivity ? (
-						<LoadingState
-							text="Cargando indicadores del negocio..."
-							hint="Mantenemos el tablero visible mientras llegan ventas, trabajos y caja."
-						/>
+						<div
+							className="dashboard-metric-skeleton-grid"
+							role="status"
+							aria-live="polite"
+							aria-label="Cargando indicadores del negocio"
+						>
+							{Array.from({ length: 6 }).map((_, index) => (
+								<SkeletonMetric key={index} />
+							))}
+						</div>
 					) : null}
 					{!loading && dashboardEmptyPeriod ? (
 						<Panel
