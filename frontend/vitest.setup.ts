@@ -3,6 +3,24 @@ import '@testing-library/jest-dom/vitest'
 import React, { forwardRef } from 'react'
 import { afterEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
+import { spawnSync } from 'child_process'
+import { existsSync } from 'fs'
+import path from 'path'
+
+// Generate changelog.generated.json if it doesn't exist
+const changelogPath = path.join(import.meta.dirname, 'app', 'data', 'changelog.generated.json')
+if (!existsSync(changelogPath)) {
+	const generateScript = path.join(import.meta.dirname, 'scripts', 'generate-changelog.mjs')
+	const cmds = process.platform === 'win32' ? ['py', 'python', 'python3'] : ['python3', 'python']
+
+	for (const cmd of cmds) {
+		const result = spawnSync(cmd, [path.join(path.dirname(generateScript), '../scripts/check_docs.py'), '--write', '--skip-build'], {
+			stdio: 'inherit',
+			cwd: path.dirname(generateScript)
+		})
+		if (result.status === 0) break
+	}
+}
 
 afterEach(() => {
 	cleanup()
