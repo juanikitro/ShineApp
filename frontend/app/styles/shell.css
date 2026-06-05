@@ -713,6 +713,16 @@
   margin: 0;
 }
 
+.duration-input {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, auto);
+}
+
+.duration-input select {
+  min-height: 44px;
+}
+
 .mode-toggle {
   background: var(--segmented-bg);
   border: 1px solid var(--segmented-border);

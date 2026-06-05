@@ -46,6 +46,11 @@
         "sections": []
       },
       {
+        "slug": "duracion-servicio-en-unidades",
+        "title": "Duracion de servicios en minutos / horas / dias / semanas (2026-06-05)",
+        "sections": []
+      },
+      {
         "slug": "deudas-recurrentes",
         "title": "Deudas recurrentes con materializacion lazy (2026-06-05)",
         "sections": [
