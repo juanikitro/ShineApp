@@ -3,8 +3,8 @@
     "date": "2026-06-05",
     "items": [
       {
-        "slug": "fix-sidebar-logo-presigned-url-regresion",
-        "title": "Fix: regresion del logo de negocio en el sidebar (presigned URL)",
+        "slug": "fix-sidebar-logo-presigned-url-regresion y fix-auto-cierre-por-vista-futura",
+        "title": "Fix: regresion del logo de negocio en el sidebar (presigned URL) y Fix: caja del dia se cerraba al ver un dia futuro (2026-06-05)",
         "sections": [
           {
             "heading": "Contexto",
