@@ -11,6 +11,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-05
+- [Caja: listado denso con contraparte, orden y filtros rapidos](docs/registro/cambios/2026-06-05-listado-caja-denso.md)
 - [Fix: regresion del logo de negocio en el sidebar (presigned URL)](docs/registro/cambios/2026-06-05-fix-sidebar-logo-presigned-url-regresion.md)
 - [Fix: caja del dia se cerraba al ver un dia futuro (2026-06-05)](docs/registro/cambios/2026-06-05-fix-auto-cierre-por-vista-futura.md)
 - [Capacidad de turnos por bucket lavado y detailing](docs/registro/cambios/2026-06-05-capacidad-turnos-por-bucket.md)
