@@ -3,14 +3,19 @@
     "date": "2026-06-05",
     "items": [
       {
-        "slug": "fix-sidebar-logo-presigned-url-regresion y fix-auto-cierre-por-vista-futura",
-        "title": "Fix: regresion del logo de negocio en el sidebar (presigned URL) y Fix: caja del dia se cerraba al ver un dia futuro (2026-06-05)",
+        "slug": "fix-sidebar-logo-presigned-url-regresion",
+        "title": "Fix: regresion del logo de negocio en el sidebar (presigned URL)",
         "sections": [
           {
             "heading": "Contexto",
             "text": "El logo del negocio en el footer del sidebar volvio a romperse en Vercel/demo: la imagen no carga y la URL del src aparece con %252F en el parametro X-Amz-Credential mientras que la misma URL renderiza bien en el panel de Configuracion.\n\nReproduccion concreta:\n- Configuracion (funciona): ...X-Amz-Credential=...%2F20260605%2Fsa-east-1%2Fs3%2Faws4_request...\n- Sidebar (rompe): ...X-Amz-Credential=...%252F20260605%252Fsa-east-1%252Fs3%252Faws4_request... -> Supabase responde InvalidSignature."
           }
         ]
+      },
+      {
+        "slug": "fix-auto-cierre-por-vista-futura",
+        "title": "Fix: caja del dia se cerraba al ver un dia futuro (2026-06-05)",
+        "sections": []
       }
     ]
   },
