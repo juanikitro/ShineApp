@@ -11,8 +11,8 @@ export type AppDataScope = {
 }
 
 export type AppDataLoaders = {
-	apiFetch: <T>(path: string, options?: RequestInit) => Promise<T>
-	apiList: <T>(path: string) => Promise<T[]>
+	apiFetch: <T>(path: string, options?: RequestInit & { signal?: AbortSignal }) => Promise<T>
+	apiList: <T>(path: string, options?: RequestInit & { signal?: AbortSignal }) => Promise<T[]>
 }
 
 export type AppDataEntry = readonly [DataSetKey, unknown]

@@ -71,12 +71,14 @@ Nota: el plan original tenia un hook `useRunAction` que tomaba todos los handler
 - [x] validar: `vitest run app/components/ui/Skeleton`.
 
 ### T5: `loadData` con loadingKeys + abort + stale-while-revalidate
-- [ ] reemplazar `loading: boolean` por `loadingDataSets: Set<DataSetKey>` (mantener `loading` para login/audit log).
-- [ ] `loadDataAbortRef`, cancelar request previo al disparar nuevo.
-- [ ] `useEffect` deps: agregar `period.from`, `period.to`.
-- [ ] NO vaciar state previo al cambiar scope.
-- [ ] swallow `AbortError`.
-- [ ] validar: `npm run build`.
+- [x] estado `loadingDataSets: Set<DataSetKey>` + `bootLoading` (renombrado de `loading`); derived `loading = bootLoading || size>0` mantiene backward compat con 4 panels.
+- [x] helper `isDataSetLoading(key)` para que T8 use skeletons granulares.
+- [x] `loadDataAbortRef`, cancelar request previo al disparar nuevo; signal propagado por apiFetch/apiList loaders.
+- [x] swallow `AbortError` + guard `controller.signal.aborted` antes de aplicar entries.
+- [x] `useEffect` deps: agregar `period.from`, `period.to`.
+- [x] state previo NO se vacia al cambiar scope (los `set*` se llaman recien cuando llega data nueva).
+- [x] app-data.ts: tipos `AppDataLoaders` aceptan options con signal.
+- [x] validar: tsc + vitest (4 archivos, 23 casos) verdes.
 
 ### T6: Migrar forms criticos a `useRunAction` + `<Button loading>`
 - [ ] instanciar `useRunAction` en `Home`.

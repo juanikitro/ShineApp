@@ -616,7 +616,11 @@ export default function Home() {
 	const navigationHistoryModeRef = useRef<'pushState' | 'replaceState'>(
 		'replaceState',
 	)
-	const [loading, setLoading] = useState(false)
+	const [bootLoading, setBootLoading] = useState(false)
+	const [loadingDataSets, setLoadingDataSets] = useState<ReadonlySet<DataSetKey>>(
+		() => new Set(),
+	)
+	const loadDataAbortRef = useRef<AbortController | null>(null)
 	const [agendaLoadError, setAgendaLoadError] =
 		useState<ApiErrorNotice | null>(null)
 	const [loadErrorNotice, setLoadErrorNotice] =
@@ -624,6 +628,8 @@ export default function Home() {
 	const { toasts, showToast, dismissToast } = useNoticeToasts()
 	const pendingActions = usePendingActions()
 	const runActionCounterRef = useRef(0)
+	const isDataSetLoading = (key: DataSetKey) => loadingDataSets.has(key)
+	const loading = bootLoading || loadingDataSets.size > 0
 	const undoTimerRef = useRef<number | null>(null)
 	const pendingUndoRef = useRef<PendingUndoAction | null>(null)
 	const executeUndoRef = useRef<(id?: number) => void>(() => undefined)
@@ -1971,7 +1977,7 @@ export default function Home() {
 	async function applyAuditFilters(event: FormEvent) {
 		event.preventDefault()
 		if (!canViewEconomy) return
-		setLoading(true)
+		setBootLoading(true)
 		try {
 			await refreshAuditLogs(auditFilters)
 		} catch (err: any) {
@@ -1983,7 +1989,7 @@ export default function Home() {
 				}),
 			)
 		} finally {
-			setLoading(false)
+			setBootLoading(false)
 		}
 	}
 
@@ -1991,11 +1997,11 @@ export default function Home() {
 		const emptyFilters: AuditLogFilters = {}
 		setAuditFilters(emptyFilters)
 		if (!canViewEconomy) return
-		setLoading(true)
+		setBootLoading(true)
 		try {
 			await refreshAuditLogs(emptyFilters)
 		} finally {
-			setLoading(false)
+			setBootLoading(false)
 		}
 	}
 
@@ -2051,20 +2057,31 @@ export default function Home() {
 
 		if (!keysToLoad.length) return
 
-		setLoading(true)
+		loadDataAbortRef.current?.abort()
+		const controller = new AbortController()
+		loadDataAbortRef.current = controller
+
+		setLoadingDataSets((prev) => {
+			const next = new Set(prev)
+			for (const key of keysToLoad) next.add(key)
+			return next
+		})
 		setError(null)
 		setAgendaLoadError(null)
 		setLoadErrorNotice(null)
 		try {
 			const entries = await loadAppDataSets(keysToLoad, dataScope, {
-				apiFetch,
-				apiList,
+				apiFetch: (path, opts) =>
+					apiFetch(path, { ...opts, signal: controller.signal }),
+				apiList: (path) => apiList(path, { signal: controller.signal }),
 			})
+			if (controller.signal.aborted) return
 			for (const [key, data] of entries) {
 				applyAppDataEntry(key, data, appDataAppliers)
 				loadedDataCacheRef.current.add(dataSetCacheKey(key, dataScope))
 			}
 		} catch (err: any) {
+			if (err?.name === 'AbortError') return
 			const notice = formatApiError(err, {
 				fallbackTitle: 'No se pudieron cargar los datos',
 				fallbackDescription:
@@ -2074,7 +2091,17 @@ export default function Home() {
 			setLoadErrorNotice(notice)
 			setError(notice)
 		} finally {
-			setLoading(false)
+			if (loadDataAbortRef.current === controller) {
+				loadDataAbortRef.current = null
+			}
+			setLoadingDataSets((prev) => {
+				let changed = false
+				const next = new Set(prev)
+				for (const key of keysToLoad) {
+					if (next.delete(key)) changed = true
+				}
+				return changed ? next : prev
+			})
 		}
 	}
 
@@ -2098,7 +2125,7 @@ export default function Home() {
 		if (currentUser) return
 
 		let ignore = false
-		setLoading(true)
+		setBootLoading(true)
 		apiFetch<AnyRecord>('/auth/me/')
 			.then((user) => {
 				if (!ignore) {
@@ -2114,7 +2141,7 @@ export default function Home() {
 			})
 			.finally(() => {
 				if (!ignore) {
-					setLoading(false)
+					setBootLoading(false)
 				}
 			})
 
@@ -2127,7 +2154,15 @@ export default function Home() {
 		if (token && currentUser) {
 			loadData()
 		}
-	}, [currentUser, displayedActive, selectedDay, settingsSection, token])
+	}, [
+		currentUser,
+		displayedActive,
+		selectedDay,
+		settingsSection,
+		token,
+		period.from,
+		period.to,
+	])
 
 	useEffect(() => {
 		if (!token || !currentUser) return
@@ -2168,7 +2203,7 @@ export default function Home() {
 		}
 
 		let ignore = false
-		setLoading(true)
+		setBootLoading(true)
 		auditLogListOrEmpty<AnyRecord>(apiList, auditFilters)
 			.then((logs) => {
 				if (ignore) return
@@ -2187,7 +2222,7 @@ export default function Home() {
 			})
 			.finally(() => {
 				if (!ignore) {
-					setLoading(false)
+					setBootLoading(false)
 				}
 			})
 
