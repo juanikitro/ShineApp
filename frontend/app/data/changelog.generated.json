@@ -46,6 +46,20 @@
         "sections": []
       },
       {
+        "slug": "deudas-recurrentes",
+        "title": "Deudas recurrentes con materializacion lazy (2026-06-05)",
+        "sections": [
+          {
+            "heading": "Modelo",
+            "text": "Nuevo debts.RecurringDebt con:\n\n- concept, creditor, supplier, principal_amount,\n  expense_category/subcategory, notes: heredados a cada deuda generada.\n- interval_unit (days/weeks/months) + interval_count (>=1):\n  periodicidad libre.\n- start_date: primera generacion.\n- due_offset_days: vencimiento = origen + offset (0 = sin fecha de vencimiento).\n- end_date opcional + max_cycles opcional + is_active (pausa): tres\n  formas de detener la recurrencia, todas opcionales y combinables.\n- auto_settle + auto_settle_method: si esta activo, al generar la deuda\n  tambien crea un DebtPayment por el principal total con la fecha de origen.\n- last_generated_for y cycles_generated: sentinela de idempotencia.\n\nDebt gana un FK opcional recurring_source con on_delete=SET_NULL. Borrar\nla plantilla no toca las deudas ya generadas.\n\nMigracion: backend/debts/migrations/0005_recurring_debt.py."
+          },
+          {
+            "heading": "Materializacion lazy",
+            "text": "debts.recurrence.materialize_due(business, today) itera plantillas activas y\npara cada una genera los ciclos faltantes hasta today. Usa\nselect_for_update por plantilla para evitar duplicados en requests\nconcurrentes.\n\nSi un ciclo cae en un dia con caja cerrada\n(finance.cash.is_cash_day_closed), se omite la generacion, se avanza el\npuntero last_generated_for para no quedar bloqueado y se registra un\nSkippedPeriod. El endpoint GET /api/debts/ expone los skipped del request\nactual en skipped_recurring_periods (formato compatible: si no hay skipped\ndevuelve el array clasico; si hay, devuelve un objeto\n{results, skipped_recurring_periods})."
+          }
+        ]
+      },
+      {
         "slug": "capacidad-turnos-por-bucket",
         "title": "Capacidad de turnos por bucket lavado y detailing",
         "sections": [

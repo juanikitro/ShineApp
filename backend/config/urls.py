@@ -8,7 +8,7 @@ from catalog.views import ServiceViewSet
 from core.views import AuditLogView
 from customers.views import CustomerViewSet, VehicleViewSet
 from dashboard.views import DashboardSummaryView
-from debts.views import DebtPaymentViewSet, DebtViewSet
+from debts.views import DebtPaymentViewSet, DebtViewSet, RecurringDebtViewSet
 from finance.views import CashCloseView, CashDailyView, CashMovementViewSet, CashReopenView, PaymentViewSet
 from inventory.views import (
     MaterialConsumptionViewSet,
@@ -52,6 +52,7 @@ router.register("payments", PaymentViewSet, basename="payment")
 router.register("cash-movements", CashMovementViewSet, basename="cashmovement")
 router.register("debts", DebtViewSet, basename="debt")
 router.register("debt-payments", DebtPaymentViewSet, basename="debtpayment")
+router.register("recurring-debts", RecurringDebtViewSet, basename="recurringdebt")
 router.register("materials", MaterialViewSet, basename="material")
 router.register("suppliers", SupplierViewSet, basename="supplier")
 router.register("stock-movements", StockMovementViewSet, basename="stockmovement")
