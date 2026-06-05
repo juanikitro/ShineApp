@@ -59,16 +59,16 @@
 Nota: el plan original tenia un hook `useRunAction` que tomaba todos los handlers (setError, reload, flash, undo, toast). Se eligio un primitive mas chico (`usePendingActions`) que se compone con el `runAction` existente — diff menor, mismo objetivo (exponer pending por key).
 
 ### T3: `<Button>` reutilizable
-- [ ] `frontend/app/components/ui/Button.tsx` con `loading`, `variant`, `size`, `disabled`, `aria-busy`.
-- [ ] estilos: `.is-loading`, `[aria-busy]`, `.button-spinner`, `@keyframes button-spin`, `.button-sm`.
-- [ ] tests render.
-- [ ] validar: `npx vitest run app/components/ui/Button`.
+- [x] `frontend/app/components/ui/Button.tsx` con `loading`, `variant`, `size`, `disabled`, `aria-busy`.
+- [x] estilos: `.is-loading`, `[aria-busy]`, `.button-spinner`, `@keyframes button-spin`, `.button-sm`, `.button-label`.
+- [x] tests render (6 casos: default, loading, disabled, no-click loading, variant, type=submit).
+- [x] validar: `vitest run app/components/ui/Button`.
 
 ### T4: Skeletons
-- [ ] `Skeleton.tsx` con `SkeletonLine/Card/Row/Metric/List`.
-- [ ] estilos `.skeleton`, `@keyframes skeleton-shimmer`, variantes dark.
-- [ ] tests render.
-- [ ] validar: `npx vitest run app/components/ui/Skeleton`.
+- [x] `Skeleton.tsx` con `SkeletonLine/Card/Row/Metric/List`.
+- [x] estilos `.skeleton`, `@keyframes skeleton-shimmer`, variantes dark, layouts card/row/list/metric.
+- [x] tests render (6 casos: estilos inline, conteo de lineas por variant, role status).
+- [x] validar: `vitest run app/components/ui/Skeleton`.
 
 ### T5: `loadData` con loadingKeys + abort + stale-while-revalidate
 - [ ] reemplazar `loading: boolean` por `loadingDataSets: Set<DataSetKey>` (mantener `loading` para login/audit log).
