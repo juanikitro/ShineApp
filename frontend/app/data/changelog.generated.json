@@ -15,6 +15,31 @@
             "text": "Listado rediseñado como filas compactas centradas en utilidad operativa.\n\n- Nueva fila compacta CashEntryRow (~52px de alto) por movimiento, con borde lateral coloreado segun direccion:\n  - Icono direccion (↑ verde para ingresos, ↓ rojo para egresos)\n  - Hora HH:MM\n  - Chip de origen con color por tipo (Cobro, Compra, Venta stock, Deuda, Ajuste, Manual)\n  - Contraparte con icono: Cliente: Juan Perez, Proveedor: ACME, Acreedor: ...\n  - Chip Solo resultado cuando no impacta caja\n  - Metalinea con clasificacion (categoria / subcategoria), referencia (Orden #42, concepto de deuda, material, numero de comprobante), metodo de pago y, si difiere de la referencia, la descripcion libre\n  - Monto firmado en color (verde ingreso, rojo egreso)\n  - Hover/focus accesible, click abre el detalle y context menu mantiene las acciones rapidas\n- Quick chips encima del listado: Todos · Ingresos · Egresos · Solo caja · Solo resultado. El chip activo se ve en negativo.\n- Selector de orden: Mas reciente · Mas antiguo · Mayor monto · Menor monto · Categoria A-Z.\n- Buscador principal ampliado: incluye contraparte, referencia y metodo de pago en el match. El placeholder ahora ejemplifica los campos.\n- Filtros avanzados colapsables detras de un boton Mas filtros (tipo, origen, categoria/subcategoria, efecto, rango de monto). El Limpiar ahora resetea tambien el chip rapido.\n- Backend enriquece cada entrada con counterparty_kind (customer/supplier/creditor/internal/none), counterparty_label, reference_label y payment_method. cash_entries_for_day agrega select_related para el cliente del payment, el supplier/customer del stock_movement, el material de la compra y el supplier de la deuda, evitando N+1."
           }
         ]
+      },
+      {
+        "slug": "fix-sidebar-logo-presigned-url-regresion",
+        "title": "Fix: regresion del logo de negocio en el sidebar (presigned URL)",
+        "sections": [
+          {
+            "heading": "Contexto",
+            "text": "El logo del negocio en el footer del sidebar volvio a romperse en Vercel/demo: la imagen no carga y la URL del src aparece con %252F en el parametro X-Amz-Credential mientras que la misma URL renderiza bien en el panel de Configuracion.\n\nReproduccion concreta:\n- Configuracion (funciona): ...X-Amz-Credential=...%2F20260605%2Fsa-east-1%2Fs3%2Faws4_request...\n- Sidebar (rompe): ...X-Amz-Credential=...%252F20260605%252Fsa-east-1%252Fs3%252Faws4_request... -> Supabase responde InvalidSignature."
+          }
+        ]
+      },
+      {
+        "slug": "fix-auto-cierre-por-vista-futura",
+        "title": "Fix: caja del dia se cerraba al ver un dia futuro (2026-06-05)",
+        "sections": []
+      },
+      {
+        "slug": "capacidad-turnos-por-bucket",
+        "title": "Capacidad de turnos por bucket lavado y detailing",
+        "sections": [
+          {
+            "heading": "Cambio",
+            "text": "DailyCapacity deja de tener un unico max_slots y pasa a tener dos cupos por dia:\n\n- max_slots_wash: cupos para la pestana Lavado de la agenda (incluye servicios wash y combo).\n- max_slots_detailing: cupos para la pestana Detailing (servicios detailing).\n\nLa regla de bucket sigue la misma logica que la agenda (frontend/lib/agenda.ts): solo\nservice_type == \"detailing\" cae en Detailing; todo lo demas cae en Lavado."
+          }
+        ]
       }
     ]
   },
