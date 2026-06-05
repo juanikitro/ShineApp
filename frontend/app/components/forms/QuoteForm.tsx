@@ -4,6 +4,7 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { FileText, Plus } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { NumericInput } from '@/app/components/ui/NumericInput'
 import {
@@ -45,6 +46,7 @@ type QuoteFormProps = {
 	) => (event: KeyboardEvent<HTMLElement>) => void
 	flashClass: (key: string | null) => string
 	fieldFlashKey: (target: string) => string
+	submitting?: boolean
 }
 
 export function QuoteForm({
@@ -70,6 +72,7 @@ export function QuoteForm({
 	focusNextOnEnter,
 	flashClass,
 	fieldFlashKey,
+	submitting = false,
 }: QuoteFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -302,10 +305,15 @@ export function QuoteForm({
 					}
 				/>
 			</Field>
-			<button className="primary" data-focus-key="quote.submit">
-				<FileText size={16} />
+			<Button
+				type="submit"
+				variant="primary"
+				loading={submitting}
+				leadingIcon={<FileText size={16} />}
+				data-focus-key="quote.submit"
+			>
 				{submitLabel}
-			</button>
+			</Button>
 		</form>
 	)
 }

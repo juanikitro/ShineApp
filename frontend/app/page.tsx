@@ -118,13 +118,18 @@ import {
 	SidebarNav,
 	type SidebarNavItem,
 } from '@/app/components/layout/SidebarNav'
+import NextImage from 'next/image'
+
+import { Button } from '@/app/components/ui/Button'
 import { DetailModal } from '@/app/components/ui/DetailModal'
+import { DurationInput } from '@/app/components/ui/DurationInput'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
 import { BirthdayFields } from '@/app/components/ui/BirthdayFields'
 import { Field } from '@/app/components/ui/Field'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { ModalFrame as Modal } from '@/app/components/ui/ModalFrame'
 import { Panel } from '@/app/components/ui/Panel'
+import { SkeletonCard, SkeletonList } from '@/app/components/ui/Skeleton'
 import {
 	QuickActionsMenu,
 	type QuickAction,
@@ -240,14 +245,18 @@ import {
 } from '@/lib/service-pricing'
 import { shouldHandleUndoShortcut } from '@/lib/undo-shortcut'
 import {
+	type CashQuickFilter,
+	type CashSortKey,
 	buildCashFlowSummary,
 	cashEntryDescriptionText,
 	cashEntryMatchesFilters,
+	cashEntryMatchesQuickFilter,
 	cashEntryTitleText,
 	cashSourceKindLabel,
 	compareExpenseClassificationPair,
 	hasCashFilters,
 	normalizedCashText,
+	sortCashEntries,
 } from '@/lib/cash-entry'
 import {
 	debtMatchesFilters,
@@ -364,6 +373,7 @@ import {
 	useButtonHoverTitles,
 	useFlashTarget,
 	useNoticeToasts,
+	usePendingActions,
 } from '@/lib/page-support'
 
 type QuickActionsMenuState = {
@@ -385,6 +395,7 @@ type RunActionOptions<T> = {
 	successTitle?: ActionMessage<T>
 	successDescription?: ActionMessage<T>
 	undo?: UndoAction<T>
+	key?: string
 }
 
 type PendingUndoAction = {
@@ -617,12 +628,20 @@ export default function Home() {
 	const navigationHistoryModeRef = useRef<'pushState' | 'replaceState'>(
 		'replaceState',
 	)
-	const [loading, setLoading] = useState(false)
+	const [bootLoading, setBootLoading] = useState(false)
+	const [loadingDataSets, setLoadingDataSets] = useState<ReadonlySet<DataSetKey>>(
+		() => new Set(),
+	)
+	const loadDataAbortRef = useRef<AbortController | null>(null)
 	const [agendaLoadError, setAgendaLoadError] =
 		useState<ApiErrorNotice | null>(null)
 	const [loadErrorNotice, setLoadErrorNotice] =
 		useState<ApiErrorNotice | null>(null)
 	const { toasts, showToast, dismissToast } = useNoticeToasts()
+	const pendingActions = usePendingActions()
+	const runActionCounterRef = useRef(0)
+	const isDataSetLoading = (key: DataSetKey) => loadingDataSets.has(key)
+	const loading = bootLoading || loadingDataSets.size > 0
 	const undoTimerRef = useRef<number | null>(null)
 	const pendingUndoRef = useRef<PendingUndoAction | null>(null)
 	const executeUndoRef = useRef<(id?: number) => void>(() => undefined)
@@ -640,6 +659,10 @@ export default function Home() {
 		useState<CashSummaryMode>('cashflow')
 	const [cashFilters, setCashFilters] =
 		useState<CashFilterState>(CASH_FILTER_DEFAULTS)
+	const [cashQuickFilter, setCashQuickFilter] =
+		useState<CashQuickFilter>('all')
+	const [cashSortKey, setCashSortKey] =
+		useState<CashSortKey>('occurred_desc')
 	const [debtFilters, setDebtFilters] =
 		useState<DebtFilterState>(DEBT_FILTER_DEFAULTS)
 	const cashMovementDateTimeFor = (day: string) => `${day}T12:00`
@@ -672,6 +695,10 @@ export default function Home() {
 	const [payments, setPayments] = useState<AnyRecord[]>([])
 	const [debts, setDebts] = useState<AnyRecord[]>([])
 	const [debtPayments, setDebtPayments] = useState<AnyRecord[]>([])
+	const [recurringDebts, setRecurringDebts] = useState<AnyRecord[]>([])
+	const [skippedRecurringPeriods, setSkippedRecurringPeriods] = useState<
+		AnyRecord[]
+	>([])
 	const [materials, setMaterials] = useState<AnyRecord[]>([])
 	const [suppliers, setSuppliers] = useState<AnyRecord[]>([])
 	const [stockMovements, setStockMovements] = useState<AnyRecord[]>([])
@@ -736,7 +763,8 @@ export default function Home() {
 	const [dailyCapacityForm, setDailyCapacityForm] = useState<AnyRecord>({
 		id: '',
 		day: today,
-		max_slots: '',
+		max_slots_wash: '',
+		max_slots_detailing: '',
 		notes: '',
 	})
 	const [reservationForm, setReservationForm] = useState<AnyRecord>(
@@ -1313,12 +1341,20 @@ export default function Home() {
 
 	function handleBusinessLogoChange(event: ChangeEvent<HTMLInputElement>) {
 		const file = event.target.files?.[0] ?? null
-		setBusinessLogoFile(file)
 		revokeBusinessLogoObjectUrl()
 		if (!file) {
+			setBusinessLogoFile(null)
 			setBusinessLogoPreview(businessProfile?.logo_url ?? null)
 			return
 		}
+		const isAllowedLogoFile =
+			file.type.startsWith('image/') || isPdfFile(file)
+		if (!isAllowedLogoFile) {
+			setBusinessLogoFile(null)
+			setBusinessLogoPreview(businessProfile?.logo_url ?? null)
+			return
+		}
+		setBusinessLogoFile(file)
 		const objectUrl = window.URL.createObjectURL(file)
 		businessLogoObjectUrlRef.current = objectUrl
 		setBusinessLogoPreview(objectUrl)
@@ -1410,7 +1446,7 @@ export default function Home() {
 			'material-consumption': 'material-consumption.work_order',
 			tool: 'tool.name',
 			employee: 'employee.username',
-			'daily-capacity': 'daily-capacity.max_slots',
+			'daily-capacity': 'daily-capacity.max_slots_wash',
 		}
 		focusField(firstFocus[formModal.kind], formModal.kind !== 'customer')
 	}, [formModal?.kind])
@@ -1991,7 +2027,7 @@ export default function Home() {
 	async function applyAuditFilters(event: FormEvent) {
 		event.preventDefault()
 		if (!canViewEconomy) return
-		setLoading(true)
+		setBootLoading(true)
 		try {
 			await refreshAuditLogs(auditFilters)
 		} catch (err: any) {
@@ -2003,7 +2039,7 @@ export default function Home() {
 				}),
 			)
 		} finally {
-			setLoading(false)
+			setBootLoading(false)
 		}
 	}
 
@@ -2011,11 +2047,11 @@ export default function Home() {
 		const emptyFilters: AuditLogFilters = {}
 		setAuditFilters(emptyFilters)
 		if (!canViewEconomy) return
-		setLoading(true)
+		setBootLoading(true)
 		try {
 			await refreshAuditLogs(emptyFilters)
 		} finally {
-			setLoading(false)
+			setBootLoading(false)
 		}
 	}
 
@@ -2035,8 +2071,26 @@ export default function Home() {
 		dailyCapacities: setDailyCapacities,
 		workOrders: setWorkOrders,
 		payments: setPayments,
-		debts: setDebts,
+		debts: (data: any) => {
+			if (Array.isArray(data)) {
+				setDebts(data)
+				setSkippedRecurringPeriods([])
+				return
+			}
+			if (data && typeof data === 'object') {
+				setDebts(Array.isArray(data.results) ? data.results : [])
+				setSkippedRecurringPeriods(
+					Array.isArray(data.skipped_recurring_periods)
+						? data.skipped_recurring_periods
+						: [],
+				)
+				return
+			}
+			setDebts([])
+			setSkippedRecurringPeriods([])
+		},
 		debtPayments: setDebtPayments,
+		recurringDebts: setRecurringDebts,
 		materials: setMaterials,
 		suppliers: setSuppliers,
 		stockMovements: setStockMovements,
@@ -2071,20 +2125,31 @@ export default function Home() {
 
 		if (!keysToLoad.length) return
 
-		setLoading(true)
+		loadDataAbortRef.current?.abort()
+		const controller = new AbortController()
+		loadDataAbortRef.current = controller
+
+		setLoadingDataSets((prev) => {
+			const next = new Set(prev)
+			for (const key of keysToLoad) next.add(key)
+			return next
+		})
 		setError(null)
 		setAgendaLoadError(null)
 		setLoadErrorNotice(null)
 		try {
 			const entries = await loadAppDataSets(keysToLoad, dataScope, {
-				apiFetch,
-				apiList,
+				apiFetch: (path, opts) =>
+					apiFetch(path, { ...opts, signal: controller.signal }),
+				apiList: (path) => apiList(path, { signal: controller.signal }),
 			})
+			if (controller.signal.aborted) return
 			for (const [key, data] of entries) {
 				applyAppDataEntry(key, data, appDataAppliers)
 				loadedDataCacheRef.current.add(dataSetCacheKey(key, dataScope))
 			}
 		} catch (err: any) {
+			if (err?.name === 'AbortError') return
 			const notice = formatApiError(err, {
 				fallbackTitle: 'No se pudieron cargar los datos',
 				fallbackDescription:
@@ -2094,7 +2159,17 @@ export default function Home() {
 			setLoadErrorNotice(notice)
 			setError(notice)
 		} finally {
-			setLoading(false)
+			if (loadDataAbortRef.current === controller) {
+				loadDataAbortRef.current = null
+			}
+			setLoadingDataSets((prev) => {
+				let changed = false
+				const next = new Set(prev)
+				for (const key of keysToLoad) {
+					if (next.delete(key)) changed = true
+				}
+				return changed ? next : prev
+			})
 		}
 	}
 
@@ -2118,8 +2193,8 @@ export default function Home() {
 		if (currentUser) return
 
 		let ignore = false
-		setLoading(true)
-		apiFetch<AnyRecord>('/auth/me/')
+		setBootLoading(true)
+		apiFetch<AnyRecord>('/auth/me/', { cache: 'default' })
 			.then((user) => {
 				if (!ignore) {
 					setCurrentUser(user)
@@ -2134,7 +2209,7 @@ export default function Home() {
 			})
 			.finally(() => {
 				if (!ignore) {
-					setLoading(false)
+					setBootLoading(false)
 				}
 			})
 
@@ -2148,6 +2223,42 @@ export default function Home() {
 			loadData()
 		}
 	}, [currentUser, displayedActive, selectedDay, settingsSection, token])
+
+	const prefetchedSectionsRef = useRef<Set<Section>>(new Set())
+	function prefetchSection(section: Section) {
+		if (!token || !currentUser) return
+		if (section === displayedActive) return
+		if (prefetchedSectionsRef.current.has(section)) return
+		prefetchedSectionsRef.current.add(section)
+		loadData({ section })
+	}
+
+	const periodReloadTimeoutRef = useRef<number | null>(null)
+	function schedulePeriodReload(next: { from: string; to: string }) {
+		setPeriod(next)
+		if (periodReloadTimeoutRef.current) {
+			window.clearTimeout(periodReloadTimeoutRef.current)
+		}
+		periodReloadTimeoutRef.current = window.setTimeout(() => {
+			periodReloadTimeoutRef.current = null
+			loadData({ force: true, section: 'dashboard' })
+		}, 400)
+	}
+	function triggerPeriodReloadNow() {
+		if (periodReloadTimeoutRef.current) {
+			window.clearTimeout(periodReloadTimeoutRef.current)
+			periodReloadTimeoutRef.current = null
+		}
+		loadData({ force: true, section: 'dashboard' })
+	}
+	useEffect(() => {
+		return () => {
+			if (periodReloadTimeoutRef.current) {
+				window.clearTimeout(periodReloadTimeoutRef.current)
+				periodReloadTimeoutRef.current = null
+			}
+		}
+	}, [])
 
 	useEffect(() => {
 		if (!token || !currentUser) return
@@ -2188,7 +2299,7 @@ export default function Home() {
 		}
 
 		let ignore = false
-		setLoading(true)
+		setBootLoading(true)
 		auditLogListOrEmpty<AnyRecord>(apiList, auditFilters)
 			.then((logs) => {
 				if (ignore) return
@@ -2207,7 +2318,7 @@ export default function Home() {
 			})
 			.finally(() => {
 				if (!ignore) {
-					setLoading(false)
+					setBootLoading(false)
 				}
 			})
 
@@ -2586,30 +2697,27 @@ export default function Home() {
 		if (action.kind === 'work-order-status') {
 			if (!workOrder) return undefined
 			const previousStatus = workOrder.status ?? reservation.status
-			return runAction(
-				() =>
+			const previousWorkOrders = workOrders
+			return runOptimistic({
+				key: `wo-status:${workOrder.id}`,
+				optimistic: () =>
+					setWorkOrders((current) =>
+						current.map((item) =>
+							String(item.id) === String(workOrder.id)
+								? { ...item, status: action.status }
+								: item,
+						),
+					),
+				rollback: () => setWorkOrders(previousWorkOrders),
+				action: () =>
 					apiFetch(`/work-orders/${workOrder.id}/status/`, {
 						method: 'POST',
 						body: JSON.stringify({
 							status: action.status,
 						}),
 					}),
-				{
-					flashTarget: agendaCardFlashKey(row.key),
-					successTitle: entityFeedbackTitle('workorder', 'updated'),
-					undo: {
-						execute: async () => {
-							await apiFetch(`/work-orders/${workOrder.id}/status/`, {
-								method: 'POST',
-								body: JSON.stringify({
-									status: previousStatus,
-								}),
-							})
-						},
-						successTitle: 'Estado anterior restaurado',
-					},
-				},
-			)
+				successTitle: entityFeedbackTitle('workorder', 'updated'),
+			})
 		}
 
 		if (workOrder) {
@@ -3354,6 +3462,9 @@ export default function Home() {
 		action: () => Promise<T>,
 		options?: RunActionOptions<T>,
 	) {
+		const pendingKey =
+			options?.key ?? `runAction:${++runActionCounterRef.current}`
+		pendingActions.begin(pendingKey)
 		setError(null)
 		try {
 			const result = await action()
@@ -3391,6 +3502,44 @@ export default function Home() {
 			return result
 		} catch (err: any) {
 			setError(formatApiError(err))
+		} finally {
+			pendingActions.end(pendingKey)
+		}
+	}
+
+	const isActionPending = pendingActions.isPending
+
+	async function runOptimistic<T>(args: {
+		key: string
+		optimistic: () => void
+		rollback: () => void
+		action: () => Promise<T>
+		successTitle?: string
+		successDescription?: string
+	}): Promise<T | undefined> {
+		pendingActions.begin(args.key)
+		args.optimistic()
+		setError(null)
+		try {
+			const result = await args.action()
+			await loadData({ force: true })
+			if (args.successTitle) {
+				const description =
+					args.successDescription ?? successToastDescription(args.successTitle)
+				clearPendingUndo()
+				showToast({
+					tone: 'success',
+					title: args.successTitle,
+					description,
+				})
+			}
+			return result
+		} catch (err: any) {
+			args.rollback()
+			setError(formatApiError(err))
+			return undefined
+		} finally {
+			pendingActions.end(args.key)
 		}
 	}
 
@@ -4437,10 +4586,15 @@ export default function Home() {
 	)
 	const filteredCashEntries = useMemo(
 		() =>
-			cashEntries.filter((item: AnyRecord) =>
-				cashEntryMatchesFilters(item, cashFilters),
+			sortCashEntries(
+				cashEntries.filter(
+					(item: AnyRecord) =>
+						cashEntryMatchesFilters(item, cashFilters) &&
+						cashEntryMatchesQuickFilter(item, cashQuickFilter),
+				),
+				cashSortKey,
 			),
-		[cashEntries, cashFilters],
+		[cashEntries, cashFilters, cashQuickFilter, cashSortKey],
 	)
 
 	if (!token) {
@@ -5691,14 +5845,6 @@ export default function Home() {
 		setFormModal({ kind: 'cash-movement' })
 	}
 
-	function cashEntryTitle(item: AnyRecord) {
-		return cashEntryTitleText(item)
-	}
-
-	function cashEntryDescription(item: AnyRecord) {
-		return cashEntryDescriptionText(item)
-	}
-
 	function cashEntryKey(item: AnyRecord) {
 		return `${item.source_kind ?? 'cash'}-${item.source_id ?? item.id}`
 	}
@@ -5844,7 +5990,8 @@ export default function Home() {
 			setDailyCapacityForm({
 				id: '',
 				day: selectedDay,
-				max_slots: '',
+				max_slots_wash: '',
+				max_slots_detailing: '',
 				notes: '',
 			})
 		}
@@ -6072,6 +6219,7 @@ export default function Home() {
 			quickCreateExit.close()
 			return created
 		}, {
+			key: 'save:supplier:quick',
 			flashTarget: fieldFlashKey(quickCreate.target),
 			successTitle: entityFeedbackTitle('supplier', 'created'),
 			undo: undoCreatedRecord('supplier'),
@@ -7548,19 +7696,10 @@ export default function Home() {
 								}
 							/>
 						</Field>
-						<Field label="Duracion min.">
-							<input
-								type="number"
-								min="1"
-								value={data.estimated_duration_minutes ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										estimated_duration_minutes:
-											event.target.value,
-									})
-								}
-							/>
-						</Field>
+						<DurationInput
+							form={data}
+							onPatch={(patch) => updateDetailEdit(patch)}
+						/>
 					</div>
 					<div className="form-row">
 						{VEHICLE_TYPES.map((type) => (
@@ -9012,6 +9151,7 @@ export default function Home() {
 			formModalExit.close()
 			return saved
 		}, {
+			key: 'save:customer',
 			flashTarget: (saved: AnyRecord) =>
 				recordFlashKey('customer', saved?.id ?? currentId),
 			successTitle: entityFeedbackTitle(
@@ -9056,6 +9196,7 @@ export default function Home() {
 			formModalExit.close()
 			return saved
 		}, {
+			key: 'save:vehicle',
 			flashTarget: (saved: AnyRecord) =>
 				recordFlashKey('vehicle', saved?.id ?? currentId),
 			successTitle: entityFeedbackTitle(
@@ -9125,7 +9266,8 @@ export default function Home() {
 		setDailyCapacityForm({
 			id: item.id,
 			day: item.day,
-			max_slots: String(item.max_slots ?? ''),
+			max_slots_wash: String(item.max_slots_wash ?? ''),
+			max_slots_detailing: String(item.max_slots_detailing ?? ''),
 			notes: item.notes ?? '',
 		})
 		setFormModal({ kind: 'daily-capacity' })
@@ -9148,7 +9290,8 @@ export default function Home() {
 				setDailyCapacityForm({
 					id: '',
 					day: selectedDay,
-					max_slots: '',
+					max_slots_wash: '',
+					max_slots_detailing: '',
 					notes: '',
 				})
 				formModalExit.close()
@@ -9251,6 +9394,7 @@ export default function Home() {
 				quickReservationExit.close()
 				return created
 			}, {
+				key: 'save:reservation',
 				flashTarget: (created: AnyRecord) =>
 					recordFlashKey('quote', created?.id),
 				successTitle: entityFeedbackTitle('quote', 'created'),
@@ -9285,6 +9429,7 @@ export default function Home() {
 			quickReservationExit.close()
 			return { ...created, _created_quote_id: createdQuote?.id }
 		}, {
+			key: 'save:reservation',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('reservation', created?.id),
 			successTitle: entityFeedbackTitle('reservation', 'created'),
@@ -9323,6 +9468,7 @@ export default function Home() {
 			}
 			return created
 		}, {
+			key: 'save:payment',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('payment', created?.id),
 			successTitle: entityFeedbackTitle('payment', 'created'),
@@ -9341,6 +9487,7 @@ export default function Home() {
 			formModalExit.close()
 			return created
 		}, {
+			key: 'save:cash',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('cash-movement', created?.id),
 			successTitle: entityFeedbackTitle('cash-movement', 'created'),
@@ -9350,22 +9497,109 @@ export default function Home() {
 
 	async function saveDebt(event: FormEvent) {
 		event.preventDefault()
+		const isRecurring = Boolean(debtForm.is_recurring)
 		await runAction(async () => {
+			if (isRecurring) {
+				const recurringPayload: AnyRecord = {
+					concept: debtForm.concept,
+					creditor: debtForm.creditor,
+					supplier: debtForm.supplier || null,
+					principal_amount: debtForm.principal_amount,
+					expense_category: debtForm.expense_category,
+					expense_subcategory: debtForm.expense_subcategory,
+					notes: debtForm.notes,
+					interval_unit: debtForm.interval_unit || 'months',
+					interval_count: Number(debtForm.interval_count || 1),
+					start_date: debtForm.origin_date,
+					due_offset_days: Number(debtForm.due_offset_days || 0),
+					end_date: debtForm.end_date || null,
+					max_cycles: debtForm.max_cycles
+						? Number(debtForm.max_cycles)
+						: null,
+					auto_settle: Boolean(debtForm.auto_settle),
+					auto_settle_method: debtForm.auto_settle_method || 'transfer',
+				}
+				const created = await apiFetch<AnyRecord>('/recurring-debts/', {
+					method: 'POST',
+					body: JSON.stringify(recurringPayload),
+				})
+				setDebtForm(blankDebtForm(today))
+				formModalExit.close()
+				return created
+			}
 			const created = await apiFetch<AnyRecord>('/debts/', {
 				method: 'POST',
 				body: JSON.stringify({
-					...debtForm,
-					due_date: debtForm.due_date || null,
+					concept: debtForm.concept,
+					creditor: debtForm.creditor,
 					supplier: debtForm.supplier || null,
+					principal_amount: debtForm.principal_amount,
+					origin_date: debtForm.origin_date,
+					due_date: debtForm.due_date || null,
+					expense_category: debtForm.expense_category,
+					expense_subcategory: debtForm.expense_subcategory,
+					notes: debtForm.notes,
 				}),
 			})
 			setDebtForm(blankDebtForm(today))
 			formModalExit.close()
 			return created
 		}, {
-			flashTarget: (created: AnyRecord) => recordFlashKey('debt', created?.id),
-			successTitle: entityFeedbackTitle('debt', 'created'),
-			undo: undoCreatedRecord('debt'),
+			key: 'save:debt',
+			flashTarget: (created: AnyRecord) =>
+				recordFlashKey(isRecurring ? 'recurring-debt' : 'debt', created?.id),
+			successTitle: entityFeedbackTitle(
+				isRecurring ? 'recurring-debt' : 'debt',
+				'created',
+			),
+			undo: isRecurring ? undefined : undoCreatedRecord('debt'),
+		})
+	}
+
+	async function pauseRecurringDebt(planId: string | number) {
+		await runAction(async () =>
+			apiFetch<AnyRecord>(`/recurring-debts/${planId}/pause/`, {
+				method: 'POST',
+			}),
+		{
+			successTitle: 'Plantilla pausada',
+		})
+	}
+
+	async function resumeRecurringDebt(planId: string | number) {
+		await runAction(async () =>
+			apiFetch<AnyRecord>(`/recurring-debts/${planId}/resume/`, {
+				method: 'POST',
+			}),
+		{
+			successTitle: 'Plantilla reanudada',
+		})
+	}
+
+	async function applyRecurringToCurrent(planId: string | number) {
+		await runAction(async () =>
+			apiFetch<AnyRecord>(`/recurring-debts/${planId}/apply-to-current/`, {
+				method: 'POST',
+			}),
+		{
+			successTitle: 'Cambios aplicados al ciclo actual',
+		})
+	}
+
+	async function deleteRecurringDebt(planId: string | number) {
+		const confirmed =
+			typeof window === 'undefined'
+				? true
+				: window.confirm(
+						'Eliminar la plantilla. Las deudas ya generadas se conservan. Continuar?',
+					)
+		if (!confirmed) return
+		await runAction(async () =>
+			apiFetch<AnyRecord>(`/recurring-debts/${planId}/`, {
+				method: 'DELETE',
+			}),
+		{
+			successTitle: entityFeedbackTitle('recurring-debt', 'deleted'),
 		})
 	}
 
@@ -9413,6 +9647,7 @@ export default function Home() {
 			formModalExit.close()
 			return saved
 		}, {
+			key: 'save:material',
 			flashTarget: (saved: AnyRecord) =>
 				recordFlashKey('material', saved?.id ?? currentId),
 			successTitle: entityFeedbackTitle(
@@ -9440,6 +9675,7 @@ export default function Home() {
 			formModalExit.close()
 			return created
 		}, {
+			key: 'save:supplier',
 			flashTarget: (created: AnyRecord) => recordFlashKey('supplier', created?.id),
 			successTitle: entityFeedbackTitle('supplier', 'created'),
 			undo: undoCreatedRecord('supplier'),
@@ -9545,6 +9781,7 @@ export default function Home() {
 			formModalExit.close()
 			return created
 		}, {
+			key: 'save:stock',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('stock-movement', created?.id),
 			successTitle: entityFeedbackTitle('stock-movement', 'created'),
@@ -9921,6 +10158,7 @@ export default function Home() {
 			formModalExit.close()
 			return created
 		}, {
+			key: 'save:quote',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('quote', created?.id),
 			successTitle: entityFeedbackTitle('quote', 'created'),
@@ -10531,6 +10769,7 @@ export default function Home() {
 						customerForm={customerForm}
 						setCustomerForm={setCustomerForm}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:customer')}
 					/>
 					</Modal>
 				) : null}
@@ -10555,6 +10794,7 @@ export default function Home() {
 						updateVehicleBrand={updateVehicleBrand}
 						focusField={focusField}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:vehicle')}
 					/>
 					</Modal>
 				) : null}
@@ -10587,6 +10827,7 @@ export default function Home() {
 						focusNextOnEnter={focusNextOnEnter}
 						flashClass={flashClass}
 						fieldFlashKey={fieldFlashKey}
+						submitting={isActionPending('save:quote')}
 					/>
 					</Modal>
 				) : null}
@@ -10644,6 +10885,7 @@ export default function Home() {
 						selectedWorkOrderForPayment={selectedWorkOrderForPayment}
 						focusField={focusField}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:payment')}
 					/>
 					</Modal>
 				) : null}
@@ -10666,6 +10908,7 @@ export default function Home() {
 						validCashSubcategoryForCategory={validCashSubcategoryForCategory}
 						focusField={focusField}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:cash')}
 					/>
 					</Modal>
 				) : null}
@@ -10704,6 +10947,7 @@ export default function Home() {
 						registerDebtSubcategory={registerDebtSubcategory}
 						focusField={focusField}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:debt')}
 					/>
 					</Modal>
 				) : null}
@@ -10736,6 +10980,7 @@ export default function Home() {
 						materialForm={materialForm}
 						setMaterialForm={setMaterialForm}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:material')}
 					/>
 					</Modal>
 				) : null}
@@ -10751,6 +10996,7 @@ export default function Home() {
 						supplierForm={supplierForm}
 						setSupplierForm={setSupplierForm}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:supplier')}
 					/>
 					</Modal>
 				) : null}
@@ -10789,6 +11035,7 @@ export default function Home() {
 						createSupplierFromName={createSupplierFromName}
 						flashClass={flashClass}
 						fieldFlashKey={fieldFlashKey}
+						submitting={isActionPending('save:stock')}
 					/>
 					</Modal>
 				) : null}
@@ -10943,6 +11190,7 @@ export default function Home() {
 							focusNextOnEnter={focusNextOnEnter}
 							flashClass={flashClass}
 							fieldFlashKey={fieldFlashKey}
+							submitting={isActionPending('save:reservation')}
 						/>
 					</Modal>
 				) : null}
@@ -11215,19 +11463,12 @@ export default function Home() {
 										}
 									/>
 								</Field>
-								<Field label="Duracion min.">
-									<input
-										type="number"
-										min="1"
-										value={serviceForm.estimated_duration_minutes}
-										onChange={(event) =>
-											setServiceForm({
-												...serviceForm,
-												estimated_duration_minutes: event.target.value,
-											})
-										}
-									/>
-								</Field>
+								<DurationInput
+									form={serviceForm}
+									onPatch={(patch) =>
+										setServiceForm({ ...serviceForm, ...patch })
+									}
+								/>
 							</div>
 							<div className="form-row">
 								{VEHICLE_TYPES.map((type) => (
@@ -11326,6 +11567,7 @@ export default function Home() {
 						supplierForm={supplierForm}
 						setSupplierForm={setSupplierForm}
 						focusNextOnEnter={focusNextOnEnter}
+						submitting={isActionPending('save:supplier:quick')}
 					/>
 					</Modal>
 				) : null}
@@ -11504,6 +11746,7 @@ export default function Home() {
 						items={navItems}
 						active={active}
 						onChange={handleSectionChange}
+						onItemHover={(key) => prefetchSection(key as Section)}
 						footer={
 							!sidebarCollapsed ? (
 								<div className="sidebar-footer-stack">
@@ -11541,9 +11784,23 @@ export default function Home() {
 									>
 										<span className="sidebar-profile-avatar" aria-hidden="true">
 											{safeSidebarAvatarUrl && !sidebarAvatarIsPdf ? (
-												<img src={safeSidebarAvatarUrl} alt="" />
+												<NextImage
+													src={safeSidebarAvatarUrl}
+													alt=""
+													width={42}
+													height={42}
+													loading="lazy"
+													unoptimized
+												/>
 											) : safeSidebarAvatarPdfThumbnail ? (
-												<img src={safeSidebarAvatarPdfThumbnail} alt="" />
+												<NextImage
+													src={safeSidebarAvatarPdfThumbnail}
+													alt=""
+													width={42}
+													height={42}
+													loading="lazy"
+													unoptimized
+												/>
 											) : currentUser.avatar_url ? (
 												<FileText size={18} />
 											) : (
@@ -11561,9 +11818,13 @@ export default function Home() {
 									{businessProfile && sidebarBusinessLogoSrc ? (
 										<div className="sidebar-business-card">
 											<img
-												src={encodeURI(sidebarBusinessLogoSrc)}
+												src={sidebarBusinessLogoSrc}
 												alt={String(businessProfile.name ?? '')}
 												className="sidebar-business-logo"
+												width={220}
+												height={64}
+												loading="lazy"
+												unoptimized
 											/>
 										</div>
 									) : null}
@@ -11608,7 +11869,7 @@ export default function Home() {
 										className="toolbar dashboard-period-toolbar"
 										onSubmit={(event) => {
 											event.preventDefault()
-											loadData({ force: true, section: 'dashboard' })
+											triggerPeriodReloadNow()
 										}}
 									>
 										<Field label="Desde">
@@ -11616,7 +11877,7 @@ export default function Home() {
 												type="date"
 												value={period.from}
 												onChange={(event) =>
-													setPeriod({ ...period, from: event.target.value })
+													schedulePeriodReload({ ...period, from: event.target.value })
 												}
 											/>
 										</Field>
@@ -11625,14 +11886,23 @@ export default function Home() {
 												type="date"
 												value={period.to}
 												onChange={(event) =>
-													setPeriod({ ...period, to: event.target.value })
+													schedulePeriodReload({ ...period, to: event.target.value })
 												}
 											/>
 										</Field>
-										<button className="primary" type="submit">
-											<Search size={16} />
+										<Button
+											type="submit"
+											variant="primary"
+											loading={isDataSetLoading('dashboard')}
+											leadingIcon={<Search size={16} />}
+										>
 											Ver periodo
-										</button>
+										</Button>
+										{isDataSetLoading('dashboard') ? (
+											<span className="panel-stale-badge" role="status" aria-live="polite">
+												Actualizando
+											</span>
+										) : null}
 									</form>
 								) : null}
 								<div className="record-actions">
@@ -11755,6 +12025,12 @@ export default function Home() {
 					<>
 						{customerDashboard && canViewEconomy ? (
 							renderCustomerDashboard()
+						) : isDataSetLoading('customers') && !customers.length ? (
+							<div className="grid">
+								<section className="panel">
+									<SkeletonList rows={8} columns={3} label="Cargando clientes" />
+								</section>
+							</div>
 						) : (
 					<div className="grid">
 						<CustomerListPanel
@@ -12185,10 +12461,16 @@ export default function Home() {
 							{loading &&
 							!agendaLoadError &&
 							!agendaBoardModel.segments.length ? (
-								<LoadingState
-									text="Cargando agenda..."
-									hint="Mantenemos el tablero listo mientras llegan las reservas."
-								/>
+								<div
+									className="agenda-skeleton-grid"
+									role="status"
+									aria-live="polite"
+									aria-label="Cargando agenda"
+								>
+									{Array.from({ length: AGENDA_VISIBLE_DAYS }).map((_, index) => (
+										<SkeletonCard key={index} lines={3} />
+									))}
+								</div>
 							) : null}
 							<DndContext
 								sensors={agendaSensors}
@@ -12354,10 +12636,8 @@ export default function Home() {
 					<CashPanel
 						cashClosure={cash.closure}
 						cashEntries={cashEntries}
-						cashEntryDescription={cashEntryDescription}
 						cashEntryKey={cashEntryKey}
 						cashEntryQuickActions={cashEntryQuickActions}
-						cashEntryTitle={cashEntryTitle}
 						cashFilterCategoryOptions={selectOptionsFromValues(
 							cashFilterCategoryValues,
 							cashFilters.category,
@@ -12371,6 +12651,8 @@ export default function Home() {
 						cashflowTotals={cashflowTotals}
 						cashFlowSummary={cashFlowSummary}
 						cashIsClosed={cashIsClosed}
+						cashQuickFilter={cashQuickFilter}
+						cashSortKey={cashSortKey}
 						cashSourceKindLabel={cashSourceKindLabel}
 						cashSourceKindOptions={cashSourceKindOptions}
 						cashSummaryMode={cashSummaryMode}
@@ -12383,8 +12665,13 @@ export default function Home() {
 						renderQuickActionsTrigger={renderQuickActionsTrigger}
 						selectedDay={selectedDay}
 						onCashFilterChange={updateCashFilter}
+						onCashQuickFilterChange={setCashQuickFilter}
+						onCashSortChange={setCashSortKey}
 						onCashSummaryModeChange={setCashSummaryMode}
-						onClearCashFilters={() => setCashFilters(CASH_FILTER_DEFAULTS)}
+						onClearCashFilters={() => {
+							setCashFilters(CASH_FILTER_DEFAULTS)
+							setCashQuickFilter('all')
+						}}
 						onCloseDay={closeCashDay}
 						onReopenDay={reopenCashDay}
 						onCollectWork={() => openFormModal('payment')}
@@ -12415,6 +12702,11 @@ export default function Home() {
 						loading={loading}
 						loadBlocked={debtLoadBlocked}
 						loadErrorNotice={loadErrorNotice}
+						recurringDebts={recurringDebts}
+						skippedRecurringPeriods={skippedRecurringPeriods}
+						onDismissSkippedRecurring={() =>
+							setSkippedRecurringPeriods([])
+						}
 						recordClass={recordClass}
 						renderQuickActionsTrigger={renderQuickActionsTrigger}
 						search={search}
@@ -12427,12 +12719,22 @@ export default function Home() {
 							openDetailModal('Pago de deuda', item)
 						}
 						onOpenDebtPaymentForDebt={openDebtPaymentForDebt}
+						onPauseRecurringDebt={pauseRecurringDebt}
+						onResumeRecurringDebt={resumeRecurringDebt}
+						onApplyRecurringToCurrent={applyRecurringToCurrent}
+						onDeleteRecurringDebt={deleteRecurringDebt}
 						onQuickActionsContext={openQuickActionsFromContext}
 						onRefresh={() => loadData({ force: true })}
 						onSearchChange={setSearch}
 					/>
 				) : null}
-				{displayedActive === 'inventory' ? (
+				{displayedActive === 'inventory' && isDataSetLoading('materials') && !materials.length ? (
+					<div className="grid">
+						<section className="panel">
+							<SkeletonList rows={6} columns={4} label="Cargando inventario" />
+						</section>
+					</div>
+				) : displayedActive === 'inventory' ? (
 					<InventoryPanel
 						availableQuickActions={availableQuickActions}
 						consumptions={consumptions}

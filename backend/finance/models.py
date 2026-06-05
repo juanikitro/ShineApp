@@ -27,6 +27,12 @@ class Payment(models.Model):
 
     class Meta:
         ordering = ["-paid_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["business", "-paid_at"],
+                name="pay_biz_paid_at_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.work_order_id} - {self.amount}"
@@ -77,6 +83,12 @@ class CashMovement(models.Model):
 
     class Meta:
         ordering = ["-occurred_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["business", "-occurred_at"],
+                name="cm_biz_occurred_at_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.movement_type} {self.amount}"

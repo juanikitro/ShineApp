@@ -4,6 +4,7 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { Wrench } from 'lucide-react'
 
+import { DurationInput } from '@/app/components/ui/DurationInput'
 import { Field } from '@/app/components/ui/Field'
 import { NumericInput } from '@/app/components/ui/NumericInput'
 import { SearchSelect } from '@/app/components/ui/SearchSelect'
@@ -93,22 +94,13 @@ export function ServiceForm({
 						onKeyDown={focusNextOnEnter('service.duration')}
 					/>
 				</Field>
-				<Field label="Duracion estimada">
-					<input
-						data-focus-key="service.duration"
-						required
-						type="number"
-						min="1"
-						value={serviceForm.estimated_duration_minutes}
-						onChange={(event) =>
-							setServiceForm({
-								...serviceForm,
-								estimated_duration_minutes: event.target.value,
-							})
-						}
-						onKeyDown={focusNextOnEnter('service.notes')}
-					/>
-				</Field>
+				<DurationInput
+					form={serviceForm}
+					onPatch={(patch) => setServiceForm({ ...serviceForm, ...patch })}
+					focusKey="service.duration"
+					required
+					onKeyDown={focusNextOnEnter('service.notes')}
+				/>
 			</div>
 			<div className="form-row">
 				{VEHICLE_TYPES.map((type) => (

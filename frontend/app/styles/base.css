@@ -611,3 +611,96 @@ label {
   }
 }
 
+/* Button primitive: loading + spinner + size variant */
+button.is-loading {
+  cursor: progress;
+  position: relative;
+}
+
+button[aria-busy="true"] {
+  pointer-events: none;
+}
+
+.button-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: button-spin 0.7s linear infinite;
+  margin-right: 6px;
+  vertical-align: -2px;
+}
+
+@keyframes button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+button.button-sm {
+  padding: 4px 8px;
+  font-size: 0.85rem;
+}
+
+.button-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Skeleton primitives: shimmer placeholder for slow first-load */
+.skeleton {
+  display: inline-block;
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base, #e5e7eb) 0%,
+    var(--skeleton-highlight, #f3f4f6) 50%,
+    var(--skeleton-base, #e5e7eb) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+[data-theme="dark"] .skeleton {
+  --skeleton-base: #1f2937;
+  --skeleton-highlight: #2d3748;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.skeleton-row {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.skeleton-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+

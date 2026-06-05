@@ -4,10 +4,19 @@ from django.conf import settings
 from django.db import models
 
 
+WASH_BUCKET = "wash"
+DETAILING_BUCKET = "detailing"
+
+
+def bucket_for_service_type(service_type):
+    return DETAILING_BUCKET if service_type == "detailing" else WASH_BUCKET
+
+
 class DailyCapacity(models.Model):
     business = models.ForeignKey("core.BusinessAccount", related_name="daily_capacities", on_delete=models.PROTECT)
     day = models.DateField()
-    max_slots = models.PositiveIntegerField(default=settings.DEFAULT_DAILY_CAPACITY)
+    max_slots_wash = models.PositiveIntegerField(default=settings.DEFAULT_DAILY_CAPACITY)
+    max_slots_detailing = models.PositiveIntegerField(default=settings.DEFAULT_DAILY_CAPACITY)
     notes = models.CharField(max_length=180, blank=True)
 
     class Meta:
@@ -17,7 +26,12 @@ class DailyCapacity(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.day}: {self.max_slots} turnos"
+        return f"{self.day}: lavado {self.max_slots_wash} / detailing {self.max_slots_detailing}"
+
+    def slots_for_bucket(self, bucket):
+        if bucket == DETAILING_BUCKET:
+            return self.max_slots_detailing
+        return self.max_slots_wash
 
     def save(self, *args, **kwargs):
         if not self.business_id:
@@ -52,6 +66,12 @@ class Reservation(models.Model):
 
     class Meta:
         ordering = ["day", "start_time", "id"]
+        indexes = [
+            models.Index(
+                fields=["business", "day", "status"],
+                name="resv_biz_day_status_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.day} - {self.customer} - {self.service}"
@@ -183,21 +203,31 @@ class Reservation(models.Model):
         return cls.Status.DELIVERED
 
     @classmethod
-    def capacity_for_day(cls, day, business=None):
+    def capacity_for_day(cls, day, business=None, bucket=WASH_BUCKET):
         queryset = DailyCapacity.objects.filter(day=day)
         if business is not None:
             queryset = queryset.filter(business=business)
         capacity = queryset.first()
-        return capacity.max_slots if capacity else settings.DEFAULT_DAILY_CAPACITY
+        if capacity:
+            return capacity.slots_for_bucket(bucket)
+        return settings.DEFAULT_DAILY_CAPACITY
 
     @classmethod
-    def used_slots_for_day(cls, day, exclude_id=None, business=None):
+    def used_slots_for_day(cls, day, exclude_id=None, business=None, bucket=None):
         queryset = cls.objects.filter(day=day, status__in=cls.active_statuses())
         if business is not None:
             queryset = queryset.filter(business=business)
+        if bucket == DETAILING_BUCKET:
+            queryset = queryset.filter(service__service_type="detailing")
+        elif bucket == WASH_BUCKET:
+            queryset = queryset.exclude(service__service_type="detailing")
         if exclude_id:
             queryset = queryset.exclude(pk=exclude_id)
         return queryset.count()
+
+    @classmethod
+    def bucket_for_service(cls, service):
+        return bucket_for_service_type(getattr(service, "service_type", None))
 
 
 class ReservationItem(models.Model):

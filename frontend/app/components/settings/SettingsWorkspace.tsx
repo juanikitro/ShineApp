@@ -766,9 +766,13 @@ function DailyCapacitiesPanel({
 						<RecordCard key={item.id}>
 							<RecordCardHeader
 								title={formatFullDateLabel(item.day)}
-								subtitle={`${item.max_slots} turnos - ${
-									item.used_slots ?? 0
-								} usados - ${item.available_slots ?? 0} disponibles`}
+								subtitle={`Lavado ${item.max_slots_wash ?? 0} (usados ${
+									item.used_slots_wash ?? 0
+								} / libres ${item.available_slots_wash ?? 0}) - Detailing ${
+									item.max_slots_detailing ?? 0
+								} (usados ${item.used_slots_detailing ?? 0} / libres ${
+									item.available_slots_detailing ?? 0
+								})`}
 								actions={
 									<>
 										<button

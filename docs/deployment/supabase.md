@@ -7,6 +7,8 @@
 3. Para Vercel serverless, preferir la URL del pooler. Usar transaction pooler para cargas cortas request/response salvo que necesites funcionalidades de sesion.
 4. Guardarla en el proyecto API como `DATABASE_URL`.
 5. Setear `DATABASE_SSL_REQUIRE=1`.
+6. Connection pooling: `settings_production.py` ahora usa `conn_max_age=300` y `conn_health_checks=True` por default. Ambos son configurables via `DATABASE_CONN_MAX_AGE` y `DATABASE_CONN_HEALTH_CHECKS`. Con esto Django reusa la conexion entre requests dentro del mismo contenedor de Vercel (~50-200ms menos por request). Si Vercel apaga el contenedor por inactividad, simplemente abre una nueva conexion en la primera request.
+7. Para cargas mayores (alta concurrencia o multiples contenedores serverless en paralelo) considerar el transaction pooler de Supabase en puerto 6543: cambiar `DATABASE_URL` a la URL del pooler en transaction mode. NO requiere cambio de codigo; el pooler maneja la concurrencia. Trade-off: el transaction pooler no soporta prepared statements ni session-level features (LISTEN/NOTIFY). Django funciona OK en transaction mode.
 
 Proyecto demo actual:
 

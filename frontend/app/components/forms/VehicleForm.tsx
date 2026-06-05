@@ -4,6 +4,7 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { Car } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import {
 	SearchSelect,
@@ -26,6 +27,7 @@ type VehicleFormProps = {
 	updateVehicleCustomer: (value: string) => void
 	updateVehicleBrand: (value: string) => void
 	focusField: (key: string) => void
+	submitting?: boolean
 	focusNextOnEnter: (
 		key: string,
 		openCombo?: boolean,
@@ -47,6 +49,7 @@ export function VehicleForm({
 	updateVehicleBrand,
 	focusField,
 	focusNextOnEnter,
+	submitting = false,
 }: VehicleFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -144,10 +147,15 @@ export function VehicleForm({
 					/>
 				</Field>
 			</div>
-			<button className="primary" data-focus-key="vehicle.submit">
-				<Car size={16} />
+			<Button
+				type="submit"
+				variant="primary"
+				loading={submitting}
+				leadingIcon={<Car size={16} />}
+				data-focus-key="vehicle.submit"
+			>
 				{submitLabel}
-			</button>
+			</Button>
 		</form>
 	)
 }
