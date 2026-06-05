@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "generate:changelog": "node scripts/generate-changelog.mjs",
+    "predev": "npm run generate:changelog",
+    "prebuild": "npm run generate:changelog",
+    "pretest": "npm run generate:changelog",
     "dev": "next dev --port 9000",
     "dev:docker": "next dev --hostname 0.0.0.0 --port 3000",
     "test": "vitest run",

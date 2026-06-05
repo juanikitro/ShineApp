@@ -25,7 +25,6 @@ type BusinessSettingsPanelProps = {
 	businessLogoPdfStatus: string
 	businessLogoPreview: string | null
 	businessProfile?: AnyRecord | null
-	businessSlug: string
 	safeBusinessLogoPdfThumbnail: string | null
 	safeBusinessLogoPreview: string | null
 	onBusinessLogoChange: (event: ChangeEvent<HTMLInputElement>) => void
@@ -43,7 +42,6 @@ export function BusinessSettingsPanel({
 	businessLogoPdfStatus,
 	businessLogoPreview,
 	businessProfile,
-	businessSlug,
 	safeBusinessLogoPdfThumbnail,
 	safeBusinessLogoPreview,
 	onBusinessLogoChange,
@@ -51,17 +49,11 @@ export function BusinessSettingsPanel({
 	onPatchBusinessForm,
 	onSaveBusinessProfile,
 }: BusinessSettingsPanelProps) {
-	const publicLandingUrl = businessSlug
-		? `${typeof window !== 'undefined' ? window.location.origin : ''}/publica/${businessSlug}`
-		: ''
 	const publicLandingEnabled = businessForm.public_landing_enabled !== false
 	const bookingRequestsEnabled =
 		businessForm.allow_public_booking_requests !== false
 	const quoteRequestsEnabled =
 		businessForm.allow_public_quote_requests !== false
-	const showWashServices = businessForm.public_show_wash_services !== false
-	const showDetailingServices =
-		businessForm.public_show_detailing_services !== false
 
 	return (
 		<section className="panel">
@@ -281,127 +273,6 @@ export function BusinessSettingsPanel({
 						}
 					/>
 				</Field>
-				<div className="landing-config">
-					<Field label="URL publica">
-						<input
-							readOnly
-							name="business_public_url"
-							value={publicLandingUrl}
-							placeholder="Disponible al iniciar sesion con negocio"
-						/>
-					</Field>
-					<label>
-						<input
-							type="checkbox"
-							name="business_public_landing_enabled"
-							checked={businessForm.public_landing_enabled !== false}
-							onChange={(event) =>
-								onPatchBusinessForm({
-									public_landing_enabled: event.target.checked,
-								})
-							}
-						/>
-						Landing publica activa
-					</label>
-					<div className="form-row">
-						<label>
-							<input
-								type="checkbox"
-								name="business_allow_public_booking_requests"
-								checked={
-									businessForm.allow_public_booking_requests !== false
-								}
-								onChange={(event) =>
-									onPatchBusinessForm({
-										allow_public_booking_requests: event.target.checked,
-									})
-								}
-							/>
-							Recibir pedidos de turno
-						</label>
-						<label>
-							<input
-								type="checkbox"
-								name="business_allow_public_quote_requests"
-								checked={businessForm.allow_public_quote_requests !== false}
-								onChange={(event) =>
-									onPatchBusinessForm({
-										allow_public_quote_requests: event.target.checked,
-									})
-								}
-							/>
-							Recibir pedidos de cotizacion
-						</label>
-					</div>
-					<div className="form-row">
-						<label>
-							<input
-								type="checkbox"
-								name="business_public_show_wash_services"
-								checked={showWashServices}
-								onChange={(event) =>
-									onPatchBusinessForm({
-										public_show_wash_services: event.target.checked,
-									})
-								}
-							/>
-							Mostrar servicios de lavadero
-						</label>
-						<label>
-							<input
-								type="checkbox"
-								name="business_public_show_detailing_services"
-								checked={showDetailingServices}
-								onChange={(event) =>
-									onPatchBusinessForm({
-										public_show_detailing_services: event.target.checked,
-									})
-								}
-							/>
-							Mostrar servicios de detailing
-						</label>
-					</div>
-					<Field label="Texto corto para la landing">
-						<textarea
-							maxLength={240}
-							name="business_public_landing_intro"
-							autoComplete="off"
-							rows={3}
-							value={businessForm.public_landing_intro}
-							onChange={(event) =>
-								onPatchBusinessForm({
-									public_landing_intro: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<div className="form-row">
-						<Field label="Apertura">
-							<input
-								type="time"
-								name="business_opening_time"
-								value={businessForm.opening_time ?? ''}
-								onChange={(event) =>
-									onPatchBusinessForm({
-										opening_time: event.target.value || null,
-									})
-								}
-							/>
-						</Field>
-						<Field label="Cierre">
-							<input
-								type="time"
-								name="business_closing_time"
-								value={businessForm.closing_time ?? ''}
-								onChange={(event) =>
-									onPatchBusinessForm({
-										closing_time: event.target.value || null,
-									})
-								}
-							/>
-						</Field>
-					</div>
-				</div>
 			</form>
 		</section>
 	)

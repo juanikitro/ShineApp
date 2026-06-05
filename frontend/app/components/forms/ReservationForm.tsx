@@ -5,6 +5,7 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 import { Plus } from 'lucide-react'
 
 import { AnimatedLabelSwap } from '@/app/components/motion/AnimatedLabelSwap'
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { NumericInput } from '@/app/components/ui/NumericInput'
 import {
@@ -46,6 +47,7 @@ type ReservationFormProps = {
 	) => (event: KeyboardEvent<HTMLElement>) => void
 	flashClass: (key: string | null) => string
 	fieldFlashKey: (target: string) => string
+	submitting?: boolean
 }
 
 export function ReservationForm({
@@ -70,6 +72,7 @@ export function ReservationForm({
 	focusNextOnEnter,
 	flashClass,
 	fieldFlashKey,
+	submitting = false,
 }: ReservationFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -296,10 +299,15 @@ export function ReservationForm({
 					}
 				/>
 			</Field>
-			<button className="primary" data-focus-key="reservation.submit">
-				<Plus size={16} />
+			<Button
+				type="submit"
+				variant="primary"
+				loading={submitting}
+				leadingIcon={<Plus size={16} />}
+				data-focus-key="reservation.submit"
+			>
 				<AnimatedLabelSwap label={submitLabel} />
-			</button>
+			</Button>
 		</form>
 	)
 }

@@ -32,6 +32,12 @@ class WorkOrder(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["business", "-created_at"],
+                name="wo_biz_created_idx",
+            ),
+        ]
 
     @classmethod
     def operational_statuses(cls):

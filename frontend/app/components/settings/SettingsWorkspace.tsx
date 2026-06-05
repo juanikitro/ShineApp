@@ -22,6 +22,7 @@ import {
 import changelogData from '@/app/data/changelog.generated.json'
 
 import { BusinessSettingsPanel } from '@/app/components/settings/BusinessSettingsPanel'
+import { TurneraSettingsPanel } from '@/app/components/settings/TurneraSettingsPanel'
 import { Empty, LoadingState } from '@/app/components/ui/Empty'
 import { Field } from '@/app/components/ui/Field'
 import { MetricCard } from '@/app/components/ui/MetricCard'
@@ -48,6 +49,7 @@ import {
 
 export type SettingsSection =
 	| 'business'
+	| 'turnera'
 	| 'quotes'
 	| 'cash'
 	| 'agenda'
@@ -79,8 +81,13 @@ type SettingsWorkspaceProps = {
 	cashClassificationPairs: CashClassificationPair[]
 	expenseClassificationPairs: AnyRecord[]
 	incomeClassificationPairs: AnyRecord[]
+	services: AnyRecord[]
 	useReservationTimes: boolean
 	showStayDaysInAgenda: boolean
+	reservationUsePending: boolean
+	reservationUseInProgress: boolean
+	reservationUseReady: boolean
+	reservationUseCanceled: boolean
 	dailyCapacities: AnyRecord[]
 	employees: AnyRecord[]
 	activeEmployeeCount: number
@@ -138,8 +145,13 @@ export function SettingsWorkspace({
 	cashClassificationPairs,
 	expenseClassificationPairs,
 	incomeClassificationPairs,
+	services,
 	useReservationTimes,
 	showStayDaysInAgenda,
+	reservationUsePending,
+	reservationUseInProgress,
+	reservationUseReady,
+	reservationUseCanceled,
 	dailyCapacities,
 	employees,
 	activeEmployeeCount,
@@ -199,11 +211,19 @@ export function SettingsWorkspace({
 						businessLogoPdfStatus={businessLogoPdfStatus}
 						businessLogoPreview={businessLogoPreview}
 						businessProfile={businessProfile}
-						businessSlug={businessSlug}
 						safeBusinessLogoPdfThumbnail={safeBusinessLogoPdfThumbnail}
 						safeBusinessLogoPreview={safeBusinessLogoPreview}
 						onBusinessLogoChange={onBusinessLogoChange}
 						onOpenBusinessLogoPicker={onOpenBusinessLogoPicker}
+						onPatchBusinessForm={onPatchBusinessForm}
+						onSaveBusinessProfile={onSaveBusinessProfile}
+					/>
+				) : null}
+				{settingsSection === 'turnera' ? (
+					<TurneraSettingsPanel
+						businessForm={businessForm}
+						businessSlug={businessSlug}
+						services={services}
 						onPatchBusinessForm={onPatchBusinessForm}
 						onSaveBusinessProfile={onSaveBusinessProfile}
 					/>
@@ -228,6 +248,10 @@ export function SettingsWorkspace({
 				{settingsSection === 'agenda' ? (
 					<>
 						<AgendaSettingsPanel
+							reservationUsePending={reservationUsePending}
+							reservationUseInProgress={reservationUseInProgress}
+							reservationUseReady={reservationUseReady}
+							reservationUseCanceled={reservationUseCanceled}
 							showStayDaysInAgenda={showStayDaysInAgenda}
 							useReservationTimes={useReservationTimes}
 							onPatchBusinessForm={onPatchBusinessForm}
@@ -508,16 +532,31 @@ function CashSettingsPanel({
 }
 
 function AgendaSettingsPanel({
+	reservationUsePending,
+	reservationUseInProgress,
+	reservationUseReady,
+	reservationUseCanceled,
 	showStayDaysInAgenda,
 	useReservationTimes,
 	onPatchBusinessForm,
 	onSaveBusinessProfile,
 }: {
+	reservationUsePending: boolean
+	reservationUseInProgress: boolean
+	reservationUseReady: boolean
+	reservationUseCanceled: boolean
 	showStayDaysInAgenda: boolean
 	useReservationTimes: boolean
 	onPatchBusinessForm: (patch: AnyRecord) => void
 	onSaveBusinessProfile: (event: FormEvent) => void
 }) {
+	const activeFlowLabels: string[] = []
+	if (reservationUsePending) activeFlowLabels.push('Pendiente')
+	activeFlowLabels.push('Confirmada')
+	if (reservationUseInProgress) activeFlowLabels.push('En proceso')
+	if (reservationUseReady) activeFlowLabels.push('Listo')
+	activeFlowLabels.push('Entregada')
+	const activeFlowSummary = activeFlowLabels.join(' → ')
 	return (
 		<section className="panel">
 			<div className="panel-head">
@@ -592,10 +631,103 @@ function AgendaSettingsPanel({
 							}
 						/>
 					</RecordCard>
+					<RecordCard>
+						<RecordCardHeader
+							title="Estado Pendiente"
+							subtitle="Si lo ocultas, las reservas nuevas se crean directamente como Confirmada."
+							actions={
+								<SegmentedControl
+									ariaLabel="Estado Pendiente"
+									className="settings-mode-toggle"
+									options={[
+										{ value: 'use', label: 'Usar' },
+										{ value: 'skip', label: 'Saltar' },
+									]}
+									value={reservationUsePending ? 'use' : 'skip'}
+									onChange={(nextValue) =>
+										onPatchBusinessForm({
+											reservation_use_pending: nextValue === 'use',
+										})
+									}
+								/>
+							}
+						/>
+					</RecordCard>
+					<RecordCard>
+						<RecordCardHeader
+							title="Estado En proceso"
+							subtitle="Si lo ocultas, una reserva Confirmada salta directamente al siguiente paso activo."
+							actions={
+								<SegmentedControl
+									ariaLabel="Estado En proceso"
+									className="settings-mode-toggle"
+									options={[
+										{ value: 'use', label: 'Usar' },
+										{ value: 'skip', label: 'Saltar' },
+									]}
+									value={reservationUseInProgress ? 'use' : 'skip'}
+									onChange={(nextValue) =>
+										onPatchBusinessForm({
+											reservation_use_in_progress: nextValue === 'use',
+										})
+									}
+								/>
+							}
+						/>
+					</RecordCard>
+					<RecordCard>
+						<RecordCardHeader
+							title="Estado Listo"
+							subtitle="Si lo ocultas, no hay paso intermedio entre el trabajo terminado y la entrega."
+							actions={
+								<SegmentedControl
+									ariaLabel="Estado Listo"
+									className="settings-mode-toggle"
+									options={[
+										{ value: 'use', label: 'Usar' },
+										{ value: 'skip', label: 'Saltar' },
+									]}
+									value={reservationUseReady ? 'use' : 'skip'}
+									onChange={(nextValue) =>
+										onPatchBusinessForm({
+											reservation_use_ready: nextValue === 'use',
+										})
+									}
+								/>
+							}
+						/>
+					</RecordCard>
+					<RecordCard>
+						<RecordCardHeader
+							title="Estado Cancelada"
+							subtitle="Si lo ocultas, la accion Cancelar elimina la reserva directamente."
+							actions={
+								<SegmentedControl
+									ariaLabel="Estado Cancelada"
+									className="settings-mode-toggle"
+									options={[
+										{ value: 'use', label: 'Usar' },
+										{ value: 'skip', label: 'Saltar' },
+									]}
+									value={reservationUseCanceled ? 'use' : 'skip'}
+									onChange={(nextValue) =>
+										onPatchBusinessForm({
+											reservation_use_canceled: nextValue === 'use',
+										})
+									}
+								/>
+							}
+						/>
+					</RecordCard>
 				</div>
 				<div className="record-sub">
 					Si ocultas las horas, los datos historicos se conservan pero dejan de
 					mostrarse y las nuevas reservas se guardan sin horario.
+				</div>
+				<div className="record-sub">
+					Flujo de reserva activo: {activeFlowSummary}. Al guardar, las reservas
+					existentes en estados que ocultes se moveran automaticamente al
+					siguiente activo (o se eliminaran si ocultas Cancelada).
 				</div>
 			</form>
 		</section>
@@ -646,9 +778,13 @@ function DailyCapacitiesPanel({
 						<RecordCard key={item.id}>
 							<RecordCardHeader
 								title={formatFullDateLabel(item.day)}
-								subtitle={`${item.max_slots} turnos - ${
-									item.used_slots ?? 0
-								} usados - ${item.available_slots ?? 0} disponibles`}
+								subtitle={`Lavado ${item.max_slots_wash ?? 0} (usados ${
+									item.used_slots_wash ?? 0
+								} / libres ${item.available_slots_wash ?? 0}) - Detailing ${
+									item.max_slots_detailing ?? 0
+								} (usados ${item.used_slots_detailing ?? 0} / libres ${
+									item.available_slots_detailing ?? 0
+								})`}
 								actions={
 									<>
 										<button

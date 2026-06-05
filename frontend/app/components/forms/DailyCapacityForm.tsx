@@ -38,18 +38,34 @@ export function DailyCapacityForm({
 						}
 					/>
 				</Field>
-				<Field label="Turnos maximos">
+				<Field label="Turnos lavado">
 					<input
-						data-focus-key="daily-capacity.max_slots"
+						data-focus-key="daily-capacity.max_slots_wash"
 						required
 						type="number"
 						min="0"
 						placeholder="8"
-						value={dailyCapacityForm.max_slots ?? ''}
+						value={dailyCapacityForm.max_slots_wash ?? ''}
 						onChange={(event) =>
 							setDailyCapacityForm({
 								...dailyCapacityForm,
-								max_slots: event.target.value,
+								max_slots_wash: event.target.value,
+							})
+						}
+					/>
+				</Field>
+				<Field label="Turnos detailing">
+					<input
+						data-focus-key="daily-capacity.max_slots_detailing"
+						required
+						type="number"
+						min="0"
+						placeholder="4"
+						value={dailyCapacityForm.max_slots_detailing ?? ''}
+						onChange={(event) =>
+							setDailyCapacityForm({
+								...dailyCapacityForm,
+								max_slots_detailing: event.target.value,
 							})
 						}
 					/>

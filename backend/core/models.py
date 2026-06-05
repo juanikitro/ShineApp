@@ -289,12 +289,17 @@ class BusinessProfile(models.Model):
     closing_time = models.TimeField(null=True, blank=True)
     use_reservation_times = models.BooleanField(default=True)
     show_stay_days_in_agenda = models.BooleanField(default=True)
+    reservation_use_pending = models.BooleanField(default=True)
+    reservation_use_in_progress = models.BooleanField(default=True)
+    reservation_use_ready = models.BooleanField(default=True)
+    reservation_use_canceled = models.BooleanField(default=True)
     public_landing_enabled = models.BooleanField(default=True)
     public_landing_intro = models.CharField(max_length=240, blank=True)
     allow_public_booking_requests = models.BooleanField(default=True)
     allow_public_quote_requests = models.BooleanField(default=True)
     public_show_wash_services = models.BooleanField(default=True)
     public_show_detailing_services = models.BooleanField(default=True)
+    public_hidden_service_ids = models.JSONField(default=list, blank=True)
     income_category_tree = models.JSONField(
         default=default_income_category_tree,
         blank=True,

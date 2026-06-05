@@ -17,3 +17,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [MkDocs Material para documentacion viva](2026-05-20-mkdocs-material-documentacion-viva.md)
 - [Pricing por tipo de vehiculo](2026-06-02-pricing-por-tipo-vehiculo.md)
 - [Regla: toda feature nueva debe tener su ModelAdmin registrado](2026-06-02-regla-feature-nueva-admin-registrado.md)
+- [Estados de reserva configurables por negocio](2026-06-05-estados-reserva-configurables.md)
