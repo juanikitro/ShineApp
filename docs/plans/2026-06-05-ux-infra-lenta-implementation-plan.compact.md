@@ -45,10 +45,10 @@
 ## Tareas
 
 ### T1: Abort + dedup en `apiFetch`
-- [ ] aceptar `signal` en `apiFetch`/`publicApiFetch`.
-- [ ] `Map<key, Promise>` para dedup de GETs.
-- [ ] separar `apiPage<T>(path)` (no recorre next).
-- [ ] validar: `npx vitest run lib/api`.
+- [x] aceptar `signal` en `apiFetch`/`publicApiFetch`.
+- [x] `Map<key, Promise>` para dedup de GETs.
+- [x] separar `apiPage<T>(path)` (no recorre next).
+- [x] validar: `npx vitest run lib/api`.
 
 ### T2: `useRunAction` hook
 - [ ] hook con `{run, pending, isPending(key), pendingKeys}` en `page-support.tsx`.
