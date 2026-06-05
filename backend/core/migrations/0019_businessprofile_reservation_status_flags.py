@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("core", "0017_businessprofile_public_service_type_filters"),
+        ("core", "0018_businessprofile_public_hidden_service_ids"),
     ]
 
     operations = [

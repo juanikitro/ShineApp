@@ -669,7 +669,7 @@ async function loadData(options: LoadDataOptions = {}) {
 
 - [ ] **Paso 3: Stale-while-revalidate — no vaciar datos al cambiar scope**
 
-El `useEffect` actual ([page.tsx:2122-2126](frontend/app/page.tsx)) ya no resetea state previo; sigue mostrando datos viejos hasta que llegan nuevos. **Agregar `period` a deps** (gap del diagnostico):
+El `useEffect` actual ([page.tsx:2122-2126](https://github.com/juanikitro/ShineApp/blob/development/frontend/app/page.tsx#L2122-2126)) ya no resetea state previo; sigue mostrando datos viejos hasta que llegan nuevos. **Agregar `period` a deps** (gap del diagnostico):
 
 ```ts
 useEffect(() => {
@@ -697,7 +697,7 @@ Esperado: build pasa.
 
 - [ ] **Paso 1: Instanciar `useRunAction` en `Home`**
 
-Reemplazar la funcion `runAction` actual ([page.tsx:3328](frontend/app/page.tsx:3328)) por:
+Reemplazar la funcion `runAction` actual ([page.tsx:3328](https://github.com/juanikitro/ShineApp/blob/development/frontend/app/page.tsx#L3328)) por:
 
 ```ts
 const runActionApi = useRunAction({
@@ -792,7 +792,7 @@ Esperado: build pasa, sin errores TS.
 
 - [ ] **Paso 1: Debounce del filtro de periodo**
 
-Reemplazar el `<form onSubmit={...}>` actual ([page.tsx:11565-11595](frontend/app/page.tsx:11565)) por inputs con debounce. Mantener el boton "Ver periodo" como fallback accesible (Enter / boton).
+Reemplazar el `<form onSubmit={...}>` actual ([page.tsx:11565-11595](https://github.com/juanikitro/ShineApp/blob/development/frontend/app/page.tsx#L11565)) por inputs con debounce. Mantener el boton "Ver periodo" como fallback accesible (Enter / boton).
 
 ```tsx
 const periodChangeTimeoutRef = useRef<number | null>(null)
@@ -1035,7 +1035,7 @@ npm run build
 
 - [ ] **Paso 1: Reemplazar `<img>` por `<Image>` con `loading="lazy"`**
 
-Localizar el avatar del sidebar ([page.tsx:11501-11509](frontend/app/page.tsx:11501)) y migrarlo:
+Localizar el avatar del sidebar ([page.tsx:11501-11509](https://github.com/juanikitro/ShineApp/blob/development/frontend/app/page.tsx#L11501)) y migrarlo:
 
 ```tsx
 import Image from 'next/image'

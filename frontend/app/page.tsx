@@ -11862,10 +11862,6 @@ export default function Home() {
 												src={sidebarBusinessLogoSrc}
 												alt={String(businessProfile.name ?? '')}
 												className="sidebar-business-logo"
-												width={220}
-												height={64}
-												loading="lazy"
-												unoptimized
 											/>
 										</div>
 									) : null}
