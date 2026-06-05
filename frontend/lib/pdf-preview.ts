@@ -15,6 +15,7 @@ export function safeImageAssetSource(value: string | null | undefined) {
 	const source = value.trim()
 	if (!source) return null
 	if (SAFE_IMAGE_DATA_URL_PATTERN.test(source)) return source
+	if (source.startsWith('blob:')) return source
 
 	try {
 		const parsed = new URL(source, 'http://localhost')
