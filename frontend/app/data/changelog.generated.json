@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-06-05",
+    "items": [
+      {
+        "slug": "fix-auto-cierre-por-vista-futura",
+        "title": "Fix: caja del dia se cerraba al ver un dia futuro (2026-06-05)",
+        "sections": []
+      }
+    ]
+  },
+  {
     "date": "2026-06-03",
     "items": [
       {
