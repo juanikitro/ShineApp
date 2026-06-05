@@ -2158,6 +2158,15 @@ export default function Home() {
 		}
 	}, [currentUser, displayedActive, selectedDay, settingsSection, token])
 
+	const prefetchedSectionsRef = useRef<Set<Section>>(new Set())
+	function prefetchSection(section: Section) {
+		if (!token || !currentUser) return
+		if (section === displayedActive) return
+		if (prefetchedSectionsRef.current.has(section)) return
+		prefetchedSectionsRef.current.add(section)
+		loadData({ section })
+	}
+
 	const periodReloadTimeoutRef = useRef<number | null>(null)
 	function schedulePeriodReload(next: { from: string; to: string }) {
 		setPeriod(next)
@@ -11553,6 +11562,7 @@ export default function Home() {
 						items={navItems}
 						active={active}
 						onChange={handleSectionChange}
+						onItemHover={(key) => prefetchSection(key as Section)}
 						footer={
 							!sidebarCollapsed ? (
 								<div className="sidebar-footer-stack">

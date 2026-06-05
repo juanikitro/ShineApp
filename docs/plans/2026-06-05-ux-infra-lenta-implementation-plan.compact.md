@@ -109,9 +109,10 @@ Nota: el plan original tenia un hook `useRunAction` que tomaba todos los handler
 - [x] validar: tsc + 39 tests UI verdes.
 
 ### T9: Prefetch hover sidebar
-- [ ] `prefetchSection(section)` con `prefetchedSectionsRef`.
-- [ ] `SidebarNav` acepta `onItemHover`, dispara en `onMouseEnter`/`onFocus`.
-- [ ] validar: `npm run build`.
+- [x] `SidebarNav` acepta `onItemHover?: (key: string) => void`, dispara en `onMouseEnter` + `onFocus` (teclado-friendly) en los 3 tipos de boton: leaf, parent, child.
+- [x] `prefetchSection(section)` en page.tsx: skip si no hay token, si es la seccion activa o si ya fue prefetched (Set memorial). Llama `loadData({ section })` sin force → respeta cache, va al backend solo si la seccion nunca se cargo.
+- [x] wire en `<SidebarNav onItemHover={key => prefetchSection(key as Section)}>`.
+- [x] validar: tsc verde.
 
 ### T10: Optimistic en work order status (solo)
 - [ ] helper `runOptimistic({key, optimistic, rollback, action})`.
