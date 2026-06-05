@@ -12,6 +12,7 @@ frontend/coverage/
 frontend/node_modules/
 frontend/.env.local
 frontend/tsconfig.tsbuildinfo
+frontend/app/data/changelog.generated.json
 site/
 .env
 .env.demo
