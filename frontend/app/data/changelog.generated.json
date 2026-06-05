@@ -13,6 +13,26 @@
         ]
       },
       {
+        "slug": "turnera-tab-configuracion",
+        "title": "Turnera: tab propia en Configuracion",
+        "sections": [
+          {
+            "heading": "Cambio",
+            "text": "Configuracion suma una nueva pestaña llamada Turnera (icono Globe) entre Negocio y Cotizaciones. Los controles de la pagina publica que vivian dentro del panel Negocio se mueven completos al nuevo panel."
+          }
+        ]
+      },
+      {
+        "slug": "turnera-servicios-visibles",
+        "title": "Turnera: control fino de servicios visibles + split en landing",
+        "sections": [
+          {
+            "heading": "Cambio",
+            "text": "La pestaña Turnera suma seleccion individual de servicios visibles en la pagina publica y agrupa los servicios por tipo en la landing publica."
+          }
+        ]
+      },
+      {
         "slug": "pwa-instalable-ios-android",
         "title": "Frontend: PWA instalable en iOS y Android (CRM y landing publica)",
         "sections": [

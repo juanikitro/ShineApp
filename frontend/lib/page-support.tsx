@@ -215,6 +215,7 @@ function blankBusinessForm() {
 		public_landing_intro: '',
 		allow_public_booking_requests: true,
 		allow_public_quote_requests: true,
+		public_hidden_service_ids: [] as number[],
 		opening_time: null,
 		closing_time: null,
 		income_category_tree: normalizeIncomeCategoryTree(

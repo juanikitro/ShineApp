@@ -22,6 +22,7 @@ import {
 import changelogData from '@/app/data/changelog.generated.json'
 
 import { BusinessSettingsPanel } from '@/app/components/settings/BusinessSettingsPanel'
+import { TurneraSettingsPanel } from '@/app/components/settings/TurneraSettingsPanel'
 import { Empty, LoadingState } from '@/app/components/ui/Empty'
 import { Field } from '@/app/components/ui/Field'
 import { MetricCard } from '@/app/components/ui/MetricCard'
@@ -48,6 +49,7 @@ import {
 
 export type SettingsSection =
 	| 'business'
+	| 'turnera'
 	| 'quotes'
 	| 'cash'
 	| 'agenda'
@@ -79,6 +81,7 @@ type SettingsWorkspaceProps = {
 	cashClassificationPairs: CashClassificationPair[]
 	expenseClassificationPairs: AnyRecord[]
 	incomeClassificationPairs: AnyRecord[]
+	services: AnyRecord[]
 	useReservationTimes: boolean
 	showStayDaysInAgenda: boolean
 	reservationUsePending: boolean
@@ -142,6 +145,7 @@ export function SettingsWorkspace({
 	cashClassificationPairs,
 	expenseClassificationPairs,
 	incomeClassificationPairs,
+	services,
 	useReservationTimes,
 	showStayDaysInAgenda,
 	reservationUsePending,
@@ -207,11 +211,19 @@ export function SettingsWorkspace({
 						businessLogoPdfStatus={businessLogoPdfStatus}
 						businessLogoPreview={businessLogoPreview}
 						businessProfile={businessProfile}
-						businessSlug={businessSlug}
 						safeBusinessLogoPdfThumbnail={safeBusinessLogoPdfThumbnail}
 						safeBusinessLogoPreview={safeBusinessLogoPreview}
 						onBusinessLogoChange={onBusinessLogoChange}
 						onOpenBusinessLogoPicker={onOpenBusinessLogoPicker}
+						onPatchBusinessForm={onPatchBusinessForm}
+						onSaveBusinessProfile={onSaveBusinessProfile}
+					/>
+				) : null}
+				{settingsSection === 'turnera' ? (
+					<TurneraSettingsPanel
+						businessForm={businessForm}
+						businessSlug={businessSlug}
+						services={services}
 						onPatchBusinessForm={onPatchBusinessForm}
 						onSaveBusinessProfile={onSaveBusinessProfile}
 					/>

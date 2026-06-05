@@ -150,7 +150,21 @@
 
 .public-services {
   display: grid;
-  gap: 12px;
+  gap: 18px;
+}
+
+.public-service-group {
+  display: grid;
+  gap: 10px;
+}
+
+.public-service-group-title {
+  color: var(--shop-ink-muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
 }
 
 .public-service-list {

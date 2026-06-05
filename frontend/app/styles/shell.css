@@ -840,6 +840,77 @@
   width: 18px;
 }
 
+.turnera-services {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--shop-border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.turnera-services-head h3 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.turnera-services-head p {
+  color: var(--shop-ink-muted);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+.turnera-services-group {
+  display: grid;
+  gap: 8px;
+}
+
+.turnera-services-group-head {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.turnera-services-group-head h4 {
+  font-size: 14px;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--shop-ink-muted);
+}
+
+.turnera-services-group-head .ghost {
+  font-size: 12px;
+}
+
+.turnera-services-list {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.turnera-services-list label {
+  align-items: center;
+  display: flex;
+  font-weight: 600;
+  gap: 9px;
+}
+
+.turnera-services-list input[type='checkbox'] {
+  height: 18px;
+  min-width: 18px;
+  width: 18px;
+}
+
+.turnera-services-empty {
+  color: var(--shop-ink-muted);
+  font-size: 13px;
+  margin: 0;
+}
+
 .audit-log-panel {
   gap: 16px;
 }

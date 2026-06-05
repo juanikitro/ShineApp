@@ -12,6 +12,8 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-05
 - [UX para infraestructura lenta (free tier Vercel + Supabase)](docs/registro/cambios/2026-06-05-ux-infra-lenta.md)
+- [Turnera: tab propia en Configuracion](docs/registro/cambios/2026-06-05-turnera-tab-configuracion.md)
+- [Turnera: control fino de servicios visibles + split en landing](docs/registro/cambios/2026-06-05-turnera-servicios-visibles.md)
 - [Frontend: PWA instalable en iOS y Android (CRM y landing publica)](docs/registro/cambios/2026-06-05-pwa-instalable-ios-android.md)
 - [Caja: listado denso con contraparte, orden y filtros rapidos](docs/registro/cambios/2026-06-05-listado-caja-denso.md)
 - [Fix: regresion del logo de negocio en el sidebar (presigned URL)](docs/registro/cambios/2026-06-05-fix-sidebar-logo-presigned-url-regresion.md)

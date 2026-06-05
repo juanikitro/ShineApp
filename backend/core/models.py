@@ -299,6 +299,7 @@ class BusinessProfile(models.Model):
     allow_public_quote_requests = models.BooleanField(default=True)
     public_show_wash_services = models.BooleanField(default=True)
     public_show_detailing_services = models.BooleanField(default=True)
+    public_hidden_service_ids = models.JSONField(default=list, blank=True)
     income_category_tree = models.JSONField(
         default=default_income_category_tree,
         blank=True,

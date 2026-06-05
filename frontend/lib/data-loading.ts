@@ -105,7 +105,7 @@ const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 	],
 	services: ['services', 'customers', 'vehicles'],
 	notifications: ['publicRequests', 'customers', 'vehicles', 'services'],
-	settings: ['businessProfile', 'employees', 'dailyCapacities'],
+	settings: ['businessProfile', 'employees', 'dailyCapacities', 'services'],
 }
 
 const shellDataSets: readonly DataSetKey[] = ['businessProfile', 'publicRequests']
