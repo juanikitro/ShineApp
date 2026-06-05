@@ -163,11 +163,16 @@ Nota: el plan original tenia un hook `useRunAction` que tomaba todos los handler
 - [x] el pre-commit hook regenera `CHANGELOG.md`, `docs/registro/cambios/index.md` e `frontend/app/data/changelog.generated.json` automaticamente en cada commit (se han visto los warnings de LF→CRLF en todos los commits previos).
 
 ### T17: Validacion final + PR
-- [ ] `scripts/validate.ps1`.
-- [ ] check Node activo, luego `npm run build`.
-- [ ] smoke Slow 3G: bloqueo + skeletons + stale-while-revalidate.
-- [ ] commit + push a `claude/adoring-taussig-0856fc`.
-- [ ] `gh pr create --base development` (confirmar target con usuario si dudoso).
+- [x] `scripts/validate.ps1` verde:
+  - Compose config OK
+  - Backend pytest: 235 passed
+  - Backend manage.py check: System check identified no issues
+  - Frontend vitest: 300 passed (35 test files)
+  - Frontend `next build`: compiled successfully
+- [x] junction al node_modules del repo principal usado para tests + build, luego removido con `cmd /c rmdir`.
+- [x] push a `claude/adoring-taussig-0856fc` (15 commits desde el plan).
+- [x] PR creado: https://github.com/juanikitro/ShineApp/pull/59 (target: development, confirmado por usuario).
+- [ ] smoke Slow 3G manual: dejado como test plan checklist en el PR para el reviewer.
 
 ## Notas
 
