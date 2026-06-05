@@ -125,6 +125,7 @@ import NextImage from 'next/image'
 
 import { Button } from '@/app/components/ui/Button'
 import { DetailModal } from '@/app/components/ui/DetailModal'
+import { DurationInput } from '@/app/components/ui/DurationInput'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
 import { BirthdayFields } from '@/app/components/ui/BirthdayFields'
 import { Field } from '@/app/components/ui/Field'
@@ -241,14 +242,18 @@ import {
 } from '@/lib/service-pricing'
 import { shouldHandleUndoShortcut } from '@/lib/undo-shortcut'
 import {
+	type CashQuickFilter,
+	type CashSortKey,
 	buildCashFlowSummary,
 	cashEntryDescriptionText,
 	cashEntryMatchesFilters,
+	cashEntryMatchesQuickFilter,
 	cashEntryTitleText,
 	cashSourceKindLabel,
 	compareExpenseClassificationPair,
 	hasCashFilters,
 	normalizedCashText,
+	sortCashEntries,
 } from '@/lib/cash-entry'
 import {
 	debtMatchesFilters,
@@ -651,6 +656,10 @@ export default function Home() {
 		useState<CashSummaryMode>('cashflow')
 	const [cashFilters, setCashFilters] =
 		useState<CashFilterState>(CASH_FILTER_DEFAULTS)
+	const [cashQuickFilter, setCashQuickFilter] =
+		useState<CashQuickFilter>('all')
+	const [cashSortKey, setCashSortKey] =
+		useState<CashSortKey>('occurred_desc')
 	const [debtFilters, setDebtFilters] =
 		useState<DebtFilterState>(DEBT_FILTER_DEFAULTS)
 	const cashMovementDateTimeFor = (day: string) => `${day}T12:00`
@@ -683,6 +692,10 @@ export default function Home() {
 	const [payments, setPayments] = useState<AnyRecord[]>([])
 	const [debts, setDebts] = useState<AnyRecord[]>([])
 	const [debtPayments, setDebtPayments] = useState<AnyRecord[]>([])
+	const [recurringDebts, setRecurringDebts] = useState<AnyRecord[]>([])
+	const [skippedRecurringPeriods, setSkippedRecurringPeriods] = useState<
+		AnyRecord[]
+	>([])
 	const [materials, setMaterials] = useState<AnyRecord[]>([])
 	const [suppliers, setSuppliers] = useState<AnyRecord[]>([])
 	const [stockMovements, setStockMovements] = useState<AnyRecord[]>([])
@@ -747,7 +760,8 @@ export default function Home() {
 	const [dailyCapacityForm, setDailyCapacityForm] = useState<AnyRecord>({
 		id: '',
 		day: today,
-		max_slots: '',
+		max_slots_wash: '',
+		max_slots_detailing: '',
 		notes: '',
 	})
 	const [reservationForm, setReservationForm] = useState<AnyRecord>(
@@ -1303,12 +1317,20 @@ export default function Home() {
 
 	function handleBusinessLogoChange(event: ChangeEvent<HTMLInputElement>) {
 		const file = event.target.files?.[0] ?? null
-		setBusinessLogoFile(file)
 		revokeBusinessLogoObjectUrl()
 		if (!file) {
+			setBusinessLogoFile(null)
 			setBusinessLogoPreview(businessProfile?.logo_url ?? null)
 			return
 		}
+		const isAllowedLogoFile =
+			file.type.startsWith('image/') || isPdfFile(file)
+		if (!isAllowedLogoFile) {
+			setBusinessLogoFile(null)
+			setBusinessLogoPreview(businessProfile?.logo_url ?? null)
+			return
+		}
+		setBusinessLogoFile(file)
 		const objectUrl = window.URL.createObjectURL(file)
 		businessLogoObjectUrlRef.current = objectUrl
 		setBusinessLogoPreview(objectUrl)
@@ -1400,7 +1422,7 @@ export default function Home() {
 			'material-consumption': 'material-consumption.work_order',
 			tool: 'tool.name',
 			employee: 'employee.username',
-			'daily-capacity': 'daily-capacity.max_slots',
+			'daily-capacity': 'daily-capacity.max_slots_wash',
 		}
 		focusField(firstFocus[formModal.kind], formModal.kind !== 'customer')
 	}, [formModal?.kind])
@@ -2025,8 +2047,26 @@ export default function Home() {
 		dailyCapacities: setDailyCapacities,
 		workOrders: setWorkOrders,
 		payments: setPayments,
-		debts: setDebts,
+		debts: (data: any) => {
+			if (Array.isArray(data)) {
+				setDebts(data)
+				setSkippedRecurringPeriods([])
+				return
+			}
+			if (data && typeof data === 'object') {
+				setDebts(Array.isArray(data.results) ? data.results : [])
+				setSkippedRecurringPeriods(
+					Array.isArray(data.skipped_recurring_periods)
+						? data.skipped_recurring_periods
+						: [],
+				)
+				return
+			}
+			setDebts([])
+			setSkippedRecurringPeriods([])
+		},
 		debtPayments: setDebtPayments,
+		recurringDebts: setRecurringDebts,
 		materials: setMaterials,
 		suppliers: setSuppliers,
 		stockMovements: setStockMovements,
@@ -4521,10 +4561,15 @@ export default function Home() {
 	)
 	const filteredCashEntries = useMemo(
 		() =>
-			cashEntries.filter((item: AnyRecord) =>
-				cashEntryMatchesFilters(item, cashFilters),
+			sortCashEntries(
+				cashEntries.filter(
+					(item: AnyRecord) =>
+						cashEntryMatchesFilters(item, cashFilters) &&
+						cashEntryMatchesQuickFilter(item, cashQuickFilter),
+				),
+				cashSortKey,
 			),
-		[cashEntries, cashFilters],
+		[cashEntries, cashFilters, cashQuickFilter, cashSortKey],
 	)
 
 	if (!token) {
@@ -5775,14 +5820,6 @@ export default function Home() {
 		setFormModal({ kind: 'cash-movement' })
 	}
 
-	function cashEntryTitle(item: AnyRecord) {
-		return cashEntryTitleText(item)
-	}
-
-	function cashEntryDescription(item: AnyRecord) {
-		return cashEntryDescriptionText(item)
-	}
-
 	function cashEntryKey(item: AnyRecord) {
 		return `${item.source_kind ?? 'cash'}-${item.source_id ?? item.id}`
 	}
@@ -5928,7 +5965,8 @@ export default function Home() {
 			setDailyCapacityForm({
 				id: '',
 				day: selectedDay,
-				max_slots: '',
+				max_slots_wash: '',
+				max_slots_detailing: '',
 				notes: '',
 			})
 		}
@@ -7617,19 +7655,10 @@ export default function Home() {
 								}
 							/>
 						</Field>
-						<Field label="Duracion min.">
-							<input
-								type="number"
-								min="1"
-								value={data.estimated_duration_minutes ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										estimated_duration_minutes:
-											event.target.value,
-									})
-								}
-							/>
-						</Field>
+						<DurationInput
+							form={data}
+							onPatch={(patch) => updateDetailEdit(patch)}
+						/>
 					</div>
 					<div className="form-row">
 						{VEHICLE_TYPES.map((type) => (
@@ -9196,7 +9225,8 @@ export default function Home() {
 		setDailyCapacityForm({
 			id: item.id,
 			day: item.day,
-			max_slots: String(item.max_slots ?? ''),
+			max_slots_wash: String(item.max_slots_wash ?? ''),
+			max_slots_detailing: String(item.max_slots_detailing ?? ''),
 			notes: item.notes ?? '',
 		})
 		setFormModal({ kind: 'daily-capacity' })
@@ -9219,7 +9249,8 @@ export default function Home() {
 				setDailyCapacityForm({
 					id: '',
 					day: selectedDay,
-					max_slots: '',
+					max_slots_wash: '',
+					max_slots_detailing: '',
 					notes: '',
 				})
 				formModalExit.close()
@@ -9425,13 +9456,48 @@ export default function Home() {
 
 	async function saveDebt(event: FormEvent) {
 		event.preventDefault()
+		const isRecurring = Boolean(debtForm.is_recurring)
 		await runAction(async () => {
+			if (isRecurring) {
+				const recurringPayload: AnyRecord = {
+					concept: debtForm.concept,
+					creditor: debtForm.creditor,
+					supplier: debtForm.supplier || null,
+					principal_amount: debtForm.principal_amount,
+					expense_category: debtForm.expense_category,
+					expense_subcategory: debtForm.expense_subcategory,
+					notes: debtForm.notes,
+					interval_unit: debtForm.interval_unit || 'months',
+					interval_count: Number(debtForm.interval_count || 1),
+					start_date: debtForm.origin_date,
+					due_offset_days: Number(debtForm.due_offset_days || 0),
+					end_date: debtForm.end_date || null,
+					max_cycles: debtForm.max_cycles
+						? Number(debtForm.max_cycles)
+						: null,
+					auto_settle: Boolean(debtForm.auto_settle),
+					auto_settle_method: debtForm.auto_settle_method || 'transfer',
+				}
+				const created = await apiFetch<AnyRecord>('/recurring-debts/', {
+					method: 'POST',
+					body: JSON.stringify(recurringPayload),
+				})
+				setDebtForm(blankDebtForm(today))
+				formModalExit.close()
+				return created
+			}
 			const created = await apiFetch<AnyRecord>('/debts/', {
 				method: 'POST',
 				body: JSON.stringify({
-					...debtForm,
-					due_date: debtForm.due_date || null,
+					concept: debtForm.concept,
+					creditor: debtForm.creditor,
 					supplier: debtForm.supplier || null,
+					principal_amount: debtForm.principal_amount,
+					origin_date: debtForm.origin_date,
+					due_date: debtForm.due_date || null,
+					expense_category: debtForm.expense_category,
+					expense_subcategory: debtForm.expense_subcategory,
+					notes: debtForm.notes,
 				}),
 			})
 			setDebtForm(blankDebtForm(today))
@@ -9439,9 +9505,60 @@ export default function Home() {
 			return created
 		}, {
 			key: 'save:debt',
-			flashTarget: (created: AnyRecord) => recordFlashKey('debt', created?.id),
-			successTitle: entityFeedbackTitle('debt', 'created'),
-			undo: undoCreatedRecord('debt'),
+			flashTarget: (created: AnyRecord) =>
+				recordFlashKey(isRecurring ? 'recurring-debt' : 'debt', created?.id),
+			successTitle: entityFeedbackTitle(
+				isRecurring ? 'recurring-debt' : 'debt',
+				'created',
+			),
+			undo: isRecurring ? undefined : undoCreatedRecord('debt'),
+		})
+	}
+
+	async function pauseRecurringDebt(planId: string | number) {
+		await runAction(async () =>
+			apiFetch<AnyRecord>(`/recurring-debts/${planId}/pause/`, {
+				method: 'POST',
+			}),
+		{
+			successTitle: 'Plantilla pausada',
+		})
+	}
+
+	async function resumeRecurringDebt(planId: string | number) {
+		await runAction(async () =>
+			apiFetch<AnyRecord>(`/recurring-debts/${planId}/resume/`, {
+				method: 'POST',
+			}),
+		{
+			successTitle: 'Plantilla reanudada',
+		})
+	}
+
+	async function applyRecurringToCurrent(planId: string | number) {
+		await runAction(async () =>
+			apiFetch<AnyRecord>(`/recurring-debts/${planId}/apply-to-current/`, {
+				method: 'POST',
+			}),
+		{
+			successTitle: 'Cambios aplicados al ciclo actual',
+		})
+	}
+
+	async function deleteRecurringDebt(planId: string | number) {
+		const confirmed =
+			typeof window === 'undefined'
+				? true
+				: window.confirm(
+						'Eliminar la plantilla. Las deudas ya generadas se conservan. Continuar?',
+					)
+		if (!confirmed) return
+		await runAction(async () =>
+			apiFetch<AnyRecord>(`/recurring-debts/${planId}/`, {
+				method: 'DELETE',
+			}),
+		{
+			successTitle: entityFeedbackTitle('recurring-debt', 'deleted'),
 		})
 	}
 
@@ -11305,19 +11422,12 @@ export default function Home() {
 										}
 									/>
 								</Field>
-								<Field label="Duracion min.">
-									<input
-										type="number"
-										min="1"
-										value={serviceForm.estimated_duration_minutes}
-										onChange={(event) =>
-											setServiceForm({
-												...serviceForm,
-												estimated_duration_minutes: event.target.value,
-											})
-										}
-									/>
-								</Field>
+								<DurationInput
+									form={serviceForm}
+									onPatch={(patch) =>
+										setServiceForm({ ...serviceForm, ...patch })
+									}
+								/>
 							</div>
 							<div className="form-row">
 								{VEHICLE_TYPES.map((type) => (
@@ -11666,8 +11776,8 @@ export default function Home() {
 									</button>
 									{businessProfile && sidebarBusinessLogoSrc ? (
 										<div className="sidebar-business-card">
-											<NextImage
-												src={encodeURI(sidebarBusinessLogoSrc)}
+											<img
+												src={sidebarBusinessLogoSrc}
 												alt={String(businessProfile.name ?? '')}
 												className="sidebar-business-logo"
 												width={220}
@@ -12484,10 +12594,8 @@ export default function Home() {
 					<CashPanel
 						cashClosure={cash.closure}
 						cashEntries={cashEntries}
-						cashEntryDescription={cashEntryDescription}
 						cashEntryKey={cashEntryKey}
 						cashEntryQuickActions={cashEntryQuickActions}
-						cashEntryTitle={cashEntryTitle}
 						cashFilterCategoryOptions={selectOptionsFromValues(
 							cashFilterCategoryValues,
 							cashFilters.category,
@@ -12501,6 +12609,8 @@ export default function Home() {
 						cashflowTotals={cashflowTotals}
 						cashFlowSummary={cashFlowSummary}
 						cashIsClosed={cashIsClosed}
+						cashQuickFilter={cashQuickFilter}
+						cashSortKey={cashSortKey}
 						cashSourceKindLabel={cashSourceKindLabel}
 						cashSourceKindOptions={cashSourceKindOptions}
 						cashSummaryMode={cashSummaryMode}
@@ -12513,8 +12623,13 @@ export default function Home() {
 						renderQuickActionsTrigger={renderQuickActionsTrigger}
 						selectedDay={selectedDay}
 						onCashFilterChange={updateCashFilter}
+						onCashQuickFilterChange={setCashQuickFilter}
+						onCashSortChange={setCashSortKey}
 						onCashSummaryModeChange={setCashSummaryMode}
-						onClearCashFilters={() => setCashFilters(CASH_FILTER_DEFAULTS)}
+						onClearCashFilters={() => {
+							setCashFilters(CASH_FILTER_DEFAULTS)
+							setCashQuickFilter('all')
+						}}
 						onCloseDay={closeCashDay}
 						onReopenDay={reopenCashDay}
 						onCollectWork={() => openFormModal('payment')}
@@ -12545,6 +12660,11 @@ export default function Home() {
 						loading={loading}
 						loadBlocked={debtLoadBlocked}
 						loadErrorNotice={loadErrorNotice}
+						recurringDebts={recurringDebts}
+						skippedRecurringPeriods={skippedRecurringPeriods}
+						onDismissSkippedRecurring={() =>
+							setSkippedRecurringPeriods([])
+						}
 						recordClass={recordClass}
 						renderQuickActionsTrigger={renderQuickActionsTrigger}
 						search={search}
@@ -12557,6 +12677,10 @@ export default function Home() {
 							openDetailModal('Pago de deuda', item)
 						}
 						onOpenDebtPaymentForDebt={openDebtPaymentForDebt}
+						onPauseRecurringDebt={pauseRecurringDebt}
+						onResumeRecurringDebt={resumeRecurringDebt}
+						onApplyRecurringToCurrent={applyRecurringToCurrent}
+						onDeleteRecurringDebt={deleteRecurringDebt}
 						onQuickActionsContext={openQuickActionsFromContext}
 						onRefresh={() => loadData({ force: true })}
 						onSearchChange={setSearch}

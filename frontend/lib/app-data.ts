@@ -54,9 +54,13 @@ export async function loadAppDataSet(
 		case 'payments':
 			return loaders.apiList<AnyRecord>('/payments/')
 		case 'debts':
-			return loaders.apiList<AnyRecord>('/debts/')
+			return loaders.apiFetch<AnyRecord[] | { results: AnyRecord[]; skipped_recurring_periods?: AnyRecord[] }>(
+				'/debts/',
+			)
 		case 'debtPayments':
 			return loaders.apiList<AnyRecord>('/debt-payments/')
+		case 'recurringDebts':
+			return loaders.apiList<AnyRecord>('/recurring-debts/')
 		case 'materials':
 			return loaders.apiList<AnyRecord>('/materials/')
 		case 'suppliers':

@@ -527,6 +527,14 @@ function blankDebtForm(originDate: string) {
 		expense_category: 'Servicios',
 		expense_subcategory: 'Otros',
 		notes: '',
+		is_recurring: false,
+		interval_unit: 'months',
+		interval_count: '1',
+		due_offset_days: '0',
+		end_date: '',
+		max_cycles: '',
+		auto_settle: false,
+		auto_settle_method: 'transfer',
 	}
 }
 
@@ -596,6 +604,11 @@ const entityFeedbackTitles: Record<
 		created: 'Pago de deuda registrado',
 		updated: 'Pago de deuda editado',
 		deleted: 'Pago de deuda eliminado',
+	},
+	'recurring-debt': {
+		created: 'Plantilla recurrente creada',
+		updated: 'Plantilla recurrente editada',
+		deleted: 'Plantilla recurrente eliminada',
 	},
 	material: {
 		created: 'Material creado',
@@ -951,6 +964,16 @@ const debtPaymentMethodLabels: Record<string, string> = {
 	transfer: 'Transferencia',
 	other: 'Otro',
 }
+
+const recurringDebtIntervalLabels: Record<string, string> = {
+	days: 'dias',
+	weeks: 'semanas',
+	months: 'meses',
+}
+
+const recurringDebtIntervalOptions = Object.entries(recurringDebtIntervalLabels).map(
+	([value, label]) => ({ value, label }),
+)
 
 const toolStatusLabels: Record<string, string> = {
 	in_use: 'En uso',
@@ -2022,6 +2045,8 @@ export {
 	cleanCustomerPayload,
 	debtPaymentMethodLabels,
 	debtStatusLabels,
+	recurringDebtIntervalLabels,
+	recurringDebtIntervalOptions,
 	defaultCashCategory,
 	detailRequiresEconomy,
 	entityFeedbackTitle,

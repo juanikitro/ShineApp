@@ -27,7 +27,49 @@ const cashSourceKindLabels: Record<string, string> = {
 	manual: 'Manual',
 	material_purchase: 'Compra',
 	payment: 'Cobro',
+	stock_purchase: 'Compra stock',
+	stock_sale: 'Venta stock',
 }
+
+const cashCounterpartyKindLabels: Record<string, string> = {
+	customer: 'Cliente',
+	supplier: 'Proveedor',
+	creditor: 'Acreedor',
+	internal: 'Interno',
+}
+
+export type CashSortKey =
+	| 'occurred_desc'
+	| 'occurred_asc'
+	| 'amount_desc'
+	| 'amount_asc'
+	| 'category_asc'
+
+export const cashSortOptions: Array<{ value: CashSortKey; label: string }> = [
+	{ value: 'occurred_desc', label: 'Mas reciente' },
+	{ value: 'occurred_asc', label: 'Mas antiguo' },
+	{ value: 'amount_desc', label: 'Mayor monto' },
+	{ value: 'amount_asc', label: 'Menor monto' },
+	{ value: 'category_asc', label: 'Categoria A-Z' },
+]
+
+export type CashQuickFilter =
+	| 'all'
+	| 'income'
+	| 'expense'
+	| 'cashflow'
+	| 'economic_only'
+
+export const cashQuickFilterOptions: Array<{
+	value: CashQuickFilter
+	label: string
+}> = [
+	{ value: 'all', label: 'Todos' },
+	{ value: 'income', label: 'Ingresos' },
+	{ value: 'expense', label: 'Egresos' },
+	{ value: 'cashflow', label: 'Solo caja' },
+	{ value: 'economic_only', label: 'Solo resultado' },
+]
 
 export function normalizedCashText(value: any) {
 	return String(value ?? '')
@@ -48,6 +90,66 @@ export function cashEntryTitleText(item: AnyRecord) {
 		return `Pago de deuda: ${item.debt_concept || item.description}`
 	}
 	return item.source_label || item.category || 'Movimiento de caja'
+}
+
+export function cashCounterpartyKindLabel(kind: any) {
+	const key = String(kind ?? '').trim()
+	return cashCounterpartyKindLabels[key] || ''
+}
+
+export type CashCounterparty = {
+	kind: string
+	label: string
+	direction: 'from' | 'to' | 'about' | 'none'
+	short: string
+}
+
+export function cashEntryCounterparty(item: AnyRecord): CashCounterparty {
+	const kind = String(item.counterparty_kind ?? '').trim()
+	const label = String(item.counterparty_label ?? '').trim()
+	const isIncome = item.movement_type === 'income'
+	const direction: CashCounterparty['direction'] =
+		kind === 'customer'
+			? 'from'
+			: kind === 'supplier' || kind === 'creditor'
+				? 'to'
+				: kind === 'internal'
+					? 'about'
+					: 'none'
+	const short = label
+		? `${cashCounterpartyKindLabel(kind) || (isIncome ? 'De' : 'Para')}: ${label}`
+		: ''
+	return { kind, label, direction, short }
+}
+
+export function cashEntryReferenceLabel(item: AnyRecord) {
+	const reference = String(item.reference_label ?? '').trim()
+	if (reference) return reference
+	if (item.source_kind === 'debt_origin' || item.source_kind === 'debt_payment') {
+		return String(item.debt_concept ?? '').trim()
+	}
+	return ''
+}
+
+export function cashEntryPaymentMethod(item: AnyRecord) {
+	return String(item.payment_method ?? '').trim()
+}
+
+export function cashEntryClassificationLabel(item: AnyRecord) {
+	const category = String(item.category ?? '').trim()
+	const subcategory = String(item.subcategory ?? '').trim()
+	if (category && subcategory) return `${category} / ${subcategory}`
+	return category || subcategory || 'Sin categoria'
+}
+
+export function cashEntryOccurredTime(item: AnyRecord) {
+	if (!item.occurred_at) return ''
+	const date = new Date(item.occurred_at)
+	if (Number.isNaN(date.getTime())) return ''
+	return date.toLocaleTimeString('es-AR', {
+		hour: '2-digit',
+		minute: '2-digit',
+	})
 }
 
 export function cashEntryDescriptionText(item: AnyRecord) {
@@ -252,6 +354,9 @@ export function cashEntryMatchesFilters(item: AnyRecord, filters: CashFilterStat
 			item.subcategory,
 			item.amount,
 			item.signed_amount,
+			item.counterparty_label,
+			item.reference_label,
+			item.payment_method,
 		].join(' '),
 	)
 	return haystack.includes(query)
@@ -259,4 +364,59 @@ export function cashEntryMatchesFilters(item: AnyRecord, filters: CashFilterStat
 
 export function hasCashFilters(filters: CashFilterState) {
 	return Object.values(filters).some((value) => String(value ?? '').trim())
+}
+
+export function cashEntryMatchesQuickFilter(
+	item: AnyRecord,
+	quick: CashQuickFilter,
+) {
+	switch (quick) {
+		case 'income':
+			return item.movement_type === 'income'
+		case 'expense':
+			return item.movement_type === 'expense'
+		case 'cashflow':
+			return item.cashflow_effect !== false
+		case 'economic_only':
+			return item.cashflow_effect === false
+		default:
+			return true
+	}
+}
+
+export function sortCashEntries(entries: AnyRecord[], sort: CashSortKey) {
+	const items = [...entries]
+	const compareOccurred = (a: AnyRecord, b: AnyRecord) =>
+		String(a.occurred_at ?? '').localeCompare(String(b.occurred_at ?? ''))
+	const compareAmount = (a: AnyRecord, b: AnyRecord) =>
+		numberValue(a.amount) - numberValue(b.amount)
+	const compareCategory = (a: AnyRecord, b: AnyRecord) =>
+		cashEntryClassificationLabel(a).localeCompare(
+			cashEntryClassificationLabel(b),
+			'es-AR',
+			{ sensitivity: 'base' },
+		)
+	switch (sort) {
+		case 'occurred_asc':
+			return items.sort(
+				(a, b) => compareOccurred(a, b) || compareAmount(b, a),
+			)
+		case 'amount_desc':
+			return items.sort(
+				(a, b) => compareAmount(b, a) || compareOccurred(b, a),
+			)
+		case 'amount_asc':
+			return items.sort(
+				(a, b) => compareAmount(a, b) || compareOccurred(b, a),
+			)
+		case 'category_asc':
+			return items.sort(
+				(a, b) => compareCategory(a, b) || compareOccurred(b, a),
+			)
+		case 'occurred_desc':
+		default:
+			return items.sort(
+				(a, b) => compareOccurred(b, a) || compareAmount(b, a),
+			)
+	}
 }

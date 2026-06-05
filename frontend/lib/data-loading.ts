@@ -27,6 +27,7 @@ export type DataSetKey =
 	| 'payments'
 	| 'debts'
 	| 'debtPayments'
+	| 'recurringDebts'
 	| 'materials'
 	| 'suppliers'
 	| 'stockMovements'
@@ -81,7 +82,7 @@ const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 		'purchases',
 		'businessProfile',
 	],
-	debts: ['debts', 'debtPayments', 'suppliers', 'cash'],
+	debts: ['debts', 'debtPayments', 'recurringDebts', 'suppliers', 'cash'],
 	inventory: [
 		'materials',
 		'suppliers',
@@ -114,6 +115,7 @@ const economyOnlyDataSets = new Set<DataSetKey>([
 	'payments',
 	'debts',
 	'debtPayments',
+	'recurringDebts',
 	'materials',
 	'suppliers',
 	'stockMovements',

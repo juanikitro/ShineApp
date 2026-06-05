@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Debt, DebtPayment
+from .models import Debt, DebtPayment, RecurringDebt
 
 
 class DebtPaymentInline(admin.TabularInline):
@@ -76,3 +76,28 @@ class DebtPaymentAdmin(admin.ModelAdmin):
     readonly_fields = ["business", "created_at"]
     autocomplete_fields = ["debt"]
     list_select_related = ["business", "debt"]
+
+
+@admin.register(RecurringDebt)
+class RecurringDebtAdmin(admin.ModelAdmin):
+    list_display = [
+        "concept", "business", "principal_amount", "interval_count",
+        "interval_unit", "is_active", "auto_settle", "last_generated_for",
+    ]
+    list_filter = ["business", "is_active", "auto_settle", "interval_unit"]
+    search_fields = ["concept", "creditor", "supplier__name"]
+    readonly_fields = ["cycles_generated", "last_generated_for", "created_at", "updated_at"]
+    autocomplete_fields = ["business", "supplier"]
+    list_select_related = ["business", "supplier"]
+    fieldsets = (
+        (None, {"fields": ("business", "concept", "creditor", "supplier", "principal_amount")}),
+        ("Recurrencia", {
+            "fields": (
+                "interval_unit", "interval_count", "start_date",
+                "due_offset_days", "end_date", "max_cycles", "is_active",
+            ),
+        }),
+        ("Pago automatico", {"fields": ("auto_settle", "auto_settle_method")}),
+        ("Clasificacion", {"fields": ("expense_category", "expense_subcategory", "notes")}),
+        ("Estado", {"fields": ("cycles_generated", "last_generated_for", "created_at", "updated_at")}),
+    )

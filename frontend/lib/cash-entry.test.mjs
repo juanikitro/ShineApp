@@ -15,6 +15,13 @@ import {
 	normalizedCashFilterAmount,
 	cashEntryMatchesFilters,
 	hasCashFilters,
+	cashCounterpartyKindLabel,
+	cashEntryClassificationLabel,
+	cashEntryCounterparty,
+	cashEntryMatchesQuickFilter,
+	cashEntryReferenceLabel,
+	cashEntryOccurredTime,
+	sortCashEntries,
 } from './cash-entry'
 
 // normalizedCashText
@@ -367,4 +374,198 @@ test('hasCashFilters returns false for empty filters', () => {
 
 test('hasCashFilters returns true when any filter has a value', () => {
 	assert.equal(hasCashFilters({ movementType: 'income' }), true)
+})
+
+// cashCounterpartyKindLabel
+test('cashCounterpartyKindLabel maps known kinds', () => {
+	assert.equal(cashCounterpartyKindLabel('customer'), 'Cliente')
+	assert.equal(cashCounterpartyKindLabel('supplier'), 'Proveedor')
+	assert.equal(cashCounterpartyKindLabel('creditor'), 'Acreedor')
+	assert.equal(cashCounterpartyKindLabel('internal'), 'Interno')
+})
+
+test('cashCounterpartyKindLabel returns empty for unknown', () => {
+	assert.equal(cashCounterpartyKindLabel('none'), '')
+	assert.equal(cashCounterpartyKindLabel(null), '')
+})
+
+// cashEntryCounterparty
+test('cashEntryCounterparty exposes incoming customer', () => {
+	const result = cashEntryCounterparty({
+		movement_type: 'income',
+		counterparty_kind: 'customer',
+		counterparty_label: 'Juan Perez',
+	})
+	assert.equal(result.kind, 'customer')
+	assert.equal(result.label, 'Juan Perez')
+	assert.equal(result.direction, 'from')
+	assert.ok(result.short.includes('Cliente'))
+	assert.ok(result.short.includes('Juan Perez'))
+})
+
+test('cashEntryCounterparty exposes outgoing supplier', () => {
+	const result = cashEntryCounterparty({
+		movement_type: 'expense',
+		counterparty_kind: 'supplier',
+		counterparty_label: 'ACME',
+	})
+	assert.equal(result.direction, 'to')
+	assert.ok(result.short.includes('Proveedor'))
+})
+
+test('cashEntryCounterparty returns empty short when label missing', () => {
+	const result = cashEntryCounterparty({
+		movement_type: 'expense',
+		counterparty_kind: 'creditor',
+		counterparty_label: '',
+	})
+	assert.equal(result.short, '')
+	assert.equal(result.direction, 'to')
+})
+
+// cashEntryClassificationLabel
+test('cashEntryClassificationLabel joins category and subcategory', () => {
+	assert.equal(
+		cashEntryClassificationLabel({ category: 'Ingresos', subcategory: 'Lavado' }),
+		'Ingresos / Lavado',
+	)
+})
+
+test('cashEntryClassificationLabel falls back to category only', () => {
+	assert.equal(cashEntryClassificationLabel({ category: 'Ingresos' }), 'Ingresos')
+})
+
+test('cashEntryClassificationLabel returns placeholder when empty', () => {
+	assert.equal(cashEntryClassificationLabel({}), 'Sin categoria')
+})
+
+// cashEntryReferenceLabel
+test('cashEntryReferenceLabel uses reference_label', () => {
+	assert.equal(
+		cashEntryReferenceLabel({ reference_label: 'Orden #42' }),
+		'Orden #42',
+	)
+})
+
+test('cashEntryReferenceLabel falls back to debt concept for debt entries', () => {
+	assert.equal(
+		cashEntryReferenceLabel({
+			source_kind: 'debt_payment',
+			debt_concept: 'Alquiler',
+		}),
+		'Alquiler',
+	)
+})
+
+// cashEntryOccurredTime
+test('cashEntryOccurredTime returns formatted HH:MM', () => {
+	const time = cashEntryOccurredTime({ occurred_at: '2026-06-05T15:30:00' })
+	assert.ok(time.includes('15:30') || time.includes('3:30'))
+})
+
+test('cashEntryOccurredTime returns empty when missing', () => {
+	assert.equal(cashEntryOccurredTime({}), '')
+})
+
+// cashEntryMatchesQuickFilter
+test('cashEntryMatchesQuickFilter all matches everything', () => {
+	assert.equal(cashEntryMatchesQuickFilter({ movement_type: 'income' }, 'all'), true)
+	assert.equal(cashEntryMatchesQuickFilter({ movement_type: 'expense' }, 'all'), true)
+})
+
+test('cashEntryMatchesQuickFilter income only matches income', () => {
+	assert.equal(cashEntryMatchesQuickFilter({ movement_type: 'income' }, 'income'), true)
+	assert.equal(cashEntryMatchesQuickFilter({ movement_type: 'expense' }, 'income'), false)
+})
+
+test('cashEntryMatchesQuickFilter expense only matches expense', () => {
+	assert.equal(cashEntryMatchesQuickFilter({ movement_type: 'expense' }, 'expense'), true)
+	assert.equal(cashEntryMatchesQuickFilter({ movement_type: 'income' }, 'expense'), false)
+})
+
+test('cashEntryMatchesQuickFilter cashflow excludes debt_origin', () => {
+	assert.equal(cashEntryMatchesQuickFilter({ cashflow_effect: false }, 'cashflow'), false)
+	assert.equal(cashEntryMatchesQuickFilter({ cashflow_effect: true }, 'cashflow'), true)
+})
+
+test('cashEntryMatchesQuickFilter economic_only matches debt_origin', () => {
+	assert.equal(cashEntryMatchesQuickFilter({ cashflow_effect: false }, 'economic_only'), true)
+	assert.equal(cashEntryMatchesQuickFilter({ cashflow_effect: true }, 'economic_only'), false)
+})
+
+// sortCashEntries
+test('sortCashEntries occurred_desc returns newest first', () => {
+	const entries = [
+		{ id: 'a', occurred_at: '2026-06-05T10:00:00', amount: '10' },
+		{ id: 'b', occurred_at: '2026-06-05T18:00:00', amount: '5' },
+	]
+	const sorted = sortCashEntries(entries, 'occurred_desc')
+	assert.equal(sorted[0].id, 'b')
+	assert.equal(sorted[1].id, 'a')
+})
+
+test('sortCashEntries occurred_asc returns oldest first', () => {
+	const entries = [
+		{ id: 'a', occurred_at: '2026-06-05T18:00:00', amount: '5' },
+		{ id: 'b', occurred_at: '2026-06-05T10:00:00', amount: '10' },
+	]
+	const sorted = sortCashEntries(entries, 'occurred_asc')
+	assert.equal(sorted[0].id, 'b')
+	assert.equal(sorted[1].id, 'a')
+})
+
+test('sortCashEntries amount_desc returns highest first', () => {
+	const entries = [
+		{ id: 'a', occurred_at: '2026-06-05T10:00:00', amount: '50' },
+		{ id: 'b', occurred_at: '2026-06-05T10:00:00', amount: '200' },
+	]
+	const sorted = sortCashEntries(entries, 'amount_desc')
+	assert.equal(sorted[0].id, 'b')
+})
+
+test('sortCashEntries amount_asc returns lowest first', () => {
+	const entries = [
+		{ id: 'a', occurred_at: '2026-06-05T10:00:00', amount: '200' },
+		{ id: 'b', occurred_at: '2026-06-05T10:00:00', amount: '50' },
+	]
+	const sorted = sortCashEntries(entries, 'amount_asc')
+	assert.equal(sorted[0].id, 'b')
+})
+
+test('sortCashEntries category_asc orders alphabetically', () => {
+	const entries = [
+		{ id: 'a', occurred_at: '2026-06-05T10:00:00', amount: '10', category: 'Zapatos' },
+		{ id: 'b', occurred_at: '2026-06-05T10:00:00', amount: '10', category: 'Amortiguadores' },
+	]
+	const sorted = sortCashEntries(entries, 'category_asc')
+	assert.equal(sorted[0].id, 'b')
+})
+
+test('sortCashEntries does not mutate the input', () => {
+	const entries = [
+		{ id: 'a', occurred_at: '2026-06-05T10:00:00', amount: '10' },
+		{ id: 'b', occurred_at: '2026-06-05T18:00:00', amount: '5' },
+	]
+	const ids = entries.map((e) => e.id).join('-')
+	sortCashEntries(entries, 'occurred_desc')
+	assert.equal(entries.map((e) => e.id).join('-'), ids)
+})
+
+// cashEntryMatchesFilters now uses counterparty and reference
+test('cashEntryMatchesFilters matches counterparty label via query', () => {
+	const item = {
+		movement_type: 'income',
+		amount: '500',
+		counterparty_label: 'Juan Perez',
+	}
+	assert.equal(cashEntryMatchesFilters(item, { query: 'juan' }), true)
+})
+
+test('cashEntryMatchesFilters matches reference_label via query', () => {
+	const item = {
+		movement_type: 'income',
+		amount: '500',
+		reference_label: 'Orden #42',
+	}
+	assert.equal(cashEntryMatchesFilters(item, { query: 'orden' }), true)
 })

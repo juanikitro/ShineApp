@@ -1349,7 +1349,9 @@ def test_employee_operational_endpoints_do_not_expose_money_fields(employee_clie
 @pytest.mark.django_db
 def test_reservation_capacity_blocks_overbooking(api_client, base_data):
     customer, vehicle, service = base_data
-    DailyCapacity.objects.create(day=date(2026, 4, 28), max_slots=1)
+    DailyCapacity.objects.create(
+        day=date(2026, 4, 28), max_slots_wash=1, max_slots_detailing=1
+    )
     Reservation.objects.create(
         customer=customer,
         vehicle=vehicle,
@@ -1374,6 +1376,72 @@ def test_reservation_capacity_blocks_overbooking(api_client, base_data):
 
     assert response.status_code == 400
     assert "capacidad" in str(response.data).lower()
+
+
+@pytest.mark.django_db
+def test_reservation_capacity_separates_wash_and_detailing(api_client, base_data):
+    customer, vehicle, wash_service = base_data
+    detailing_service = Service.objects.create(
+        name="Detailing completo",
+        service_type=Service.ServiceType.DETAILING,
+        base_price=Decimal("60000.00"),
+        estimated_duration_minutes=180,
+    )
+    DailyCapacity.objects.create(
+        day=date(2026, 4, 28), max_slots_wash=1, max_slots_detailing=1
+    )
+    Reservation.objects.create(
+        customer=customer,
+        vehicle=vehicle,
+        service=wash_service,
+        day=date(2026, 4, 28),
+        start_time=time(9, 0),
+        status=Reservation.Status.CONFIRMED,
+    )
+
+    detailing_response = api_client.post(
+        reverse("reservation-list"),
+        {
+            "customer": customer.id,
+            "vehicle": vehicle.id,
+            "service": detailing_service.id,
+            "day": "2026-04-28",
+            "start_time": "11:00:00",
+            "status": Reservation.Status.PENDING,
+        },
+        format="json",
+    )
+    assert detailing_response.status_code == 201, detailing_response.data
+
+    second_wash_response = api_client.post(
+        reverse("reservation-list"),
+        {
+            "customer": customer.id,
+            "vehicle": vehicle.id,
+            "service": wash_service.id,
+            "day": "2026-04-28",
+            "start_time": "15:00:00",
+            "status": Reservation.Status.PENDING,
+        },
+        format="json",
+    )
+    assert second_wash_response.status_code == 400
+    assert "lavado" in str(second_wash_response.data).lower()
+
+    second_detailing_response = api_client.post(
+        reverse("reservation-list"),
+        {
+            "customer": customer.id,
+            "vehicle": vehicle.id,
+            "service": detailing_service.id,
+            "day": "2026-04-28",
+            "start_time": "16:00:00",
+            "status": Reservation.Status.PENDING,
+        },
+        format="json",
+    )
+    assert second_detailing_response.status_code == 400
+    assert "detailing" in str(second_detailing_response.data).lower()
 
 
 @pytest.mark.django_db
@@ -1480,7 +1548,9 @@ def test_confirm_action_reactivates_canceled_reservation(api_client, base_data):
 @pytest.mark.django_db
 def test_confirm_action_rejects_canceled_reservation_when_day_is_full(api_client, base_data):
     customer, vehicle, service = base_data
-    DailyCapacity.objects.create(day=date(2026, 4, 28), max_slots=1)
+    DailyCapacity.objects.create(
+        day=date(2026, 4, 28), max_slots_wash=1, max_slots_detailing=1
+    )
     Reservation.objects.create(
         customer=customer,
         vehicle=vehicle,
@@ -1559,7 +1629,9 @@ def test_reservation_patch_can_move_it_to_another_day_with_capacity(api_client, 
         start_time=time(10, 0),
         status=Reservation.Status.CONFIRMED,
     )
-    DailyCapacity.objects.create(day=date(2026, 4, 29), max_slots=2)
+    DailyCapacity.objects.create(
+        day=date(2026, 4, 29), max_slots_wash=2, max_slots_detailing=2
+    )
 
     response = api_client.patch(
         reverse("reservation-detail", args=[reservation.id]),
@@ -1584,7 +1656,9 @@ def test_reservation_patch_rejects_move_to_full_day_and_keeps_original_day(api_c
         start_time=time(10, 0),
         status=Reservation.Status.CONFIRMED,
     )
-    DailyCapacity.objects.create(day=date(2026, 4, 29), max_slots=1)
+    DailyCapacity.objects.create(
+        day=date(2026, 4, 29), max_slots_wash=1, max_slots_detailing=1
+    )
     Reservation.objects.create(
         customer=customer,
         vehicle=vehicle,
@@ -2222,6 +2296,27 @@ def test_cash_daily_separates_cashflow_from_economic_totals(api_client, base_dat
     assert entries_by_kind["debt_payment"]["economic_effect"] is False
     assert entries_by_kind["debt_payment"]["signed_amount"] == "-7000.00"
 
+    payment_entry = entries_by_kind["payment"]
+    assert payment_entry["counterparty_kind"] == "customer"
+    assert payment_entry["counterparty_label"] == customer.name
+    assert payment_entry["reference_label"] == f"Orden #{order.id}"
+    assert payment_entry["payment_method"]
+
+    purchase_entry = entries_by_kind["material_purchase"]
+    assert purchase_entry["counterparty_kind"] == "supplier"
+    assert purchase_entry["reference_label"] == material.name
+
+    debt_origin_entry = entries_by_kind["debt_origin"]
+    assert debt_origin_entry["counterparty_kind"] == "creditor"
+    assert debt_origin_entry["counterparty_label"] == "Proveedor"
+    assert debt_origin_entry["reference_label"] == "Pulidora financiada"
+
+    debt_payment_entry_data = entries_by_kind["debt_payment"]
+    assert debt_payment_entry_data["counterparty_kind"] == "creditor"
+    assert debt_payment_entry_data["counterparty_label"] == "Proveedor"
+    assert debt_payment_entry_data["reference_label"] == "Pulidora financiada"
+    assert debt_payment_entry_data["payment_method"]
+
 
 @pytest.mark.django_db
 def test_cash_close_creates_snapshot_and_rejects_duplicate(api_client):
@@ -2291,6 +2386,26 @@ def test_cash_daily_after_reopen_returns_open_state(api_client):
     api_client.post(reverse("cash-reopen"), {"date": cash_day.isoformat()}, format="json")
 
     daily = api_client.get(reverse("cash-daily"), {"date": cash_day.isoformat()})
+    assert daily.status_code == 200
+    assert daily.data["is_closed"] is False
+
+
+@pytest.mark.django_db
+def test_cash_daily_for_future_day_keeps_today_open(api_client):
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    CashMovement.objects.create(
+        movement_type=CashMovement.MovementType.INCOME,
+        category="Pago",
+        amount=Decimal("1000.00"),
+        occurred_at=timezone.make_aware(datetime.combine(today, time(10, 0))),
+    )
+
+    future = api_client.get(reverse("cash-daily"), {"date": tomorrow.isoformat()})
+    assert future.status_code == 200
+    assert not CashClosure.objects.filter(day=today).exists()
+
+    daily = api_client.get(reverse("cash-daily"), {"date": today.isoformat()})
     assert daily.status_code == 200
     assert daily.data["is_closed"] is False
 
