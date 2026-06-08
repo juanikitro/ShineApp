@@ -214,6 +214,8 @@ export function CashPanel({
 	onSelectedDayChange,
 }: CashPanelProps) {
 	const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false)
+	const today = new Date()
+	const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 	const cashStatusLabel = cashIsClosed ? 'Cerrada' : 'Abierta'
 	const cashStatusClass = cashIsClosed ? 'closed' : 'open'
 	const cashSummaryModeLabel =
@@ -288,14 +290,54 @@ export function CashPanel({
 		<div className="grid">
 			<section
 				className="panel finance-panel cash-panel"
-				aria-labelledby="cash-panel-title"
+				aria-label="Caja diaria"
 			>
 				<div className="panel-head finance-panel-head">
-					<div>
-						<span className="panel-kicker">Caja diaria</span>
-						<h2 id="cash-panel-title">Caja</h2>
-						<p>Cobros, egresos y cierre del dia con lectura operativa.</p>
-					</div>
+					<p>Cobros, egresos y cierre del dia con lectura operativa.</p>
+				</div>
+				<div className="toolbar toolbar-spaced cash-toolbar">
+					<Field label="Dia">
+						<div className="date-stepper">
+							<button
+								type="button"
+								className="ghost date-stepper-button"
+								onClick={() => onMoveSelectedDay(-1)}
+								aria-label="Ver dia anterior"
+							>
+								<ChevronLeft size={16} />
+							</button>
+							<input
+								type="date"
+								aria-label="Dia de caja"
+								name="cash_day"
+								value={selectedDay}
+								onChange={(event) => onSelectedDayChange(event.target.value)}
+							/>
+							<button
+								type="button"
+								className="ghost date-stepper-button"
+								onClick={() => onMoveSelectedDay(1)}
+								aria-label="Ver dia siguiente"
+							>
+								<ChevronRight size={16} />
+							</button>
+							<button
+								type="button"
+								className={cx('ghost date-stepper-button', selectedDay === todayStr && 'is-today')}
+								onClick={() => onSelectedDayChange(todayStr)}
+								aria-pressed={selectedDay === todayStr}
+							>
+								Hoy
+							</button>
+						</div>
+					</Field>
+					<span
+						className={`cash-status ${cashStatusClass}`}
+						role="status"
+						aria-label={`Caja ${cashStatusLabel.toLowerCase()}`}
+					>
+						{cashStatusLabel}
+					</span>
 					<div className="finance-action-rail">
 						<div className="finance-primary-actions">
 							<button
@@ -358,42 +400,6 @@ export function CashPanel({
 							) : null}
 						</div>
 					</div>
-				</div>
-				<div className="toolbar toolbar-spaced cash-toolbar">
-					<Field label="Dia">
-						<div className="date-stepper">
-							<button
-								type="button"
-								className="ghost date-stepper-button"
-								onClick={() => onMoveSelectedDay(-1)}
-								aria-label="Ver dia anterior"
-							>
-								<ChevronLeft size={16} />
-							</button>
-							<input
-								type="date"
-								aria-label="Dia de caja"
-								name="cash_day"
-								value={selectedDay}
-								onChange={(event) => onSelectedDayChange(event.target.value)}
-							/>
-							<button
-								type="button"
-								className="ghost date-stepper-button"
-								onClick={() => onMoveSelectedDay(1)}
-								aria-label="Ver dia siguiente"
-							>
-								<ChevronRight size={16} />
-							</button>
-						</div>
-					</Field>
-					<span
-						className={`cash-status ${cashStatusClass}`}
-						role="status"
-						aria-label={`Caja ${cashStatusLabel.toLowerCase()}`}
-					>
-						{cashStatusLabel}
-					</span>
 				</div>
 				{loadBlocked ? (
 					<ErrorState
