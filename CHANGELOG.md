@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-06-08
+- [Sidebar: imagen del negocio arriba, footer reordenado, iconos de subitems y consistencia de posiciones al plegar](docs/registro/cambios/2026-06-08-sidebar-reorganizar-y-iconos-children-colapsado.md)
+
 ## 2026-06-05
 - [UX para infraestructura lenta (free tier Vercel + Supabase)](docs/registro/cambios/2026-06-05-ux-infra-lenta.md)
 - [Turnera: tab propia en Configuracion](docs/registro/cambios/2026-06-05-turnera-tab-configuracion.md)
