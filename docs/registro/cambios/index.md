@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Deploy: documentar VAPID keys para push notifications](2026-06-08-vapid-keys-deploy-docs.md)
 - [Turnera: capacidad, fechas pasadas, slots de 15 min y solape](2026-06-08-turnera-capacidad-y-solape.md)
 - [Sesion persistente con TTL configurable](2026-06-08-token-localstorage-ttl.md)
 - [Frontend: iconos PWA segun superficie (CRM vs turnera)](2026-06-08-pwa-icons-logo-segun-superficie.md)

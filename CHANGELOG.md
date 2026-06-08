@@ -11,6 +11,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-08
+- [Deploy: documentar VAPID keys para push notifications](docs/registro/cambios/2026-06-08-vapid-keys-deploy-docs.md)
 - [Turnera: capacidad, fechas pasadas, slots de 15 min y solape](docs/registro/cambios/2026-06-08-turnera-capacidad-y-solape.md)
 - [Sesion persistente con TTL configurable](docs/registro/cambios/2026-06-08-token-localstorage-ttl.md)
 - [Frontend: iconos PWA segun superficie (CRM vs turnera)](docs/registro/cambios/2026-06-08-pwa-icons-logo-segun-superficie.md)
