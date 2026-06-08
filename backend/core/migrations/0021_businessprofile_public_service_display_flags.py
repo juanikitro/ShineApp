@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("core", "0019_businessprofile_reservation_status_flags"),
+        ("core", "0020_businessprofile_allow_overlapping_reservations"),
     ]
 
     operations = [
