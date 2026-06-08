@@ -568,6 +568,36 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 			setSuccess(false)
 			return
 		}
+		if (requestType === 'booking' && form.preferred_time) {
+			const opening = landing.business.opening_time ?? null
+			const closing = landing.business.closing_time ?? null
+			const time = form.preferred_time
+			if (opening && closing) {
+				const overnight = closing <= opening
+				const inRange = overnight
+					? time >= opening || time <= closing
+					: time >= opening && time <= closing
+				if (!inRange) {
+					setError(
+						overnight
+							? 'El horario solicitado esta fuera del horario de atencion.'
+							: time < opening
+								? 'El horario solicitado es antes del horario de apertura.'
+								: 'El horario solicitado es despues del horario de cierre.',
+					)
+					setSuccess(false)
+					return
+				}
+			} else if (opening && time < opening) {
+				setError('El horario solicitado es antes del horario de apertura.')
+				setSuccess(false)
+				return
+			} else if (closing && time > closing) {
+				setError('El horario solicitado es despues del horario de cierre.')
+				setSuccess(false)
+				return
+			}
+		}
 		setSubmitting(true)
 		setError(null)
 		setSuccess(false)
@@ -622,9 +652,18 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	}
 
 	const business = landing.business
+	const isOvernightHours = Boolean(
+		business.opening_time &&
+			business.closing_time &&
+			business.closing_time <= business.opening_time,
+	)
 	const hoursLabel =
 		business.opening_time && business.closing_time
-			? `${business.opening_time} – ${business.closing_time}`
+			? isOvernightHours
+				? business.closing_time === '00:00'
+					? `${business.opening_time} – ${business.closing_time} (cierra a medianoche)`
+					: `${business.opening_time} – ${business.closing_time} (cierra al dia siguiente)`
+				: `${business.opening_time} – ${business.closing_time}`
 			: business.opening_time
 				? `Desde ${business.opening_time}`
 				: business.closing_time
@@ -922,6 +961,8 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							<select
 								disabled={!form.preferred_day || isPastPreferredDay}
 								value={form.preferred_time}
+								min={isOvernightHours ? undefined : (landing.business.opening_time ?? undefined)}
+								max={isOvernightHours ? undefined : (landing.business.closing_time ?? undefined)}
 								onChange={(event) => patchForm({ preferred_time: event.target.value })}
 							>
 								<option value="">--</option>
