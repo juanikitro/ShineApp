@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Soft delete fase 1 - Reservation, WorkOrder, Payment, CashMovement (2026-06-08)](2026-06-08-soft-delete-fase-1.md)
 - [Borrado de reserva cancelada con cobro asociado (2026-06-08)](2026-06-08-borrado-reserva-con-cobro.md)
 - [UX para infraestructura lenta (free tier Vercel + Supabase)](2026-06-05-ux-infra-lenta.md)
 - [Turnera: tab propia en Configuracion](2026-06-05-turnera-tab-configuracion.md)

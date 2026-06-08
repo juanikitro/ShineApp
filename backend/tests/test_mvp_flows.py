@@ -1671,6 +1671,43 @@ def test_delete_canceled_reservation_with_payment_closed_cash_returns_400(api_cl
 
 
 @pytest.mark.django_db
+def test_delete_canceled_reservation_soft_deletes_cascade_entities(api_client, base_data):
+    customer, vehicle, service = base_data
+    order = create_work_order(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        total_amount=Decimal("15000.00"),
+    )
+    payment_response = api_client.post(
+        reverse("payment-list"),
+        {
+            "work_order": order.id,
+            "amount": "5000.00",
+            "payment_type": "deposit",
+            "method": "cash",
+        },
+        format="json",
+    )
+    payment_id = payment_response.data["id"]
+    movement = CashMovement.objects.get(payment_id=payment_id)
+    order.reservation.status = Reservation.Status.CANCELED
+    order.reservation.save(update_fields=["status", "updated_at"])
+
+    delete_response = api_client.delete(reverse("reservation-detail", args=[order.reservation_id]))
+
+    assert delete_response.status_code == 204
+    reservation_dead = Reservation.all_objects.get(pk=order.reservation_id)
+    assert reservation_dead.deleted_at is not None
+    work_order_dead = WorkOrder.all_objects.get(pk=order.pk)
+    assert work_order_dead.deleted_at is not None
+    payment_dead = Payment.all_objects.get(pk=payment_id)
+    assert payment_dead.deleted_at is not None
+    movement_dead = CashMovement.all_objects.get(pk=movement.pk)
+    assert movement_dead.deleted_at is not None
+
+
+@pytest.mark.django_db
 def test_delete_canceled_reservation_with_stock_consumption_returns_400(api_client, base_data):
     customer, vehicle, service = base_data
     order = create_work_order(

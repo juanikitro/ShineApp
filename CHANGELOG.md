@@ -11,6 +11,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-08
+- [Soft delete fase 1 - Reservation, WorkOrder, Payment, CashMovement (2026-06-08)](docs/registro/cambios/2026-06-08-soft-delete-fase-1.md)
 - [Borrado de reserva cancelada con cobro asociado (2026-06-08)](docs/registro/cambios/2026-06-08-borrado-reserva-con-cobro.md)
 
 ## 2026-06-05

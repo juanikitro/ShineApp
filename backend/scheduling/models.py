@@ -1,7 +1,11 @@
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import models
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import models, transaction
+from django.utils import timezone
+
+from core.soft_delete import SoftDeleteMixin
 
 
 WASH_BUCKET = "wash"
@@ -41,7 +45,7 @@ class DailyCapacity(models.Model):
         super().save(*args, **kwargs)
 
 
-class Reservation(models.Model):
+class Reservation(SoftDeleteMixin):
     class Status(models.TextChoices):
         PENDING = "pending", "Pendiente"
         CONFIRMED = "confirmed", "Confirmada"
@@ -64,7 +68,7 @@ class Reservation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["day", "start_time", "id"]
         indexes = [
             models.Index(
@@ -89,6 +93,18 @@ class Reservation(models.Model):
         from .services import ensure_reservation_work_order
 
         ensure_reservation_work_order(self)
+
+    def delete(self, using=None, keep_parents=False):
+        with transaction.atomic():
+            try:
+                work_order = self.work_order
+            except ObjectDoesNotExist:
+                work_order = None
+            if work_order is not None:
+                work_order.delete()
+            self._skip_work_order_sync = True
+            self.deleted_at = timezone.now()
+            self.save(update_fields=["deleted_at", "updated_at"])
 
     @property
     def service_items(self):

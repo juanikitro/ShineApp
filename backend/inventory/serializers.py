@@ -70,7 +70,7 @@ def sync_purchase_cash_movement(purchase, user=None):
             movement.save(update_fields=["created_by"])
         register_expense_classification(movement.category, movement.subcategory, business=purchase.business)
     else:
-        CashMovement.objects.filter(material_purchase=purchase).delete()
+        CashMovement.objects.filter(material_purchase=purchase).hard_delete()
 
 
 def stock_movement_affects_cash(movement_type, affects_cash):
@@ -118,7 +118,7 @@ def sync_stock_movement_cash_movement(movement, user=None):
         register_income_classification(movement_record.category, movement_record.subcategory, business=movement.business)
         return
 
-    CashMovement.objects.filter(stock_movement=movement).delete()
+    CashMovement.objects.filter(stock_movement=movement).hard_delete()
 
 
 def reverse_stock_movement_effects(movement):
@@ -131,7 +131,7 @@ def reverse_stock_movement_effects(movement):
         material.stock_quantity = next_stock
         material.save(update_fields=["stock_quantity", "updated_at"])
         touched_material_ids.add(material.id)
-    CashMovement.objects.filter(stock_movement=movement).delete()
+    CashMovement.objects.filter(stock_movement=movement).hard_delete()
     movement.lines.all().delete()
     for material in Material.objects.filter(id__in=touched_material_ids):
         refresh_material_cost(material)

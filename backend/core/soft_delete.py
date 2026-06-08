@@ -22,7 +22,8 @@ from django.utils import timezone
 
 class SoftDeleteQuerySet(models.QuerySet):
     def delete(self):
-        return self.update(deleted_at=timezone.now())
+        count = self.update(deleted_at=timezone.now())
+        return count, {self.model._meta.label: count}
 
     def hard_delete(self):
         return super().delete()

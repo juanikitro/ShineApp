@@ -172,7 +172,6 @@ class PaymentViewSet(
     @transaction.atomic
     def perform_destroy(self, instance):
         ensure_cash_day_open(cash_day(instance.paid_at), field="paid_at", business=instance.business)
-        CashMovement.objects.filter(payment=instance).delete()
         instance.delete()
 
 
