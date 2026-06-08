@@ -18,8 +18,11 @@ import {
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 
 import { publicApiFetch } from '@/lib/api'
-import { formatApiError } from '@/lib/api-errors'
-import { joinDisplayParts } from '@/lib/display-text'
+import {
+	type ApiErrorNotice,
+	createValidationNotice,
+	formatApiError,
+} from '@/lib/api-errors'
 import { isPdfAssetSource, renderPdfPreviewDataUrl, safeImageAssetSource } from '@/lib/pdf-preview'
 import {
 	type AvailabilityBucket,
@@ -177,12 +180,34 @@ function serviceDurationLabel(service: PublicService) {
 	return formatDurationLabel(service.estimated_duration_minutes)
 }
 
-function errorMessage(error: unknown) {
-	const notice = formatApiError(error, {
+function errorNoticeFrom(error: unknown): ApiErrorNotice {
+	return formatApiError(error, {
 		fallbackTitle: 'No se pudo completar la solicitud',
 		fallbackDescription: 'Revisa los datos ingresados e intenta nuevamente.',
 	})
-	return joinDisplayParts([notice.title, notice.description])
+}
+
+function localValidationNotice(description: string): ApiErrorNotice {
+	return createValidationNotice('Revisa los datos del formulario', description)
+}
+
+function PublicFormErrorNotice({ notice }: { notice: ApiErrorNotice }) {
+	return (
+		<div className="public-form-error" role="alert">
+			<strong>{notice.title}</strong>
+			{notice.description ? <p>{notice.description}</p> : null}
+			{notice.fields.length ? (
+				<ul className="alert-fields">
+					{notice.fields.map((field, index) => (
+						<li key={`${field.path}-${index}`}>
+							<strong>{field.label}</strong>
+							<span>{field.message}</span>
+						</li>
+					))}
+				</ul>
+			) : null}
+		</div>
+	)
 }
 
 type ServiceIconComponent = typeof Wrench
@@ -248,7 +273,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	const [form, setForm] = useState<PublicRequestForm>(blankForm)
 	const [loading, setLoading] = useState(true)
 	const [submitting, setSubmitting] = useState(false)
-	const [error, setError] = useState<string | null>(null)
+	const [errorNotice, setErrorNotice] = useState<ApiErrorNotice | null>(null)
 	const [success, setSuccess] = useState(false)
 	const [logoLoadFailed, setLogoLoadFailed] = useState(false)
 
@@ -256,7 +281,11 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	const [recallOpen, setRecallOpen] = useState(false)
 	const [recallIdentifier, setRecallIdentifier] = useState('')
 	const [recalling, setRecalling] = useState(false)
-	const [recallFeedback, setRecallFeedback] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+	const [recallFeedback, setRecallFeedback] = useState<
+		| { tone: 'ok'; text: string }
+		| { tone: 'err'; notice: ApiErrorNotice }
+		| null
+	>(null)
 	const [availability, setAvailability] = useState<PublicAvailabilityPayload | null>(null)
 	const [availabilityLoading, setAvailabilityLoading] = useState(false)
 	const today = todayIsoDate()
@@ -265,7 +294,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		let mounted = true
 		async function loadLanding() {
 			setLoading(true)
-			setError(null)
+			setErrorNotice(null)
 			try {
 				const payload = await publicApiFetch<PublicLandingPayload>(
 					`/public/landing/${encodeURIComponent(slug)}/`,
@@ -275,7 +304,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 				setLanding(payload)
 			} catch (err) {
 				if (!mounted) return
-				setError(errorMessage(err))
+				setErrorNotice(errorNoticeFrom(err))
 			} finally {
 				if (mounted) setLoading(false)
 			}
@@ -514,12 +543,17 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 				})
 				setRecallOpen(false)
 				setRecallIdentifier('')
-				setRecallFeedback({ type: 'ok', text: 'Datos autocompletados.' })
+				setRecallFeedback({ tone: 'ok', text: 'Datos autocompletados.' })
 			} else {
-				setRecallFeedback({ type: 'err', text: 'No encontramos un cliente con ese dato.' })
+				setRecallFeedback({
+					tone: 'err',
+					notice: localValidationNotice(
+						'No encontramos un cliente con ese dato.',
+					),
+				})
 			}
 		} catch (err) {
-			setRecallFeedback({ type: 'err', text: errorMessage(err) })
+			setRecallFeedback({ tone: 'err', notice: errorNoticeFrom(err) })
 		} finally {
 			setRecalling(false)
 		}
@@ -533,28 +567,36 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 			form.customer_phone.trim() || form.customer_email.trim(),
 		)
 		if (!hasCustomerName) {
-			setError('Ingresa tu nombre.')
+			setErrorNotice(localValidationNotice('Ingresa tu nombre.'))
 			setSuccess(false)
 			return
 		}
 		if (!hasContact) {
-			setError('Deja un celular o un email de contacto.')
+			setErrorNotice(
+				localValidationNotice('Deja un celular o un email de contacto.'),
+			)
 			setSuccess(false)
 			return
 		}
 		if (!form.service_ids.length) {
-			setError('Selecciona al menos un servicio.')
+			setErrorNotice(
+				localValidationNotice('Selecciona al menos un servicio.'),
+			)
 			setSuccess(false)
 			return
 		}
 		const requestType = form.preferred_day ? 'booking' : 'quote'
 		if (requestType === 'booking' && !landing.actions.booking_requests) {
-			setError('El negocio no acepta solicitudes de reserva.')
+			setErrorNotice(
+				localValidationNotice('El negocio no acepta solicitudes de reserva.'),
+			)
 			setSuccess(false)
 			return
 		}
 		if (requestType === 'quote' && !landing.actions.quote_requests) {
-			setError('Carga una fecha para solicitar una reserva.')
+			setErrorNotice(
+				localValidationNotice('Carga una fecha para solicitar una reserva.'),
+			)
 			setSuccess(false)
 			return
 		}
@@ -599,7 +641,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 			}
 		}
 		setSubmitting(true)
-		setError(null)
+		setErrorNotice(null)
 		setSuccess(false)
 		let pushSubscription: object | null = null
 		try {
@@ -627,7 +669,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 			setSuccess(true)
 			setForm(blankForm)
 		} catch (err) {
-			setError(errorMessage(err))
+			setErrorNotice(errorNoticeFrom(err))
 		} finally {
 			setSubmitting(false)
 		}
@@ -642,10 +684,14 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	}
 
 	if (!landing) {
+		const fallbackTitle = 'La pagina publica no esta disponible.'
+		const fallbackText = errorNotice
+			? [errorNotice.title, errorNotice.description].filter(Boolean).join(' - ')
+			: fallbackTitle
 		return (
 			<main className="public-landing">
 				<div className="public-state public-state--error">
-					{error ?? 'La pagina publica no esta disponible.'}
+					{fallbackText || fallbackTitle}
 				</div>
 			</main>
 		)
@@ -852,12 +898,16 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							/>
 						</label>
 					</div>
-					{recallFeedback && !recallOpen && (
-						<div className={recallFeedback.type === 'ok' ? 'public-form-success' : 'public-form-error'}>
-							{recallFeedback.type === 'ok' && <CheckCircle2 size={16} />}
-							{recallFeedback.text}
-						</div>
-					)}
+					{recallFeedback && !recallOpen ? (
+						recallFeedback.tone === 'ok' ? (
+							<div className="public-form-success">
+								<CheckCircle2 size={16} />
+								{recallFeedback.text}
+							</div>
+						) : (
+							<PublicFormErrorNotice notice={recallFeedback.notice} />
+						)
+					) : null}
 					{!recallOpen ? (
 						<button
 							type="button"
@@ -885,12 +935,16 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 									</button>
 								</div>
 							</label>
-							{recallFeedback && (
-								<div className={recallFeedback.type === 'ok' ? 'public-form-success' : 'public-form-error'}>
-									{recallFeedback.type === 'ok' && <CheckCircle2 size={16} />}
-									{recallFeedback.text}
-								</div>
-							)}
+							{recallFeedback ? (
+								recallFeedback.tone === 'ok' ? (
+									<div className="public-form-success">
+										<CheckCircle2 size={16} />
+										{recallFeedback.text}
+									</div>
+								) : (
+									<PublicFormErrorNotice notice={recallFeedback.notice} />
+								)
+							) : null}
 							<button
 								type="button"
 								className="public-recall-trigger"
@@ -1014,7 +1068,9 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							onChange={(event) => patchForm({ message: event.target.value })}
 						/>
 					</label>
-					{error ? <div className="public-form-error">{error}</div> : null}
+					{errorNotice ? (
+						<PublicFormErrorNotice notice={errorNotice} />
+					) : null}
 					{success ? (
 						<div className="public-form-success">
 							<CheckCircle2 size={18} />

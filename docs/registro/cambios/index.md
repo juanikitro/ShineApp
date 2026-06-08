@@ -11,6 +11,7 @@ py -3 scripts/check_docs.py --write --skip-build
 
 - [Turnera: capacidad, fechas pasadas, slots de 15 min y solape](2026-06-08-turnera-capacidad-y-solape.md)
 - [Horarios overnight en la pagina publica (cierre a medianoche o cruzando dia)](2026-06-08-horarios-overnight.md)
+- [Fix: errores por campo visibles en landing publica (2026-06-08)](2026-06-08-errores-landing-publica.md)
 - [Caja: categoria Personal con subcategorias de gastos cotidianos](2026-06-08-caja-categoria-personal.md)
 - [UX para infraestructura lenta (free tier Vercel + Supabase)](2026-06-05-ux-infra-lenta.md)
 - [Turnera: tab propia en Configuracion](2026-06-05-turnera-tab-configuracion.md)
