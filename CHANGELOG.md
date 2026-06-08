@@ -19,6 +19,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Sidebar: imagen del negocio arriba, footer reordenado, iconos de subitems y consistencia de posiciones al plegar](docs/registro/cambios/2026-06-08-sidebar-reorganizar-y-iconos-children-colapsado.md)
 - [Frontend: iconos PWA segun superficie (CRM vs turnera)](docs/registro/cambios/2026-06-08-pwa-icons-logo-segun-superficie.md)
 - [Horarios overnight en la pagina publica (cierre a medianoche o cruzando dia)](docs/registro/cambios/2026-06-08-horarios-overnight.md)
+- [Fix: cambios en Configuracion revierten visualmente tras guardar](docs/registro/cambios/2026-06-08-fix-config-revierte-tras-guardar.md)
 - [Fix: errores por campo visibles en landing publica (2026-06-08)](docs/registro/cambios/2026-06-08-errores-landing-publica.md)
 - [Fix: errores por campo visibles en formularios globales (2026-06-08)](docs/registro/cambios/2026-06-08-errores-formularios-fields-globales.md)
 - [Caja: categoria Personal con subcategorias de gastos cotidianos](docs/registro/cambios/2026-06-08-caja-categoria-personal.md)
