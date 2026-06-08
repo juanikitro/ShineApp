@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Caja: categoria Personal con subcategorias de gastos cotidianos](2026-06-08-caja-categoria-personal.md)
 - [UX para infraestructura lenta (free tier Vercel + Supabase)](2026-06-05-ux-infra-lenta.md)
 - [Turnera: tab propia en Configuracion](2026-06-05-turnera-tab-configuracion.md)
 - [Turnera: control fino de servicios visibles + split en landing](2026-06-05-turnera-servicios-visibles.md)
