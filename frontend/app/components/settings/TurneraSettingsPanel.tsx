@@ -230,6 +230,21 @@ export function TurneraSettingsPanel({
 							/>
 						</Field>
 					</div>
+					<label>
+						<input
+							type="checkbox"
+							name="business_allow_overlapping_reservations"
+							checked={
+								businessForm.allow_overlapping_reservations === true
+							}
+							onChange={(event) =>
+								onPatchBusinessForm({
+									allow_overlapping_reservations: event.target.checked,
+								})
+							}
+						/>
+						Solapar turnos
+					</label>
 				</div>
 				<div className="turnera-services">
 					<div className="turnera-services-head">
