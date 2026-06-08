@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Sesion persistente con TTL configurable](2026-06-08-token-localstorage-ttl.md)
 - [Turnera: capacidad, fechas pasadas, slots de 15 min y solape](2026-06-08-turnera-capacidad-y-solape.md)
 - [Horarios overnight en la pagina publica (cierre a medianoche o cruzando dia)](2026-06-08-horarios-overnight.md)
 - [Fix: errores por campo visibles en landing publica (2026-06-08)](2026-06-08-errores-landing-publica.md)
