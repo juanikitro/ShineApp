@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Vida y animaciones en el CRM](2026-06-08-vida-animaciones-crm.md)
 - [Turnera: toggles para mostrar descripcion y precio del servicio](2026-06-08-turnera-toggles-descripcion-precio.md)
 - [Sidebar: imagen del negocio arriba, footer reordenado, iconos de subitems y consistencia de posiciones al plegar](2026-06-08-sidebar-reorganizar-y-iconos-children-colapsado.md)
 - [Deploy: documentar VAPID keys para push notifications](2026-06-08-vapid-keys-deploy-docs.md)
