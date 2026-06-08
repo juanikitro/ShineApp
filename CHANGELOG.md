@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-06-08
+- [Vida y animaciones en el CRM](docs/registro/cambios/2026-06-08-vida-animaciones-crm.md)
+
 ## 2026-06-05
 - [UX para infraestructura lenta (free tier Vercel + Supabase)](docs/registro/cambios/2026-06-05-ux-infra-lenta.md)
 - [Turnera: tab propia en Configuracion](docs/registro/cambios/2026-06-05-turnera-tab-configuracion.md)
