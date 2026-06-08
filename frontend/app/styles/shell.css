@@ -106,6 +106,38 @@
   width: 100%;
 }
 
+.nav button::before {
+  background: var(--color-primary);
+  border-radius: 0 2px 2px 0;
+  bottom: 8px;
+  content: '';
+  left: 0;
+  opacity: 0;
+  position: absolute;
+  top: 8px;
+  transform: scaleY(0.6);
+  transition:
+    opacity var(--motion-duration-base) var(--motion-ease-standard),
+    transform var(--motion-duration-base) var(--motion-ease-emphasis);
+  width: 3px;
+}
+
+.nav button:hover::before {
+  opacity: 0.45;
+  transform: scaleY(0.8);
+}
+
+.nav button.active::before {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav button::before {
+    transition: none;
+  }
+}
+
 .nav-badge {
   align-items: center;
   background: var(--color-primary);
@@ -2125,6 +2157,12 @@
   font-size: 12px;
   font-weight: 650;
   line-height: 1.35;
+}
+
+.dashboard-delta-slot {
+  display: inline-block;
+  position: relative;
+  min-height: 1.35em;
 }
 
 .dashboard-delta--up {
@@ -4376,5 +4414,147 @@
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
   padding: 8px 0;
+}
+
+/* Auto-stagger entrance on record lists. Opt-out by setting data-motion on the container
+   (already done by <Stagger>). Animates on mount; reduced-motion disables. */
+.records:not([data-motion]) > *,
+.cash-entry-list > *,
+.cash-summary-lines > *,
+.dashboard-aging-bars > *,
+.dashboard-receivable-workorders > * {
+  animation: record-fade-in var(--motion-duration-view) var(--motion-ease-emphasis) backwards;
+}
+.records:not([data-motion]) > *:nth-child(1),
+.cash-entry-list > *:nth-child(1),
+.cash-summary-lines > *:nth-child(1),
+.dashboard-aging-bars > *:nth-child(1),
+.dashboard-receivable-workorders > *:nth-child(1) { animation-delay: 0ms; }
+.records:not([data-motion]) > *:nth-child(2),
+.cash-entry-list > *:nth-child(2),
+.cash-summary-lines > *:nth-child(2),
+.dashboard-aging-bars > *:nth-child(2),
+.dashboard-receivable-workorders > *:nth-child(2) { animation-delay: 30ms; }
+.records:not([data-motion]) > *:nth-child(3),
+.cash-entry-list > *:nth-child(3),
+.cash-summary-lines > *:nth-child(3),
+.dashboard-aging-bars > *:nth-child(3),
+.dashboard-receivable-workorders > *:nth-child(3) { animation-delay: 60ms; }
+.records:not([data-motion]) > *:nth-child(4),
+.cash-entry-list > *:nth-child(4),
+.cash-summary-lines > *:nth-child(4),
+.dashboard-aging-bars > *:nth-child(4),
+.dashboard-receivable-workorders > *:nth-child(4) { animation-delay: 90ms; }
+.records:not([data-motion]) > *:nth-child(5),
+.cash-entry-list > *:nth-child(5),
+.cash-summary-lines > *:nth-child(5),
+.dashboard-aging-bars > *:nth-child(5),
+.dashboard-receivable-workorders > *:nth-child(5) { animation-delay: 120ms; }
+.records:not([data-motion]) > *:nth-child(6),
+.cash-entry-list > *:nth-child(6),
+.cash-summary-lines > *:nth-child(6),
+.dashboard-aging-bars > *:nth-child(6),
+.dashboard-receivable-workorders > *:nth-child(6) { animation-delay: 150ms; }
+.records:not([data-motion]) > *:nth-child(7),
+.cash-entry-list > *:nth-child(7),
+.cash-summary-lines > *:nth-child(7),
+.dashboard-aging-bars > *:nth-child(7),
+.dashboard-receivable-workorders > *:nth-child(7) { animation-delay: 180ms; }
+.records:not([data-motion]) > *:nth-child(8),
+.cash-entry-list > *:nth-child(8),
+.cash-summary-lines > *:nth-child(8),
+.dashboard-aging-bars > *:nth-child(8),
+.dashboard-receivable-workorders > *:nth-child(8) { animation-delay: 210ms; }
+.records:not([data-motion]) > *:nth-child(9),
+.cash-entry-list > *:nth-child(9),
+.cash-summary-lines > *:nth-child(9),
+.dashboard-aging-bars > *:nth-child(9),
+.dashboard-receivable-workorders > *:nth-child(9) { animation-delay: 240ms; }
+.records:not([data-motion]) > *:nth-child(10),
+.cash-entry-list > *:nth-child(10),
+.cash-summary-lines > *:nth-child(10),
+.dashboard-aging-bars > *:nth-child(10),
+.dashboard-receivable-workorders > *:nth-child(10) { animation-delay: 270ms; }
+.records:not([data-motion]) > *:nth-child(11),
+.cash-entry-list > *:nth-child(11),
+.cash-summary-lines > *:nth-child(11),
+.dashboard-aging-bars > *:nth-child(11),
+.dashboard-receivable-workorders > *:nth-child(11) { animation-delay: 300ms; }
+.records:not([data-motion]) > *:nth-child(n + 12),
+.cash-entry-list > *:nth-child(n + 12),
+.cash-summary-lines > *:nth-child(n + 12),
+.dashboard-aging-bars > *:nth-child(n + 12),
+.dashboard-receivable-workorders > *:nth-child(n + 12) { animation-delay: 330ms; }
+
+@keyframes record-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .records:not([data-motion]) > *,
+  .cash-entry-list > *,
+  .cash-summary-lines > *,
+  .dashboard-aging-bars > *,
+  .dashboard-receivable-workorders > * {
+    animation: none;
+  }
+}
+
+/* Subtle interactive lift on dashboard cards. CRM-sober: small translateY + shadow boost. */
+.dashboard-executive-metric,
+.dashboard-composition-grid .metric,
+.dashboard-comparison-record,
+.dashboard-ranking-record,
+.dashboard-status-record,
+.dashboard-receivable-record,
+.dashboard-alert-record,
+.dashboard-insight-record {
+  transition:
+    transform var(--motion-duration-base) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard),
+    border-color var(--motion-duration-base) var(--motion-ease-standard);
+}
+
+.dashboard-executive-metric:hover,
+.dashboard-composition-grid .metric:hover,
+.dashboard-comparison-record:hover,
+.dashboard-ranking-record:hover,
+.dashboard-status-record:hover,
+.dashboard-receivable-record:hover,
+.dashboard-alert-record:hover,
+.dashboard-insight-record:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px var(--color-shadow-soft);
+  border-color: var(--color-workspace-active-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-executive-metric,
+  .dashboard-composition-grid .metric,
+  .dashboard-comparison-record,
+  .dashboard-ranking-record,
+  .dashboard-status-record,
+  .dashboard-receivable-record,
+  .dashboard-alert-record,
+  .dashboard-insight-record {
+    transition: none;
+  }
+  .dashboard-executive-metric:hover,
+  .dashboard-composition-grid .metric:hover,
+  .dashboard-comparison-record:hover,
+  .dashboard-ranking-record:hover,
+  .dashboard-status-record:hover,
+  .dashboard-receivable-record:hover,
+  .dashboard-alert-record:hover,
+  .dashboard-insight-record:hover {
+    transform: none;
+  }
 }
 

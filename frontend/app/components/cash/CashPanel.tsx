@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 
 import { CashEntryRow } from '@/app/components/cash/CashEntryRow'
+import { AnimatedNumber } from '@/app/components/motion/AnimatedNumber'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
 import { Field } from '@/app/components/ui/Field'
 import { SkeletonList } from '@/app/components/ui/Skeleton'
@@ -43,6 +44,7 @@ import {
 import {
 	type AnyRecord,
 	money,
+	numberValue,
 } from '@/lib/page-support'
 
 export type CashSummaryMode = 'cashflow' | 'economic'
@@ -427,23 +429,43 @@ export function CashPanel({
 								<span>
 									<span className="cash-term income">Ingresos</span> de caja
 								</span>
-								<strong>{money(cashflowTotals.income)}</strong>
+								<strong>
+									<AnimatedNumber
+										value={numberValue(cashflowTotals.income)}
+										format={money}
+									/>
+								</strong>
 							</div>
 							<div className="metric cash-metric">
 								<span>
 									<span className="cash-term expense">Egresos</span> de caja
 								</span>
-								<strong>{money(cashflowTotals.expense)}</strong>
+								<strong>
+									<AnimatedNumber
+										value={numberValue(cashflowTotals.expense)}
+										format={money}
+									/>
+								</strong>
 							</div>
 							<div className="metric cash-metric cash-metric-balance">
 								<span>Saldo de caja</span>
-								<strong>{money(cashflowTotals.balance)}</strong>
+								<strong>
+									<AnimatedNumber
+										value={numberValue(cashflowTotals.balance)}
+										format={money}
+									/>
+								</strong>
 							</div>
 						</section>
 						<section className="cash-economic-panel section-block-end">
 							<div>
 								<span>Resultado del dia</span>
-								<strong>{money(economicTotals.balance)}</strong>
+								<strong>
+									<AnimatedNumber
+										value={numberValue(economicTotals.balance)}
+										format={money}
+									/>
+								</strong>
 							</div>
 							<p>
 								<span className="cash-term income">Ingresos</span>{' '}
