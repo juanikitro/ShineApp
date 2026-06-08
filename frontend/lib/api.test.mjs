@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { beforeEach, test, vi } from 'vitest'
+import { afterEach, beforeEach, test, vi } from 'vitest'
 
 import { ApiResponseError } from './api-errors'
 import {
@@ -16,10 +16,22 @@ const API_BASE_URL = (
 	process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:9001/api'
 ).replace(/\/$/, '')
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
 beforeEach(() => {
 	window.localStorage.clear()
 	window.sessionStorage.clear()
 })
+
+afterEach(() => {
+	vi.unstubAllEnvs()
+	vi.restoreAllMocks()
+})
+
+function freezeNow(iso) {
+	const fixed = Date.parse(iso)
+	return vi.spyOn(Date, 'now').mockReturnValue(fixed)
+}
 
 test('apiFetch normalizes non-JSON error bodies without reading the stream twice', async () => {
 	let consumed = false
@@ -87,23 +99,81 @@ test('publicApiFetch defaults to no-store but respects an explicit cache mode', 
 	assert.deepEqual(cacheModes, ['no-store', 'default'])
 })
 
-test('stored token helpers use sessionStorage and clear legacy localStorage tokens', () => {
-	assert.equal(getStoredToken(), null)
-
-	window.localStorage.setItem('detailingToken', 'legacy-token')
-	assert.equal(getStoredToken(), 'legacy-token')
-	assert.equal(window.sessionStorage.getItem('detailingToken'), 'legacy-token')
-	assert.equal(window.localStorage.getItem('detailingToken'), null)
+test('setStoredToken persists token in localStorage with a default 30-day expiry', () => {
+	freezeNow('2026-06-08T12:00:00Z')
 
 	setStoredToken('abc123')
+	const stored = JSON.parse(window.localStorage.getItem('detailingToken'))
+	assert.equal(stored.token, 'abc123')
+	assert.equal(stored.expiresAt, Date.now() + 30 * DAY_MS)
+	assert.equal(window.sessionStorage.getItem('detailingToken'), null)
 	assert.equal(getStoredToken(), 'abc123')
-	assert.equal(window.sessionStorage.getItem('detailingToken'), 'abc123')
-	assert.equal(window.localStorage.getItem('detailingToken'), null)
+})
 
+test('getStoredToken returns null and clears the entry once expired', () => {
+	const now = Date.parse('2026-06-08T12:00:00Z')
+	const spy = vi.spyOn(Date, 'now').mockReturnValue(now)
+	setStoredToken('soon-expired')
+
+	spy.mockReturnValue(now + 30 * DAY_MS + 1)
+	assert.equal(getStoredToken(), null)
+	assert.equal(window.localStorage.getItem('detailingToken'), null)
+})
+
+test('NEXT_PUBLIC_SHINEAPP_TOKEN_TTL_DAYS overrides the default TTL', () => {
+	vi.stubEnv('NEXT_PUBLIC_SHINEAPP_TOKEN_TTL_DAYS', '7')
+	freezeNow('2026-06-08T12:00:00Z')
+
+	setStoredToken('weekly')
+	const stored = JSON.parse(window.localStorage.getItem('detailingToken'))
+	assert.equal(stored.expiresAt, Date.now() + 7 * DAY_MS)
+})
+
+test('invalid TTL values fall back to the 30-day default', () => {
+	vi.stubEnv('NEXT_PUBLIC_SHINEAPP_TOKEN_TTL_DAYS', '0')
+	freezeNow('2026-06-08T12:00:00Z')
+
+	setStoredToken('fallback')
+	const stored = JSON.parse(window.localStorage.getItem('detailingToken'))
+	assert.equal(stored.expiresAt, Date.now() + 30 * DAY_MS)
+})
+
+test('getStoredToken migrates a legacy raw token from sessionStorage to the new format', () => {
+	freezeNow('2026-06-08T12:00:00Z')
+
+	window.sessionStorage.setItem('detailingToken', 'pre-may-token')
+	assert.equal(getStoredToken(), 'pre-may-token')
+
+	const stored = JSON.parse(window.localStorage.getItem('detailingToken'))
+	assert.equal(stored.token, 'pre-may-token')
+	assert.equal(stored.expiresAt, Date.now() + 30 * DAY_MS)
+	assert.equal(window.sessionStorage.getItem('detailingToken'), null)
+})
+
+test('getStoredToken migrates a legacy raw token left in localStorage to the new format', () => {
+	freezeNow('2026-06-08T12:00:00Z')
+
+	window.localStorage.setItem('detailingToken', 'older-token')
+	assert.equal(getStoredToken(), 'older-token')
+
+	const stored = JSON.parse(window.localStorage.getItem('detailingToken'))
+	assert.equal(stored.token, 'older-token')
+	assert.equal(stored.expiresAt, Date.now() + 30 * DAY_MS)
+})
+
+test('getStoredToken discards a corrupted JSON entry', () => {
+	window.localStorage.setItem('detailingToken', JSON.stringify({ foo: 'bar' }))
+	assert.equal(getStoredToken(), null)
+	assert.equal(window.localStorage.getItem('detailingToken'), null)
+})
+
+test('clearStoredToken wipes both storages', () => {
+	setStoredToken('to-be-removed')
+	window.sessionStorage.setItem('detailingToken', 'stray')
 	clearStoredToken()
 	assert.equal(getStoredToken(), null)
-	assert.equal(window.sessionStorage.getItem('detailingToken'), null)
 	assert.equal(window.localStorage.getItem('detailingToken'), null)
+	assert.equal(window.sessionStorage.getItem('detailingToken'), null)
 })
 
 test('apiFetch attaches auth and json headers but leaves FormData content type to the browser', async () => {

@@ -1,0 +1,244 @@
+export type AnyAvailabilityRecord = Record<string, unknown>
+
+export type AvailabilityBucket = {
+	max_slots: number
+	used_slots: number
+	available_slots: number
+}
+
+export type AvailabilityOccupied = {
+	start_time: string
+	duration_minutes: number
+}
+
+export type ScheduleAvailability = {
+	wash: AvailabilityBucket
+	detailing: AvailabilityBucket
+	allowOverlap: boolean
+	occupied: AvailabilityOccupied[]
+}
+
+export const SLOT_STEP_MINUTES = 15
+export const DEFAULT_OPENING_TIME = '08:00'
+export const DEFAULT_CLOSING_TIME = '20:00'
+
+export function todayIsoDate(): string {
+	const now = new Date()
+	const year = now.getFullYear()
+	const month = String(now.getMonth() + 1).padStart(2, '0')
+	const day = String(now.getDate()).padStart(2, '0')
+	return `${year}-${month}-${day}`
+}
+
+export function timeToMinutes(value: string | null | undefined): number | null {
+	if (typeof value !== 'string' || !value) return null
+	const [hourPart, minutePart] = value.split(':')
+	const hours = Number(hourPart)
+	const minutes = Number(minutePart)
+	if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
+	return hours * 60 + minutes
+}
+
+function minutesToTime(value: number): string {
+	const hours = Math.floor(value / 60)
+	const minutes = value % 60
+	return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
+function roundUpToStep(value: number, step: number): number {
+	if (value % step === 0) return value
+	return value + (step - (value % step))
+}
+
+export type TimeSlot = {
+	value: string
+	label: string
+	disabled: boolean
+	disabledReason?: string
+}
+
+export function buildTimeSlots(options: {
+	openingTime?: string | null
+	closingTime?: string | null
+	stepMinutes?: number
+	occupied?: AvailabilityOccupied[]
+	durationMinutes?: number
+	allowOverlap: boolean
+}): TimeSlot[] {
+	const step = options.stepMinutes ?? SLOT_STEP_MINUTES
+	const opening =
+		timeToMinutes(options.openingTime ?? null) ??
+		timeToMinutes(DEFAULT_OPENING_TIME) ??
+		0
+	const closing =
+		timeToMinutes(options.closingTime ?? null) ??
+		timeToMinutes(DEFAULT_CLOSING_TIME) ??
+		24 * 60
+	const start = roundUpToStep(Math.max(opening, 0), step)
+	const slots: TimeSlot[] = []
+	const duration = Math.max(options.durationMinutes ?? 0, 0)
+	const occupied = options.allowOverlap ? [] : options.occupied ?? []
+	for (let minutes = start; minutes <= closing; minutes += step) {
+		const value = minutesToTime(minutes)
+		const slotEnd = minutes + duration
+		let disabled = false
+		let disabledReason: string | undefined
+		if (slotEnd > closing) {
+			disabled = true
+			disabledReason = 'Termina despues del cierre'
+		}
+		if (!disabled) {
+			for (const entry of occupied) {
+				const entryStart = timeToMinutes(entry.start_time)
+				if (entryStart === null) continue
+				const entryEnd = entryStart + Math.max(entry.duration_minutes || 0, 0)
+				if (minutes < entryEnd && entryStart < slotEnd) {
+					disabled = true
+					disabledReason = 'Solapa con otra reserva'
+					break
+				}
+			}
+		}
+		slots.push({ value, label: value, disabled, disabledReason })
+	}
+	return slots
+}
+
+export function scheduleAvailabilityForDay(options: {
+	day: string
+	allowOverlap: boolean
+	defaultDailyCapacity: number
+	dailyCapacities: AnyAvailabilityRecord[]
+	reservations: AnyAvailabilityRecord[]
+	services: AnyAvailabilityRecord[]
+	excludeReservationId?: number | string | null
+}): ScheduleAvailability {
+	const serviceTypeById = new Map<number, string>()
+	for (const service of options.services) {
+		const id = Number(service.id)
+		if (!Number.isFinite(id) || id <= 0) continue
+		const type = String(service.service_type ?? '').toLowerCase()
+		serviceTypeById.set(id, type)
+	}
+	function bucketForService(serviceId: number | null | undefined): 'wash' | 'detailing' {
+		if (typeof serviceId !== 'number') return 'wash'
+		const type = serviceTypeById.get(serviceId)
+		return type === 'detailing' ? 'detailing' : 'wash'
+	}
+	const capacityRow = options.dailyCapacities.find(
+		(row) => String(row.day) === options.day,
+	)
+	const maxWash = Number(
+		capacityRow?.max_slots_wash ?? options.defaultDailyCapacity,
+	)
+	const maxDetailing = Number(
+		capacityRow?.max_slots_detailing ?? options.defaultDailyCapacity,
+	)
+	const activeStatuses = new Set([
+		'pending',
+		'confirmed',
+		'in_progress',
+		'ready',
+		'delivered',
+	])
+	let usedWash = 0
+	let usedDetailing = 0
+	const occupied: AvailabilityOccupied[] = []
+	for (const reservation of options.reservations) {
+		if (String(reservation.day) !== options.day) continue
+		const reservationId = reservation.id
+		if (
+			options.excludeReservationId !== undefined &&
+			options.excludeReservationId !== null &&
+			String(reservationId) === String(options.excludeReservationId)
+		) {
+			continue
+		}
+		const status = String(reservation.status ?? '').toLowerCase()
+		if (!activeStatuses.has(status)) continue
+		const serviceId = Number(reservation.service)
+		const bucket = bucketForService(Number.isFinite(serviceId) ? serviceId : null)
+		if (bucket === 'detailing') usedDetailing += 1
+		else usedWash += 1
+		const startTime =
+			typeof reservation.start_time === 'string' && reservation.start_time
+				? reservation.start_time.slice(0, 5)
+				: null
+		if (!startTime) continue
+		const duration = Number(reservation.estimated_duration_minutes) || 60
+		occupied.push({ start_time: startTime, duration_minutes: duration })
+	}
+	return {
+		wash: {
+			max_slots: maxWash,
+			used_slots: usedWash,
+			available_slots: Math.max(maxWash - usedWash, 0),
+		},
+		detailing: {
+			max_slots: maxDetailing,
+			used_slots: usedDetailing,
+			available_slots: Math.max(maxDetailing - usedDetailing, 0),
+		},
+		allowOverlap: options.allowOverlap,
+		occupied,
+	}
+}
+
+export function formatCapacityLabel(bucket: AvailabilityBucket, label: string): string {
+	if (bucket.max_slots <= 0) {
+		return `${label}: sin cupo definido`
+	}
+	return `${label}: ${bucket.used_slots}/${bucket.max_slots} ocupados`
+}
+
+export function computeReservationFormItemsDuration(
+	items: AnyAvailabilityRecord[] | undefined,
+	services: AnyAvailabilityRecord[],
+): number {
+	if (!items || !items.length) return 0
+	const serviceById = new Map<number, AnyAvailabilityRecord>()
+	for (const service of services) {
+		const id = Number(service.id)
+		if (Number.isFinite(id) && id > 0) {
+			serviceById.set(id, service)
+		}
+	}
+	let total = 0
+	for (const item of items) {
+		const serviceId = Number(item.service)
+		if (!Number.isFinite(serviceId) || serviceId <= 0) continue
+		const service = serviceById.get(serviceId)
+		if (!service) continue
+		const duration = Number(service.estimated_duration_minutes) || 0
+		const quantity = Math.max(Number(item.quantity ?? 1) || 1, 1)
+		total += duration * quantity
+	}
+	return total
+}
+
+export function bucketLabel(bucket: 'wash' | 'detailing'): string {
+	return bucket === 'detailing' ? 'detailing' : 'lavado'
+}
+
+export function selectedBucketsFromItems(
+	items: AnyAvailabilityRecord[] | undefined,
+	services: AnyAvailabilityRecord[],
+): { wash: number; detailing: number } {
+	const result = { wash: 0, detailing: 0 }
+	if (!items || !items.length) return result
+	const typeById = new Map<number, string>()
+	for (const service of services) {
+		const id = Number(service.id)
+		if (Number.isFinite(id) && id > 0) {
+			typeById.set(id, String(service.service_type ?? '').toLowerCase())
+		}
+	}
+	for (const item of items) {
+		const serviceId = Number(item.service)
+		if (!Number.isFinite(serviceId) || serviceId <= 0) continue
+		const type = typeById.get(serviceId) ?? ''
+		if (type === 'detailing') result.detailing += 1
+		else result.wash += 1
+	}
+	return result
+}
