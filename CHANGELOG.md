@@ -11,15 +11,14 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-08
-- [Soft delete fase 3 - Customer, Vehicle, Service, Material, Tool, Supplier, RecurringDebt (2026-06-08)](docs/registro/cambios/2026-06-08-soft-delete-fase-3.md)
-- [Soft delete fase 2 - Quote, QuoteItem, Debt, DebtPayment, ReservationItem (2026-06-08)](docs/registro/cambios/2026-06-08-soft-delete-fase-2.md)
-- [Soft delete fase 1 - Reservation, WorkOrder, Payment, CashMovement (2026-06-08)](docs/registro/cambios/2026-06-08-soft-delete-fase-1.md)
-- [Borrado de reserva cancelada con cobro asociado (2026-06-08)](docs/registro/cambios/2026-06-08-borrado-reserva-con-cobro.md)
 - [Vida y animaciones en el CRM](docs/registro/cambios/2026-06-08-vida-animaciones-crm.md)
 - [Deploy: documentar VAPID keys para push notifications](docs/registro/cambios/2026-06-08-vapid-keys-deploy-docs.md)
 - [Turnera: toggles para mostrar descripcion y precio del servicio](docs/registro/cambios/2026-06-08-turnera-toggles-descripcion-precio.md)
 - [Turnera: capacidad, fechas pasadas, slots de 15 min y solape](docs/registro/cambios/2026-06-08-turnera-capacidad-y-solape.md)
 - [Sesion persistente con TTL configurable](docs/registro/cambios/2026-06-08-token-localstorage-ttl.md)
+- [Soft delete fase 3 - Customer, Vehicle, Service, Material, Tool, Supplier, RecurringDebt (2026-06-08)](docs/registro/cambios/2026-06-08-soft-delete-fase-3.md)
+- [Soft delete fase 2 - Quote, QuoteItem, Debt, DebtPayment, ReservationItem (2026-06-08)](docs/registro/cambios/2026-06-08-soft-delete-fase-2.md)
+- [Soft delete fase 1 - Reservation, WorkOrder, Payment, CashMovement (2026-06-08)](docs/registro/cambios/2026-06-08-soft-delete-fase-1.md)
 - [Sidebar: imagen del negocio arriba, footer reordenado, iconos de subitems y consistencia de posiciones al plegar](docs/registro/cambios/2026-06-08-sidebar-reorganizar-y-iconos-children-colapsado.md)
 - [Frontend: iconos PWA segun superficie (CRM vs turnera)](docs/registro/cambios/2026-06-08-pwa-icons-logo-segun-superficie.md)
 - [Horarios overnight en la pagina publica (cierre a medianoche o cruzando dia)](docs/registro/cambios/2026-06-08-horarios-overnight.md)
@@ -27,6 +26,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Fix: errores por campo visibles en landing publica (2026-06-08)](docs/registro/cambios/2026-06-08-errores-landing-publica.md)
 - [Fix: errores por campo visibles en formularios globales (2026-06-08)](docs/registro/cambios/2026-06-08-errores-formularios-fields-globales.md)
 - [Caja: categoria Personal con subcategorias de gastos cotidianos](docs/registro/cambios/2026-06-08-caja-categoria-personal.md)
+- [Borrado de reserva cancelada con cobro asociado (2026-06-08)](docs/registro/cambios/2026-06-08-borrado-reserva-con-cobro.md)
 
 ## 2026-06-05
 - [UX para infraestructura lenta (free tier Vercel + Supabase)](docs/registro/cambios/2026-06-05-ux-infra-lenta.md)
