@@ -14,6 +14,7 @@ export default defineConfig({
 		include: [
 			'lib/**/*.test.mjs',
 			'app/components/**/*.test.{ts,tsx}',
+			'app/reset-password/**/*.test.{ts,tsx}',
 		],
 		setupFiles: ['./vitest.setup.ts'],
 		coverage: {

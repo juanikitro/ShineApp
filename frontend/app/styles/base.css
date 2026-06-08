@@ -559,6 +559,18 @@ label {
   margin: 0 0 22px;
 }
 
+.login-card .alert-notice {
+  background: var(--status-canceled-bg);
+  border: 1px solid var(--status-canceled-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  padding: 12px 14px;
+}
+
+.login-card .alert-notice p {
+  margin: 0;
+}
+
 .login-trial-note {
   font-size: 13px;
   grid-column: 1 / -1;
