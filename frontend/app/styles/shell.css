@@ -2733,7 +2733,8 @@
 }
 
 .cash-metrics-primary .cash-metric strong {
-  font-size: 28px;
+  font-size: 34px;
+  line-height: 1.15;
 }
 
 .cash-metrics-primary .cash-metric-balance {
@@ -2772,7 +2773,8 @@
 .cash-economic-panel strong {
   color: var(--shop-ink);
   display: block;
-  font-size: 24px;
+  font-size: 30px;
+  line-height: 1.15;
   margin-top: 4px;
 }
 

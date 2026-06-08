@@ -10,11 +10,11 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 - [Vida y animaciones en el CRM](2026-06-08-vida-animaciones-crm.md)
-- [Turnera: toggles para mostrar descripcion y precio del servicio](2026-06-08-turnera-toggles-descripcion-precio.md)
-- [Sidebar: imagen del negocio arriba, footer reordenado, iconos de subitems y consistencia de posiciones al plegar](2026-06-08-sidebar-reorganizar-y-iconos-children-colapsado.md)
 - [Deploy: documentar VAPID keys para push notifications](2026-06-08-vapid-keys-deploy-docs.md)
+- [Turnera: toggles para mostrar descripcion y precio del servicio](2026-06-08-turnera-toggles-descripcion-precio.md)
 - [Turnera: capacidad, fechas pasadas, slots de 15 min y solape](2026-06-08-turnera-capacidad-y-solape.md)
 - [Sesion persistente con TTL configurable](2026-06-08-token-localstorage-ttl.md)
+- [Sidebar: imagen del negocio arriba, footer reordenado, iconos de subitems y consistencia de posiciones al plegar](2026-06-08-sidebar-reorganizar-y-iconos-children-colapsado.md)
 - [Frontend: iconos PWA segun superficie (CRM vs turnera)](2026-06-08-pwa-icons-logo-segun-superficie.md)
 - [Horarios overnight en la pagina publica (cierre a medianoche o cruzando dia)](2026-06-08-horarios-overnight.md)
 - [Fix: errores por campo visibles en landing publica (2026-06-08)](2026-06-08-errores-landing-publica.md)
