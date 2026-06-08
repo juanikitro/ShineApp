@@ -9,7 +9,6 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import connection, transaction
 from django.utils import timezone
-from django.utils.cache import patch_cache_control
 from django.utils.text import slugify
 from rest_framework import parsers, permissions, serializers, status
 from rest_framework.authtoken.models import Token
@@ -434,6 +433,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "closing_time",
             "use_reservation_times",
             "show_stay_days_in_agenda",
+            "allow_overlapping_reservations",
             "reservation_use_pending",
             "reservation_use_in_progress",
             "reservation_use_ready",
@@ -445,6 +445,8 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "public_show_wash_services",
             "public_show_detailing_services",
             "public_hidden_service_ids",
+            "public_show_service_description",
+            "public_show_service_price",
             "income_category_tree",
             "expense_category_tree",
         ]
@@ -627,9 +629,7 @@ class MeView(APIView):
     ]
 
     def get(self, request):
-        response = Response(user_context_payload(request.user, request=request))
-        patch_cache_control(response, private=True, max_age=60)
-        return response
+        return Response(user_context_payload(request.user, request=request))
 
     def patch(self, request):
         serializer = MeUpdateSerializer(data=request.data, partial=True)
@@ -731,9 +731,7 @@ class BusinessProfileView(APIView):
             self.get_profile(),
             context={"request": request},
         )
-        response = Response(serializer.data)
-        patch_cache_control(response, private=True, max_age=300)
-        return response
+        return Response(serializer.data)
 
     def patch(self, request):
         from scheduling.services import realign_reservations_to_profile
