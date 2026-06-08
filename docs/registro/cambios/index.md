@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Frontend: iconos PWA segun superficie (CRM vs turnera)](2026-06-08-pwa-icons-logo-segun-superficie.md)
 - [Sesion persistente con TTL configurable](2026-06-08-token-localstorage-ttl.md)
 - [Turnera: capacidad, fechas pasadas, slots de 15 min y solape](2026-06-08-turnera-capacidad-y-solape.md)
 - [Horarios overnight en la pagina publica (cierre a medianoche o cruzando dia)](2026-06-08-horarios-overnight.md)
