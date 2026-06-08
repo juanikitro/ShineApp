@@ -1,6 +1,6 @@
 'use client'
 
-import { type FormEvent, type KeyboardEvent } from 'react'
+import { type FormEvent, type KeyboardEvent, useMemo } from 'react'
 
 import { Plus } from 'lucide-react'
 
@@ -13,6 +13,15 @@ import {
 	type SelectOption,
 } from '@/app/components/ui/SearchSelect'
 import { type AnyRecord, money } from '@/lib/page-support'
+import {
+	type ScheduleAvailability,
+	buildTimeSlots,
+	computeReservationFormItemsDuration,
+	formatCapacityLabel,
+	scheduleAvailabilityForDay,
+	timeToMinutes,
+	todayIsoDate,
+} from '@/lib/scheduling-availability'
 
 function serviceLinesTotal(items: AnyRecord[]) {
 	return items.reduce(
@@ -33,6 +42,13 @@ type ReservationFormProps = {
 	serviceOptions: SelectOption[]
 	canViewEconomy: boolean
 	useReservationTimes: boolean
+	allowOverlap: boolean
+	openingTime?: string | null
+	closingTime?: string | null
+	defaultDailyCapacity: number
+	services: AnyRecord[]
+	reservations: AnyRecord[]
+	dailyCapacities: AnyRecord[]
 	openQuickCreate: (kind: string, target: string) => void
 	updateReservationCustomer: (value: string) => void
 	updateReservationVehicle: (value: string) => void
@@ -61,6 +77,13 @@ export function ReservationForm({
 	serviceOptions,
 	canViewEconomy,
 	useReservationTimes,
+	allowOverlap,
+	openingTime,
+	closingTime,
+	defaultDailyCapacity,
+	services,
+	reservations,
+	dailyCapacities,
 	openQuickCreate,
 	updateReservationCustomer,
 	updateReservationVehicle,
@@ -74,6 +97,106 @@ export function ReservationForm({
 	fieldFlashKey,
 	submitting = false,
 }: ReservationFormProps) {
+	const today = todayIsoDate()
+	const selectedDay =
+		typeof reservationForm.day === 'string' ? reservationForm.day : ''
+	const items = (reservationForm.items ?? []) as AnyRecord[]
+	const availability = useMemo<ScheduleAvailability | null>(() => {
+		if (!selectedDay) return null
+		return scheduleAvailabilityForDay({
+			day: selectedDay,
+			allowOverlap,
+			defaultDailyCapacity,
+			dailyCapacities,
+			reservations,
+			services,
+		})
+	}, [
+		allowOverlap,
+		dailyCapacities,
+		defaultDailyCapacity,
+		reservations,
+		selectedDay,
+		services,
+	])
+	const itemsDuration = useMemo(
+		() => computeReservationFormItemsDuration(items, services),
+		[items, services],
+	)
+	const startTimeSlots = useMemo(
+		() =>
+			buildTimeSlots({
+				openingTime,
+				closingTime,
+				occupied: availability?.occupied ?? [],
+				durationMinutes: itemsDuration || 60,
+				allowOverlap,
+			}),
+		[allowOverlap, availability, closingTime, itemsDuration, openingTime],
+	)
+	const startTimeMinutes = timeToMinutes(reservationForm.start_time)
+	const exitTimeSlots = useMemo(
+		() =>
+			buildTimeSlots({
+				openingTime:
+					startTimeMinutes !== null
+						? reservationForm.start_time
+						: openingTime,
+				closingTime,
+				occupied: [],
+				allowOverlap: true,
+			}),
+		[closingTime, openingTime, reservationForm.start_time, startTimeMinutes],
+	)
+	const selectedBuckets = useMemo(() => {
+		const result = { wash: 0, detailing: 0 }
+		const typeById = new Map<number, string>()
+		for (const service of services) {
+			const id = Number(service.id)
+			if (Number.isFinite(id) && id > 0) {
+				typeById.set(id, String(service.service_type ?? '').toLowerCase())
+			}
+		}
+		for (const item of items) {
+			const serviceId = Number(item.service)
+			if (!Number.isFinite(serviceId) || serviceId <= 0) continue
+			const type = typeById.get(serviceId) ?? ''
+			if (type === 'detailing') result.detailing += 1
+			else result.wash += 1
+		}
+		return result
+	}, [items, services])
+	const capacityWarning = useMemo(() => {
+		if (!availability) return null
+		const issues: string[] = []
+		if (
+			selectedBuckets.wash > 0 &&
+			availability.wash.available_slots < selectedBuckets.wash
+		) {
+			issues.push(
+				`No hay cupo de lavado disponible (${availability.wash.used_slots}/${availability.wash.max_slots}).`,
+			)
+		}
+		if (
+			selectedBuckets.detailing > 0 &&
+			availability.detailing.available_slots < selectedBuckets.detailing
+		) {
+			issues.push(
+				`No hay cupo de detailing disponible (${availability.detailing.used_slots}/${availability.detailing.max_slots}).`,
+			)
+		}
+		if (selectedBuckets.wash === 0 && selectedBuckets.detailing === 0) {
+			if (
+				availability.wash.available_slots === 0 &&
+				availability.detailing.available_slots === 0
+			) {
+				issues.push('Este dia ya no tiene cupo de lavado ni de detailing.')
+			}
+		}
+		return issues.length ? issues.join(' ') : null
+	}, [availability, selectedBuckets])
+	const isPastDay = Boolean(selectedDay && selectedDay < today)
+	const blockSubmit = Boolean(capacityWarning) || isPastDay
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
 			{prefillDayMode ? (
@@ -212,6 +335,7 @@ export function ReservationForm({
 						data-focus-key="reservation.day"
 						name="reservation_day"
 						type="date"
+						min={today}
 						value={reservationForm.day}
 						onChange={(event) => {
 							setReservationForm({
@@ -228,6 +352,7 @@ export function ReservationForm({
 						data-focus-key="reservation.exit_day"
 						name="reservation_exit_day"
 						type="date"
+						min={reservationForm.day || today}
 						value={reservationForm.exit_day}
 						onChange={(event) => {
 							setReservationForm({
@@ -249,14 +374,31 @@ export function ReservationForm({
 					/>
 				</Field>
 			</div>
+			{isPastDay ? (
+				<div className="info-note info-note--warning">
+					La fecha elegida ya paso. Selecciona una fecha igual o posterior a
+					hoy.
+				</div>
+			) : null}
+			{availability && !isPastDay ? (
+				<div
+					className={`info-note${capacityWarning ? ' info-note--warning' : ''}`}
+				>
+					{capacityWarning ?? (
+						<>
+							{formatCapacityLabel(availability.wash, 'Lavado')} ·{' '}
+							{formatCapacityLabel(availability.detailing, 'Detailing')}
+						</>
+					)}
+				</div>
+			) : null}
 			{useReservationTimes ? (
 				<div className="form-row">
 					<Field label="Hora de ingreso (opcional)">
-						<input
+						<select
 							data-focus-key="reservation.start_time"
 							name="reservation_start_time"
-							type="time"
-							value={reservationForm.start_time}
+							value={reservationForm.start_time ?? ''}
 							onChange={(event) => {
 								setReservationForm({
 									...reservationForm,
@@ -265,14 +407,27 @@ export function ReservationForm({
 								focusField('reservation.exit_time')
 							}}
 							onKeyDown={focusNextOnEnter('reservation.exit_time')}
-						/>
+						>
+							<option value="">--</option>
+							{startTimeSlots.map((slot) => (
+								<option
+									key={slot.value}
+									value={slot.value}
+									disabled={slot.disabled}
+								>
+									{slot.label}
+									{slot.disabled && slot.disabledReason
+										? ` (${slot.disabledReason})`
+										: ''}
+								</option>
+							))}
+						</select>
 					</Field>
 					<Field label="Hora de egreso (opcional)">
-						<input
+						<select
 							data-focus-key="reservation.exit_time"
 							name="reservation_exit_time"
-							type="time"
-							value={reservationForm.exit_time}
+							value={reservationForm.exit_time ?? ''}
 							onChange={(event) => {
 								setReservationForm({
 									...reservationForm,
@@ -281,7 +436,18 @@ export function ReservationForm({
 								focusField('reservation.notes')
 							}}
 							onKeyDown={focusNextOnEnter('reservation.notes')}
-						/>
+						>
+							<option value="">--</option>
+							{exitTimeSlots.map((slot) => (
+								<option
+									key={slot.value}
+									value={slot.value}
+									disabled={slot.disabled}
+								>
+									{slot.label}
+								</option>
+							))}
+						</select>
 					</Field>
 				</div>
 			) : null}
@@ -303,6 +469,7 @@ export function ReservationForm({
 				type="submit"
 				variant="primary"
 				loading={submitting}
+				disabled={blockSubmit}
 				leadingIcon={<Plus size={16} />}
 				data-focus-key="reservation.submit"
 			>

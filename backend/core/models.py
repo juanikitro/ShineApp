@@ -289,6 +289,7 @@ class BusinessProfile(models.Model):
     closing_time = models.TimeField(null=True, blank=True)
     use_reservation_times = models.BooleanField(default=True)
     show_stay_days_in_agenda = models.BooleanField(default=True)
+    allow_overlapping_reservations = models.BooleanField(default=False)
     reservation_use_pending = models.BooleanField(default=True)
     reservation_use_in_progress = models.BooleanField(default=True)
     reservation_use_ready = models.BooleanField(default=True)
