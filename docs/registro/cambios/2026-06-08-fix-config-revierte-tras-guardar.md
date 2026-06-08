@@ -14,7 +14,7 @@ El commit `446ea96` ("perf(cache): Cache-Control en /auth/me/ y business-profile
 - Backend `MeView.get`: `patch_cache_control(response, private=True, max_age=60)`.
 - Frontend: los call sites correspondientes pasaban `{ cache: 'default' }` para respetar ese Cache-Control.
 
-El flujo de guardado en `runAction` ([frontend/app/page.tsx](../../../frontend/app/page.tsx)) es:
+El flujo de guardado en `runAction` (`frontend/app/page.tsx`) es:
 
 1. `PATCH /settings/business-profile/` con los nuevos valores.
 2. `syncBusinessProfile(saved)` -> el form muestra los valores nuevos.
