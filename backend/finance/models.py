@@ -1,11 +1,13 @@
 from django.conf import settings
-from django.db import models
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import models, transaction
 from django.utils import timezone
 
 from core.models import default_expense_category_tree, default_income_category_tree
+from core.soft_delete import SoftDeleteMixin
 
 
-class Payment(models.Model):
+class Payment(SoftDeleteMixin):
     class PaymentType(models.TextChoices):
         DEPOSIT = "deposit", "Sena"
         PAYMENT = "payment", "Pago"
@@ -25,7 +27,7 @@ class Payment(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["-paid_at", "-id"]
         indexes = [
             models.Index(
@@ -46,8 +48,19 @@ class Payment(models.Model):
             self.business = BusinessAccount.get_default()
         super().save(*args, **kwargs)
 
+    def delete(self, using=None, keep_parents=False):
+        with transaction.atomic():
+            try:
+                movement = self.cash_movement
+            except ObjectDoesNotExist:
+                movement = None
+            if movement is not None:
+                movement.delete()
+            self.deleted_at = timezone.now()
+            self.save(update_fields=["deleted_at"])
 
-class CashMovement(models.Model):
+
+class CashMovement(SoftDeleteMixin):
     class MovementType(models.TextChoices):
         INCOME = "income", "Ingreso"
         EXPENSE = "expense", "Egreso"
@@ -81,7 +94,7 @@ class CashMovement(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["-occurred_at", "-id"]
         indexes = [
             models.Index(

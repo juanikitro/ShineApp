@@ -207,8 +207,9 @@ class ToolViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     permission_classes = [CanViewEconomy]
 
     def get_queryset(self):
-        queryset = self.queryset
-        if self.request.query_params.get("include_inactive") != "1":
+        include_inactive = self.request.query_params.get("include_inactive") == "1"
+        queryset = Tool.all_objects.all() if include_inactive else self.queryset
+        if not include_inactive:
             queryset = queryset.filter(is_active=True)
         search = self.request.query_params.get("search")
         if search:

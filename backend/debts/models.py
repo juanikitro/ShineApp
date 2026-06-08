@@ -1,11 +1,14 @@
 from decimal import Decimal
 
-from django.db import models
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import models, transaction
 from django.db.models import Sum
 from django.utils import timezone
 
+from core.soft_delete import SoftDeleteMixin
 
-class RecurringDebt(models.Model):
+
+class RecurringDebt(SoftDeleteMixin):
     class IntervalUnit(models.TextChoices):
         DAYS = "days", "Dias"
         WEEKS = "weeks", "Semanas"
@@ -51,7 +54,7 @@ class RecurringDebt(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["-is_active", "concept", "-id"]
 
     def __str__(self):
@@ -66,8 +69,13 @@ class RecurringDebt(models.Model):
             self.business = BusinessAccount.get_default()
         super().save(*args, **kwargs)
 
+    def delete(self, using=None, keep_parents=False):
+        self.is_active = False
+        self.deleted_at = timezone.now()
+        self.save(update_fields=["is_active", "deleted_at", "updated_at"])
 
-class Debt(models.Model):
+
+class Debt(SoftDeleteMixin):
     class Status(models.TextChoices):
         PENDING = "pending", "Pendiente"
         PARTIAL = "partial", "Parcial"
@@ -107,7 +115,7 @@ class Debt(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["-origin_date", "-id"]
 
     def __str__(self):
@@ -124,6 +132,20 @@ class Debt(models.Model):
 
             self.business = BusinessAccount.get_default()
         super().save(*args, **kwargs)
+
+    def delete(self, using=None, keep_parents=False):
+        with transaction.atomic():
+            try:
+                movement = self.cash_movement
+            except ObjectDoesNotExist:
+                movement = None
+            if self.cash_movement_id:
+                Debt.all_objects.filter(pk=self.pk).update(cash_movement=None)
+                self.cash_movement = None
+            if movement is not None:
+                movement.delete()
+            self.deleted_at = timezone.now()
+            self.save(update_fields=["deleted_at", "updated_at"])
 
     @property
     def total_paid(self):
@@ -144,7 +166,7 @@ class Debt(models.Model):
         return self.Status.PENDING
 
 
-class DebtPayment(models.Model):
+class DebtPayment(SoftDeleteMixin):
     class Method(models.TextChoices):
         CASH = "cash", "Efectivo"
         CARD = "card", "Tarjeta"
@@ -159,7 +181,7 @@ class DebtPayment(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["-paid_at", "-id"]
 
     def __str__(self):

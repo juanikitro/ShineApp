@@ -127,12 +127,15 @@ def test_sensitive_employee_password_is_redacted(api_client):
 
 
 def test_soft_delete_and_custom_actions_are_audited(api_client, audit_base_data):
+    from catalog.models import Service
+
     _customer, _vehicle, service = audit_base_data
 
     delete_response = api_client.delete(reverse("service-detail", args=[service.id]))
     assert delete_response.status_code == 204, delete_response.data
-    service.refresh_from_db()
-    assert service.is_active is False
+    refreshed = Service.all_objects.get(pk=service.pk)
+    assert refreshed.is_active is False
+    assert refreshed.deleted_at is not None
 
     delete_event = AuditLog.objects.get(action="delete")
     assert delete_event.before["is_active"] is True

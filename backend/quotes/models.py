@@ -2,10 +2,11 @@ from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 
 from core.models import BusinessProfile
+from core.soft_delete import SoftDeleteMixin
 
 
 MONEY_QUANT = Decimal("0.01")
@@ -27,7 +28,7 @@ def base36(value):
     return result
 
 
-class Quote(models.Model):
+class Quote(SoftDeleteMixin):
     class Status(models.TextChoices):
         DRAFT = "draft", "Borrador"
         SENT = "sent", "Enviada"
@@ -86,7 +87,7 @@ class Quote(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["-quote_date", "-id"]
 
     def recalculate(self):
@@ -183,11 +184,18 @@ class Quote(models.Model):
             self.sent_at = timezone.now()
         self.save(update_fields=["status", "sent_at", "updated_at"])
 
+    def delete(self, using=None, keep_parents=False):
+        with transaction.atomic():
+            for item in list(self.items.all()):
+                item.delete()
+            self.deleted_at = timezone.now()
+            self.save(update_fields=["deleted_at", "updated_at"])
+
     def __str__(self):
         return f"Cotizacion {self.public_code or self.id or '-'}"
 
 
-class QuoteItem(models.Model):
+class QuoteItem(SoftDeleteMixin):
     quote = models.ForeignKey(Quote, related_name="items", on_delete=models.CASCADE)
     service = models.ForeignKey("catalog.Service", null=True, blank=True, on_delete=models.SET_NULL)
     description = models.CharField(max_length=180)
@@ -195,7 +203,7 @@ class QuoteItem(models.Model):
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
     line_total = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["id"]
 
     def save(self, *args, **kwargs):

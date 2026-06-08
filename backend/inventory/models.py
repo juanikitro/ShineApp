@@ -5,9 +5,10 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from core.models import PROFILE_ASSET_FILE_VALIDATOR
+from core.soft_delete import SoftDeleteMixin
 
 
-class Material(models.Model):
+class Material(SoftDeleteMixin):
     business = models.ForeignKey("core.BusinessAccount", related_name="materials", on_delete=models.PROTECT)
     name = models.CharField(max_length=140)
     unit = models.CharField(max_length=30)
@@ -22,12 +23,12 @@ class Material(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["name"]
         constraints = [
             models.UniqueConstraint(
                 fields=["business", "sku"],
-                condition=~models.Q(sku=""),
+                condition=~models.Q(sku="") & models.Q(deleted_at__isnull=True),
                 name="unique_material_sku_per_business_when_present",
             ),
         ]
@@ -116,10 +117,11 @@ class Material(models.Model):
 
     def delete(self, using=None, keep_parents=False):
         self.is_active = False
-        self.save(update_fields=["is_active", "updated_at"])
+        self.deleted_at = timezone.now()
+        self.save(update_fields=["is_active", "deleted_at", "updated_at"])
 
 
-class Supplier(models.Model):
+class Supplier(SoftDeleteMixin):
     business = models.ForeignKey("core.BusinessAccount", related_name="suppliers", on_delete=models.PROTECT)
     name = models.CharField(max_length=160)
     legal_name = models.CharField(max_length=180, blank=True)
@@ -136,7 +138,7 @@ class Supplier(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["name"]
 
     def __str__(self):
@@ -159,7 +161,8 @@ class Supplier(models.Model):
 
     def delete(self, using=None, keep_parents=False):
         self.is_active = False
-        self.save(update_fields=["is_active", "updated_at"])
+        self.deleted_at = timezone.now()
+        self.save(update_fields=["is_active", "deleted_at", "updated_at"])
 
 
 class MaterialOpenUnit(models.Model):
@@ -214,7 +217,7 @@ class MaterialOpenUnit(models.Model):
         return (self.finished_at - self.opened_at).days + 1
 
 
-class Tool(models.Model):
+class Tool(SoftDeleteMixin):
     class Status(models.TextChoices):
         IN_USE = "in_use", "En uso"
         MAINTENANCE = "maintenance", "Mantenimiento"
@@ -231,7 +234,7 @@ class Tool(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["name"]
 
     def __str__(self):
@@ -250,7 +253,8 @@ class Tool(models.Model):
 
     def delete(self, using=None, keep_parents=False):
         self.is_active = False
-        self.save(update_fields=["is_active", "updated_at"])
+        self.deleted_at = timezone.now()
+        self.save(update_fields=["is_active", "deleted_at", "updated_at"])
 
 
 class MaterialPurchase(models.Model):

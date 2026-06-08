@@ -61,11 +61,7 @@ class DebtViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         movement = instance.cash_movement
         if movement:
             ensure_cash_day_open(cash_day(movement.occurred_at), field="origin_date")
-        instance.cash_movement = None
-        instance.save(update_fields=["cash_movement", "updated_at"])
         instance.delete()
-        if movement:
-            movement.delete()
 
 
 class DebtPaymentViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
@@ -84,8 +80,6 @@ class RecurringDebtViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     permission_classes = [CanViewEconomy]
 
     def perform_destroy(self, instance):
-        instance.is_active = False
-        instance.save(update_fields=["is_active", "updated_at"])
         instance.delete()
 
     @action(detail=True, methods=["post"], url_path="pause")
