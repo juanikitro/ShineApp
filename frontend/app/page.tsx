@@ -30,6 +30,7 @@ import {
 	LockKeyhole,
 	LogOut,
 	Menu,
+	Moon,
 	MoreHorizontal,
 	Package,
 	Pencil,
@@ -38,6 +39,7 @@ import {
 	RefreshCw,
 	Search,
 	Sparkles,
+	Sun,
 	Trash2,
 	Users,
 	Wrench,
@@ -11821,20 +11823,36 @@ export default function Home() {
 									>
 										{sidebarCollapsed ? (
 											<span className="theme-switch-icon" aria-hidden="true">
-												<span
-													className={`theme-switch-symbol theme-switch-symbol--${
-														themeMode === 'dark' ? 'moon' : 'sun'
-													}`}
-												/>
+												{themeMode === 'dark' ? (
+													<Moon
+														className="theme-switch-symbol"
+														size={16}
+														strokeWidth={2}
+													/>
+												) : (
+													<Sun
+														className="theme-switch-symbol"
+														size={16}
+														strokeWidth={2}
+													/>
+												)}
 											</span>
 										) : (
 											<span className="theme-switch-track" aria-hidden="true">
 												<span className="theme-switch-thumb">
-													<span
-														className={`theme-switch-symbol theme-switch-symbol--${
-															themeMode === 'dark' ? 'moon' : 'sun'
-														}`}
-													/>
+													{themeMode === 'dark' ? (
+														<Moon
+															className="theme-switch-symbol"
+															size={16}
+															strokeWidth={2}
+														/>
+													) : (
+														<Sun
+															className="theme-switch-symbol"
+															size={16}
+															strokeWidth={2}
+														/>
+													)}
 												</span>
 											</span>
 										)}
