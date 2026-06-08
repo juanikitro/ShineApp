@@ -1307,6 +1307,8 @@ export default function Home() {
 						profile.use_reservation_times !== false,
 					show_stay_days_in_agenda:
 						profile.show_stay_days_in_agenda !== false,
+					allow_overlapping_reservations:
+						profile.allow_overlapping_reservations === true,
 					reservation_use_pending:
 						profile.reservation_use_pending !== false,
 					reservation_use_in_progress:
@@ -6308,6 +6310,10 @@ export default function Home() {
 			String(currentBusinessForm.show_stay_days_in_agenda !== false),
 		)
 		payload.append(
+			'allow_overlapping_reservations',
+			String(currentBusinessForm.allow_overlapping_reservations === true),
+		)
+		payload.append(
 			'reservation_use_pending',
 			String(currentBusinessForm.reservation_use_pending !== false),
 		)
@@ -11220,6 +11226,15 @@ export default function Home() {
 							serviceOptions={serviceOptions}
 							canViewEconomy={canViewEconomy}
 							useReservationTimes={useReservationTimes}
+							allowOverlap={
+								businessForm.allow_overlapping_reservations === true
+							}
+							openingTime={businessForm.opening_time as string | null}
+							closingTime={businessForm.closing_time as string | null}
+							defaultDailyCapacity={8}
+							services={services}
+							reservations={reservations}
+							dailyCapacities={dailyCapacities}
 							openQuickCreate={openQuickCreate}
 							updateReservationCustomer={updateReservationCustomer}
 							updateReservationVehicle={updateReservationVehicle}

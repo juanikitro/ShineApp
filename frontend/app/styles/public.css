@@ -302,6 +302,27 @@
   color: #991b1b;
 }
 
+.public-form-error {
+  display: grid;
+  gap: 6px;
+}
+
+.public-form-error > strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.public-form-error > p {
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.public-form-error .alert-fields {
+  margin-top: 2px;
+}
+
 .public-form-success {
   align-items: center;
   background: rgba(22, 163, 74, 0.09);
