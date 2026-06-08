@@ -617,12 +617,14 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 			return
 		}
 		if (isPastPreferredDay) {
-			setError('La fecha elegida ya paso. Selecciona una fecha igual o posterior a hoy.')
+			setErrorNotice(
+				localValidationNotice('La fecha elegida ya paso. Selecciona una fecha igual o posterior a hoy.'),
+			)
 			setSuccess(false)
 			return
 		}
 		if (capacityWarning) {
-			setError(capacityWarning)
+			setErrorNotice(localValidationNotice(capacityWarning))
 			setSuccess(false)
 			return
 		}
@@ -636,22 +638,28 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 					? time >= opening || time <= closing
 					: time >= opening && time <= closing
 				if (!inRange) {
-					setError(
-						overnight
-							? 'El horario solicitado esta fuera del horario de atencion.'
-							: time < opening
-								? 'El horario solicitado es antes del horario de apertura.'
-								: 'El horario solicitado es despues del horario de cierre.',
+					setErrorNotice(
+						localValidationNotice(
+							overnight
+								? 'El horario solicitado esta fuera del horario de atencion.'
+								: time < opening
+									? 'El horario solicitado es antes del horario de apertura.'
+									: 'El horario solicitado es despues del horario de cierre.',
+						),
 					)
 					setSuccess(false)
 					return
 				}
 			} else if (opening && time < opening) {
-				setError('El horario solicitado es antes del horario de apertura.')
+				setErrorNotice(
+					localValidationNotice('El horario solicitado es antes del horario de apertura.'),
+				)
 				setSuccess(false)
 				return
 			} else if (closing && time > closing) {
-				setError('El horario solicitado es despues del horario de cierre.')
+				setErrorNotice(
+					localValidationNotice('El horario solicitado es despues del horario de cierre.'),
+				)
 				setSuccess(false)
 				return
 			}
