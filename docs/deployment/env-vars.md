@@ -38,6 +38,7 @@ No commitear valores reales. Usar `.env.example` solo como forma.
 - `NEXT_PUBLIC_API_URL`: raiz de API, incluyendo `/api`, por ejemplo `https://shineapp-api.vercel.app/api`.
 - `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN`: flag opcional local/demo. Usar `1` solo cuando el login pueda prellenar un usuario demo. Dejar sin setear en produccion real.
 - `NEXT_PUBLIC_SHINEAPP_DEMO_USERNAME`: usuario demo opcional para prellenar cuando `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN=1`. Nunca poner un password en env vars publicas de frontend.
+- `NEXT_PUBLIC_SHINEAPP_TOKEN_TTL_DAYS`: dias que el token de sesion sobrevive en `localStorage` antes de forzar re-login. Default `30` cuando no se setea o el valor no es un entero positivo. En el demo subirlo (ej. `30`) reduce friccion; en produccion bajarlo si la politica lo exige.
 
 Toda variable `NEXT_PUBLIC_` se bundlea en JavaScript del navegador. Nunca poner secretos de servidor ahi.
 

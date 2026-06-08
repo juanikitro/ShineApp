@@ -12,6 +12,11 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-08
 - [Frontend: iconos PWA segun superficie (CRM vs turnera)](docs/registro/cambios/2026-06-08-pwa-icons-logo-segun-superficie.md)
+- [Sesion persistente con TTL configurable](docs/registro/cambios/2026-06-08-token-localstorage-ttl.md)
+- [Turnera: capacidad, fechas pasadas, slots de 15 min y solape](docs/registro/cambios/2026-06-08-turnera-capacidad-y-solape.md)
+- [Horarios overnight en la pagina publica (cierre a medianoche o cruzando dia)](docs/registro/cambios/2026-06-08-horarios-overnight.md)
+- [Fix: errores por campo visibles en landing publica (2026-06-08)](docs/registro/cambios/2026-06-08-errores-landing-publica.md)
+- [Caja: categoria Personal con subcategorias de gastos cotidianos](docs/registro/cambios/2026-06-08-caja-categoria-personal.md)
 
 ## 2026-06-05
 - [UX para infraestructura lenta (free tier Vercel + Supabase)](docs/registro/cambios/2026-06-05-ux-infra-lenta.md)
