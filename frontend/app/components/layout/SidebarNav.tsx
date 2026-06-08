@@ -91,7 +91,7 @@ export function SidebarNav({
 								type="button"
 								aria-label={item.label}
 								aria-current={isActive ? 'page' : undefined}
-								aria-expanded={!collapsed ? expanded : undefined}
+								aria-expanded={expanded}
 								title={item.label}
 							>
 								<Icon size={16} />
@@ -114,7 +114,7 @@ export function SidebarNav({
 									</span>
 								) : null}
 							</button>
-							{expanded && !collapsed ? (
+							{expanded ? (
 								<div className="nav-children" role="group">
 									{item.children!.map((child) => {
 										const ChildIcon = child.icon
@@ -132,7 +132,7 @@ export function SidebarNav({
 												title={child.label}
 											>
 												<ChildIcon size={14} />
-												{child.label}
+												{!collapsed ? child.label : null}
 												{child.badge ? (
 													<span
 														className="nav-badge"

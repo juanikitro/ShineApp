@@ -18,11 +18,28 @@ import {
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 
 import { publicApiFetch } from '@/lib/api'
-import { formatApiError } from '@/lib/api-errors'
-import { joinDisplayParts } from '@/lib/display-text'
+import {
+	type ApiErrorNotice,
+	createValidationNotice,
+	formatApiError,
+} from '@/lib/api-errors'
 import { isPdfAssetSource, renderPdfPreviewDataUrl, safeImageAssetSource } from '@/lib/pdf-preview'
+import {
+	type AvailabilityBucket,
+	type AvailabilityOccupied,
+	buildTimeSlots,
+	todayIsoDate,
+} from '@/lib/scheduling-availability'
 import { formatDurationLabel } from '@/lib/service-duration'
 import { VEHICLE_TYPE_OPTIONS } from '@/lib/service-pricing'
+
+type PublicAvailabilityPayload = {
+	date: string
+	allow_overlapping: boolean
+	wash: AvailabilityBucket
+	detailing: AvailabilityBucket
+	occupied: AvailabilityOccupied[]
+}
 
 type PublicService = {
 	id: number
@@ -31,6 +48,7 @@ type PublicService = {
 	service_type?: string
 	estimated_duration_minutes?: number | null
 	notes?: string
+	base_price?: string | number | null
 }
 
 type ServiceGroupKey = 'wash' | 'combo' | 'detailing'
@@ -65,7 +83,22 @@ type PublicLandingPayload = {
 		booking_requests: boolean
 		quote_requests: boolean
 	}
+	display?: {
+		show_service_description?: boolean
+		show_service_price?: boolean
+	}
 	services: PublicService[]
+}
+
+function formatPublicPrice(value: PublicService['base_price']) {
+	if (value === null || value === undefined || value === '') return ''
+	const numeric = Number(value)
+	if (!Number.isFinite(numeric)) return ''
+	return numeric.toLocaleString('es-AR', {
+		style: 'currency',
+		currency: 'ARS',
+		maximumFractionDigits: 0,
+	})
 }
 
 type PublicRequestForm = {
@@ -163,12 +196,34 @@ function serviceDurationLabel(service: PublicService) {
 	return formatDurationLabel(service.estimated_duration_minutes)
 }
 
-function errorMessage(error: unknown) {
-	const notice = formatApiError(error, {
+function errorNoticeFrom(error: unknown): ApiErrorNotice {
+	return formatApiError(error, {
 		fallbackTitle: 'No se pudo completar la solicitud',
 		fallbackDescription: 'Revisa los datos ingresados e intenta nuevamente.',
 	})
-	return joinDisplayParts([notice.title, notice.description])
+}
+
+function localValidationNotice(description: string): ApiErrorNotice {
+	return createValidationNotice('Revisa los datos del formulario', description)
+}
+
+function PublicFormErrorNotice({ notice }: { notice: ApiErrorNotice }) {
+	return (
+		<div className="public-form-error" role="alert">
+			<strong>{notice.title}</strong>
+			{notice.description ? <p>{notice.description}</p> : null}
+			{notice.fields.length ? (
+				<ul className="alert-fields">
+					{notice.fields.map((field, index) => (
+						<li key={`${field.path}-${index}`}>
+							<strong>{field.label}</strong>
+							<span>{field.message}</span>
+						</li>
+					))}
+				</ul>
+			) : null}
+		</div>
+	)
 }
 
 type ServiceIconComponent = typeof Wrench
@@ -234,7 +289,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	const [form, setForm] = useState<PublicRequestForm>(blankForm)
 	const [loading, setLoading] = useState(true)
 	const [submitting, setSubmitting] = useState(false)
-	const [error, setError] = useState<string | null>(null)
+	const [errorNotice, setErrorNotice] = useState<ApiErrorNotice | null>(null)
 	const [success, setSuccess] = useState(false)
 	const [logoLoadFailed, setLogoLoadFailed] = useState(false)
 
@@ -242,13 +297,20 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	const [recallOpen, setRecallOpen] = useState(false)
 	const [recallIdentifier, setRecallIdentifier] = useState('')
 	const [recalling, setRecalling] = useState(false)
-	const [recallFeedback, setRecallFeedback] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+	const [recallFeedback, setRecallFeedback] = useState<
+		| { tone: 'ok'; text: string }
+		| { tone: 'err'; notice: ApiErrorNotice }
+		| null
+	>(null)
+	const [availability, setAvailability] = useState<PublicAvailabilityPayload | null>(null)
+	const [availabilityLoading, setAvailabilityLoading] = useState(false)
+	const today = todayIsoDate()
 
 	useEffect(() => {
 		let mounted = true
 		async function loadLanding() {
 			setLoading(true)
-			setError(null)
+			setErrorNotice(null)
 			try {
 				const payload = await publicApiFetch<PublicLandingPayload>(
 					`/public/landing/${encodeURIComponent(slug)}/`,
@@ -258,7 +320,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 				setLanding(payload)
 			} catch (err) {
 				if (!mounted) return
-				setError(errorMessage(err))
+				setErrorNotice(errorNoticeFrom(err))
 			} finally {
 				if (mounted) setLoading(false)
 			}
@@ -272,6 +334,41 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	useEffect(() => {
 		setSavedData(loadClientData(slug))
 	}, [slug])
+
+	useEffect(() => {
+		const day = form.preferred_day
+		if (!day) {
+			setAvailability(null)
+			setAvailabilityLoading(false)
+			return
+		}
+		if (day < today) {
+			setAvailability(null)
+			setAvailabilityLoading(false)
+			return
+		}
+		let cancelled = false
+		setAvailabilityLoading(true)
+		publicApiFetch<PublicAvailabilityPayload>(
+			`/public/landing/${encodeURIComponent(slug)}/availability/?date=${encodeURIComponent(day)}`,
+			{ cache: 'no-store' },
+		)
+			.then((payload) => {
+				if (cancelled) return
+				setAvailability(payload)
+			})
+			.catch(() => {
+				if (cancelled) return
+				setAvailability(null)
+			})
+			.finally(() => {
+				if (cancelled) return
+				setAvailabilityLoading(false)
+			})
+		return () => {
+			cancelled = true
+		}
+	}, [form.preferred_day, slug, today])
 
 	const logoSource = landing?.business.logo_url ?? null
 	const logoIsPdf = isPdfAssetSource(logoSource)
@@ -299,6 +396,91 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		}
 		return groups
 	}, [landing])
+
+	const selectedServiceDuration = useMemo(() => {
+		if (!landing) return 60
+		const byId = new Map<number, PublicService>()
+		for (const service of landing.services) byId.set(service.id, service)
+		let total = 0
+		for (const idString of form.service_ids) {
+			const id = Number(idString)
+			if (!Number.isFinite(id)) continue
+			const service = byId.get(id)
+			if (!service) continue
+			total += Number(service.estimated_duration_minutes ?? 0) || 0
+		}
+		return total || 60
+	}, [form.service_ids, landing])
+
+	const selectedBuckets = useMemo(() => {
+		const result = { wash: 0, detailing: 0 }
+		if (!landing) return result
+		const byId = new Map<number, PublicService>()
+		for (const service of landing.services) byId.set(service.id, service)
+		for (const idString of form.service_ids) {
+			const id = Number(idString)
+			if (!Number.isFinite(id)) continue
+			const service = byId.get(id)
+			if (!service) continue
+			const type = String(service.service_type ?? '').toLowerCase()
+			if (type === 'detailing') result.detailing += 1
+			else result.wash += 1
+		}
+		return result
+	}, [form.service_ids, landing])
+
+	const timeSlots = useMemo(() => {
+		if (!form.preferred_day || form.preferred_day < today) return []
+		const allowOverlap = availability?.allow_overlapping ?? false
+		return buildTimeSlots({
+			openingTime: landing?.business.opening_time ?? null,
+			closingTime: landing?.business.closing_time ?? null,
+			occupied: availability?.occupied ?? [],
+			durationMinutes: selectedServiceDuration,
+			allowOverlap,
+		})
+	}, [
+		availability,
+		form.preferred_day,
+		landing,
+		selectedServiceDuration,
+		today,
+	])
+
+	const isPastPreferredDay = Boolean(
+		form.preferred_day && form.preferred_day < today,
+	)
+	const capacityWarning = useMemo(() => {
+		if (!availability) return null
+		const issues: string[] = []
+		if (
+			selectedBuckets.wash > 0 &&
+			availability.wash.available_slots < selectedBuckets.wash
+		) {
+			issues.push(
+				`No hay cupo de lavado disponible (${availability.wash.used_slots}/${availability.wash.max_slots}).`,
+			)
+		}
+		if (
+			selectedBuckets.detailing > 0 &&
+			availability.detailing.available_slots < selectedBuckets.detailing
+		) {
+			issues.push(
+				`No hay cupo de detailing disponible (${availability.detailing.used_slots}/${availability.detailing.max_slots}).`,
+			)
+		}
+		if (
+			!issues.length &&
+			selectedBuckets.wash === 0 &&
+			selectedBuckets.detailing === 0 &&
+			availability.wash.available_slots === 0 &&
+			availability.detailing.available_slots === 0
+		) {
+			issues.push('Este dia ya no tiene cupo de lavado ni de detailing.')
+		}
+		return issues.length ? issues.join(' ') : null
+	}, [availability, selectedBuckets])
+	const blockSubmit = Boolean(capacityWarning) || isPastPreferredDay
 
 	function patchForm(patch: Partial<PublicRequestForm>) {
 		setSuccess(false)
@@ -377,12 +559,17 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 				})
 				setRecallOpen(false)
 				setRecallIdentifier('')
-				setRecallFeedback({ type: 'ok', text: 'Datos autocompletados.' })
+				setRecallFeedback({ tone: 'ok', text: 'Datos autocompletados.' })
 			} else {
-				setRecallFeedback({ type: 'err', text: 'No encontramos un cliente con ese dato.' })
+				setRecallFeedback({
+					tone: 'err',
+					notice: localValidationNotice(
+						'No encontramos un cliente con ese dato.',
+					),
+				})
 			}
 		} catch (err) {
-			setRecallFeedback({ type: 'err', text: errorMessage(err) })
+			setRecallFeedback({ tone: 'err', notice: errorNoticeFrom(err) })
 		} finally {
 			setRecalling(false)
 		}
@@ -396,33 +583,81 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 			form.customer_phone.trim() || form.customer_email.trim(),
 		)
 		if (!hasCustomerName) {
-			setError('Ingresa tu nombre.')
+			setErrorNotice(localValidationNotice('Ingresa tu nombre.'))
 			setSuccess(false)
 			return
 		}
 		if (!hasContact) {
-			setError('Deja un celular o un email de contacto.')
+			setErrorNotice(
+				localValidationNotice('Deja un celular o un email de contacto.'),
+			)
 			setSuccess(false)
 			return
 		}
 		if (!form.service_ids.length) {
-			setError('Selecciona al menos un servicio.')
+			setErrorNotice(
+				localValidationNotice('Selecciona al menos un servicio.'),
+			)
 			setSuccess(false)
 			return
 		}
 		const requestType = form.preferred_day ? 'booking' : 'quote'
 		if (requestType === 'booking' && !landing.actions.booking_requests) {
-			setError('El negocio no acepta solicitudes de reserva.')
+			setErrorNotice(
+				localValidationNotice('El negocio no acepta solicitudes de reserva.'),
+			)
 			setSuccess(false)
 			return
 		}
 		if (requestType === 'quote' && !landing.actions.quote_requests) {
-			setError('Carga una fecha para solicitar una reserva.')
+			setErrorNotice(
+				localValidationNotice('Carga una fecha para solicitar una reserva.'),
+			)
 			setSuccess(false)
 			return
 		}
+		if (isPastPreferredDay) {
+			setError('La fecha elegida ya paso. Selecciona una fecha igual o posterior a hoy.')
+			setSuccess(false)
+			return
+		}
+		if (capacityWarning) {
+			setError(capacityWarning)
+			setSuccess(false)
+			return
+		}
+		if (requestType === 'booking' && form.preferred_time) {
+			const opening = landing.business.opening_time ?? null
+			const closing = landing.business.closing_time ?? null
+			const time = form.preferred_time
+			if (opening && closing) {
+				const overnight = closing <= opening
+				const inRange = overnight
+					? time >= opening || time <= closing
+					: time >= opening && time <= closing
+				if (!inRange) {
+					setError(
+						overnight
+							? 'El horario solicitado esta fuera del horario de atencion.'
+							: time < opening
+								? 'El horario solicitado es antes del horario de apertura.'
+								: 'El horario solicitado es despues del horario de cierre.',
+					)
+					setSuccess(false)
+					return
+				}
+			} else if (opening && time < opening) {
+				setError('El horario solicitado es antes del horario de apertura.')
+				setSuccess(false)
+				return
+			} else if (closing && time > closing) {
+				setError('El horario solicitado es despues del horario de cierre.')
+				setSuccess(false)
+				return
+			}
+		}
 		setSubmitting(true)
-		setError(null)
+		setErrorNotice(null)
 		setSuccess(false)
 		let pushSubscription: object | null = null
 		try {
@@ -450,7 +685,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 			setSuccess(true)
 			setForm(blankForm)
 		} catch (err) {
-			setError(errorMessage(err))
+			setErrorNotice(errorNoticeFrom(err))
 		} finally {
 			setSubmitting(false)
 		}
@@ -465,19 +700,32 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	}
 
 	if (!landing) {
+		const fallbackTitle = 'La pagina publica no esta disponible.'
+		const fallbackText = errorNotice
+			? [errorNotice.title, errorNotice.description].filter(Boolean).join(' - ')
+			: fallbackTitle
 		return (
 			<main className="public-landing">
 				<div className="public-state public-state--error">
-					{error ?? 'La pagina publica no esta disponible.'}
+					{fallbackText || fallbackTitle}
 				</div>
 			</main>
 		)
 	}
 
 	const business = landing.business
+	const isOvernightHours = Boolean(
+		business.opening_time &&
+			business.closing_time &&
+			business.closing_time <= business.opening_time,
+	)
 	const hoursLabel =
 		business.opening_time && business.closing_time
-			? `${business.opening_time} – ${business.closing_time}`
+			? isOvernightHours
+				? business.closing_time === '00:00'
+					? `${business.opening_time} – ${business.closing_time} (cierra a medianoche)`
+					: `${business.opening_time} – ${business.closing_time} (cierra al dia siguiente)`
+				: `${business.opening_time} – ${business.closing_time}`
 			: business.opening_time
 				? `Desde ${business.opening_time}`
 				: business.closing_time
@@ -571,7 +819,14 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 											const selected = form.service_ids.includes(
 												String(service.id),
 											)
-											return (
+											const showDescription =
+											landing.display?.show_service_description !== false
+										const showPrice =
+											landing.display?.show_service_price === true
+										const priceLabel = showPrice
+											? formatPublicPrice(service.base_price)
+											: ''
+										return (
 												<button
 													key={service.id}
 													type="button"
@@ -584,7 +839,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 													</span>
 													<span>
 														<strong>{service.name}</strong>
-														{service.notes ? (
+														{showDescription && service.notes ? (
 															<small>{service.notes}</small>
 														) : null}
 														{serviceDurationLabel(service) ? (
@@ -592,6 +847,11 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 																<Clock size={13} />
 																{serviceDurationLabel(service)}
 															</em>
+														) : null}
+														{priceLabel ? (
+															<span className="public-service-price">
+																{priceLabel}
+															</span>
 														) : null}
 													</span>
 													{selected ? <CheckCircle2 size={18} /> : null}
@@ -666,12 +926,16 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							/>
 						</label>
 					</div>
-					{recallFeedback && !recallOpen && (
-						<div className={recallFeedback.type === 'ok' ? 'public-form-success' : 'public-form-error'}>
-							{recallFeedback.type === 'ok' && <CheckCircle2 size={16} />}
-							{recallFeedback.text}
-						</div>
-					)}
+					{recallFeedback && !recallOpen ? (
+						recallFeedback.tone === 'ok' ? (
+							<div className="public-form-success">
+								<CheckCircle2 size={16} />
+								{recallFeedback.text}
+							</div>
+						) : (
+							<PublicFormErrorNotice notice={recallFeedback.notice} />
+						)
+					) : null}
 					{!recallOpen ? (
 						<button
 							type="button"
@@ -699,12 +963,16 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 									</button>
 								</div>
 							</label>
-							{recallFeedback && (
-								<div className={recallFeedback.type === 'ok' ? 'public-form-success' : 'public-form-error'}>
-									{recallFeedback.type === 'ok' && <CheckCircle2 size={16} />}
-									{recallFeedback.text}
-								</div>
-							)}
+							{recallFeedback ? (
+								recallFeedback.tone === 'ok' ? (
+									<div className="public-form-success">
+										<CheckCircle2 size={16} />
+										{recallFeedback.text}
+									</div>
+								) : (
+									<PublicFormErrorNotice notice={recallFeedback.notice} />
+								)
+							) : null}
 							<button
 								type="button"
 								className="public-recall-trigger"
@@ -760,6 +1028,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							Fecha preferida
 							<input
 								type="date"
+								min={today}
 								value={form.preferred_day}
 								onChange={(event) =>
 									patchForm({
@@ -771,16 +1040,54 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 						</label>
 						<label>
 							Hora preferida
-							<input
-								type="time"
-								disabled={!form.preferred_day}
+							<select
+								disabled={!form.preferred_day || isPastPreferredDay}
 								value={form.preferred_time}
-								min={landing.business.opening_time ?? undefined}
-								max={landing.business.closing_time ?? undefined}
+								min={isOvernightHours ? undefined : (landing.business.opening_time ?? undefined)}
+								max={isOvernightHours ? undefined : (landing.business.closing_time ?? undefined)}
 								onChange={(event) => patchForm({ preferred_time: event.target.value })}
-							/>
+							>
+								<option value="">--</option>
+								{timeSlots.map((slot) => (
+									<option
+										key={slot.value}
+										value={slot.value}
+										disabled={slot.disabled}
+									>
+										{slot.label}
+										{slot.disabled && slot.disabledReason
+											? ` (${slot.disabledReason})`
+											: ''}
+									</option>
+								))}
+							</select>
 						</label>
 					</div>
+					{isPastPreferredDay ? (
+						<div className="public-form-error">
+							La fecha elegida ya paso. Selecciona una fecha igual o posterior
+							a hoy.
+						</div>
+					) : null}
+					{availabilityLoading && !isPastPreferredDay ? (
+						<div className="public-form-note">Verificando disponibilidad...</div>
+					) : null}
+					{!availabilityLoading && availability && !isPastPreferredDay ? (
+						<div
+							className={
+								capacityWarning ? 'public-form-error' : 'public-form-note'
+							}
+						>
+							{capacityWarning ?? (
+								<>
+									Cupo lavado: {availability.wash.used_slots}/
+									{availability.wash.max_slots} · Cupo detailing:{' '}
+									{availability.detailing.used_slots}/
+									{availability.detailing.max_slots}
+								</>
+							)}
+						</div>
+					) : null}
 					<label>
 						Mensaje
 						<textarea
@@ -789,7 +1096,9 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							onChange={(event) => patchForm({ message: event.target.value })}
 						/>
 					</label>
-					{error ? <div className="public-form-error">{error}</div> : null}
+					{errorNotice ? (
+						<PublicFormErrorNotice notice={errorNotice} />
+					) : null}
 					{success ? (
 						<div className="public-form-success">
 							<CheckCircle2 size={18} />
@@ -799,7 +1108,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 					<button
 						type="submit"
 						className="primary"
-						disabled={submitting}
+						disabled={submitting || blockSubmit}
 					>
 						<Send size={16} />
 						{submitting ? 'Enviando...' : 'Enviar solicitud'}

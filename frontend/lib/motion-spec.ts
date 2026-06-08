@@ -189,6 +189,95 @@ export const labelSwapVariants = {
 	},
 } satisfies Variants
 
+export const staggerContainerVariants = {
+	initial: {},
+	animate: {
+		transition: {
+			staggerChildren: 0.04,
+			delayChildren: 0.02,
+		},
+	},
+	exit: {
+		transition: {
+			staggerChildren: 0.02,
+			staggerDirection: -1,
+		},
+	},
+} satisfies Variants
+
+export const staggerItemVariants = {
+	initial: {
+		opacity: 0,
+		y: motionTokens.distance.sm,
+	},
+	animate: {
+		opacity: 1,
+		y: 0,
+		transition: motionTransitions.view,
+	},
+	exit: {
+		opacity: 0,
+		y: -motionTokens.distance.xs,
+		transition: motionTransitions.fast,
+	},
+} satisfies Variants
+
+export const revealOnMountVariants = {
+	initial: {
+		opacity: 0,
+		y: motionTokens.distance.sm,
+	},
+	animate: {
+		opacity: 1,
+		y: 0,
+		transition: motionTransitions.view,
+	},
+} satisfies Variants
+
+export const crossfadeContentVariants = {
+	initial: {
+		opacity: 0,
+		y: motionTokens.distance.xs,
+	},
+	animate: {
+		opacity: 1,
+		y: 0,
+		transition: motionTransitions.view,
+	},
+	exit: {
+		opacity: 0,
+		transition: motionTransitions.fast,
+	},
+} satisfies Variants
+
+export const crossfadeSkeletonVariants = {
+	initial: { opacity: 1 },
+	animate: {
+		opacity: 1,
+		transition: motionTransitions.fast,
+	},
+	exit: {
+		opacity: 0,
+		transition: motionTransitions.fast,
+	},
+} satisfies Variants
+
+export const deltaHintVariants = {
+	initial: {
+		opacity: 0,
+		y: motionTokens.distance.xs,
+	},
+	animate: {
+		opacity: 1,
+		y: 0,
+		transition: motionTransitions.base,
+	},
+	exit: {
+		opacity: 0,
+		transition: motionTransitions.fast,
+	},
+} satisfies Variants
+
 export const flashOverlayVariants = {
 	initial: {
 		opacity: 0,

@@ -2,14 +2,18 @@
 
 import { type ReactNode } from 'react'
 
+import { AnimatePresence } from 'motion/react'
+import * as m from 'motion/react-m'
 import { CalendarDays, CreditCard, Info } from 'lucide-react'
 
+import { Stagger, StaggerItem } from '@/app/components/motion/Stagger'
 import { Empty } from '@/app/components/ui/Empty'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { Panel } from '@/app/components/ui/Panel'
 import { RecordCard } from '@/app/components/ui/RecordCard'
 import { SkeletonMetric } from '@/app/components/ui/Skeleton'
 import { cx } from '@/app/components/utils'
+import { deltaHintVariants } from '@/lib/motion-spec'
 import {
 	type AnyRecord,
 	type Section,
@@ -247,67 +251,81 @@ export function DashboardPanel({
 			comparisonMetric?.polarity === 'higher-is-good'
 				? comparisonMetric.polarity
 				: polarity
+
+		let direction: 'up' | 'down' | 'flat' | null = null
+		let content: ReactNode = null
+
 		if (metricHasPreviousActivity === false) {
-			return <span className="dashboard-delta">Sin actividad previa</span>
+			content = 'Sin actividad previa'
+		} else {
+			const previousInput = comparisonMetric?.previous ?? previous
+			if (
+				previousInput === undefined ||
+				previousInput === null ||
+				previousInput === ''
+			) {
+				content = 'Sin comparacion previa'
+			} else {
+				const currentValue = numberValue(comparisonMetric?.current ?? current)
+				const previousValue = numberValue(previousInput)
+				const delta =
+					comparisonMetric && comparisonMetric.delta !== undefined
+						? numberValue(comparisonMetric.delta)
+						: currentValue - previousValue
+				if (previousValue === 0 && delta === 0) {
+					content = `Sin variacion ${label}`
+				} else {
+					direction =
+						metricPolarity === 'neutral'
+							? 'flat'
+							: metricPolarity === 'higher-is-bad'
+								? delta > 0
+									? 'down'
+									: delta < 0
+										? 'up'
+										: 'flat'
+								: delta > 0
+									? 'up'
+									: delta < 0
+										? 'down'
+										: 'flat'
+					if (previousValue === 0) {
+						content = `Nuevo ${label}`
+					} else {
+						const percentValue =
+							comparisonMetric?.delta_percent !== undefined &&
+							comparisonMetric?.delta_percent !== null
+								? Math.abs(numberValue(comparisonMetric.delta_percent))
+								: Math.abs((delta / previousValue) * 100)
+						const percent = percentValue.toLocaleString('es-AR', {
+							maximumFractionDigits: 1,
+						})
+						const prefix = delta > 0 ? '+' : delta < 0 ? '-' : ''
+						content = `${prefix}${percent}% ${label}`
+					}
+				}
+			}
 		}
-		const previousInput = comparisonMetric?.previous ?? previous
-		if (
-			previousInput === undefined ||
-			previousInput === null ||
-			previousInput === ''
-		) {
-			return <span className="dashboard-delta">Sin comparacion previa</span>
-		}
-		const currentValue = numberValue(comparisonMetric?.current ?? current)
-		const previousValue = numberValue(previousInput)
-		const delta =
-			comparisonMetric && comparisonMetric.delta !== undefined
-				? numberValue(comparisonMetric.delta)
-				: currentValue - previousValue
-		if (previousValue === 0 && delta === 0) {
-			return <span className="dashboard-delta">Sin variacion {label}</span>
-		}
-		const semanticDirection =
-			metricPolarity === 'neutral'
-				? 'flat'
-				: metricPolarity === 'higher-is-bad'
-					? delta > 0
-						? 'down'
-						: delta < 0
-							? 'up'
-							: 'flat'
-					: delta > 0
-						? 'up'
-						: delta < 0
-							? 'down'
-							: 'flat'
-		if (previousValue === 0) {
-			return (
-				<span
-					className={cx(
-						'dashboard-delta',
-						`dashboard-delta--${semanticDirection}`,
-					)}
-				>
-					Nuevo {label}
-				</span>
-			)
-		}
-		const percentValue =
-			comparisonMetric?.delta_percent !== undefined &&
-			comparisonMetric?.delta_percent !== null
-				? Math.abs(numberValue(comparisonMetric.delta_percent))
-				: Math.abs((delta / previousValue) * 100)
-		const percent = percentValue.toLocaleString('es-AR', {
-			maximumFractionDigits: 1,
-		})
-		const prefix = delta > 0 ? '+' : delta < 0 ? '-' : ''
+
+		const className = cx(
+			'dashboard-delta',
+			direction && `dashboard-delta--${direction}`,
+		)
+		const animationKey = `${direction ?? 'static'}::${String(content)}`
 		return (
-			<span
-				className={cx('dashboard-delta', `dashboard-delta--${semanticDirection}`)}
-			>
-				{prefix}
-				{percent}% {label}
+			<span className="dashboard-delta-slot">
+				<AnimatePresence initial={false} mode="wait">
+					<m.span
+						key={animationKey}
+						className={className}
+						variants={deltaHintVariants}
+						initial="initial"
+						animate="animate"
+						exit="exit"
+					>
+						{content}
+					</m.span>
+				</AnimatePresence>
 			</span>
 		)
 	}
@@ -355,51 +373,67 @@ export function DashboardPanel({
 					{(!loading || dashboardHasBusinessActivity) &&
 					!dashboardEmptyPeriod ? (
 						<>
-							<section className="dashboard-executive-grid">
-								<MetricCard
-									className="dashboard-executive-metric"
-									label="Facturado"
-									value={money(dashboardBilledTotal)}
-									hint={dashboardDeltaHint(
-										dashboardBilledTotal,
-										dashboardPreviousPeriod.billed_total,
-										{ metricKey: 'billed_total' },
-									)}
-								/>
-								<MetricCard
-									className="dashboard-executive-metric"
-									label="Margen estimado"
-									value={money(dashboardEstimatedMarginTotal)}
-									hint={dashboardDeltaHint(
-										dashboardEstimatedMarginTotal,
-										dashboardPreviousPeriod.estimated_margin_total,
-										{ metricKey: 'estimated_margin_total' },
-									)}
-								/>
-								<MetricCard
-									className="dashboard-executive-metric"
-									label="Caja real"
-									value={money(dashboardCashflowBalance)}
-									hint={dashboardDeltaHint(
-										dashboardCashflowBalance,
-										dashboardPreviousPeriod.cashflow_balance,
-										{ metricKey: 'cashflow_balance' },
-									)}
-								/>
-								<MetricCard
-									className={cx(
-										'dashboard-executive-metric',
-										dashboardBalanceDueTotal > 0 && 'metric--attention',
-									)}
-									label="Por cobrar"
-									value={money(dashboardBalanceDueTotal)}
-									hint={dashboardCountText(
-										dashboardBalanceDueWorkOrdersCount,
-										'trabajo con saldo',
-										'trabajos con saldo',
-									)}
-								/>
-							</section>
+							<Stagger className="dashboard-executive-grid">
+								<StaggerItem>
+									<MetricCard
+										className="dashboard-executive-metric"
+										label="Facturado"
+										value={money(dashboardBilledTotal)}
+										numericValue={dashboardBilledTotal}
+										format={money}
+										hint={dashboardDeltaHint(
+											dashboardBilledTotal,
+											dashboardPreviousPeriod.billed_total,
+											{ metricKey: 'billed_total' },
+										)}
+									/>
+								</StaggerItem>
+								<StaggerItem>
+									<MetricCard
+										className="dashboard-executive-metric"
+										label="Margen estimado"
+										value={money(dashboardEstimatedMarginTotal)}
+										numericValue={dashboardEstimatedMarginTotal}
+										format={money}
+										hint={dashboardDeltaHint(
+											dashboardEstimatedMarginTotal,
+											dashboardPreviousPeriod.estimated_margin_total,
+											{ metricKey: 'estimated_margin_total' },
+										)}
+									/>
+								</StaggerItem>
+								<StaggerItem>
+									<MetricCard
+										className="dashboard-executive-metric"
+										label="Caja real"
+										value={money(dashboardCashflowBalance)}
+										numericValue={dashboardCashflowBalance}
+										format={money}
+										hint={dashboardDeltaHint(
+											dashboardCashflowBalance,
+											dashboardPreviousPeriod.cashflow_balance,
+											{ metricKey: 'cashflow_balance' },
+										)}
+									/>
+								</StaggerItem>
+								<StaggerItem>
+									<MetricCard
+										className={cx(
+											'dashboard-executive-metric',
+											dashboardBalanceDueTotal > 0 && 'metric--attention',
+										)}
+										label="Por cobrar"
+										value={money(dashboardBalanceDueTotal)}
+										numericValue={dashboardBalanceDueTotal}
+										format={money}
+										hint={dashboardCountText(
+											dashboardBalanceDueWorkOrdersCount,
+											'trabajo con saldo',
+											'trabajos con saldo',
+										)}
+									/>
+								</StaggerItem>
+							</Stagger>
 							<Panel
 								className="dashboard-next-action-panel"
 								title="Siguiente accion"
@@ -435,33 +469,49 @@ export function DashboardPanel({
 									title="Composicion economica"
 									subtitle="Separacion entre facturado, cobrado, costos y obligaciones."
 								>
-									<div className="dashboard-composition-grid">
-										<MetricCard
-											label="Cobrado"
-											value={money(dashboardCollectedTotal)}
-											hint="Pagos registrados en el periodo"
-										/>
-										<MetricCard
-											label="Materiales consumidos"
-											value={money(dashboardMaterialCostTotal)}
-											hint="Costo estimado imputado a trabajos"
-										/>
-										<MetricCard
-											label="Compras materiales"
-											value={money(dashboardMaterialPurchasesTotal)}
-											hint="Reposicion e insumos del periodo"
-										/>
-										<MetricCard
-											className={
-												dashboardOverdueDebtsTotal > 0
-													? 'metric--attention'
-													: ''
-											}
-											label="Deudas vencidas"
-											value={money(dashboardOverdueDebtsTotal)}
-											hint={`${dashboardOverdueDebtsCount} pendientes`}
-										/>
-									</div>
+									<Stagger className="dashboard-composition-grid">
+										<StaggerItem>
+											<MetricCard
+												label="Cobrado"
+												value={money(dashboardCollectedTotal)}
+												numericValue={dashboardCollectedTotal}
+												format={money}
+												hint="Pagos registrados en el periodo"
+											/>
+										</StaggerItem>
+										<StaggerItem>
+											<MetricCard
+												label="Materiales consumidos"
+												value={money(dashboardMaterialCostTotal)}
+												numericValue={dashboardMaterialCostTotal}
+												format={money}
+												hint="Costo estimado imputado a trabajos"
+											/>
+										</StaggerItem>
+										<StaggerItem>
+											<MetricCard
+												label="Compras materiales"
+												value={money(dashboardMaterialPurchasesTotal)}
+												numericValue={dashboardMaterialPurchasesTotal}
+												format={money}
+												hint="Reposicion e insumos del periodo"
+											/>
+										</StaggerItem>
+										<StaggerItem>
+											<MetricCard
+												className={
+													dashboardOverdueDebtsTotal > 0
+														? 'metric--attention'
+														: ''
+													}
+												label="Deudas vencidas"
+												value={money(dashboardOverdueDebtsTotal)}
+												numericValue={dashboardOverdueDebtsTotal}
+												format={money}
+												hint={`${dashboardOverdueDebtsCount} pendientes`}
+											/>
+										</StaggerItem>
+									</Stagger>
 									<div className="dashboard-economy-note">
 										<Info size={16} />
 										<div>
@@ -697,76 +747,86 @@ export function DashboardPanel({
 										: 'Sin actividad registrada en el periodo anterior'
 								}
 							>
-								<div className="records dashboard-comparison-records">
-									<RecordCard className="dashboard-comparison-record">
-										<div className="record-head">
-											<span>Facturado</span>
-											<strong>{money(dashboardBilledTotal)}</strong>
-										</div>
-										<small>
-											{dashboardDeltaHint(
-												dashboardBilledTotal,
-												dashboardPreviousPeriod.billed_total,
-												{ metricKey: 'billed_total' },
-											)}
-										</small>
-									</RecordCard>
-									<RecordCard className="dashboard-comparison-record">
-										<div className="record-head">
-											<span>Cobrado</span>
-											<strong>{money(dashboardCollectedTotal)}</strong>
-										</div>
-										<small>
-											{dashboardDeltaHint(
-												dashboardCollectedTotal,
-												dashboardPreviousPeriod.collected_total,
-												{ metricKey: 'collected_total' },
-											)}
-										</small>
-									</RecordCard>
-									<RecordCard className="dashboard-comparison-record">
-										<div className="record-head">
-											<span>Margen estimado</span>
-											<strong>{money(dashboardEstimatedMarginTotal)}</strong>
-										</div>
-										<small>
-											{dashboardDeltaHint(
-												dashboardEstimatedMarginTotal,
-												dashboardPreviousPeriod.estimated_margin_total,
-												{ metricKey: 'estimated_margin_total' },
-											)}
-										</small>
-									</RecordCard>
-									<RecordCard className="dashboard-comparison-record">
-										<div className="record-head">
-											<span>Caja real</span>
-											<strong>{money(dashboardCashflowBalance)}</strong>
-										</div>
-										<small>
-											{dashboardDeltaHint(
-												dashboardCashflowBalance,
-												dashboardPreviousPeriod.cashflow_balance,
-												{ metricKey: 'cashflow_balance' },
-											)}
-										</small>
-									</RecordCard>
-									<RecordCard className="dashboard-comparison-record">
-										<div className="record-head">
-											<span>Por cobrar</span>
-											<strong>{money(dashboardBalanceDueTotal)}</strong>
-										</div>
-										<small>
-											{dashboardDeltaHint(
-												dashboardBalanceDueTotal,
-												dashboardPreviousPeriod.balance_due_total,
-												{
-													metricKey: 'balance_due_total',
-													polarity: 'higher-is-bad',
-												},
-											)}
-										</small>
-									</RecordCard>
-								</div>
+								<Stagger className="records dashboard-comparison-records">
+									<StaggerItem>
+										<RecordCard className="dashboard-comparison-record">
+											<div className="record-head">
+												<span>Facturado</span>
+												<strong>{money(dashboardBilledTotal)}</strong>
+											</div>
+											<small>
+												{dashboardDeltaHint(
+													dashboardBilledTotal,
+													dashboardPreviousPeriod.billed_total,
+													{ metricKey: 'billed_total' },
+												)}
+											</small>
+										</RecordCard>
+									</StaggerItem>
+									<StaggerItem>
+										<RecordCard className="dashboard-comparison-record">
+											<div className="record-head">
+												<span>Cobrado</span>
+												<strong>{money(dashboardCollectedTotal)}</strong>
+											</div>
+											<small>
+												{dashboardDeltaHint(
+													dashboardCollectedTotal,
+													dashboardPreviousPeriod.collected_total,
+													{ metricKey: 'collected_total' },
+												)}
+											</small>
+										</RecordCard>
+									</StaggerItem>
+									<StaggerItem>
+										<RecordCard className="dashboard-comparison-record">
+											<div className="record-head">
+												<span>Margen estimado</span>
+												<strong>{money(dashboardEstimatedMarginTotal)}</strong>
+											</div>
+											<small>
+												{dashboardDeltaHint(
+													dashboardEstimatedMarginTotal,
+													dashboardPreviousPeriod.estimated_margin_total,
+													{ metricKey: 'estimated_margin_total' },
+												)}
+											</small>
+										</RecordCard>
+									</StaggerItem>
+									<StaggerItem>
+										<RecordCard className="dashboard-comparison-record">
+											<div className="record-head">
+												<span>Caja real</span>
+												<strong>{money(dashboardCashflowBalance)}</strong>
+											</div>
+											<small>
+												{dashboardDeltaHint(
+													dashboardCashflowBalance,
+													dashboardPreviousPeriod.cashflow_balance,
+													{ metricKey: 'cashflow_balance' },
+												)}
+											</small>
+										</RecordCard>
+									</StaggerItem>
+									<StaggerItem>
+										<RecordCard className="dashboard-comparison-record">
+											<div className="record-head">
+												<span>Por cobrar</span>
+												<strong>{money(dashboardBalanceDueTotal)}</strong>
+											</div>
+											<small>
+												{dashboardDeltaHint(
+													dashboardBalanceDueTotal,
+													dashboardPreviousPeriod.balance_due_total,
+													{
+														metricKey: 'balance_due_total',
+														polarity: 'higher-is-bad',
+													},
+												)}
+											</small>
+										</RecordCard>
+									</StaggerItem>
+								</Stagger>
 							</Panel>
 							{dashboardTopCustomersByBilled.length ||
 							dashboardTopServicesByBilled.length ||
@@ -895,21 +955,20 @@ export function DashboardPanel({
 								}
 							>
 								{dashboardWorkOrdersTotal ? (
-									<div className="records dashboard-status-records">
+									<Stagger className="records dashboard-status-records">
 										{dashboardWorkStatusEntries.map(([key, label]) => (
-											<RecordCard
-												className="dashboard-status-record"
-												key={key}
-											>
-												<div className="record-head">
-													<span>{label}</span>
-													<strong>
-														{dashboard.work_orders_by_status?.[key] ?? 0}
-													</strong>
-												</div>
-											</RecordCard>
+											<StaggerItem key={key}>
+												<RecordCard className="dashboard-status-record">
+													<div className="record-head">
+														<span>{label}</span>
+														<strong>
+															{dashboard.work_orders_by_status?.[key] ?? 0}
+														</strong>
+													</div>
+												</RecordCard>
+											</StaggerItem>
 										))}
-									</div>
+									</Stagger>
 								) : (
 									<Empty
 										text="Sin trabajos en este periodo."

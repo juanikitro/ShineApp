@@ -4,16 +4,35 @@ import { type FormEvent, useState, useEffect } from 'react'
 import { AppBrand } from '@/app/components/layout/AppBrand'
 import { Field } from '@/app/components/ui/Field'
 import { publicApiFetch } from '@/lib/api'
-import { formatApiError } from '@/lib/api-errors'
+import { type ApiErrorNotice, formatApiError } from '@/lib/api-errors'
 
 type ResetPasswordMode = 'form' | 'success' | 'invalid'
+
+function FormErrorNotice({ notice }: { notice: ApiErrorNotice }) {
+	return (
+		<div className="alert-notice" role="alert">
+			<strong className="alert-title">{notice.title}</strong>
+			{notice.description ? <p>{notice.description}</p> : null}
+			{notice.fields.length ? (
+				<ul className="alert-fields">
+					{notice.fields.map((field, index) => (
+						<li key={`${field.path}-${index}`}>
+							<strong>{field.label}</strong>
+							<span>{field.message}</span>
+						</li>
+					))}
+				</ul>
+			) : null}
+		</div>
+	)
+}
 
 export default function ResetPasswordPage() {
 	const [token, setToken] = useState<string | null>(null)
 	const [newPassword, setNewPassword] = useState('')
 	const [mode, setMode] = useState<ResetPasswordMode>('form')
 	const [loading, setLoading] = useState(false)
-	const [errorMessage, setErrorMessage] = useState<string | null>(null)
+	const [errorNotice, setErrorNotice] = useState<ApiErrorNotice | null>(null)
 
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search)
@@ -29,7 +48,7 @@ export default function ResetPasswordPage() {
 		event.preventDefault()
 		if (!token) return
 		setLoading(true)
-		setErrorMessage(null)
+		setErrorNotice(null)
 		try {
 			await publicApiFetch('/auth/password-reset/confirm/', {
 				method: 'POST',
@@ -37,11 +56,12 @@ export default function ResetPasswordPage() {
 			})
 			setMode('success')
 		} catch (err: any) {
-			const notice = formatApiError(err, {
-				fallbackTitle: 'No se pudo actualizar la contraseña',
-				fallbackDescription: 'El link puede ser invalido o estar vencido.',
-			})
-			setErrorMessage(notice.description ?? notice.title)
+			setErrorNotice(
+				formatApiError(err, {
+					fallbackTitle: 'No se pudo actualizar la contraseña',
+					fallbackDescription: 'El link puede ser invalido o estar vencido.',
+				}),
+			)
 		} finally {
 			setLoading(false)
 		}
@@ -84,9 +104,7 @@ export default function ResetPasswordPage() {
 						subtitle="Crear nueva contraseña"
 						titleAs="h1"
 					/>
-					{errorMessage ? (
-						<p style={{ color: 'var(--shop-danger, #c0392b)' }}>{errorMessage}</p>
-					) : null}
+					{errorNotice ? <FormErrorNotice notice={errorNotice} /> : null}
 					<div className="form-grid">
 						<Field label="Nueva contraseña">
 							<input

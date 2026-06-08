@@ -69,10 +69,14 @@ Env vars backend requeridas:
 - `SUPABASE_S3_SECRET_ACCESS_KEY`
 - `SUPABASE_STORAGE_QUERYSTRING_AUTH=1`
 - `SUPABASE_STORAGE_LOCATION=media`
+- `VAPID_PRIVATE_KEY` (secreto, generado con `npx web-push generate-vapid-keys`)
+- `VAPID_PUBLIC_KEY` (debe coincidir exactamente con `NEXT_PUBLIC_VAPID_PUBLIC_KEY` del frontend)
+- `VAPID_CLAIMS_EMAIL=mailto:<contacto-soporte>`
 
 Env vars frontend requeridas:
 
 - `NEXT_PUBLIC_API_URL=https://shineapp-api.vercel.app/api`
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (igual a `VAPID_PUBLIC_KEY` del backend)
 
 ## Paso Manual De Migracion
 

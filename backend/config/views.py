@@ -433,6 +433,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "closing_time",
             "use_reservation_times",
             "show_stay_days_in_agenda",
+            "allow_overlapping_reservations",
             "reservation_use_pending",
             "reservation_use_in_progress",
             "reservation_use_ready",
@@ -444,6 +445,8 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "public_show_wash_services",
             "public_show_detailing_services",
             "public_hidden_service_ids",
+            "public_show_service_description",
+            "public_show_service_price",
             "income_category_tree",
             "expense_category_tree",
         ]
