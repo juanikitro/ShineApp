@@ -19,12 +19,33 @@
 }
 
 .quote-line {
+  animation: quote-line-enter var(--motion-duration-view) var(--motion-ease-emphasis) backwards;
   background: var(--shop-surface-raised);
   border: 1px solid var(--shop-border);
   border-radius: var(--radius-sm);
   display: grid;
   gap: 12px;
   padding: 12px;
+  transition: border-color var(--motion-duration-base) var(--motion-ease-standard),
+    transform var(--motion-duration-base) var(--motion-ease-standard);
+}
+
+@keyframes quote-line-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quote-line {
+    animation: none;
+    transition: none;
+  }
 }
 
 .service-notes,
