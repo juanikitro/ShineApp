@@ -241,7 +241,33 @@ Migraciones forward-compatible son aceptables para el camino de release demo aut
 - Validar: redeploy/restart del runtime aprobado solo despues de rotar, luego healthcheck, login, smoke autenticado y smoke de media.
 - Riesgo si se omite: credenciales de etapa demo se convierten en credenciales productivas de larga vida.
 
-## 18. Gate De Rollback, Migracion Y Smoke De Media
+## 18. Configurar VAPID Keys Para Push Notifications
+
+- Que: generar un par VAPID y cargarlo en los dos proyectos Vercel para habilitar push notifications del navegador.
+- Donde: shell local confiable para generar; Vercel Dashboard de `shineapp-api` y `shineapp-web` para cargar.
+- Por que: sin estas keys, el backend devuelve False silenciosamente en `notifications/service.py` (no envia ningun push) y el frontend ni siquiera registra el service worker, por lo que ningun `UserProfile` guarda su `push_subscription`. Resultado: los avisos al negocio cuando llega una solicitud desde la turnera publica nunca llegan.
+- Valor a generar:
+
+  ```powershell
+  npx web-push generate-vapid-keys --json
+  ```
+
+  Devuelve `{"publicKey": "...", "privateKey": "..."}`. Guardar fuera del repo.
+- Valor a setear en `shineapp-api` (backend):
+  - `VAPID_PRIVATE_KEY=<privateKey>` (secreto)
+  - `VAPID_PUBLIC_KEY=<publicKey>`
+  - `VAPID_CLAIMS_EMAIL=mailto:<contacto-soporte>`
+- Valor a setear en `shineapp-web` (frontend):
+  - `NEXT_PUBLIC_VAPID_PUBLIC_KEY=<publicKey>` (debe ser exactamente igual a `VAPID_PUBLIC_KEY` del backend)
+- Validar:
+  - Login al dashboard con un usuario empleador y aceptar el prompt de notificaciones del navegador.
+  - `GET /api/auth/me/` no es necesario; el frontend dispara `PATCH /api/auth/me/` con la suscripcion en `useEffect` al cargar el dashboard.
+  - En la DB demo: `SELECT COUNT(*) FROM core_userprofile WHERE push_subscription IS NOT NULL;` debe pasar de 0 a >=1.
+  - Desde otro dispositivo o ventana incognito, abrir la turnera publica (`/publica/<slug>`) y enviar una solicitud de prueba; el navegador del dashboard debe mostrar una notificacion del sistema.
+- Riesgo si se omite: las notificaciones push de nueva solicitud y de confirmacion de turno no funcionan; el email sigue llegando pero la push promesa al cliente y al negocio queda muda.
+- Rotacion: rotar las VAPID keys invalida todas las suscripciones existentes en navegadores. Los usuarios deben volver a aceptar el prompt de notificaciones para que el dashboard guarde una nueva suscripcion. Comunicar antes de rotar.
+
+## 19. Gate De Rollback, Migracion Y Smoke De Media
 
 - Que: antes de cada release productiva, documentar owner de rollback, ultimo deployment bueno conocido, backup/restore point de base de datos y riesgo de migracion.
 - Donde: checklist de release o descripcion de PR antes de mergear al camino de deploy productivo.

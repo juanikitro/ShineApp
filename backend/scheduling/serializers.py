@@ -278,7 +278,59 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
                 raise serializers.ValidationError(
                     {"day": f"La capacidad de turnos de {bucket_label} para este dia ya esta completa."}
                 )
+            if start_time:
+                profile = BusinessProfile.get_solo(business=business) if business is not None else None
+                if profile is not None and not profile.allow_overlapping_reservations:
+                    duration_minutes = self._duration_for_overlap_check(attrs, items_data, service)
+                    if self._overlap_exists(
+                        business,
+                        day,
+                        start_time,
+                        duration_minutes,
+                        exclude_id=getattr(self.instance, "id", None),
+                    ):
+                        raise serializers.ValidationError(
+                            {"start_time": "Ese horario se solapa con otra reserva existente."}
+                        )
         return attrs
+
+    def _duration_for_overlap_check(self, attrs, items_data, service):
+        if "estimated_duration_minutes" in attrs and attrs["estimated_duration_minutes"]:
+            return int(attrs["estimated_duration_minutes"])
+        if items_data:
+            total = 0
+            for item_data in items_data:
+                item_service = item_data.get("service")
+                if not item_service:
+                    continue
+                total += int(
+                    (item_service.estimated_duration_minutes or 0)
+                    * float(item_data.get("quantity", 1) or 1)
+                )
+            if total:
+                return total
+        if service is not None:
+            return int(getattr(service, "estimated_duration_minutes", 0) or 0) or 60
+        return int(getattr(self.instance, "estimated_duration_minutes", 0) or 0) or 60
+
+    @staticmethod
+    def _overlap_exists(business, day, start_time, duration_minutes, exclude_id=None):
+        start_minutes = start_time.hour * 60 + start_time.minute
+        end_minutes = start_minutes + max(int(duration_minutes), 0)
+        queryset = Reservation.objects.filter(day=day, status__in=Reservation.active_statuses())
+        if business is not None:
+            queryset = queryset.filter(business=business)
+        queryset = queryset.exclude(start_time__isnull=True)
+        if exclude_id:
+            queryset = queryset.exclude(pk=exclude_id)
+        for reservation in queryset:
+            if not reservation.start_time:
+                continue
+            existing_start = reservation.start_time.hour * 60 + reservation.start_time.minute
+            existing_end = existing_start + max(int(reservation.estimated_duration_minutes or 0), 0)
+            if start_minutes < existing_end and existing_start < end_minutes:
+                return True
+        return False
 
     def _with_preserved_exit_offset(self, attrs):
         if not self.instance or "day" not in attrs or "exit_day" in attrs:

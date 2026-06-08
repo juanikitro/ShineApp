@@ -190,6 +190,36 @@ export function TurneraSettingsPanel({
 							Recibir pedidos de cotizacion
 						</label>
 					</div>
+					<div className="form-row">
+						<label>
+							<input
+								type="checkbox"
+								name="business_public_show_service_description"
+								checked={
+									businessForm.public_show_service_description !== false
+								}
+								onChange={(event) =>
+									onPatchBusinessForm({
+										public_show_service_description: event.target.checked,
+									})
+								}
+							/>
+							Mostrar descripcion del servicio
+						</label>
+						<label>
+							<input
+								type="checkbox"
+								name="business_public_show_service_price"
+								checked={businessForm.public_show_service_price === true}
+								onChange={(event) =>
+									onPatchBusinessForm({
+										public_show_service_price: event.target.checked,
+									})
+								}
+							/>
+							Mostrar precio del servicio
+						</label>
+					</div>
 					<Field label="Texto corto para la landing">
 						<textarea
 							maxLength={240}
@@ -230,6 +260,21 @@ export function TurneraSettingsPanel({
 							/>
 						</Field>
 					</div>
+					<label>
+						<input
+							type="checkbox"
+							name="business_allow_overlapping_reservations"
+							checked={
+								businessForm.allow_overlapping_reservations === true
+							}
+							onChange={(event) =>
+								onPatchBusinessForm({
+									allow_overlapping_reservations: event.target.checked,
+								})
+							}
+						/>
+						Solapar turnos
+					</label>
 				</div>
 				<div className="turnera-services">
 					<div className="turnera-services-head">

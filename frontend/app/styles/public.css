@@ -235,6 +235,14 @@
   margin-top: 6px;
 }
 
+.public-service-price {
+  color: var(--shop-ink);
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
 .public-request-type {
   background: var(--color-surface-soft);
   border: 1px solid var(--shop-border);
@@ -300,6 +308,27 @@
   background: rgba(239, 68, 68, 0.09);
   border: 1px solid rgba(239, 68, 68, 0.25);
   color: #991b1b;
+}
+
+.public-form-error {
+  display: grid;
+  gap: 6px;
+}
+
+.public-form-error > strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.public-form-error > p {
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.public-form-error .alert-fields {
+  margin-top: 2px;
 }
 
 .public-form-success {

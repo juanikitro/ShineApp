@@ -32,12 +32,17 @@ No commitear valores reales. Usar `.env.example` solo como forma.
 - `SENTRY_SEND_DEFAULT_PII`: mantener `0` salvo que una revision de privacidad documentada apruebe PII de usuarios en eventos.
 - `WAF_PROVIDER`: dueno/proveedor de proteccion edge, por ejemplo `vercel`.
 - `WAF_STATUS`: debe ser `configured` solo despues de que las reglas WAF/rate-limit esten activas.
+- `VAPID_PRIVATE_KEY`: clave privada VAPID server-side para firmar push notifications Web Push. Secreto. Si esta vacia, el backend no envia ninguna push y devuelve False silenciosamente. Generar con `npx web-push generate-vapid-keys`.
+- `VAPID_PUBLIC_KEY`: clave publica VAPID. Debe coincidir exactamente con `NEXT_PUBLIC_VAPID_PUBLIC_KEY` o las suscripciones del navegador fallan.
+- `VAPID_CLAIMS_EMAIL`: contacto `mailto:` que recibe los push providers en caso de problemas. Por ejemplo `mailto:soporte@shineapp.com.ar`. Default `mailto:no-reply@shineapp.local`.
 
 ## Variables Publicas Frontend
 
 - `NEXT_PUBLIC_API_URL`: raiz de API, incluyendo `/api`, por ejemplo `https://shineapp-api.vercel.app/api`.
 - `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN`: flag opcional local/demo. Usar `1` solo cuando el login pueda prellenar un usuario demo. Dejar sin setear en produccion real.
 - `NEXT_PUBLIC_SHINEAPP_DEMO_USERNAME`: usuario demo opcional para prellenar cuando `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN=1`. Nunca poner un password en env vars publicas de frontend.
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`: clave publica VAPID expuesta al navegador. Debe coincidir exactamente con `VAPID_PUBLIC_KEY` del backend. Si esta vacia, ni el dashboard del negocio ni la turnera publica registran suscripciones push.
+- `NEXT_PUBLIC_SHINEAPP_TOKEN_TTL_DAYS`: dias que el token de sesion sobrevive en `localStorage` antes de forzar re-login. Default `30` cuando no se setea o el valor no es un entero positivo. En el demo subirlo (ej. `30`) reduce friccion; en produccion bajarlo si la politica lo exige.
 
 Toda variable `NEXT_PUBLIC_` se bundlea en JavaScript del navegador. Nunca poner secretos de servidor ahi.
 
