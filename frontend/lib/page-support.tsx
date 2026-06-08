@@ -211,6 +211,7 @@ function blankBusinessForm() {
 		default_quote_payment_instructions: '',
 		use_reservation_times: true,
 		show_stay_days_in_agenda: true,
+		allow_overlapping_reservations: false,
 		public_landing_enabled: true,
 		public_landing_intro: '',
 		allow_public_booking_requests: true,
