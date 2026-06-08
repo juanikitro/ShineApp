@@ -1708,6 +1708,29 @@ def test_delete_canceled_reservation_soft_deletes_cascade_entities(api_client, b
 
 
 @pytest.mark.django_db
+def test_vehicle_unique_license_plate_allows_recreate_after_soft_delete(api_client, base_data):
+    customer, vehicle, _service = base_data
+    plate = vehicle.license_plate
+
+    delete_response = api_client.delete(reverse("vehicle-detail", args=[vehicle.id]))
+    assert delete_response.status_code == 204
+
+    create_response = api_client.post(
+        reverse("vehicle-list"),
+        {
+            "customer": customer.id,
+            "license_plate": plate,
+            "brand": "Ford",
+            "model": "EcoSport",
+            "color": "Negro",
+        },
+        format="json",
+    )
+    assert create_response.status_code == 201, create_response.data
+    assert create_response.data["license_plate"] == plate.upper()
+
+
+@pytest.mark.django_db
 def test_delete_canceled_reservation_with_stock_consumption_returns_400(api_client, base_data):
     customer, vehicle, service = base_data
     order = create_work_order(

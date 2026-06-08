@@ -9,6 +9,8 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Soft delete fase 3 - Customer, Vehicle, Service, Material, Tool, Supplier, RecurringDebt (2026-06-08)](2026-06-08-soft-delete-fase-3.md)
+- [Soft delete fase 2 - Quote, QuoteItem, Debt, DebtPayment, ReservationItem (2026-06-08)](2026-06-08-soft-delete-fase-2.md)
 - [Soft delete fase 1 - Reservation, WorkOrder, Payment, CashMovement (2026-06-08)](2026-06-08-soft-delete-fase-1.md)
 - [Borrado de reserva cancelada con cobro asociado (2026-06-08)](2026-06-08-borrado-reserva-con-cobro.md)
 - [UX para infraestructura lenta (free tier Vercel + Supabase)](2026-06-05-ux-infra-lenta.md)

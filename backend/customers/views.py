@@ -215,9 +215,13 @@ class ActiveQuerysetMixin:
     search_fields = []
 
     def get_queryset(self):
-        queryset = self.queryset
+        include_inactive = self.request.query_params.get("include_inactive") == "1"
+        if include_inactive and hasattr(self.queryset.model, "all_objects"):
+            queryset = self.queryset.model.all_objects.all()
+        else:
+            queryset = self.queryset
         queryset = scope_queryset_to_business(queryset, business_from_request(self.request))
-        if self.request.query_params.get("include_inactive") != "1":
+        if not include_inactive:
             queryset = queryset.filter(is_active=True)
         search = self.request.query_params.get("search")
         if search:

@@ -1,9 +1,11 @@
 from django.db import models
+from django.utils import timezone
 
 from core.models import VehicleType
+from core.soft_delete import SoftDeleteMixin
 
 
-class Service(models.Model):
+class Service(SoftDeleteMixin):
     class ServiceType(models.TextChoices):
         WASH = "wash", "Lavado"
         DETAILING = "detailing", "Detailing"
@@ -25,7 +27,7 @@ class Service(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["service_type", "name"]
 
     def __str__(self):
@@ -51,4 +53,5 @@ class Service(models.Model):
 
     def delete(self, using=None, keep_parents=False):
         self.is_active = False
-        self.save(update_fields=["is_active", "updated_at"])
+        self.deleted_at = timezone.now()
+        self.save(update_fields=["is_active", "deleted_at", "updated_at"])

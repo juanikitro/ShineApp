@@ -102,6 +102,8 @@ class Reservation(SoftDeleteMixin):
                 work_order = None
             if work_order is not None:
                 work_order.delete()
+            for item in list(self.items.all()):
+                item.delete()
             self._skip_work_order_sync = True
             self.deleted_at = timezone.now()
             self.save(update_fields=["deleted_at", "updated_at"])
@@ -246,7 +248,7 @@ class Reservation(SoftDeleteMixin):
         return bucket_for_service_type(getattr(service, "service_type", None))
 
 
-class ReservationItem(models.Model):
+class ReservationItem(SoftDeleteMixin):
     reservation = models.ForeignKey(Reservation, related_name="items", on_delete=models.CASCADE)
     service = models.ForeignKey("catalog.Service", null=True, blank=True, on_delete=models.SET_NULL)
     description = models.CharField(max_length=180)
@@ -254,7 +256,7 @@ class ReservationItem(models.Model):
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
     line_total = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["id"]
 
     def save(self, *args, **kwargs):

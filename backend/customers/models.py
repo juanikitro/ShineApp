@@ -5,6 +5,7 @@ from django.db import models
 from django.utils import timezone
 
 from core.models import VehicleType
+from core.soft_delete import SoftDeleteMixin
 
 
 class TimeStampedModel(models.Model):
@@ -15,7 +16,7 @@ class TimeStampedModel(models.Model):
         abstract = True
 
 
-class Customer(TimeStampedModel):
+class Customer(SoftDeleteMixin, TimeStampedModel):
     business = models.ForeignKey("core.BusinessAccount", related_name="customers", on_delete=models.PROTECT)
     name = models.CharField(max_length=160)
     phone = models.CharField(max_length=60, blank=True)
@@ -35,7 +36,7 @@ class Customer(TimeStampedModel):
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["name"]
 
     def __str__(self):
@@ -82,7 +83,8 @@ class Customer(TimeStampedModel):
 
     def delete(self, using=None, keep_parents=False):
         self.is_active = False
-        self.save(update_fields=["is_active", "updated_at"])
+        self.deleted_at = timezone.now()
+        self.save(update_fields=["is_active", "deleted_at", "updated_at"])
 
     def save(self, *args, **kwargs):
         if not self.business_id:
@@ -94,7 +96,7 @@ class Customer(TimeStampedModel):
         super().save(*args, **kwargs)
 
 
-class Vehicle(TimeStampedModel):
+class Vehicle(SoftDeleteMixin, TimeStampedModel):
     business = models.ForeignKey("core.BusinessAccount", related_name="vehicles", on_delete=models.PROTECT)
     customer = models.ForeignKey(Customer, related_name="vehicles", on_delete=models.PROTECT)
     license_plate = models.CharField(max_length=20, blank=True)
@@ -109,12 +111,12 @@ class Vehicle(TimeStampedModel):
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["license_plate"]
         constraints = [
             models.UniqueConstraint(
                 fields=["business", "license_plate"],
-                condition=~models.Q(license_plate=""),
+                condition=~models.Q(license_plate="") & models.Q(deleted_at__isnull=True),
                 name="unique_vehicle_license_plate_per_business_when_present",
             ),
         ]
@@ -137,4 +139,5 @@ class Vehicle(TimeStampedModel):
 
     def delete(self, using=None, keep_parents=False):
         self.is_active = False
-        self.save(update_fields=["is_active", "updated_at"])
+        self.deleted_at = timezone.now()
+        self.save(update_fields=["is_active", "deleted_at", "updated_at"])
