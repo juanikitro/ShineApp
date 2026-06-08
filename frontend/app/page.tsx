@@ -2216,7 +2216,7 @@ export default function Home() {
 
 		let ignore = false
 		setBootLoading(true)
-		apiFetch<AnyRecord>('/auth/me/', { cache: 'default' })
+		apiFetch<AnyRecord>('/auth/me/')
 			.then((user) => {
 				if (!ignore) {
 					setCurrentUser(user)
