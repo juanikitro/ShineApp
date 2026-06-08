@@ -11,6 +11,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-08
+- [Turnera: toggles para mostrar descripcion y precio del servicio](docs/registro/cambios/2026-06-08-turnera-toggles-descripcion-precio.md)
 - [Sidebar: imagen del negocio arriba, footer reordenado, iconos de subitems y consistencia de posiciones al plegar](docs/registro/cambios/2026-06-08-sidebar-reorganizar-y-iconos-children-colapsado.md)
 - [Deploy: documentar VAPID keys para push notifications](docs/registro/cambios/2026-06-08-vapid-keys-deploy-docs.md)
 - [Turnera: capacidad, fechas pasadas, slots de 15 min y solape](docs/registro/cambios/2026-06-08-turnera-capacidad-y-solape.md)

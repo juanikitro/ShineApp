@@ -446,6 +446,8 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "public_show_wash_services",
             "public_show_detailing_services",
             "public_hidden_service_ids",
+            "public_show_service_description",
+            "public_show_service_price",
             "income_category_tree",
             "expense_category_tree",
         ]

@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Turnera: toggles para mostrar descripcion y precio del servicio](2026-06-08-turnera-toggles-descripcion-precio.md)
 - [Sidebar: imagen del negocio arriba, footer reordenado, iconos de subitems y consistencia de posiciones al plegar](2026-06-08-sidebar-reorganizar-y-iconos-children-colapsado.md)
 - [Deploy: documentar VAPID keys para push notifications](2026-06-08-vapid-keys-deploy-docs.md)
 - [Turnera: capacidad, fechas pasadas, slots de 15 min y solape](2026-06-08-turnera-capacidad-y-solape.md)

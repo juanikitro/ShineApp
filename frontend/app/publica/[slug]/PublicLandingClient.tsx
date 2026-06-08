@@ -48,6 +48,7 @@ type PublicService = {
 	service_type?: string
 	estimated_duration_minutes?: number | null
 	notes?: string
+	base_price?: string | number | null
 }
 
 type ServiceGroupKey = 'wash' | 'combo' | 'detailing'
@@ -82,7 +83,22 @@ type PublicLandingPayload = {
 		booking_requests: boolean
 		quote_requests: boolean
 	}
+	display?: {
+		show_service_description?: boolean
+		show_service_price?: boolean
+	}
 	services: PublicService[]
+}
+
+function formatPublicPrice(value: PublicService['base_price']) {
+	if (value === null || value === undefined || value === '') return ''
+	const numeric = Number(value)
+	if (!Number.isFinite(numeric)) return ''
+	return numeric.toLocaleString('es-AR', {
+		style: 'currency',
+		currency: 'ARS',
+		maximumFractionDigits: 0,
+	})
 }
 
 type PublicRequestForm = {
@@ -803,7 +819,14 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 											const selected = form.service_ids.includes(
 												String(service.id),
 											)
-											return (
+											const showDescription =
+											landing.display?.show_service_description !== false
+										const showPrice =
+											landing.display?.show_service_price === true
+										const priceLabel = showPrice
+											? formatPublicPrice(service.base_price)
+											: ''
+										return (
 												<button
 													key={service.id}
 													type="button"
@@ -816,7 +839,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 													</span>
 													<span>
 														<strong>{service.name}</strong>
-														{service.notes ? (
+														{showDescription && service.notes ? (
 															<small>{service.notes}</small>
 														) : null}
 														{serviceDurationLabel(service) ? (
@@ -824,6 +847,11 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 																<Clock size={13} />
 																{serviceDurationLabel(service)}
 															</em>
+														) : null}
+														{priceLabel ? (
+															<span className="public-service-price">
+																{priceLabel}
+															</span>
 														) : null}
 													</span>
 													{selected ? <CheckCircle2 size={18} /> : null}

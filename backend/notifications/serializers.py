@@ -135,8 +135,17 @@ class PublicLandingServiceSerializer(serializers.ModelSerializer):
             "service_type",
             "estimated_duration_minutes",
             "notes",
+            "base_price",
         ]
         read_only_fields = fields
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if not self.context.get("show_description", True):
+            data.pop("notes", None)
+        if not self.context.get("show_price", False):
+            data.pop("base_price", None)
+        return data
 
 
 class PublicRequestItemSerializer(serializers.ModelSerializer):

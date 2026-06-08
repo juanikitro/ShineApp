@@ -1192,3 +1192,79 @@ def test_business_profile_rejects_non_numeric_hidden_service_ids(api_client):
     )
 
     assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_public_landing_defaults_hide_price_and_show_description():
+    business = create_business()
+    create_service(business)
+    client = APIClient()
+
+    response = client.get(reverse("public-landing", args=[business.slug]))
+
+    assert response.status_code == 200
+    assert response.data["display"] == {
+        "show_service_description": True,
+        "show_service_price": False,
+    }
+    service_payload = response.data["services"][0]
+    assert service_payload["notes"] == "Incluye interior y llantas."
+    assert "base_price" not in service_payload
+
+
+@pytest.mark.django_db
+def test_public_landing_exposes_price_when_flag_enabled():
+    business = create_business()
+    service = create_service(business)
+    profile = BusinessProfile.objects.get(business=business)
+    profile.public_show_service_price = True
+    profile.save(update_fields=["public_show_service_price", "updated_at"])
+    client = APIClient()
+
+    response = client.get(reverse("public-landing", args=[business.slug]))
+
+    assert response.status_code == 200
+    assert response.data["display"]["show_service_price"] is True
+    service_payload = response.data["services"][0]
+    assert service_payload["id"] == service.id
+    assert Decimal(service_payload["base_price"]) == Decimal("15000.00")
+
+
+@pytest.mark.django_db
+def test_public_landing_hides_description_when_flag_disabled():
+    business = create_business()
+    create_service(business)
+    profile = BusinessProfile.objects.get(business=business)
+    profile.public_show_service_description = False
+    profile.save(
+        update_fields=["public_show_service_description", "updated_at"]
+    )
+    client = APIClient()
+
+    response = client.get(reverse("public-landing", args=[business.slug]))
+
+    assert response.status_code == 200
+    assert response.data["display"]["show_service_description"] is False
+    service_payload = response.data["services"][0]
+    assert "notes" not in service_payload
+
+
+@pytest.mark.django_db
+def test_business_profile_patch_persists_service_display_flags(api_client):
+    url = reverse("business-profile")
+
+    response = api_client.patch(
+        url,
+        {
+            "public_show_service_description": False,
+            "public_show_service_price": True,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["public_show_service_description"] is False
+    assert response.data["public_show_service_price"] is True
+    profile = BusinessProfile.objects.get(business=api_client.user.profile.business)
+    assert profile.public_show_service_description is False
+    assert profile.public_show_service_price is True
