@@ -29,6 +29,44 @@ function apiRequestUrl(path: string) {
 }
 const AUTH_TOKEN_STORAGE_KEY = "detailingToken";
 
+const DEFAULT_TOKEN_TTL_DAYS = 30;
+
+type StoredTokenEntry = { token: string; expiresAt: number };
+
+function tokenTtlMs() {
+  const raw = process.env.NEXT_PUBLIC_SHINEAPP_TOKEN_TTL_DAYS;
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  const days = Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TOKEN_TTL_DAYS;
+  return days * 24 * 60 * 60 * 1000;
+}
+
+function readStoredEntry(raw: string): StoredTokenEntry | "legacy" | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return "legacy";
+  }
+  if (
+    parsed
+    && typeof parsed === "object"
+    && typeof (parsed as { token?: unknown }).token === "string"
+    && typeof (parsed as { expiresAt?: unknown }).expiresAt === "number"
+  ) {
+    return parsed as StoredTokenEntry;
+  }
+  return null;
+}
+
+function writeStoredEntry(token: string) {
+  const entry: StoredTokenEntry = {
+    token,
+    expiresAt: Date.now() + tokenTtlMs(),
+  };
+  window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, JSON.stringify(entry));
+  window.sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+}
+
 async function readErrorPayload(response: Response) {
   let payload: unknown = "No se pudo completar la operacion.";
   try {
@@ -58,25 +96,41 @@ function raiseApiError(response: Response, payload: unknown): never {
 
 export function getStoredToken() {
   if (typeof window === "undefined") return null;
-  const sessionToken = window.sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-  if (sessionToken) return sessionToken;
 
-  const legacyToken = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-  if (legacyToken) {
-    window.sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, legacyToken);
-    window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  const localRaw = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  if (localRaw) {
+    const result = readStoredEntry(localRaw);
+    if (result === "legacy") {
+      writeStoredEntry(localRaw);
+      return localRaw;
+    }
+    if (result === null) {
+      window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      return null;
+    }
+    if (result.expiresAt <= Date.now()) {
+      clearStoredToken();
+      return null;
+    }
+    return result.token;
   }
-  return legacyToken;
+
+  const legacySessionToken = window.sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  if (legacySessionToken) {
+    writeStoredEntry(legacySessionToken);
+    return legacySessionToken;
+  }
+
+  return null;
 }
 
 export function setStoredToken(token: string) {
-  window.sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
-  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  writeStoredEntry(token);
 }
 
 export function clearStoredToken() {
-  window.sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
   window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  window.sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
 }
 
 export type ApiRequestInit = RequestInit & { signal?: AbortSignal };
