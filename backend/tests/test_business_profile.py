@@ -21,6 +21,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         assert initial.data["subscription_type_label"] == "Prueba"
         assert initial.data["use_reservation_times"] is True
         assert initial.data["show_stay_days_in_agenda"] is True
+        assert initial.data["allow_overlapping_reservations"] is False
         assert initial.data["address"] == ""
         assert initial.data["default_quote_validity_days"] == 7
         assert initial.data["default_quote_tax_rate"] == "0.00"
@@ -105,6 +106,21 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         assert profile.income_category_tree == income_category_tree
         assert profile.expense_category_tree == expense_category_tree
         assert profile.logo.name.startswith("business-profile/")
+
+
+@pytest.mark.django_db
+def test_business_profile_persists_allow_overlapping_reservations(api_client):
+    response = api_client.patch(
+        reverse("business-profile"),
+        {"allow_overlapping_reservations": True},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    assert response.data["allow_overlapping_reservations"] is True
+
+    profile = BusinessProfile.get_solo()
+    assert profile.allow_overlapping_reservations is True
 
 
 @pytest.mark.django_db

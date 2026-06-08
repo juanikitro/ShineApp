@@ -529,6 +529,80 @@ def test_public_request_rejects_preferred_time_outside_business_hours():
 
 
 @pytest.mark.django_db
+def test_public_request_accepts_preferred_time_with_midnight_closing():
+    business = create_business()
+    service = create_service(business)
+    profile = BusinessProfile.objects.get(business=business)
+    profile.opening_time = time(8, 0)
+    profile.closing_time = time(0, 0)
+    profile.save(update_fields=["opening_time", "closing_time"])
+    client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    base_payload = {
+        "customer_name": "Ana Lopez",
+        "customer_phone": "11 9999-8888",
+        "service_ids": [service.id],
+        "preferred_day": "2026-06-15",
+        "website": "",
+    }
+
+    resp_afternoon = client.post(
+        url, {**base_payload, "preferred_time": "14:00:00"}, format="json"
+    )
+    resp_early_morning = client.post(
+        url, {**base_payload, "preferred_time": "03:00:00"}, format="json"
+    )
+    resp_at_opening = client.post(
+        url, {**base_payload, "preferred_time": "08:00:00"}, format="json"
+    )
+    resp_at_midnight = client.post(
+        url, {**base_payload, "preferred_time": "00:00:00"}, format="json"
+    )
+
+    assert resp_afternoon.status_code == 201, resp_afternoon.data
+    assert resp_early_morning.status_code == 400
+    assert "fuera del horario" in str(resp_early_morning.data)
+    assert resp_at_opening.status_code == 201
+    assert resp_at_midnight.status_code == 201
+
+
+@pytest.mark.django_db
+def test_public_request_overnight_range_accepts_late_and_early_hours():
+    business = create_business()
+    service = create_service(business)
+    profile = BusinessProfile.objects.get(business=business)
+    profile.opening_time = time(22, 0)
+    profile.closing_time = time(5, 0)
+    profile.save(update_fields=["opening_time", "closing_time"])
+    client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    base_payload = {
+        "customer_name": "Ana Lopez",
+        "customer_phone": "11 9999-8888",
+        "service_ids": [service.id],
+        "preferred_day": "2026-06-15",
+        "website": "",
+    }
+
+    resp_late_night = client.post(
+        url, {**base_payload, "preferred_time": "23:00:00"}, format="json"
+    )
+    resp_early_morning = client.post(
+        url, {**base_payload, "preferred_time": "03:00:00"}, format="json"
+    )
+    resp_midday = client.post(
+        url, {**base_payload, "preferred_time": "12:00:00"}, format="json"
+    )
+
+    assert resp_late_night.status_code == 201, resp_late_night.data
+    assert resp_early_morning.status_code == 201, resp_early_morning.data
+    assert resp_midday.status_code == 400
+    assert "fuera del horario" in str(resp_midday.data)
+
+
+@pytest.mark.django_db
 def test_public_request_no_time_restriction_when_hours_not_configured():
     business = create_business()
     service = create_service(business)
@@ -1118,3 +1192,79 @@ def test_business_profile_rejects_non_numeric_hidden_service_ids(api_client):
     )
 
     assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_public_landing_defaults_hide_price_and_show_description():
+    business = create_business()
+    create_service(business)
+    client = APIClient()
+
+    response = client.get(reverse("public-landing", args=[business.slug]))
+
+    assert response.status_code == 200
+    assert response.data["display"] == {
+        "show_service_description": True,
+        "show_service_price": False,
+    }
+    service_payload = response.data["services"][0]
+    assert service_payload["notes"] == "Incluye interior y llantas."
+    assert "base_price" not in service_payload
+
+
+@pytest.mark.django_db
+def test_public_landing_exposes_price_when_flag_enabled():
+    business = create_business()
+    service = create_service(business)
+    profile = BusinessProfile.objects.get(business=business)
+    profile.public_show_service_price = True
+    profile.save(update_fields=["public_show_service_price", "updated_at"])
+    client = APIClient()
+
+    response = client.get(reverse("public-landing", args=[business.slug]))
+
+    assert response.status_code == 200
+    assert response.data["display"]["show_service_price"] is True
+    service_payload = response.data["services"][0]
+    assert service_payload["id"] == service.id
+    assert Decimal(service_payload["base_price"]) == Decimal("15000.00")
+
+
+@pytest.mark.django_db
+def test_public_landing_hides_description_when_flag_disabled():
+    business = create_business()
+    create_service(business)
+    profile = BusinessProfile.objects.get(business=business)
+    profile.public_show_service_description = False
+    profile.save(
+        update_fields=["public_show_service_description", "updated_at"]
+    )
+    client = APIClient()
+
+    response = client.get(reverse("public-landing", args=[business.slug]))
+
+    assert response.status_code == 200
+    assert response.data["display"]["show_service_description"] is False
+    service_payload = response.data["services"][0]
+    assert "notes" not in service_payload
+
+
+@pytest.mark.django_db
+def test_business_profile_patch_persists_service_display_flags(api_client):
+    url = reverse("business-profile")
+
+    response = api_client.patch(
+        url,
+        {
+            "public_show_service_description": False,
+            "public_show_service_price": True,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["public_show_service_description"] is False
+    assert response.data["public_show_service_price"] is True
+    profile = BusinessProfile.objects.get(business=api_client.user.profile.business)
+    assert profile.public_show_service_description is False
+    assert profile.public_show_service_price is True

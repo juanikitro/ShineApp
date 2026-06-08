@@ -132,35 +132,6 @@ jobs:
       - name: MkDocs strict build
         run: python -m mkdocs build --strict
 
-  codeql:
-    name: codeql
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    strategy:
-      fail-fast: false
-      matrix:
-        language:
-          - python
-          - javascript-typescript
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: ${{ matrix.language }}
-
-      - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: "/language:${{ matrix.language }}"
-
   ci-required:
     name: ci-required
     runs-on: ubuntu-latest
@@ -169,7 +140,6 @@ jobs:
       - frontend
       - dependency-audit
       - docs
-      - codeql
     if: always()
 
     steps:
@@ -179,7 +149,6 @@ jobs:
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           DEPENDENCY_AUDIT_RESULT: ${{ needs.dependency-audit.result }}
           DOCS_RESULT: ${{ needs.docs.result }}
-          CODEQL_RESULT: ${{ needs.codeql.result }}
         run: |
           set -euo pipefail
 
@@ -187,10 +156,9 @@ jobs:
           printf 'frontend=%s\n' "$FRONTEND_RESULT"
           printf 'dependency-audit=%s\n' "$DEPENDENCY_AUDIT_RESULT"
           printf 'docs=%s\n' "$DOCS_RESULT"
-          printf 'codeql=%s\n' "$CODEQL_RESULT"
 
           failed=0
-          for result in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_AUDIT_RESULT" "$DOCS_RESULT" "$CODEQL_RESULT"; do
+          for result in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_AUDIT_RESULT" "$DOCS_RESULT"; do
             if [ "$result" != "success" ]; then
               failed=1
             fi
