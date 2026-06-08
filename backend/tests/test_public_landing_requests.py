@@ -529,6 +529,80 @@ def test_public_request_rejects_preferred_time_outside_business_hours():
 
 
 @pytest.mark.django_db
+def test_public_request_accepts_preferred_time_with_midnight_closing():
+    business = create_business()
+    service = create_service(business)
+    profile = BusinessProfile.objects.get(business=business)
+    profile.opening_time = time(8, 0)
+    profile.closing_time = time(0, 0)
+    profile.save(update_fields=["opening_time", "closing_time"])
+    client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    base_payload = {
+        "customer_name": "Ana Lopez",
+        "customer_phone": "11 9999-8888",
+        "service_ids": [service.id],
+        "preferred_day": "2026-06-15",
+        "website": "",
+    }
+
+    resp_afternoon = client.post(
+        url, {**base_payload, "preferred_time": "14:00:00"}, format="json"
+    )
+    resp_early_morning = client.post(
+        url, {**base_payload, "preferred_time": "03:00:00"}, format="json"
+    )
+    resp_at_opening = client.post(
+        url, {**base_payload, "preferred_time": "08:00:00"}, format="json"
+    )
+    resp_at_midnight = client.post(
+        url, {**base_payload, "preferred_time": "00:00:00"}, format="json"
+    )
+
+    assert resp_afternoon.status_code == 201, resp_afternoon.data
+    assert resp_early_morning.status_code == 400
+    assert "fuera del horario" in str(resp_early_morning.data)
+    assert resp_at_opening.status_code == 201
+    assert resp_at_midnight.status_code == 201
+
+
+@pytest.mark.django_db
+def test_public_request_overnight_range_accepts_late_and_early_hours():
+    business = create_business()
+    service = create_service(business)
+    profile = BusinessProfile.objects.get(business=business)
+    profile.opening_time = time(22, 0)
+    profile.closing_time = time(5, 0)
+    profile.save(update_fields=["opening_time", "closing_time"])
+    client = APIClient()
+    url = reverse("public-landing-requests", args=[business.slug])
+
+    base_payload = {
+        "customer_name": "Ana Lopez",
+        "customer_phone": "11 9999-8888",
+        "service_ids": [service.id],
+        "preferred_day": "2026-06-15",
+        "website": "",
+    }
+
+    resp_late_night = client.post(
+        url, {**base_payload, "preferred_time": "23:00:00"}, format="json"
+    )
+    resp_early_morning = client.post(
+        url, {**base_payload, "preferred_time": "03:00:00"}, format="json"
+    )
+    resp_midday = client.post(
+        url, {**base_payload, "preferred_time": "12:00:00"}, format="json"
+    )
+
+    assert resp_late_night.status_code == 201, resp_late_night.data
+    assert resp_early_morning.status_code == 201, resp_early_morning.data
+    assert resp_midday.status_code == 400
+    assert "fuera del horario" in str(resp_midday.data)
+
+
+@pytest.mark.django_db
 def test_public_request_no_time_restriction_when_hours_not_configured():
     business = create_business()
     service = create_service(business)

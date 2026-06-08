@@ -8,6 +8,12 @@ from catalog.models import Service
 from customers.models import Customer, Vehicle
 from quotes.models import Quote, QuoteItem
 from quotes.serializers import QuoteSerializer
+from scheduling.models import (
+    DETAILING_BUCKET,
+    WASH_BUCKET,
+    Reservation,
+    bucket_for_service_type,
+)
 from scheduling.serializers import ReservationSerializer
 
 from .models import PublicRequest, PublicRequestItem
@@ -251,14 +257,34 @@ class PublicLandingRequestSerializer(serializers.ModelSerializer):
             attrs["preferred_time"] = None
         preferred_time = attrs.get("preferred_time")
         if preferred_time and request_type == PublicRequest.RequestType.BOOKING:
-            if profile.opening_time and preferred_time < profile.opening_time:
-                raise serializers.ValidationError(
-                    {"preferred_time": "El horario solicitado es antes del horario de apertura."}
-                )
-            if profile.closing_time and preferred_time > profile.closing_time:
-                raise serializers.ValidationError(
-                    {"preferred_time": "El horario solicitado es despues del horario de cierre."}
-                )
+            opening = profile.opening_time
+            closing = profile.closing_time
+            if opening and closing:
+                overnight = closing <= opening
+                if overnight:
+                    in_range = preferred_time >= opening or preferred_time <= closing
+                    if not in_range:
+                        raise serializers.ValidationError(
+                            {"preferred_time": "El horario solicitado esta fuera del horario de atencion."}
+                        )
+                else:
+                    if preferred_time < opening:
+                        raise serializers.ValidationError(
+                            {"preferred_time": "El horario solicitado es antes del horario de apertura."}
+                        )
+                    if preferred_time > closing:
+                        raise serializers.ValidationError(
+                            {"preferred_time": "El horario solicitado es despues del horario de cierre."}
+                        )
+            else:
+                if opening and preferred_time < opening:
+                    raise serializers.ValidationError(
+                        {"preferred_time": "El horario solicitado es antes del horario de apertura."}
+                    )
+                if closing and preferred_time > closing:
+                    raise serializers.ValidationError(
+                        {"preferred_time": "El horario solicitado es despues del horario de cierre."}
+                    )
         if request_type == PublicRequest.RequestType.BOOKING and not profile.allow_public_booking_requests:
             raise serializers.ValidationError({"request_type": "El negocio no acepta solicitudes de turno."})
         if request_type == PublicRequest.RequestType.QUOTE and not profile.allow_public_quote_requests:
@@ -279,8 +305,60 @@ class PublicLandingRequestSerializer(serializers.ModelSerializer):
         if len(services) != len(set(service_ids)):
             raise serializers.ValidationError({"service_ids": "Uno o mas servicios no estan disponibles."})
         service_by_id = {service.id: service for service in services}
-        attrs["services"] = [service_by_id[service_id] for service_id in service_ids]
+        ordered_services = [service_by_id[service_id] for service_id in service_ids]
+        attrs["services"] = ordered_services
+
+        if preferred_day and request_type == PublicRequest.RequestType.BOOKING:
+            self._validate_capacity(business, preferred_day, ordered_services)
+            if preferred_time and not profile.allow_overlapping_reservations:
+                duration_minutes = sum(
+                    int(getattr(service, "estimated_duration_minutes", 0) or 0)
+                    for service in ordered_services
+                ) or 60
+                if self._overlap_exists(business, preferred_day, preferred_time, duration_minutes):
+                    raise serializers.ValidationError(
+                        {"preferred_time": "Ese horario se solapa con otra reserva existente."}
+                    )
+
         return attrs
+
+    @staticmethod
+    def _validate_capacity(business, day, services):
+        used_per_bucket = {}
+        for service in services:
+            bucket = bucket_for_service_type(getattr(service, "service_type", None))
+            used_per_bucket.setdefault(bucket, 0)
+            used_per_bucket[bucket] += 1
+        for bucket, requested in used_per_bucket.items():
+            capacity = Reservation.capacity_for_day(day, business=business, bucket=bucket)
+            used_slots = Reservation.used_slots_for_day(day, business=business, bucket=bucket)
+            if used_slots + requested > capacity:
+                bucket_label = "detailing" if bucket == DETAILING_BUCKET else "lavado"
+                raise serializers.ValidationError(
+                    {
+                        "preferred_day": (
+                            f"La capacidad de turnos de {bucket_label} para este dia ya esta completa."
+                        )
+                    }
+                )
+
+    @staticmethod
+    def _overlap_exists(business, day, start_time, duration_minutes):
+        start_minutes = start_time.hour * 60 + start_time.minute
+        end_minutes = start_minutes + max(int(duration_minutes), 0)
+        reservations = (
+            Reservation.objects.filter(business=business, day=day)
+            .filter(status__in=Reservation.active_statuses())
+            .exclude(start_time__isnull=True)
+        )
+        for reservation in reservations:
+            if not reservation.start_time:
+                continue
+            existing_start = reservation.start_time.hour * 60 + reservation.start_time.minute
+            existing_end = existing_start + max(int(reservation.estimated_duration_minutes or 0), 0)
+            if start_minutes < existing_end and existing_start < end_minutes:
+                return True
+        return False
 
     @transaction.atomic
     def create(self, validated_data):
