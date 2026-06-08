@@ -1051,8 +1051,6 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							<select
 								disabled={!form.preferred_day || isPastPreferredDay}
 								value={form.preferred_time}
-								min={isOvernightHours ? undefined : (landing.business.opening_time ?? undefined)}
-								max={isOvernightHours ? undefined : (landing.business.closing_time ?? undefined)}
 								onChange={(event) => patchForm({ preferred_time: event.target.value })}
 							>
 								<option value="">--</option>
