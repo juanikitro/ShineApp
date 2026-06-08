@@ -9,11 +9,12 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
-- [Frontend: iconos PWA segun superficie (CRM vs turnera)](2026-06-08-pwa-icons-logo-segun-superficie.md)
-- [Sesion persistente con TTL configurable](2026-06-08-token-localstorage-ttl.md)
 - [Turnera: capacidad, fechas pasadas, slots de 15 min y solape](2026-06-08-turnera-capacidad-y-solape.md)
+- [Sesion persistente con TTL configurable](2026-06-08-token-localstorage-ttl.md)
+- [Frontend: iconos PWA segun superficie (CRM vs turnera)](2026-06-08-pwa-icons-logo-segun-superficie.md)
 - [Horarios overnight en la pagina publica (cierre a medianoche o cruzando dia)](2026-06-08-horarios-overnight.md)
 - [Fix: errores por campo visibles en landing publica (2026-06-08)](2026-06-08-errores-landing-publica.md)
+- [Fix: errores por campo visibles en formularios globales (2026-06-08)](2026-06-08-errores-formularios-fields-globales.md)
 - [Caja: categoria Personal con subcategorias de gastos cotidianos](2026-06-08-caja-categoria-personal.md)
 - [UX para infraestructura lenta (free tier Vercel + Supabase)](2026-06-05-ux-infra-lenta.md)
 - [Turnera: tab propia en Configuracion](2026-06-05-turnera-tab-configuracion.md)
