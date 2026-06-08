@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.db.models import Q
 from rest_framework import decorators, response, status, viewsets
 from rest_framework.views import APIView
@@ -11,6 +12,8 @@ from quotes.serializers import QuoteSerializer
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
 from core.models import BusinessProfile
 from core.permissions import business_from_request
+from finance.cash import cash_day, ensure_cash_day_open
+from finance.models import CashMovement, Payment
 from workorders.metrics import build_work_order_financial_metrics
 
 from .models import DETAILING_BUCKET, WASH_BUCKET, DailyCapacity, Reservation
@@ -84,7 +87,40 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
                 {"detail": "Solo se pueden eliminar reservas canceladas."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        return super().destroy(request, *args, **kwargs)
+        try:
+            work_order = reservation.work_order
+        except ObjectDoesNotExist:
+            work_order = None
+        has_inventory_links = reservation.stock_movements.exists() or (
+            work_order is not None
+            and (
+                work_order.material_consumptions.exists()
+                or work_order.stock_movements.exists()
+            )
+        )
+        if has_inventory_links:
+            return response.Response(
+                {
+                    "detail": (
+                        "La reserva tiene movimientos de inventario asociados. "
+                        "Revertilos antes de eliminarla."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        payments = list(work_order.payments.all()) if work_order is not None else []
+        for payment in payments:
+            ensure_cash_day_open(
+                cash_day(payment.paid_at),
+                field="paid_at",
+                business=payment.business,
+            )
+        with transaction.atomic():
+            if payments:
+                payment_ids = [payment.pk for payment in payments]
+                CashMovement.objects.filter(payment_id__in=payment_ids).delete()
+                Payment.objects.filter(pk__in=payment_ids).delete()
+            return super().destroy(request, *args, **kwargs)
 
     @decorators.action(detail=True, methods=["post"])
     def confirm(self, request, pk=None):
