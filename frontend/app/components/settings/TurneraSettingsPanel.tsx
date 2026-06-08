@@ -190,6 +190,36 @@ export function TurneraSettingsPanel({
 							Recibir pedidos de cotizacion
 						</label>
 					</div>
+					<div className="form-row">
+						<label>
+							<input
+								type="checkbox"
+								name="business_public_show_service_description"
+								checked={
+									businessForm.public_show_service_description !== false
+								}
+								onChange={(event) =>
+									onPatchBusinessForm({
+										public_show_service_description: event.target.checked,
+									})
+								}
+							/>
+							Mostrar descripcion del servicio
+						</label>
+						<label>
+							<input
+								type="checkbox"
+								name="business_public_show_service_price"
+								checked={businessForm.public_show_service_price === true}
+								onChange={(event) =>
+									onPatchBusinessForm({
+										public_show_service_price: event.target.checked,
+									})
+								}
+							/>
+							Mostrar precio del servicio
+						</label>
+					</div>
 					<Field label="Texto corto para la landing">
 						<textarea
 							maxLength={240}

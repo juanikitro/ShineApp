@@ -1331,6 +1331,10 @@ export default function Home() {
 								.map((value) => Number(value))
 								.filter((value) => Number.isFinite(value) && value > 0)
 						: [],
+					public_show_service_description:
+						profile.public_show_service_description !== false,
+					public_show_service_price:
+						profile.public_show_service_price === true,
 					opening_time: profile.opening_time
 						? String(profile.opening_time)
 						: null,
@@ -6351,6 +6355,14 @@ export default function Home() {
 							)
 					: [],
 			),
+		)
+		payload.append(
+			'public_show_service_description',
+			String(currentBusinessForm.public_show_service_description !== false),
+		)
+		payload.append(
+			'public_show_service_price',
+			String(currentBusinessForm.public_show_service_price === true),
 		)
 		payload.append(
 			'opening_time',

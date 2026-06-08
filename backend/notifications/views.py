@@ -71,6 +71,8 @@ class PublicLandingView(APIView):
             is_active=True,
             service_type__in=enabled_types,
         ).exclude(id__in=hidden_ids).order_by("service_type", "name")
+        show_description = profile.public_show_service_description
+        show_price = profile.public_show_service_price
         landing = response.Response(
             {
                 "business": {
@@ -88,7 +90,18 @@ class PublicLandingView(APIView):
                     "booking_requests": profile.allow_public_booking_requests,
                     "quote_requests": profile.allow_public_quote_requests,
                 },
-                "services": PublicLandingServiceSerializer(services, many=True).data,
+                "display": {
+                    "show_service_description": show_description,
+                    "show_service_price": show_price,
+                },
+                "services": PublicLandingServiceSerializer(
+                    services,
+                    many=True,
+                    context={
+                        "show_description": show_description,
+                        "show_price": show_price,
+                    },
+                ).data,
             }
         )
         # Datos publicos y de baja frecuencia de cambio: cacheables en el edge de

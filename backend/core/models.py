@@ -300,6 +300,8 @@ class BusinessProfile(models.Model):
     public_show_wash_services = models.BooleanField(default=True)
     public_show_detailing_services = models.BooleanField(default=True)
     public_hidden_service_ids = models.JSONField(default=list, blank=True)
+    public_show_service_description = models.BooleanField(default=True)
+    public_show_service_price = models.BooleanField(default=False)
     income_category_tree = models.JSONField(
         default=default_income_category_tree,
         blank=True,
