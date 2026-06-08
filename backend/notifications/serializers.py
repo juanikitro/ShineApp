@@ -251,14 +251,34 @@ class PublicLandingRequestSerializer(serializers.ModelSerializer):
             attrs["preferred_time"] = None
         preferred_time = attrs.get("preferred_time")
         if preferred_time and request_type == PublicRequest.RequestType.BOOKING:
-            if profile.opening_time and preferred_time < profile.opening_time:
-                raise serializers.ValidationError(
-                    {"preferred_time": "El horario solicitado es antes del horario de apertura."}
-                )
-            if profile.closing_time and preferred_time > profile.closing_time:
-                raise serializers.ValidationError(
-                    {"preferred_time": "El horario solicitado es despues del horario de cierre."}
-                )
+            opening = profile.opening_time
+            closing = profile.closing_time
+            if opening and closing:
+                overnight = closing <= opening
+                if overnight:
+                    in_range = preferred_time >= opening or preferred_time <= closing
+                    if not in_range:
+                        raise serializers.ValidationError(
+                            {"preferred_time": "El horario solicitado esta fuera del horario de atencion."}
+                        )
+                else:
+                    if preferred_time < opening:
+                        raise serializers.ValidationError(
+                            {"preferred_time": "El horario solicitado es antes del horario de apertura."}
+                        )
+                    if preferred_time > closing:
+                        raise serializers.ValidationError(
+                            {"preferred_time": "El horario solicitado es despues del horario de cierre."}
+                        )
+            else:
+                if opening and preferred_time < opening:
+                    raise serializers.ValidationError(
+                        {"preferred_time": "El horario solicitado es antes del horario de apertura."}
+                    )
+                if closing and preferred_time > closing:
+                    raise serializers.ValidationError(
+                        {"preferred_time": "El horario solicitado es despues del horario de cierre."}
+                    )
         if request_type == PublicRequest.RequestType.BOOKING and not profile.allow_public_booking_requests:
             raise serializers.ValidationError({"request_type": "El negocio no acepta solicitudes de turno."})
         if request_type == PublicRequest.RequestType.QUOTE and not profile.allow_public_quote_requests:
