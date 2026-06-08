@@ -658,6 +658,7 @@ export default function Home() {
 	const [workViewMode, setWorkViewMode] =
 		useState<WorkOrderViewMode>('agenda')
 	const [selectedDay, setSelectedDay] = useState(today)
+	const prevSelectedDayRef = useRef(today)
 	const [cashSummaryMode, setCashSummaryMode] =
 		useState<CashSummaryMode>('cashflow')
 	const [cashFilters, setCashFilters] =
@@ -2242,6 +2243,12 @@ export default function Home() {
 
 	useEffect(() => {
 		if (token && currentUser) {
+			if (prevSelectedDayRef.current !== selectedDay) {
+				for (const key of [...loadedDataCacheRef.current]) {
+					if (key.startsWith('cash:')) loadedDataCacheRef.current.delete(key)
+				}
+				prevSelectedDayRef.current = selectedDay
+			}
 			loadData()
 		}
 	}, [currentUser, displayedActive, selectedDay, settingsSection, token])
