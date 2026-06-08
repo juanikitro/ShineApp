@@ -2648,12 +2648,17 @@
   align-items: center;
   display: grid;
   gap: 6px;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
 }
 
 .date-stepper-button {
   min-height: var(--button-height);
   padding-inline: 10px;
+}
+
+.date-stepper-button.is-today {
+  color: var(--shop-primary);
+  font-weight: 600;
 }
 
 .cash-status {
