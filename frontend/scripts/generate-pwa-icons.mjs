@@ -4,13 +4,12 @@ import { fileURLToPath } from 'node:url'
 
 import sharp from 'sharp'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const projectRoot = path.resolve(__dirname, '..')
+const scriptDir = path.dirname(fileURLToPath(import.meta.url))
+const projectRoot = path.resolve(scriptDir, '..')
 const logoLight = path.join(projectRoot, 'public', 'shineapp-logo.svg')
-const logoOnBrand = path.join(projectRoot, 'public', 'shineapp-logo-dark.svg')
 const outputDir = path.join(projectRoot, 'public', 'icons')
 
-const BRAND_COLOR = { r: 2, g: 132, b: 199, alpha: 1 }
+const LIGHT_BG = { r: 255, g: 255, b: 255, alpha: 1 }
 
 async function renderLogoBuffer(source, size) {
 	return sharp(source, { density: 600 })
@@ -26,9 +25,9 @@ async function writeAnyIcon(size, filename) {
 	return target
 }
 
-async function writeMaskableIcon(size, filename, { safeAreaRatio = 0.7, background = BRAND_COLOR } = {}) {
+async function writeMaskableIcon(size, filename, { safeAreaRatio = 0.7, background = LIGHT_BG } = {}) {
 	const inner = Math.round(size * safeAreaRatio)
-	const logo = await renderLogoBuffer(logoOnBrand, inner)
+	const logo = await renderLogoBuffer(logoLight, inner)
 	const target = path.join(outputDir, filename)
 	await sharp({
 		create: {
@@ -46,14 +45,14 @@ async function writeMaskableIcon(size, filename, { safeAreaRatio = 0.7, backgrou
 
 async function writeAppleTouchIcon(size, filename) {
 	const inner = Math.round(size * 0.78)
-	const logo = await renderLogoBuffer(logoOnBrand, inner)
+	const logo = await renderLogoBuffer(logoLight, inner)
 	const target = path.join(outputDir, filename)
 	await sharp({
 		create: {
 			width: size,
 			height: size,
 			channels: 4,
-			background: BRAND_COLOR,
+			background: LIGHT_BG,
 		},
 	})
 		.composite([{ input: logo, gravity: 'center' }])
