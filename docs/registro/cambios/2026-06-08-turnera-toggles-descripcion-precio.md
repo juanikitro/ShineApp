@@ -8,7 +8,7 @@ La pestana `Turnera` suma dos toggles independientes para controlar si la landin
 
 - `core.BusinessProfile.public_show_service_description: BooleanField(default=True)`.
 - `core.BusinessProfile.public_show_service_price: BooleanField(default=False)`.
-- Migration `core/0020_businessprofile_public_service_display_flags.py`.
+- Migration `core/0021_businessprofile_public_service_display_flags.py`.
 - `BusinessProfileSerializer.Meta.fields`: agrega ambos campos.
 - `notifications.PublicLandingServiceSerializer`: expone `base_price` y filtra `notes`/`base_price` segun el contexto `show_description`/`show_price`.
 - `notifications.PublicLandingView`: pasa los flags al serializer y publica `display: { show_service_description, show_service_price }` en el payload, util para que el frontend sepa el estado sin inferirlo de la presencia de campos.
