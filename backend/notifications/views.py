@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, timedelta
 
 from django.core.cache import cache
 from django.shortcuts import get_object_or_404
@@ -10,6 +10,12 @@ from catalog.models import Service
 from core.audit import audit_snapshot, record_audit_event
 from core.models import BusinessAccount, BusinessProfile
 from core.permissions import EmployerOnly, business_from_request, file_url
+from scheduling.models import (
+    DETAILING_BUCKET,
+    WASH_BUCKET,
+    DailyCapacity,
+    Reservation,
+)
 
 from .models import PublicRequest
 from .service import send_business_push_notification, send_new_public_request_notification
@@ -110,6 +116,94 @@ class PublicLandingView(APIView):
         # mientras revalida en segundo plano.
         landing["Cache-Control"] = "public, s-maxage=120, stale-while-revalidate=600"
         return landing
+
+
+def _availability_payload(business, profile, day):
+    capacity_row = DailyCapacity.objects.filter(business=business, day=day).first()
+    if capacity_row:
+        max_slots_wash = capacity_row.max_slots_wash
+        max_slots_detailing = capacity_row.max_slots_detailing
+    else:
+        max_slots_wash = Reservation.capacity_for_day(day, business=business, bucket=WASH_BUCKET)
+        max_slots_detailing = Reservation.capacity_for_day(day, business=business, bucket=DETAILING_BUCKET)
+    used_slots_wash = Reservation.used_slots_for_day(day, business=business, bucket=WASH_BUCKET)
+    used_slots_detailing = Reservation.used_slots_for_day(day, business=business, bucket=DETAILING_BUCKET)
+    reservations = (
+        Reservation.objects.filter(business=business, day=day)
+        .filter(status__in=Reservation.active_statuses())
+        .exclude(start_time__isnull=True)
+        .select_related("service")
+        .order_by("start_time")
+    )
+    occupied = []
+    for reservation in reservations:
+        if not reservation.start_time:
+            continue
+        occupied.append(
+            {
+                "start_time": reservation.start_time.strftime("%H:%M"),
+                "duration_minutes": reservation.estimated_duration_minutes,
+            }
+        )
+    return {
+        "date": day.isoformat(),
+        "allow_overlapping": bool(profile.allow_overlapping_reservations),
+        "wash": {
+            "max_slots": max_slots_wash,
+            "used_slots": used_slots_wash,
+            "available_slots": max(max_slots_wash - used_slots_wash, 0),
+        },
+        "detailing": {
+            "max_slots": max_slots_detailing,
+            "used_slots": used_slots_detailing,
+            "available_slots": max(max_slots_detailing - used_slots_detailing, 0),
+        },
+        "occupied": occupied,
+    }
+
+
+def _overlap_detected(business, day, start_time, duration_minutes, exclude_id=None):
+    if not start_time or not duration_minutes:
+        return False
+    start_minutes = start_time.hour * 60 + start_time.minute
+    end_minutes = start_minutes + max(int(duration_minutes), 0)
+    reservations = (
+        Reservation.objects.filter(business=business, day=day)
+        .filter(status__in=Reservation.active_statuses())
+        .exclude(start_time__isnull=True)
+    )
+    if exclude_id:
+        reservations = reservations.exclude(pk=exclude_id)
+    for reservation in reservations:
+        if not reservation.start_time:
+            continue
+        existing_start = reservation.start_time.hour * 60 + reservation.start_time.minute
+        existing_end = existing_start + max(int(reservation.estimated_duration_minutes or 0), 0)
+        if start_minutes < existing_end and existing_start < end_minutes:
+            return True
+    return False
+
+
+class PublicLandingAvailabilityView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, slug):
+        business, profile = public_business_or_404(slug)
+        day_value = request.query_params.get("date") or request.query_params.get("day")
+        if not day_value:
+            return response.Response(
+                {"detail": "Falta el parametro 'date'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            day = date.fromisoformat(day_value)
+        except ValueError:
+            return response.Response(
+                {"detail": "Formato de fecha invalido (usar YYYY-MM-DD)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return response.Response(_availability_payload(business, profile, day))
 
 
 class PublicLandingRequestCreateView(APIView):

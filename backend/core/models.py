@@ -53,6 +53,20 @@ def default_expense_category_tree():
         "Impuestos y tasas": ["Monotributo", "IVA", "Municipal", "Bancarios"],
         "Administracion": ["Contador", "Software", "Papeleria", "Limpieza"],
         "Marketing y ventas": ["Publicidad", "Promociones", "Carteleria"],
+        "Personal": [
+            "Comida",
+            "Transporte",
+            "Salud",
+            "Entretenimiento",
+            "Ropa",
+            "Hogar",
+            "Educacion",
+            "Cuidado personal",
+            "Suscripciones",
+            "Mascotas",
+            "Viajes",
+            "Otros",
+        ],
         "Deudas": ["Pago de deuda", "Otros"],
         "Ajustes": ["Ajuste de cierre", "Diferencia de caja"],
         "Otros": ["General"],
@@ -289,6 +303,7 @@ class BusinessProfile(models.Model):
     closing_time = models.TimeField(null=True, blank=True)
     use_reservation_times = models.BooleanField(default=True)
     show_stay_days_in_agenda = models.BooleanField(default=True)
+    allow_overlapping_reservations = models.BooleanField(default=False)
     reservation_use_pending = models.BooleanField(default=True)
     reservation_use_in_progress = models.BooleanField(default=True)
     reservation_use_ready = models.BooleanField(default=True)

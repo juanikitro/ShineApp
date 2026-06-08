@@ -1307,6 +1307,8 @@ export default function Home() {
 						profile.use_reservation_times !== false,
 					show_stay_days_in_agenda:
 						profile.show_stay_days_in_agenda !== false,
+					allow_overlapping_reservations:
+						profile.allow_overlapping_reservations === true,
 					reservation_use_pending:
 						profile.reservation_use_pending !== false,
 					reservation_use_in_progress:
@@ -6312,6 +6314,10 @@ export default function Home() {
 			String(currentBusinessForm.show_stay_days_in_agenda !== false),
 		)
 		payload.append(
+			'allow_overlapping_reservations',
+			String(currentBusinessForm.allow_overlapping_reservations === true),
+		)
+		payload.append(
 			'reservation_use_pending',
 			String(currentBusinessForm.reservation_use_pending !== false),
 		)
@@ -11232,6 +11238,15 @@ export default function Home() {
 							serviceOptions={serviceOptions}
 							canViewEconomy={canViewEconomy}
 							useReservationTimes={useReservationTimes}
+							allowOverlap={
+								businessForm.allow_overlapping_reservations === true
+							}
+							openingTime={businessForm.opening_time as string | null}
+							closingTime={businessForm.closing_time as string | null}
+							defaultDailyCapacity={8}
+							services={services}
+							reservations={reservations}
+							dailyCapacities={dailyCapacities}
 							openQuickCreate={openQuickCreate}
 							updateReservationCustomer={updateReservationCustomer}
 							updateReservationVehicle={updateReservationVehicle}
@@ -11752,57 +11767,32 @@ export default function Home() {
 						collapsed={sidebarCollapsed}
 						mobileOpen={sidebarMobileOpen}
 						header={
-							<div className="sidebar-top-stack">
-								<AppBrand
-									className="sidebar-brand"
-									collapsed={sidebarCollapsed}
-									themeMode={themeMode}
-									titleAs="span"
-								/>
+							businessProfile && sidebarBusinessLogoSrc ? (
 								<button
 									type="button"
-									className="ghost sidebar-collapse-toggle"
-									aria-controls={SIDEBAR_NAV_ID}
-									aria-expanded={sidebarMobileOpen ? true : !sidebarCollapsed}
-									aria-label={
-										sidebarMobileOpen
-											? 'Cerrar menu lateral'
-											: sidebarCollapsed
-												? 'Expandir sidebar'
-												: 'Colapsar sidebar'
-									}
-									title={
-										sidebarMobileOpen
-											? 'Cerrar menu lateral'
-											: sidebarCollapsed
-												? 'Expandir sidebar'
-												: 'Colapsar sidebar'
-									}
+									className="ghost sidebar-business-button"
 									onClick={() => {
-										if (sidebarMobileOpen) {
-											closeSidebarMobileMenu()
-											return
-										}
-										setSidebarCollapsed((current) => !current)
+										handleSectionChange('settings')
+										setSettingsSection('business')
 									}}
+									aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
+									title="Configuracion del negocio"
 								>
-									{sidebarMobileOpen ? (
-										<X size={16} />
-									) : sidebarCollapsed ? (
-										<ChevronsRight size={16} />
-									) : (
-										<ChevronsLeft size={16} />
-									)}
+									<img
+										src={sidebarBusinessLogoSrc}
+										alt={String(businessProfile.name ?? '')}
+										className="sidebar-business-logo"
+									/>
 								</button>
-							</div>
+							) : null
 						}
 						items={navItems}
 						active={active}
 						onChange={handleSectionChange}
 						onItemHover={(key) => prefetchSection(key as Section)}
 						footer={
-							!sidebarCollapsed ? (
-								<div className="sidebar-footer-stack">
+							<div className="sidebar-footer-stack">
+								<div className="sidebar-footer-row">
 									<button
 										aria-label={
 											themeMode === 'dark'
@@ -11810,7 +11800,10 @@ export default function Home() {
 												: 'Cambiar a modo oscuro'
 										}
 										aria-pressed={themeMode === 'dark'}
-										className="theme-switch"
+										className={cx(
+											'theme-switch',
+											sidebarCollapsed && 'theme-switch--compact',
+										)}
 										onClick={toggleThemeMode}
 										title={
 											themeMode === 'dark'
@@ -11819,47 +11812,94 @@ export default function Home() {
 										}
 										type="button"
 									>
-										<span className="theme-switch-track" aria-hidden="true">
-											<span className="theme-switch-thumb">
+										{sidebarCollapsed ? (
+											<span className="theme-switch-icon" aria-hidden="true">
 												<span
 													className={`theme-switch-symbol theme-switch-symbol--${
 														themeMode === 'dark' ? 'moon' : 'sun'
 													}`}
 												/>
 											</span>
-										</span>
+										) : (
+											<span className="theme-switch-track" aria-hidden="true">
+												<span className="theme-switch-thumb">
+													<span
+														className={`theme-switch-symbol theme-switch-symbol--${
+															themeMode === 'dark' ? 'moon' : 'sun'
+														}`}
+													/>
+												</span>
+											</span>
+										)}
 									</button>
 									<button
-										className="ghost sidebar-profile-button"
-										onClick={openProfileModal}
 										type="button"
-										aria-label={`Abrir perfil de ${profileDisplayName(currentUser)}`}
+										className="ghost sidebar-collapse-toggle"
+										aria-controls={SIDEBAR_NAV_ID}
+										aria-expanded={sidebarMobileOpen ? true : !sidebarCollapsed}
+										aria-label={
+											sidebarMobileOpen
+												? 'Cerrar menu lateral'
+												: sidebarCollapsed
+													? 'Expandir sidebar'
+													: 'Colapsar sidebar'
+										}
+										title={
+											sidebarMobileOpen
+												? 'Cerrar menu lateral'
+												: sidebarCollapsed
+													? 'Expandir sidebar'
+													: 'Colapsar sidebar'
+										}
+										onClick={() => {
+											if (sidebarMobileOpen) {
+												closeSidebarMobileMenu()
+												return
+											}
+											setSidebarCollapsed((current) => !current)
+										}}
 									>
-										<span className="sidebar-profile-avatar" aria-hidden="true">
-											{safeSidebarAvatarUrl && !sidebarAvatarIsPdf ? (
-												<NextImage
-													src={safeSidebarAvatarUrl}
-													alt=""
-													width={42}
-													height={42}
-													loading="lazy"
-													unoptimized
-												/>
-											) : safeSidebarAvatarPdfThumbnail ? (
-												<NextImage
-													src={safeSidebarAvatarPdfThumbnail}
-													alt=""
-													width={42}
-													height={42}
-													loading="lazy"
-													unoptimized
-												/>
-											) : currentUser.avatar_url ? (
-												<FileText size={18} />
-											) : (
-												<span>{profileInitial(currentUser)}</span>
-											)}
-										</span>
+										{sidebarMobileOpen ? (
+											<X size={16} />
+										) : sidebarCollapsed ? (
+											<ChevronsRight size={16} />
+										) : (
+											<ChevronsLeft size={16} />
+										)}
+									</button>
+								</div>
+								<button
+									className="ghost sidebar-profile-button"
+									onClick={openProfileModal}
+									type="button"
+									aria-label={`Abrir perfil de ${profileDisplayName(currentUser)}`}
+								>
+									<span className="sidebar-profile-avatar" aria-hidden="true">
+										{safeSidebarAvatarUrl && !sidebarAvatarIsPdf ? (
+											<NextImage
+												src={safeSidebarAvatarUrl}
+												alt=""
+												width={42}
+												height={42}
+												loading="lazy"
+												unoptimized
+											/>
+										) : safeSidebarAvatarPdfThumbnail ? (
+											<NextImage
+												src={safeSidebarAvatarPdfThumbnail}
+												alt=""
+												width={42}
+												height={42}
+												loading="lazy"
+												unoptimized
+											/>
+										) : currentUser.avatar_url ? (
+											<FileText size={18} />
+										) : (
+											<span>{profileInitial(currentUser)}</span>
+										)}
+									</span>
+									{!sidebarCollapsed ? (
 										<span className="sidebar-profile-copy">
 											<strong>{profileDisplayName(currentUser)}</strong>
 											<span>{profileRoleLabel(currentUser)}</span>
@@ -11867,18 +11907,15 @@ export default function Home() {
 												<span>{profileTrialText(currentUser)}</span>
 											) : null}
 										</span>
-									</button>
-									{businessProfile && sidebarBusinessLogoSrc ? (
-										<div className="sidebar-business-card">
-											<img
-												src={sidebarBusinessLogoSrc}
-												alt={String(businessProfile.name ?? '')}
-												className="sidebar-business-logo"
-											/>
-										</div>
 									) : null}
-								</div>
-							) : null
+								</button>
+								<AppBrand
+									className="sidebar-brand"
+									collapsed={sidebarCollapsed}
+									themeMode={themeMode}
+									titleAs="span"
+								/>
+							</div>
 						}
 					/>
 				}
