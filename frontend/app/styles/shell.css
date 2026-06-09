@@ -179,8 +179,33 @@
   width: 100%;
 }
 
+.nav-parent-header {
+  align-items: center;
+  display: flex;
+  gap: 2px;
+  width: 100%;
+}
+
 .nav button.nav-parent-button {
+  flex: 1 1 auto;
   justify-content: flex-start;
+  min-width: 0;
+  width: auto;
+}
+
+.nav button.nav-parent-toggle {
+  flex: 0 0 auto;
+  justify-content: center;
+  padding-inline: 8px;
+  width: auto;
+}
+
+.nav button.nav-parent-toggle::before {
+  content: none;
+}
+
+.sidebar[data-collapsed='true'] .nav button.nav-parent-button {
+  width: 100%;
 }
 
 .nav-parent-label {
