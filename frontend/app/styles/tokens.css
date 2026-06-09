@@ -59,6 +59,10 @@
   --status-canceled-border: #fecaca;
   --status-canceled-text: #dc2626;
 
+  --dashboard-bar-track: var(--color-surface-soft);
+  --dashboard-bar-fill: rgba(2, 132, 199, 0.22);
+  --dashboard-spark-stroke: var(--color-accent);
+
   --shop-canvas: var(--color-canvas);
   --shop-surface: var(--color-surface);
   --shop-surface-raised: var(--color-surface-raised);
@@ -188,6 +192,9 @@
   --status-canceled-bg: var(--color-danger-bg);
   --status-canceled-border: rgba(225, 106, 90, 0.28);
   --status-canceled-text: #ffd8d1;
+
+  --dashboard-bar-track: rgba(255, 255, 255, 0.08);
+  --dashboard-bar-fill: rgba(165, 215, 232, 0.3);
 
   --shop-canvas: var(--color-canvas);
   --shop-surface: var(--color-surface);

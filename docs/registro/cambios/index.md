@@ -10,6 +10,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 - [Sidebar: la flechita despliega sin navegar; el item navega y despliega](2026-06-09-sidebar-chevron-toggle-independiente.md)
+- [Dashboard: barras de proporcion y sparklines](2026-06-09-dashboard-barras-sparklines.md)
 - [Vida y animaciones en el CRM](2026-06-08-vida-animaciones-crm.md)
 - [Deploy: documentar VAPID keys para push notifications](2026-06-08-vapid-keys-deploy-docs.md)
 - [Turnera: toggles para mostrar descripcion y precio del servicio](2026-06-08-turnera-toggles-descripcion-precio.md)
