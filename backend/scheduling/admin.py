@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.http import HttpResponse
 from django.utils import timezone
 
-from .models import DailyCapacity, Reservation, ReservationItem
+from .models import Reservation, ReservationItem
 
 
 class ReservationItemInline(admin.TabularInline):
@@ -59,15 +59,3 @@ class ReservationAdmin(admin.ModelAdmin):
                 obj.start_time or "", obj.notes,
             ])
         return response
-
-
-@admin.register(DailyCapacity)
-class DailyCapacityAdmin(admin.ModelAdmin):
-    list_display = ["day", "business", "max_slots_wash", "max_slots_detailing", "notes"]
-    list_editable = ["max_slots_wash", "max_slots_detailing"]
-    list_filter = ["business"]
-    search_fields = ["day", "notes"]
-    list_per_page = 25
-    ordering = ["-day"]
-    autocomplete_fields = ["business"]
-    list_select_related = ["business"]

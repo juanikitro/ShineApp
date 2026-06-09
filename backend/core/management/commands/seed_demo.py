@@ -42,7 +42,7 @@ from inventory.serializers import (
 )
 from notifications.models import PublicRequest, PublicRequestItem
 from quotes.models import Quote, QuoteItem
-from scheduling.models import DailyCapacity, Reservation, ReservationItem
+from scheduling.models import Reservation, ReservationItem
 from scheduling.services import ensure_reservation_work_order
 
 
@@ -252,6 +252,9 @@ class Command(BaseCommand):
         )
         profile.use_reservation_times = True
         profile.show_stay_days_in_agenda = True
+        profile.enforce_capacity_limit = True
+        profile.default_capacity_wash = 8
+        profile.default_capacity_detailing = 4
         profile.public_landing_enabled = True
         profile.public_landing_intro = (
             "Detailing, lavado premium y proteccion ceramica con agenda online."
@@ -395,23 +398,6 @@ class Command(BaseCommand):
             )
             for name, icon, service_type, price, duration, notes in specs
         }
-
-    def seed_capacities(self, business, today):
-        for offset in range(-7, 15):
-            day = today + timedelta(days=offset)
-            max_slots_wash = 5 if day.weekday() == 5 else 8
-            if day.weekday() == 6:
-                max_slots_wash = 3
-            max_slots_detailing = max(max_slots_wash - 4, 1)
-            upsert(
-                DailyCapacity,
-                {"business": business, "day": day},
-                {
-                    "max_slots_wash": max_slots_wash,
-                    "max_slots_detailing": max_slots_detailing,
-                    "notes": "Capacidad demo para agenda",
-                },
-            )
 
     def seed_reservations(self, business, customers, vehicles, services, today):
         specs = [
@@ -1347,7 +1333,6 @@ class Command(BaseCommand):
         customers = self.seed_customers(business, today)
         vehicles = self.seed_vehicles(business, customers)
         services = self.seed_services(business)
-        self.seed_capacities(business, today)
         reservations = self.seed_reservations(business, customers, vehicles, services, today)
         self.seed_payments_and_cash(business, admin, reservations, today)
         materials, suppliers = self.seed_inventory(business, admin, customers, reservations, today)

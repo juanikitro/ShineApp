@@ -83,8 +83,6 @@ export async function loadAppDataSet(
 			return loaders.apiFetch<AnyRecord>('/settings/business-profile/')
 		case 'employees':
 			return loaders.apiList<AnyRecord>('/auth/employees/')
-		case 'dailyCapacities':
-			return loaders.apiList<AnyRecord>('/daily-capacities/')
 	}
 }
 

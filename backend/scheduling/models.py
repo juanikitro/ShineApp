@@ -16,35 +16,6 @@ def bucket_for_service_type(service_type):
     return DETAILING_BUCKET if service_type == "detailing" else WASH_BUCKET
 
 
-class DailyCapacity(models.Model):
-    business = models.ForeignKey("core.BusinessAccount", related_name="daily_capacities", on_delete=models.PROTECT)
-    day = models.DateField()
-    max_slots_wash = models.PositiveIntegerField(default=settings.DEFAULT_DAILY_CAPACITY)
-    max_slots_detailing = models.PositiveIntegerField(default=settings.DEFAULT_DAILY_CAPACITY)
-    notes = models.CharField(max_length=180, blank=True)
-
-    class Meta:
-        ordering = ["-day"]
-        constraints = [
-            models.UniqueConstraint(fields=["business", "day"], name="unique_daily_capacity_per_business_day"),
-        ]
-
-    def __str__(self):
-        return f"{self.day}: lavado {self.max_slots_wash} / detailing {self.max_slots_detailing}"
-
-    def slots_for_bucket(self, bucket):
-        if bucket == DETAILING_BUCKET:
-            return self.max_slots_detailing
-        return self.max_slots_wash
-
-    def save(self, *args, **kwargs):
-        if not self.business_id:
-            from core.models import BusinessAccount
-
-            self.business = BusinessAccount.get_default()
-        super().save(*args, **kwargs)
-
-
 class Reservation(SoftDeleteMixin):
     class Status(models.TextChoices):
         PENDING = "pending", "Pendiente"
@@ -222,13 +193,14 @@ class Reservation(SoftDeleteMixin):
 
     @classmethod
     def capacity_for_day(cls, day, business=None, bucket=WASH_BUCKET):
-        queryset = DailyCapacity.objects.filter(day=day)
-        if business is not None:
-            queryset = queryset.filter(business=business)
-        capacity = queryset.first()
-        if capacity:
-            return capacity.slots_for_bucket(bucket)
-        return settings.DEFAULT_DAILY_CAPACITY
+        from core.models import BusinessProfile
+
+        profile = BusinessProfile.get_solo(business=business)
+        if profile is None:
+            return settings.DEFAULT_DAILY_CAPACITY
+        if bucket == DETAILING_BUCKET:
+            return profile.default_capacity_detailing
+        return profile.default_capacity_wash
 
     @classmethod
     def used_slots_for_day(cls, day, exclude_id=None, business=None, bucket=None):

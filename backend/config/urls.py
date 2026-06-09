@@ -20,7 +20,7 @@ from inventory.views import (
     ToolViewSet,
 )
 from quotes.views import QuoteViewSet
-from scheduling.views import DailyAgendaView, DailyCapacityViewSet, ReservationViewSet
+from scheduling.views import DailyAgendaView, ReservationViewSet
 from workorders.views import WorkOrderViewSet
 from notifications.views import (
     PublicLandingAvailabilityView,
@@ -46,7 +46,6 @@ router = DefaultRouter()
 router.register("customers", CustomerViewSet, basename="customer")
 router.register("vehicles", VehicleViewSet, basename="vehicle")
 router.register("services", ServiceViewSet, basename="service")
-router.register("daily-capacities", DailyCapacityViewSet, basename="dailycapacity")
 router.register("reservations", ReservationViewSet, basename="reservation")
 router.register("work-orders", WorkOrderViewSet, basename="workorder")
 router.register("payments", PaymentViewSet, basename="payment")

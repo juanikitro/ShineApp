@@ -13,7 +13,6 @@ from core.permissions import EmployerOnly, business_from_request, file_url
 from scheduling.models import (
     DETAILING_BUCKET,
     WASH_BUCKET,
-    DailyCapacity,
     Reservation,
 )
 
@@ -119,13 +118,8 @@ class PublicLandingView(APIView):
 
 
 def _availability_payload(business, profile, day):
-    capacity_row = DailyCapacity.objects.filter(business=business, day=day).first()
-    if capacity_row:
-        max_slots_wash = capacity_row.max_slots_wash
-        max_slots_detailing = capacity_row.max_slots_detailing
-    else:
-        max_slots_wash = Reservation.capacity_for_day(day, business=business, bucket=WASH_BUCKET)
-        max_slots_detailing = Reservation.capacity_for_day(day, business=business, bucket=DETAILING_BUCKET)
+    max_slots_wash = Reservation.capacity_for_day(day, business=business, bucket=WASH_BUCKET)
+    max_slots_detailing = Reservation.capacity_for_day(day, business=business, bucket=DETAILING_BUCKET)
     used_slots_wash = Reservation.used_slots_for_day(day, business=business, bucket=WASH_BUCKET)
     used_slots_detailing = Reservation.used_slots_for_day(day, business=business, bucket=DETAILING_BUCKET)
     reservations = (
@@ -148,6 +142,7 @@ def _availability_payload(business, profile, day):
     return {
         "date": day.isoformat(),
         "allow_overlapping": bool(profile.allow_overlapping_reservations),
+        "capacity_enforced": bool(profile.enforce_capacity_limit),
         "wash": {
             "max_slots": max_slots_wash,
             "used_slots": used_slots_wash,
