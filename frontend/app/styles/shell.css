@@ -512,48 +512,8 @@
 }
 
 .theme-switch-symbol {
+  color: var(--theme-switch-symbol-bg);
   display: block;
-  position: relative;
-}
-
-.theme-switch-symbol--sun {
-  background: var(--theme-switch-symbol-bg);
-  border-radius: 50%;
-  height: 11px;
-  width: 11px;
-}
-
-.theme-switch-symbol--sun::before {
-  background: repeating-conic-gradient(
-    from 0deg,
-    var(--theme-switch-symbol-bg) 0deg 10deg,
-    transparent 10deg 35deg
-  );
-  border-radius: 50%;
-  content: "";
-  inset: -7px;
-  -webkit-mask: radial-gradient(circle, transparent 0 9px, #000 9px 13px, transparent 13px);
-  mask: radial-gradient(circle, transparent 0 9px, #000 9px 13px, transparent 13px);
-  position: absolute;
-}
-
-.theme-switch-symbol--moon {
-  background: var(--theme-switch-symbol-bg);
-  border-radius: 50%;
-  height: 15px;
-  overflow: hidden;
-  width: 15px;
-}
-
-.theme-switch-symbol--moon::after {
-  background: var(--theme-switch-symbol-cutout-bg);
-  border-radius: 50%;
-  content: "";
-  height: 15px;
-  left: -6px;
-  position: absolute;
-  top: -1px;
-  width: 15px;
 }
 
 .theme-switch:hover .theme-switch-track {
@@ -2733,7 +2693,8 @@
 }
 
 .cash-metrics-primary .cash-metric strong {
-  font-size: 28px;
+  font-size: 34px;
+  line-height: 1.15;
 }
 
 .cash-metrics-primary .cash-metric-balance {
@@ -2772,7 +2733,8 @@
 .cash-economic-panel strong {
   color: var(--shop-ink);
   display: block;
-  font-size: 24px;
+  font-size: 30px;
+  line-height: 1.15;
   margin-top: 4px;
 }
 
