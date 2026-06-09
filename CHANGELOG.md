@@ -11,8 +11,8 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-09
-- [Numeros principales del CRM a 32px (fix del cascade que los achicaba)](docs/registro/cambios/2026-06-09-fix-tamano-numeros-kpi.md)
 - [Sidebar: la flechita despliega sin navegar; el item navega y despliega](docs/registro/cambios/2026-06-09-sidebar-chevron-toggle-independiente.md)
+- [Numeros principales del CRM a 32px (fix del cascade que los achicaba)](docs/registro/cambios/2026-06-09-fix-tamano-numeros-kpi.md)
 
 ## 2026-06-08
 - [Vida y animaciones en el CRM](docs/registro/cambios/2026-06-08-vida-animaciones-crm.md)
