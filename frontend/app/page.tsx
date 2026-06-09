@@ -347,6 +347,7 @@ import {
 	fullPaymentAmountForOrder,
 	mergeStringValues,
 	money,
+	monthRange,
 	moveReservationToDay,
 	normalizedAmountInput,
 	normalizeExpenseCategoryTree,
@@ -684,10 +685,7 @@ export default function Home() {
 		adjusts_closed_day: '',
 		...overrides,
 	})
-	const [period, setPeriod] = useState({
-		from: today.slice(0, 8) + '01',
-		to: today,
-	})
+	const [period, setPeriod] = useState(() => monthRange(today))
 
 	const [dashboard, setDashboard] = useState<AnyRecord>({})
 	const [cash, setCash] = useState<AnyRecord>({})
@@ -1284,6 +1282,7 @@ export default function Home() {
 					contact_phone: String(profile.contact_phone ?? ''),
 					contact_email: String(profile.contact_email ?? ''),
 					address: String(profile.address ?? ''),
+					maps_url: String(profile.maps_url ?? ''),
 					default_quote_validity_days: String(
 						profile.default_quote_validity_days ?? '7',
 					),
@@ -2082,6 +2081,7 @@ export default function Home() {
 		force?: boolean
 		section?: Section
 		settingsSection?: SettingsSection
+		period?: { from: string; to: string }
 	}
 
 	const appDataAppliers: AppDataAppliers = {
@@ -2127,7 +2127,7 @@ export default function Home() {
 	}
 
 	async function loadData(options: LoadDataOptions = {}) {
-		const dataScope = { period, selectedDay }
+		const dataScope = { period: options.period ?? period, selectedDay }
 		const keys = dataSetKeysForSection({
 			section: options.section ?? displayedActive,
 			settingsSection: options.settingsSection ?? settingsSection,
@@ -2269,7 +2269,7 @@ export default function Home() {
 		}
 		periodReloadTimeoutRef.current = window.setTimeout(() => {
 			periodReloadTimeoutRef.current = null
-			loadData({ force: true, section: 'dashboard' })
+			loadData({ force: true, section: 'dashboard', period: next })
 		}, 400)
 	}
 	function triggerPeriodReloadNow() {
@@ -2277,7 +2277,16 @@ export default function Home() {
 			window.clearTimeout(periodReloadTimeoutRef.current)
 			periodReloadTimeoutRef.current = null
 		}
-		loadData({ force: true, section: 'dashboard' })
+		loadData({ force: true, section: 'dashboard', period })
+	}
+	function goToMonth(offset: number) {
+		const next = monthRange(period.from, offset)
+		if (periodReloadTimeoutRef.current) {
+			window.clearTimeout(periodReloadTimeoutRef.current)
+			periodReloadTimeoutRef.current = null
+		}
+		setPeriod(next)
+		loadData({ force: true, section: 'dashboard', period: next })
 	}
 	useEffect(() => {
 		return () => {
@@ -6282,6 +6291,7 @@ export default function Home() {
 			String(currentBusinessForm.contact_email ?? ''),
 		)
 		payload.append('address', String(currentBusinessForm.address ?? ''))
+		payload.append('maps_url', String(currentBusinessForm.maps_url ?? ''))
 		payload.append(
 			'default_quote_validity_days',
 			String(currentBusinessForm.default_quote_validity_days ?? '7'),
@@ -11909,6 +11919,15 @@ export default function Home() {
 											triggerPeriodReloadNow()
 										}}
 									>
+										<button
+											type="button"
+											className="ghost icon-button"
+											onClick={() => goToMonth(-1)}
+											aria-label="Mes anterior"
+											title="Mes anterior"
+										>
+											<ChevronLeft size={16} />
+										</button>
 										<Field label="Desde">
 											<input
 												type="date"
@@ -11927,6 +11946,15 @@ export default function Home() {
 												}
 											/>
 										</Field>
+										<button
+											type="button"
+											className="ghost icon-button"
+											onClick={() => goToMonth(1)}
+											aria-label="Mes siguiente"
+											title="Mes siguiente"
+										>
+											<ChevronRight size={16} />
+										</button>
 										<Button
 											type="submit"
 											variant="primary"

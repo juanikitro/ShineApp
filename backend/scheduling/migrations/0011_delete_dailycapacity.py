@@ -5,7 +5,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("scheduling", "0010_alter_reservationitem_options_and_more"),
-        ("core", "0022_businessprofile_capacity_defaults"),
+        ("core", "0023_businessprofile_capacity_defaults"),
     ]
 
     operations = [

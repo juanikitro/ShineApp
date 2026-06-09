@@ -282,6 +282,7 @@ class BusinessProfile(models.Model):
     city = models.CharField(max_length=120, blank=True)
     country = models.CharField(max_length=120, blank=True)
     address = models.CharField(max_length=220, blank=True)
+    maps_url = models.URLField(max_length=500, blank=True)
     trial_started_at = models.DateTimeField(null=True, blank=True)
     trial_ends_at = models.DateTimeField(null=True, blank=True)
     default_quote_validity_days = models.PositiveSmallIntegerField(default=7)

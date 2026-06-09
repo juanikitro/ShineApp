@@ -5,7 +5,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("core", "0021_businessprofile_public_service_display_flags"),
+        ("core", "0022_businessprofile_maps_url"),
     ]
 
     operations = [

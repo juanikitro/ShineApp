@@ -3,9 +3,50 @@ import React from 'react'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, test } from 'vitest'
 
-import { NoticeToastViewport, successToastDescription } from './page-support'
+import {
+	NoticeToastViewport,
+	monthRange,
+	successToastDescription,
+} from './page-support'
 
 afterEach(cleanup)
+
+test('monthRange devuelve el primer y ultimo dia del mes', () => {
+	assert.deepEqual(monthRange('2026-06-09'), {
+		from: '2026-06-01',
+		to: '2026-06-30',
+	})
+	assert.deepEqual(monthRange('2026-12-31'), {
+		from: '2026-12-01',
+		to: '2026-12-31',
+	})
+})
+
+test('monthRange ajusta el ultimo dia segun el mes y los anios bisiestos', () => {
+	assert.deepEqual(monthRange('2026-02-15'), {
+		from: '2026-02-01',
+		to: '2026-02-28',
+	})
+	assert.deepEqual(monthRange('2024-02-10'), {
+		from: '2024-02-01',
+		to: '2024-02-29',
+	})
+})
+
+test('monthRange con offset cruza limites de mes y de anio', () => {
+	assert.deepEqual(monthRange('2026-06-09', 1), {
+		from: '2026-07-01',
+		to: '2026-07-31',
+	})
+	assert.deepEqual(monthRange('2026-12-15', 1), {
+		from: '2027-01-01',
+		to: '2027-01-31',
+	})
+	assert.deepEqual(monthRange('2026-01-20', -1), {
+		from: '2025-12-01',
+		to: '2025-12-31',
+	})
+})
 
 test('successToastDescription explains the completed action', () => {
 	assert.equal(

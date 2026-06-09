@@ -26,6 +26,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         assert initial.data["default_capacity_wash"] == 8
         assert initial.data["default_capacity_detailing"] == 8
         assert initial.data["address"] == ""
+        assert initial.data["maps_url"] == ""
         assert initial.data["default_quote_validity_days"] == 7
         assert initial.data["default_quote_tax_rate"] == "0.00"
         assert initial.data["default_quote_discount_rate"] == "0.00"
@@ -61,6 +62,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
                 "use_reservation_times": False,
                 "show_stay_days_in_agenda": False,
                 "address": "Parana 158",
+                "maps_url": "https://maps.app.goo.gl/demo",
                 "default_quote_validity_days": 10,
                 "default_quote_tax_rate": "21.00",
                 "default_quote_discount_rate": "5.50",
@@ -86,6 +88,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         assert response.data["use_reservation_times"] is False
         assert response.data["show_stay_days_in_agenda"] is False
         assert response.data["address"] == "Parana 158"
+        assert response.data["maps_url"] == "https://maps.app.goo.gl/demo"
         assert response.data["default_quote_validity_days"] == 10
         assert response.data["default_quote_tax_rate"] == "21.00"
         assert response.data["default_quote_discount_rate"] == "5.50"
@@ -101,6 +104,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         assert profile.use_reservation_times is False
         assert profile.show_stay_days_in_agenda is False
         assert profile.address == "Parana 158"
+        assert profile.maps_url == "https://maps.app.goo.gl/demo"
         assert profile.default_quote_validity_days == 10
         assert profile.default_quote_tax_rate == Decimal("21.00")
         assert profile.default_quote_discount_rate == Decimal("5.50")
@@ -159,6 +163,18 @@ def test_business_profile_rejects_negative_capacity(api_client):
 
     assert response.status_code == 400
     assert "default_capacity_wash" in response.data
+
+
+@pytest.mark.django_db
+def test_business_profile_rejects_invalid_maps_url(api_client):
+    response = api_client.patch(
+        reverse("business-profile"),
+        {"maps_url": "no-es-una-url"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "maps_url" in response.data
 
 
 @pytest.mark.django_db

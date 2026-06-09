@@ -422,6 +422,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "city",
             "country",
             "address",
+            "maps_url",
             "trial_started_at",
             "trial_ends_at",
             "default_quote_validity_days",
@@ -482,6 +483,9 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
         return value.strip()
 
     def validate_address(self, value):
+        return value.strip()
+
+    def validate_maps_url(self, value):
         return value.strip()
 
     def validate_default_quote_validity_days(self, value):
