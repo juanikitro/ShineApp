@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Dashboard: periodo mensual por defecto y navegacion entre meses (2026-06-09)](2026-06-09-dashboard-periodo-mensual.md)
 - [Vida y animaciones en el CRM](2026-06-08-vida-animaciones-crm.md)
 - [Deploy: documentar VAPID keys para push notifications](2026-06-08-vapid-keys-deploy-docs.md)
 - [Turnera: toggles para mostrar descripcion y precio del servicio](2026-06-08-turnera-toggles-descripcion-precio.md)

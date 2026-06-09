@@ -624,6 +624,12 @@
   align-items: end;
 }
 
+/* Cuando el header muestra el filtro de periodo (alto por sus labels), bajamos
+   las acciones generales (Actualizar) para que queden en la misma linea. */
+.page-actions:has(.dashboard-period-toolbar) {
+  align-items: flex-end;
+}
+
 .subsection-title {
   margin: 18px 0 12px;
 }
