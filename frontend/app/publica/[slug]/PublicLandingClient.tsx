@@ -3,11 +3,13 @@
 import {
 	Armchair,
 	CheckCircle2,
+	ChevronDown,
 	Clock,
 	FileText,
 	Layers,
 	Mail,
 	MapPin,
+	MessageCircle,
 	Phone,
 	RotateCcw,
 	Send,
@@ -17,7 +19,9 @@ import {
 } from 'lucide-react'
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 
+import { cx } from '@/app/components/utils'
 import { publicApiFetch } from '@/lib/api'
+import { mapsUrlIsUsable, whatsappUrl } from '@/lib/contact-links'
 import {
 	type ApiErrorNotice,
 	createValidationNotice,
@@ -36,6 +40,7 @@ import { VEHICLE_TYPE_OPTIONS } from '@/lib/service-pricing'
 type PublicAvailabilityPayload = {
 	date: string
 	allow_overlapping: boolean
+	capacity_enforced: boolean
 	wash: AvailabilityBucket
 	detailing: AvailabilityBucket
 	occupied: AvailabilityOccupied[]
@@ -54,6 +59,9 @@ type PublicService = {
 type ServiceGroupKey = 'wash' | 'combo' | 'detailing'
 
 const serviceGroupOrder: ServiceGroupKey[] = ['wash', 'combo', 'detailing']
+
+// A partir de cuantos caracteres una descripcion se trunca con "Ver mas".
+const DESCRIPTION_TRUNCATE_THRESHOLD = 120
 
 const serviceGroupLabels: Record<ServiceGroupKey, string> = {
 	wash: 'Lavadero',
@@ -75,6 +83,7 @@ type PublicLandingPayload = {
 		contact_phone?: string
 		contact_email?: string
 		address?: string
+		maps_url?: string
 		intro?: string
 		opening_time?: string | null
 		closing_time?: string | null
@@ -292,6 +301,12 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	const [errorNotice, setErrorNotice] = useState<ApiErrorNotice | null>(null)
 	const [success, setSuccess] = useState(false)
 	const [logoLoadFailed, setLogoLoadFailed] = useState(false)
+	const [openGroups, setOpenGroups] = useState<Record<ServiceGroupKey, boolean>>(
+		{ wash: false, combo: false, detailing: false },
+	)
+	const [expandedDescriptions, setExpandedDescriptions] = useState<Set<number>>(
+		new Set(),
+	)
 
 	const [savedData, setSavedData] = useState<SavedClientData | null>(null)
 	const [recallOpen, setRecallOpen] = useState(false)
@@ -451,7 +466,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		form.preferred_day && form.preferred_day < today,
 	)
 	const capacityWarning = useMemo(() => {
-		if (!availability) return null
+		if (!availability || !availability.capacity_enforced) return null
 		const issues: string[] = []
 		if (
 			selectedBuckets.wash > 0 &&
@@ -496,6 +511,19 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 				? current.service_ids.filter((item) => item !== value)
 				: [...current.service_ids, value],
 		}))
+	}
+
+	function toggleGroup(group: ServiceGroupKey) {
+		setOpenGroups((current) => ({ ...current, [group]: !current[group] }))
+	}
+
+	function toggleDescription(serviceId: number) {
+		setExpandedDescriptions((current) => {
+			const next = new Set(current)
+			if (next.has(serviceId)) next.delete(serviceId)
+			else next.add(serviceId)
+			return next
+		})
 	}
 
 	function applySavedData() {
@@ -740,14 +768,33 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 					? `Hasta ${business.closing_time}`
 					: null
 
+	const phoneWhatsappUrl = whatsappUrl(business.contact_phone)
+	const addressMapsUrl =
+		business.maps_url && mapsUrlIsUsable(business.maps_url)
+			? business.maps_url
+			: null
 	const contact = [
 		business.contact_phone
-			? { icon: Phone, label: business.contact_phone }
+			? {
+					icon: MessageCircle,
+					label: business.contact_phone,
+					href: phoneWhatsappUrl ?? undefined,
+				}
 			: null,
 		business.contact_email ? { icon: Mail, label: business.contact_email } : null,
-		business.address ? { icon: MapPin, label: business.address } : null,
+		business.address
+			? {
+					icon: MapPin,
+					label: business.address,
+					href: addressMapsUrl ?? undefined,
+				}
+			: null,
 		hoursLabel ? { icon: Clock, label: hoursLabel } : null,
-	].filter(Boolean) as Array<{ icon: typeof Phone; label: string }>
+	].filter(Boolean) as Array<{
+		icon: typeof Phone
+		label: string
+		href?: string
+	}>
 
 	return (
 		<main className="public-landing">
@@ -778,15 +825,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 					) : null}
 					<div className="public-brand">
 						<div className="public-brand-mark">
-							{canShowBusinessImage ? (
-								<img
-									src={businessImageSource ?? ''}
-									alt=""
-									onError={() => setLogoLoadFailed(true)}
-								/>
-							) : (
-								<span>{business.name.slice(0, 1).toUpperCase()}</span>
-							)}
+							<span>{business.name.slice(0, 1).toUpperCase()}</span>
 						</div>
 						<div>
 							<span className="public-kicker">ShineApp</span>
@@ -800,7 +839,18 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 						<div className="public-contact">
 							{contact.map((item) => {
 								const Icon = item.icon
-								return (
+								return item.href ? (
+									<a
+										key={item.label}
+										className="public-contact-link"
+										href={item.href}
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										<Icon size={16} />
+										{item.label}
+									</a>
+								) : (
 									<span key={item.label}>
 										<Icon size={16} />
 										{item.label}
@@ -817,56 +867,114 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 						{serviceGroupOrder.map((group) => {
 							const items = servicesByGroup[group]
 							if (!items.length) return null
+							const open = openGroups[group]
+							const selectedCount = items.reduce(
+								(count, service) =>
+									form.service_ids.includes(String(service.id))
+										? count + 1
+										: count,
+								0,
+							)
 							return (
 								<div className="public-service-group" key={group}>
-									<h3 className="public-service-group-title">
-										{serviceGroupLabels[group]}
-									</h3>
-									<div className="public-service-list">
-										{items.map((service) => {
-											const selected = form.service_ids.includes(
-												String(service.id),
-											)
-											const showDescription =
-											landing.display?.show_service_description !== false
-										const showPrice =
-											landing.display?.show_service_price === true
-										const priceLabel = showPrice
-											? formatPublicPrice(service.base_price)
-											: ''
-										return (
-												<button
-													key={service.id}
-													type="button"
-													className="public-service-card"
-													data-selected={selected ? 'true' : 'false'}
-													onClick={() => toggleService(service.id)}
-												>
-													<span className="public-service-icon">
-														<PublicServiceIcon service={service} />
-													</span>
-													<span>
-														<strong>{service.name}</strong>
-														{showDescription && service.notes ? (
-															<small>{service.notes}</small>
-														) : null}
-														{serviceDurationLabel(service) ? (
-															<em>
-																<Clock size={13} />
-																{serviceDurationLabel(service)}
-															</em>
-														) : null}
-														{priceLabel ? (
-															<span className="public-service-price">
-																{priceLabel}
+									<button
+										type="button"
+										className="public-service-group-toggle"
+										aria-expanded={open}
+										onClick={() => toggleGroup(group)}
+									>
+										<span className="public-service-group-title">
+											{serviceGroupLabels[group]}
+										</span>
+										{!open && selectedCount > 0 ? (
+											<span className="public-service-group-count">
+												{selectedCount}
+											</span>
+										) : null}
+										<ChevronDown
+											size={18}
+											aria-hidden="true"
+											className={cx(
+												'public-service-group-chevron',
+												open && 'public-service-group-chevron--open',
+											)}
+										/>
+									</button>
+									{open ? (
+										<div className="public-service-list">
+											{items.map((service) => {
+												const selected = form.service_ids.includes(
+													String(service.id),
+												)
+												const showDescription =
+													landing.display?.show_service_description !== false
+												const showPrice =
+													landing.display?.show_service_price === true
+												const priceLabel = showPrice
+													? formatPublicPrice(service.base_price)
+													: ''
+												const description =
+													showDescription && service.notes ? service.notes : ''
+												const expandable =
+													description.length > DESCRIPTION_TRUNCATE_THRESHOLD
+												const expanded = expandedDescriptions.has(service.id)
+												return (
+													<div
+														key={service.id}
+														className="public-service-card"
+														data-selected={selected ? 'true' : 'false'}
+													>
+														<button
+															type="button"
+															className="public-service-card-select"
+															aria-pressed={selected}
+															onClick={() => toggleService(service.id)}
+														>
+															<span className="public-service-icon">
+																<PublicServiceIcon service={service} />
 															</span>
+															<span className="public-service-card-body">
+																<strong>{service.name}</strong>
+																{serviceDurationLabel(service) ? (
+																	<em>
+																		<Clock size={13} />
+																		{serviceDurationLabel(service)}
+																	</em>
+																) : null}
+																{priceLabel ? (
+																	<span className="public-service-price">
+																		{priceLabel}
+																	</span>
+																) : null}
+															</span>
+															{selected ? <CheckCircle2 size={18} /> : null}
+														</button>
+														{description ? (
+															<div className="public-service-desc">
+																<small
+																	data-clamped={
+																		expandable && !expanded ? 'true' : 'false'
+																	}
+																>
+																	{description}
+																</small>
+																{expandable ? (
+																	<button
+																		type="button"
+																		className="public-service-desc-toggle"
+																		aria-expanded={expanded}
+																		onClick={() => toggleDescription(service.id)}
+																	>
+																		{expanded ? 'Ver menos' : 'Ver mas'}
+																	</button>
+																) : null}
+															</div>
 														) : null}
-													</span>
-													{selected ? <CheckCircle2 size={18} /> : null}
-												</button>
-											)
-										})}
-									</div>
+													</div>
+												)
+											})}
+										</div>
+									) : null}
 								</div>
 							)
 						})}
@@ -1084,14 +1192,17 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 								capacityWarning ? 'public-form-error' : 'public-form-note'
 							}
 						>
-							{capacityWarning ?? (
-								<>
-									Cupo lavado: {availability.wash.used_slots}/
-									{availability.wash.max_slots} · Cupo detailing:{' '}
-									{availability.detailing.used_slots}/
-									{availability.detailing.max_slots}
-								</>
-							)}
+							{capacityWarning ??
+								(availability.capacity_enforced ? (
+									<>
+										Cupo lavado: {availability.wash.used_slots}/
+										{availability.wash.max_slots} · Cupo detailing:{' '}
+										{availability.detailing.used_slots}/
+										{availability.detailing.max_slots}
+									</>
+								) : (
+									'Sin límite de cupos'
+								))}
 						</div>
 					) : null}
 					<label>

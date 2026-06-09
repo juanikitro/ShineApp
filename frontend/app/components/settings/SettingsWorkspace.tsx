@@ -88,7 +88,6 @@ type SettingsWorkspaceProps = {
 	reservationUseInProgress: boolean
 	reservationUseReady: boolean
 	reservationUseCanceled: boolean
-	dailyCapacities: AnyRecord[]
 	employees: AnyRecord[]
 	activeEmployeeCount: number
 	inactiveEmployeeCount: number
@@ -106,9 +105,6 @@ type SettingsWorkspaceProps = {
 	onOpenBusinessLogoPicker: () => void
 	onPatchBusinessForm: (patch: AnyRecord) => void
 	onSaveBusinessProfile: (event: FormEvent) => void
-	onOpenDailyCapacityForm: () => void
-	onEditDailyCapacity: (item: AnyRecord) => void
-	onDeleteDailyCapacity: (item: AnyRecord) => void
 	onOpenExpenseClassificationForm: () => void
 	onEditExpenseClassification: (item: CashClassificationPair) => void
 	onDeleteExpenseClassification: (
@@ -152,7 +148,6 @@ export function SettingsWorkspace({
 	reservationUseInProgress,
 	reservationUseReady,
 	reservationUseCanceled,
-	dailyCapacities,
 	employees,
 	activeEmployeeCount,
 	inactiveEmployeeCount,
@@ -170,9 +165,6 @@ export function SettingsWorkspace({
 	onOpenBusinessLogoPicker,
 	onPatchBusinessForm,
 	onSaveBusinessProfile,
-	onOpenDailyCapacityForm,
-	onEditDailyCapacity,
-	onDeleteDailyCapacity,
 	onOpenExpenseClassificationForm,
 	onEditExpenseClassification,
 	onDeleteExpenseClassification,
@@ -258,10 +250,9 @@ export function SettingsWorkspace({
 							onSaveBusinessProfile={onSaveBusinessProfile}
 						/>
 						<DailyCapacitiesPanel
-							dailyCapacities={dailyCapacities}
-							onOpenDailyCapacityForm={onOpenDailyCapacityForm}
-							onEditDailyCapacity={onEditDailyCapacity}
-							onDeleteDailyCapacity={onDeleteDailyCapacity}
+							businessForm={businessForm}
+							onPatchBusinessForm={onPatchBusinessForm}
+							onSaveBusinessProfile={onSaveBusinessProfile}
 						/>
 					</>
 				) : null}
@@ -735,16 +726,15 @@ function AgendaSettingsPanel({
 }
 
 function DailyCapacitiesPanel({
-	dailyCapacities,
-	onOpenDailyCapacityForm,
-	onEditDailyCapacity,
-	onDeleteDailyCapacity,
+	businessForm,
+	onPatchBusinessForm,
+	onSaveBusinessProfile,
 }: {
-	dailyCapacities: AnyRecord[]
-	onOpenDailyCapacityForm: () => void
-	onEditDailyCapacity: (item: AnyRecord) => void
-	onDeleteDailyCapacity: (item: AnyRecord) => void
+	businessForm: AnyRecord
+	onPatchBusinessForm: (patch: AnyRecord) => void
+	onSaveBusinessProfile: (event: FormEvent) => void
 }) {
+	const enforceCapacity = businessForm.enforce_capacity_limit !== false
 	return (
 		<section className="panel">
 			<div className="panel-head">
@@ -752,83 +742,87 @@ function DailyCapacitiesPanel({
 					<span className="panel-kicker">Operacion diaria</span>
 					<h2>Capacidad de turnos</h2>
 					<p>
-						Define cuantos turnos acepta la agenda en dias puntuales. Los dias
-						sin un cupo propio usan la capacidad por defecto del negocio.
+						Define el cupo de turnos que la agenda y la turnera aceptan por dia.
+						El cupo rige todos los dias por igual.
 					</p>
 				</div>
 				<div className="settings-action-rail">
 					<div className="settings-primary-actions">
 						<button
-							type="button"
+							type="submit"
 							className="primary"
-							onClick={onOpenDailyCapacityForm}
+							form="settings-capacity-form"
 						>
-							<Plus size={16} />
-							Nueva capacidad
+							<CalendarDays size={16} />
+							Guardar cupos
 						</button>
 					</div>
 				</div>
 			</div>
-			<section className="settings-operational-metrics section-block-end">
-				<MetricCard label="Dias con cupo propio" value={dailyCapacities.length} />
-			</section>
-			<div className="records compact-records">
-				{dailyCapacities.length ? (
-					dailyCapacities.map((item) => (
-						<RecordCard key={item.id}>
-							<RecordCardHeader
-								title={formatFullDateLabel(item.day)}
-								subtitle={`Lavado ${item.max_slots_wash ?? 0} (usados ${
-									item.used_slots_wash ?? 0
-								} / libres ${item.available_slots_wash ?? 0}) - Detailing ${
-									item.max_slots_detailing ?? 0
-								} (usados ${item.used_slots_detailing ?? 0} / libres ${
-									item.available_slots_detailing ?? 0
-								})`}
-								actions={
-									<>
-										<button
-											type="button"
-											className="ghost"
-											onClick={() => onEditDailyCapacity(item)}
-											aria-label={`Editar cupo del ${formatFullDateLabel(item.day)}`}
-										>
-											<Pencil size={16} />
-										</button>
-										<button
-											type="button"
-											className="danger"
-											onClick={() => onDeleteDailyCapacity(item)}
-											aria-label={`Eliminar cupo del ${formatFullDateLabel(item.day)}`}
-										>
-											<Trash2 size={16} />
-										</button>
-									</>
-								}
-							>
-								{item.notes ? (
-									<div className="record-sub">{item.notes}</div>
-								) : null}
-							</RecordCardHeader>
-						</RecordCard>
-					))
-				) : (
-					<Empty
-						text="Sin cupos personalizados."
-						hint="Agrega un cupo cuando un dia tenga mas o menos turnos que la capacidad por defecto."
-						action={
-							<button
-								type="button"
-								className="primary"
-								onClick={onOpenDailyCapacityForm}
-							>
-								<Plus size={16} />
-								Nueva capacidad
-							</button>
-						}
-					/>
-				)}
-			</div>
+			<form
+				className="form-grid"
+				id="settings-capacity-form"
+				onSubmit={onSaveBusinessProfile}
+			>
+				<div className="records compact-records">
+					<RecordCard>
+						<RecordCardHeader
+							title="Aplicar limite de cupos"
+							subtitle="Si lo desactivas, la agenda y la turnera aceptan turnos sin tope."
+							actions={
+								<SegmentedControl
+									ariaLabel="Aplicar limite de cupos"
+									className="settings-mode-toggle"
+									options={[
+										{ value: 'apply', label: 'Aplicar' },
+										{ value: 'skip', label: 'No aplicar' },
+									]}
+									value={enforceCapacity ? 'apply' : 'skip'}
+									onChange={(nextValue) =>
+										onPatchBusinessForm({
+											enforce_capacity_limit: nextValue === 'apply',
+										})
+									}
+								/>
+							}
+						/>
+					</RecordCard>
+				</div>
+				<div className="form-row">
+					<Field label="Cupo de lavado por dia">
+						<input
+							type="number"
+							min="0"
+							placeholder="8"
+							disabled={!enforceCapacity}
+							value={businessForm.default_capacity_wash ?? ''}
+							onChange={(event) =>
+								onPatchBusinessForm({
+									default_capacity_wash: event.target.value,
+								})
+							}
+						/>
+					</Field>
+					<Field label="Cupo de detailing por dia">
+						<input
+							type="number"
+							min="0"
+							placeholder="4"
+							disabled={!enforceCapacity}
+							value={businessForm.default_capacity_detailing ?? ''}
+							onChange={(event) =>
+								onPatchBusinessForm({
+									default_capacity_detailing: event.target.value,
+								})
+							}
+						/>
+					</Field>
+				</div>
+				<div className="record-sub">
+					Lavado incluye los servicios de lavadero y combos. Detailing cuenta
+					solo los servicios de detailing.
+				</div>
+			</form>
 		</section>
 	)
 }

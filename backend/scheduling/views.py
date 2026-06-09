@@ -14,8 +14,8 @@ from core.permissions import business_from_request
 from finance.cash import cash_day, ensure_cash_day_open
 from workorders.metrics import build_work_order_financial_metrics
 
-from .models import DETAILING_BUCKET, WASH_BUCKET, DailyCapacity, Reservation
-from .serializers import DailyCapacitySerializer, ReservationSerializer
+from .models import DETAILING_BUCKET, WASH_BUCKET, Reservation
+from .serializers import ReservationSerializer
 from .services import ensure_reservation_work_order
 
 
@@ -27,11 +27,6 @@ def work_orders_for_reservations(reservations):
         except (AttributeError, ObjectDoesNotExist):
             continue
     return work_orders
-
-
-class DailyCapacityViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
-    queryset = DailyCapacity.objects.all()
-    serializer_class = DailyCapacitySerializer
 
 
 class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
@@ -227,14 +222,9 @@ class DailyAgendaView(APIView):
         else:
             day = date.today()
         business = business_from_request(request)
-        capacity_row = DailyCapacity.objects.filter(business=business, day=day).first()
-        if capacity_row:
-            max_slots_wash = capacity_row.max_slots_wash
-            max_slots_detailing = capacity_row.max_slots_detailing
-        else:
-            max_slots_wash = Reservation.capacity_for_day(day, business=business, bucket=WASH_BUCKET)
-            max_slots_detailing = Reservation.capacity_for_day(day, business=business, bucket=DETAILING_BUCKET)
         profile = BusinessProfile.get_solo(business=business)
+        max_slots_wash = Reservation.capacity_for_day(day, business=business, bucket=WASH_BUCKET)
+        max_slots_detailing = Reservation.capacity_for_day(day, business=business, bucket=DETAILING_BUCKET)
         reservations = Reservation.objects.select_related(
             "customer",
             "vehicle",
@@ -259,7 +249,7 @@ class DailyAgendaView(APIView):
         return response.Response(
             {
                 "date": day.isoformat(),
-                "capacity_id": capacity_row.id if capacity_row else None,
+                "capacity_enforced": bool(profile.enforce_capacity_limit),
                 "wash": {
                     "max_slots": max_slots_wash,
                     "used_slots": used_slots_wash,

@@ -45,10 +45,11 @@ type ReservationFormProps = {
 	allowOverlap: boolean
 	openingTime?: string | null
 	closingTime?: string | null
-	defaultDailyCapacity: number
+	enforceCapacity: boolean
+	defaultCapacityWash: number
+	defaultCapacityDetailing: number
 	services: AnyRecord[]
 	reservations: AnyRecord[]
-	dailyCapacities: AnyRecord[]
 	openQuickCreate: (kind: string, target: string) => void
 	updateReservationCustomer: (value: string) => void
 	updateReservationVehicle: (value: string) => void
@@ -80,10 +81,11 @@ export function ReservationForm({
 	allowOverlap,
 	openingTime,
 	closingTime,
-	defaultDailyCapacity,
+	enforceCapacity,
+	defaultCapacityWash,
+	defaultCapacityDetailing,
 	services,
 	reservations,
-	dailyCapacities,
 	openQuickCreate,
 	updateReservationCustomer,
 	updateReservationVehicle,
@@ -106,15 +108,17 @@ export function ReservationForm({
 		return scheduleAvailabilityForDay({
 			day: selectedDay,
 			allowOverlap,
-			defaultDailyCapacity,
-			dailyCapacities,
+			enforceCapacity,
+			defaultCapacityWash,
+			defaultCapacityDetailing,
 			reservations,
 			services,
 		})
 	}, [
 		allowOverlap,
-		dailyCapacities,
-		defaultDailyCapacity,
+		defaultCapacityDetailing,
+		defaultCapacityWash,
+		enforceCapacity,
 		reservations,
 		selectedDay,
 		services,
@@ -167,7 +171,7 @@ export function ReservationForm({
 		return result
 	}, [items, services])
 	const capacityWarning = useMemo(() => {
-		if (!availability) return null
+		if (!availability || !availability.enforceCapacity) return null
 		const issues: string[] = []
 		if (
 			selectedBuckets.wash > 0 &&
@@ -384,12 +388,15 @@ export function ReservationForm({
 				<div
 					className={`info-note${capacityWarning ? ' info-note--warning' : ''}`}
 				>
-					{capacityWarning ?? (
-						<>
-							{formatCapacityLabel(availability.wash, 'Lavado')} ·{' '}
-							{formatCapacityLabel(availability.detailing, 'Detailing')}
-						</>
-					)}
+					{capacityWarning ??
+						(availability.enforceCapacity ? (
+							<>
+								{formatCapacityLabel(availability.wash, 'Lavado')} ·{' '}
+								{formatCapacityLabel(availability.detailing, 'Detailing')}
+							</>
+						) : (
+							'Sin límite de cupos'
+						))}
 				</div>
 			) : null}
 			{useReservationTimes ? (

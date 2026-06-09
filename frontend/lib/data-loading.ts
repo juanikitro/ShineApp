@@ -39,7 +39,6 @@ export type DataSetKey =
 	| 'publicRequests'
 	| 'businessProfile'
 	| 'employees'
-	| 'dailyCapacities'
 
 export type DataLoadingScope = {
 	section: string
@@ -105,7 +104,7 @@ const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 	],
 	services: ['services', 'customers', 'vehicles'],
 	notifications: ['publicRequests', 'customers', 'vehicles', 'services'],
-	settings: ['businessProfile', 'employees', 'dailyCapacities', 'services'],
+	settings: ['businessProfile', 'employees', 'services'],
 }
 
 const shellDataSets: readonly DataSetKey[] = ['businessProfile', 'publicRequests']
@@ -127,7 +126,6 @@ const economyOnlyDataSets = new Set<DataSetKey>([
 	'publicRequests',
 	'businessProfile',
 	'employees',
-	'dailyCapacities',
 ])
 
 function isLoadDataSection(section: string): section is LoadDataSection {
