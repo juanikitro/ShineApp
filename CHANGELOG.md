@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-06-09
+- [Turnera: servicios desplegables, descripciones truncadas y contacto accionable](docs/registro/cambios/2026-06-09-turnera-desplegables-contacto-maps.md)
+
 ## 2026-06-08
 - [Vida y animaciones en el CRM](docs/registro/cambios/2026-06-08-vida-animaciones-crm.md)
 - [Deploy: documentar VAPID keys para push notifications](docs/registro/cambios/2026-06-08-vapid-keys-deploy-docs.md)

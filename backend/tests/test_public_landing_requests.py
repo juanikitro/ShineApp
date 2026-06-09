@@ -100,6 +100,24 @@ def test_public_landing_is_available_without_auth_and_hides_prices():
 
 
 @pytest.mark.django_db
+def test_public_landing_exposes_maps_url_when_configured():
+    business = create_business()
+    client = APIClient()
+
+    empty = client.get(reverse("public-landing", args=[business.slug]))
+    assert empty.status_code == 200
+    assert empty.data["business"]["maps_url"] == ""
+
+    profile = BusinessProfile.objects.get(business=business)
+    profile.maps_url = "https://maps.app.goo.gl/demo"
+    profile.save(update_fields=["maps_url", "updated_at"])
+
+    configured = client.get(reverse("public-landing", args=[business.slug]))
+    assert configured.status_code == 200
+    assert configured.data["business"]["maps_url"] == "https://maps.app.goo.gl/demo"
+
+
+@pytest.mark.django_db
 def test_public_landing_returns_not_found_when_business_is_inactive_or_disabled():
     business = create_business()
     client = APIClient()

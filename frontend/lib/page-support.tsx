@@ -204,6 +204,7 @@ function blankBusinessForm() {
 		contact_phone: '',
 		contact_email: '',
 		address: '',
+		maps_url: '',
 		default_quote_validity_days: '7',
 		default_quote_tax_rate: '0',
 		default_quote_discount_rate: '0',

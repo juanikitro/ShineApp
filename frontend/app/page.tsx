@@ -1293,6 +1293,7 @@ export default function Home() {
 					contact_phone: String(profile.contact_phone ?? ''),
 					contact_email: String(profile.contact_email ?? ''),
 					address: String(profile.address ?? ''),
+					maps_url: String(profile.maps_url ?? ''),
 					default_quote_validity_days: String(
 						profile.default_quote_validity_days ?? '7',
 					),
@@ -6294,6 +6295,7 @@ export default function Home() {
 			String(currentBusinessForm.contact_email ?? ''),
 		)
 		payload.append('address', String(currentBusinessForm.address ?? ''))
+		payload.append('maps_url', String(currentBusinessForm.maps_url ?? ''))
 		payload.append(
 			'default_quote_validity_days',
 			String(currentBusinessForm.default_quote_validity_days ?? '7'),
