@@ -116,6 +116,16 @@ function dayOffset(from: string, to: string) {
 	)
 }
 
+function monthRange(value: string, offset = 0) {
+	const date = parseIsoDate(value)
+	const year = date.getFullYear()
+	const month = date.getMonth() + offset
+	return {
+		from: toIsoDate(new Date(year, month, 1)),
+		to: toIsoDate(new Date(year, month + 1, 0)),
+	}
+}
+
 function formatDayName(value: string) {
 	return parseIsoDate(value).toLocaleDateString('es-AR', { weekday: 'short' })
 }
@@ -2084,6 +2094,7 @@ export {
 	fullPaymentAmountForOrder,
 	mergeStringValues,
 	money,
+	monthRange,
 	moveReservationToDay,
 	normalizedAmountInput,
 	normalizeExpenseCategoryTree,
