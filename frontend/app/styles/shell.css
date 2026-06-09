@@ -179,8 +179,33 @@
   width: 100%;
 }
 
+.nav-parent-header {
+  align-items: center;
+  display: flex;
+  gap: 2px;
+  width: 100%;
+}
+
 .nav button.nav-parent-button {
+  flex: 1 1 auto;
   justify-content: flex-start;
+  min-width: 0;
+  width: auto;
+}
+
+.nav button.nav-parent-toggle {
+  flex: 0 0 auto;
+  justify-content: center;
+  padding-inline: 8px;
+  width: auto;
+}
+
+.nav button.nav-parent-toggle::before {
+  content: none;
+}
+
+.sidebar[data-collapsed='true'] .nav button.nav-parent-button {
+  width: 100%;
 }
 
 .nav-parent-label {
@@ -1981,7 +2006,9 @@
   padding: 16px;
 }
 
-.metric span {
+/* Solo el label (hijo directo): el <strong> puede envolver el <span> de
+   AnimatedNumber, que debe conservar el tamano grande del numero, no el del label. */
+.metric > span {
   color: var(--shop-ink-soft);
   font-size: 12px;
   font-weight: 650;
@@ -1991,8 +2018,9 @@
 
 .metric strong {
   color: var(--shop-ink);
-  font-size: 26px;
+  font-size: 32px;
   letter-spacing: 0;
+  line-height: 1.15;
 }
 
 .metric small {
@@ -2192,7 +2220,7 @@
   border-color: rgba(234, 88, 12, 0.28);
 }
 
-.metric--attention span,
+.metric--attention > span,
 .metric--attention small {
   color: #9a3412;
 }
@@ -2406,7 +2434,7 @@
   border-color: rgba(251, 146, 60, 0.32);
 }
 
-.app-shell[data-theme='dark'] .metric--attention span,
+.app-shell[data-theme='dark'] .metric--attention > span,
 .app-shell[data-theme='dark'] .metric--attention small {
   color: #fed7aa;
 }
@@ -2704,7 +2732,7 @@
 }
 
 .cash-metrics-primary .cash-metric strong {
-  font-size: 34px;
+  font-size: 32px;
   line-height: 1.15;
 }
 
@@ -2733,7 +2761,9 @@
   padding: 16px;
 }
 
-.cash-economic-panel span {
+/* Solo el label (hijo directo del div): evita pisar el <span> del numero
+   (AnimatedNumber, dentro del <strong>) y las palabras resaltadas del parrafo. */
+.cash-economic-panel > div > span {
   color: var(--shop-ink-soft);
   display: block;
   font-size: 12px;
@@ -2744,7 +2774,7 @@
 .cash-economic-panel strong {
   color: var(--shop-ink);
   display: block;
-  font-size: 30px;
+  font-size: 32px;
   line-height: 1.15;
   margin-top: 4px;
 }
