@@ -21,8 +21,17 @@ from debts.models import Debt
 from finance.models import CashClosure, CashMovement, Payment
 from inventory.models import Material, MaterialConsumption, MaterialOpenUnit, MaterialPurchase
 from quotes.models import Quote, QuoteItem
-from scheduling.models import DailyCapacity, Reservation, ReservationItem
+from scheduling.models import Reservation, ReservationItem
 from workorders.models import WorkOrder
+
+
+def _set_global_capacity(wash, detailing):
+    profile = BusinessProfile.get_solo()
+    profile.default_capacity_wash = wash
+    profile.default_capacity_detailing = detailing
+    profile.save(
+        update_fields=["default_capacity_wash", "default_capacity_detailing"]
+    )
 
 
 @pytest.fixture
@@ -1349,9 +1358,7 @@ def test_employee_operational_endpoints_do_not_expose_money_fields(employee_clie
 @pytest.mark.django_db
 def test_reservation_capacity_blocks_overbooking(api_client, base_data):
     customer, vehicle, service = base_data
-    DailyCapacity.objects.create(
-        day=date(2026, 4, 28), max_slots_wash=1, max_slots_detailing=1
-    )
+    _set_global_capacity(1, 1)
     Reservation.objects.create(
         customer=customer,
         vehicle=vehicle,
@@ -1379,6 +1386,38 @@ def test_reservation_capacity_blocks_overbooking(api_client, base_data):
 
 
 @pytest.mark.django_db
+def test_reservation_capacity_not_enforced_when_limit_disabled(api_client, base_data):
+    customer, vehicle, service = base_data
+    _set_global_capacity(1, 1)
+    profile = BusinessProfile.get_solo()
+    profile.enforce_capacity_limit = False
+    profile.save(update_fields=["enforce_capacity_limit"])
+    Reservation.objects.create(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        day=date(2026, 4, 28),
+        start_time=time(10, 0),
+        status=Reservation.Status.CONFIRMED,
+    )
+
+    response = api_client.post(
+        reverse("reservation-list"),
+        {
+            "customer": customer.id,
+            "vehicle": vehicle.id,
+            "service": service.id,
+            "day": "2026-04-28",
+            "start_time": "14:00:00",
+            "status": Reservation.Status.PENDING,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201, response.data
+
+
+@pytest.mark.django_db
 def test_reservation_capacity_separates_wash_and_detailing(api_client, base_data):
     customer, vehicle, wash_service = base_data
     detailing_service = Service.objects.create(
@@ -1387,9 +1426,7 @@ def test_reservation_capacity_separates_wash_and_detailing(api_client, base_data
         base_price=Decimal("60000.00"),
         estimated_duration_minutes=180,
     )
-    DailyCapacity.objects.create(
-        day=date(2026, 4, 28), max_slots_wash=1, max_slots_detailing=1
-    )
+    _set_global_capacity(1, 1)
     Reservation.objects.create(
         customer=customer,
         vehicle=vehicle,
@@ -1548,9 +1585,7 @@ def test_confirm_action_reactivates_canceled_reservation(api_client, base_data):
 @pytest.mark.django_db
 def test_confirm_action_rejects_canceled_reservation_when_day_is_full(api_client, base_data):
     customer, vehicle, service = base_data
-    DailyCapacity.objects.create(
-        day=date(2026, 4, 28), max_slots_wash=1, max_slots_detailing=1
-    )
+    _set_global_capacity(1, 1)
     Reservation.objects.create(
         customer=customer,
         vehicle=vehicle,
@@ -1797,9 +1832,7 @@ def test_reservation_patch_can_move_it_to_another_day_with_capacity(api_client, 
         start_time=time(10, 0),
         status=Reservation.Status.CONFIRMED,
     )
-    DailyCapacity.objects.create(
-        day=date(2026, 4, 29), max_slots_wash=2, max_slots_detailing=2
-    )
+    _set_global_capacity(2, 2)
 
     response = api_client.patch(
         reverse("reservation-detail", args=[reservation.id]),
@@ -1824,9 +1857,7 @@ def test_reservation_patch_rejects_move_to_full_day_and_keeps_original_day(api_c
         start_time=time(10, 0),
         status=Reservation.Status.CONFIRMED,
     )
-    DailyCapacity.objects.create(
-        day=date(2026, 4, 29), max_slots_wash=1, max_slots_detailing=1
-    )
+    _set_global_capacity(1, 1)
     Reservation.objects.create(
         customer=customer,
         vehicle=vehicle,

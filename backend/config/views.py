@@ -435,6 +435,9 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "use_reservation_times",
             "show_stay_days_in_agenda",
             "allow_overlapping_reservations",
+            "enforce_capacity_limit",
+            "default_capacity_wash",
+            "default_capacity_detailing",
             "reservation_use_pending",
             "reservation_use_in_progress",
             "reservation_use_ready",
@@ -488,6 +491,16 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
     def validate_default_quote_validity_days(self, value):
         if value < 0:
             raise serializers.ValidationError("La validez no puede ser negativa.")
+        return value
+
+    def validate_default_capacity_wash(self, value):
+        if value < 0:
+            raise serializers.ValidationError("El cupo de lavado no puede ser negativo.")
+        return value
+
+    def validate_default_capacity_detailing(self, value):
+        if value < 0:
+            raise serializers.ValidationError("El cupo de detailing no puede ser negativo.")
         return value
 
     def validate_default_quote_terms(self, value):

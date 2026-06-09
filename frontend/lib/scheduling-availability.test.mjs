@@ -109,10 +109,9 @@ test('scheduleAvailabilityForDay computes used slots per bucket', () => {
 	const result = scheduleAvailabilityForDay({
 		day: '2026-08-12',
 		allowOverlap: false,
-		defaultDailyCapacity: 4,
-		dailyCapacities: [
-			{ day: '2026-08-12', max_slots_wash: 4, max_slots_detailing: 2 },
-		],
+		enforceCapacity: true,
+		defaultCapacityWash: 4,
+		defaultCapacityDetailing: 2,
 		reservations,
 		services,
 	})
@@ -122,7 +121,37 @@ test('scheduleAvailabilityForDay computes used slots per bucket', () => {
 	assert.equal(result.detailing.max_slots, 2)
 	assert.equal(result.detailing.used_slots, 1)
 	assert.equal(result.detailing.available_slots, 1)
+	assert.equal(result.enforceCapacity, true)
 	assert.equal(result.occupied.length, 2)
+})
+
+test('scheduleAvailabilityForDay uses global wash/detailing defaults every day', () => {
+	const services = [{ id: 1, service_type: 'wash' }]
+	const result = scheduleAvailabilityForDay({
+		day: '2026-09-01',
+		allowOverlap: false,
+		enforceCapacity: true,
+		defaultCapacityWash: 5,
+		defaultCapacityDetailing: 3,
+		reservations: [],
+		services,
+	})
+	assert.equal(result.wash.max_slots, 5)
+	assert.equal(result.detailing.max_slots, 3)
+	assert.equal(result.wash.available_slots, 5)
+})
+
+test('scheduleAvailabilityForDay propagates enforceCapacity flag when limit is off', () => {
+	const result = scheduleAvailabilityForDay({
+		day: '2026-09-01',
+		allowOverlap: false,
+		enforceCapacity: false,
+		defaultCapacityWash: 4,
+		defaultCapacityDetailing: 2,
+		reservations: [],
+		services: [{ id: 1, service_type: 'wash' }],
+	})
+	assert.equal(result.enforceCapacity, false)
 })
 
 test('formatCapacityLabel reports used vs max', () => {

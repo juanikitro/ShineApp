@@ -69,7 +69,6 @@ type FormModalKind =
 	| 'material-consumption'
 	| 'tool'
 	| 'employee'
-	| 'daily-capacity'
 
 type Section =
 	| 'dashboard'
@@ -223,6 +222,9 @@ function blankBusinessForm() {
 		use_reservation_times: true,
 		show_stay_days_in_agenda: true,
 		allow_overlapping_reservations: false,
+		enforce_capacity_limit: true,
+		default_capacity_wash: '8',
+		default_capacity_detailing: '4',
 		public_landing_enabled: true,
 		public_landing_intro: '',
 		allow_public_booking_requests: true,
@@ -678,11 +680,6 @@ const entityFeedbackTitles: Record<
 		created: 'Cotizacion creada',
 		updated: 'Cotizacion editada',
 		deleted: 'Cotizacion eliminada',
-	},
-	'daily-capacity': {
-		created: 'Capacidad creada',
-		updated: 'Capacidad editada',
-		deleted: 'Capacidad eliminada',
 	},
 }
 

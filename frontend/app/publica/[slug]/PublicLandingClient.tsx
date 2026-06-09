@@ -40,6 +40,7 @@ import { VEHICLE_TYPE_OPTIONS } from '@/lib/service-pricing'
 type PublicAvailabilityPayload = {
 	date: string
 	allow_overlapping: boolean
+	capacity_enforced: boolean
 	wash: AvailabilityBucket
 	detailing: AvailabilityBucket
 	occupied: AvailabilityOccupied[]
@@ -465,7 +466,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		form.preferred_day && form.preferred_day < today,
 	)
 	const capacityWarning = useMemo(() => {
-		if (!availability) return null
+		if (!availability || !availability.capacity_enforced) return null
 		const issues: string[] = []
 		if (
 			selectedBuckets.wash > 0 &&
@@ -1191,14 +1192,17 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 								capacityWarning ? 'public-form-error' : 'public-form-note'
 							}
 						>
-							{capacityWarning ?? (
-								<>
-									Cupo lavado: {availability.wash.used_slots}/
-									{availability.wash.max_slots} · Cupo detailing:{' '}
-									{availability.detailing.used_slots}/
-									{availability.detailing.max_slots}
-								</>
-							)}
+							{capacityWarning ??
+								(availability.capacity_enforced ? (
+									<>
+										Cupo lavado: {availability.wash.used_slots}/
+										{availability.wash.max_slots} · Cupo detailing:{' '}
+										{availability.detailing.used_slots}/
+										{availability.detailing.max_slots}
+									</>
+								) : (
+									'Sin límite de cupos'
+								))}
 						</div>
 					) : null}
 					<label>

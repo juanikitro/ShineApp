@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 from catalog.models import Service
 from core.models import BusinessAccount, BusinessProfile, UserProfile
 from customers.models import Customer, Vehicle
-from scheduling.models import DailyCapacity, Reservation
+from scheduling.models import Reservation
 
 
 @pytest.fixture
@@ -138,7 +138,7 @@ def test_non_overlapping_reservation_is_allowed(api_client, base_data):
     assert response.status_code == 201, response.data
 
 
-def _create_public_business(slug="overlap-test"):
+def _create_public_business(slug="overlap-test", capacity_wash=8, capacity_detailing=8):
     business = BusinessAccount.objects.create(name="Lavadero Test", slug=slug)
     BusinessProfile.objects.create(
         business=business,
@@ -147,6 +147,9 @@ def _create_public_business(slug="overlap-test"):
         allow_public_booking_requests=True,
         allow_public_quote_requests=True,
         allow_overlapping_reservations=False,
+        enforce_capacity_limit=True,
+        default_capacity_wash=capacity_wash,
+        default_capacity_detailing=capacity_detailing,
         opening_time=time(9, 0),
         closing_time=time(20, 0),
     )
@@ -155,7 +158,7 @@ def _create_public_business(slug="overlap-test"):
 
 @pytest.mark.django_db
 def test_public_availability_endpoint_returns_capacity_and_occupied():
-    business = _create_public_business()
+    business = _create_public_business(capacity_wash=2, capacity_detailing=1)
     service = Service.objects.create(
         business=business,
         name="Lavado",
@@ -171,12 +174,6 @@ def test_public_availability_endpoint_returns_capacity_and_occupied():
         brand="Fiat",
         model="Cronos",
         color="Negro",
-    )
-    DailyCapacity.objects.create(
-        business=business,
-        day=date(2026, 8, 12),
-        max_slots_wash=2,
-        max_slots_detailing=1,
     )
     Reservation.objects.create(
         business=business,
@@ -196,6 +193,7 @@ def test_public_availability_endpoint_returns_capacity_and_occupied():
     body = response.data
     assert body["date"] == "2026-08-12"
     assert body["allow_overlapping"] is False
+    assert body["capacity_enforced"] is True
     assert body["wash"]["max_slots"] == 2
     assert body["wash"]["used_slots"] == 1
     assert body["wash"]["available_slots"] == 1
@@ -206,7 +204,9 @@ def test_public_availability_endpoint_returns_capacity_and_occupied():
 
 @pytest.mark.django_db
 def test_public_request_rejected_when_capacity_full():
-    business = _create_public_business(slug="overlap-test-full")
+    business = _create_public_business(
+        slug="overlap-test-full", capacity_wash=1, capacity_detailing=1
+    )
     service = Service.objects.create(
         business=business,
         name="Lavado",
@@ -222,12 +222,6 @@ def test_public_request_rejected_when_capacity_full():
         brand="Fiat",
         model="Cronos",
         color="Negro",
-    )
-    DailyCapacity.objects.create(
-        business=business,
-        day=date(2026, 8, 12),
-        max_slots_wash=1,
-        max_slots_detailing=1,
     )
     Reservation.objects.create(
         business=business,
@@ -264,8 +258,13 @@ def test_public_request_rejected_when_capacity_full():
 
 
 @pytest.mark.django_db
-def test_public_request_rejects_overlapping_time():
-    business = _create_public_business(slug="overlap-test-time")
+def test_public_request_allowed_when_capacity_limit_disabled():
+    business = _create_public_business(
+        slug="overlap-test-no-limit", capacity_wash=1, capacity_detailing=1
+    )
+    profile = BusinessProfile.objects.get(business=business)
+    profile.enforce_capacity_limit = False
+    profile.save(update_fields=["enforce_capacity_limit"])
     service = Service.objects.create(
         business=business,
         name="Lavado",
@@ -282,11 +281,59 @@ def test_public_request_rejects_overlapping_time():
         model="Cronos",
         color="Negro",
     )
-    DailyCapacity.objects.create(
+    Reservation.objects.create(
         business=business,
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
         day=date(2026, 8, 12),
-        max_slots_wash=5,
-        max_slots_detailing=5,
+        start_time=time(10, 0),
+        estimated_duration_minutes=60,
+        status=Reservation.Status.CONFIRMED,
+    )
+
+    client = APIClient()
+    response = client.post(
+        reverse("public-landing-requests", args=[business.slug]),
+        {
+            "customer_name": "Otro cliente",
+            "customer_phone": "1199",
+            "customer_email": "otro@example.com",
+            "vehicle_license_plate": "xy987zw",
+            "vehicle_brand": "Fiat",
+            "vehicle_model": "Cronos",
+            "vehicle_type": "auto",
+            "preferred_day": "2026-08-12",
+            "preferred_time": "11:00:00",
+            "message": "",
+            "website": "",
+            "service_ids": [service.id],
+        },
+        format="json",
+    )
+    assert response.status_code == 201, response.data
+
+
+@pytest.mark.django_db
+def test_public_request_rejects_overlapping_time():
+    business = _create_public_business(
+        slug="overlap-test-time", capacity_wash=5, capacity_detailing=5
+    )
+    service = Service.objects.create(
+        business=business,
+        name="Lavado",
+        service_type=Service.ServiceType.WASH,
+        base_price=Decimal("10000"),
+        estimated_duration_minutes=60,
+    )
+    customer = Customer.objects.create(business=business, name="Cliente", phone="1234")
+    vehicle = Vehicle.objects.create(
+        business=business,
+        customer=customer,
+        license_plate="ab123cd",
+        brand="Fiat",
+        model="Cronos",
+        color="Negro",
     )
     Reservation.objects.create(
         business=business,
@@ -324,7 +371,9 @@ def test_public_request_rejects_overlapping_time():
 
 @pytest.mark.django_db
 def test_public_request_allows_overlap_when_setting_on():
-    business = _create_public_business(slug="overlap-test-on")
+    business = _create_public_business(
+        slug="overlap-test-on", capacity_wash=5, capacity_detailing=5
+    )
     profile = BusinessProfile.objects.get(business=business)
     profile.allow_overlapping_reservations = True
     profile.save(update_fields=["allow_overlapping_reservations"])
@@ -343,12 +392,6 @@ def test_public_request_allows_overlap_when_setting_on():
         brand="Fiat",
         model="Cronos",
         color="Negro",
-    )
-    DailyCapacity.objects.create(
-        business=business,
-        day=date(2026, 8, 12),
-        max_slots_wash=5,
-        max_slots_detailing=5,
     )
     Reservation.objects.create(
         business=business,

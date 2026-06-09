@@ -318,7 +318,8 @@ class PublicLandingRequestSerializer(serializers.ModelSerializer):
         attrs["services"] = ordered_services
 
         if preferred_day and request_type == PublicRequest.RequestType.BOOKING:
-            self._validate_capacity(business, preferred_day, ordered_services)
+            if profile.enforce_capacity_limit:
+                self._validate_capacity(business, preferred_day, ordered_services)
             if preferred_time and not profile.allow_overlapping_reservations:
                 duration_minutes = sum(
                     int(getattr(service, "estimated_duration_minutes", 0) or 0)

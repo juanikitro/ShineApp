@@ -15,6 +15,7 @@ export type ScheduleAvailability = {
 	wash: AvailabilityBucket
 	detailing: AvailabilityBucket
 	allowOverlap: boolean
+	enforceCapacity: boolean
 	occupied: AvailabilityOccupied[]
 }
 
@@ -107,8 +108,9 @@ export function buildTimeSlots(options: {
 export function scheduleAvailabilityForDay(options: {
 	day: string
 	allowOverlap: boolean
-	defaultDailyCapacity: number
-	dailyCapacities: AnyAvailabilityRecord[]
+	enforceCapacity: boolean
+	defaultCapacityWash: number
+	defaultCapacityDetailing: number
 	reservations: AnyAvailabilityRecord[]
 	services: AnyAvailabilityRecord[]
 	excludeReservationId?: number | string | null
@@ -125,15 +127,8 @@ export function scheduleAvailabilityForDay(options: {
 		const type = serviceTypeById.get(serviceId)
 		return type === 'detailing' ? 'detailing' : 'wash'
 	}
-	const capacityRow = options.dailyCapacities.find(
-		(row) => String(row.day) === options.day,
-	)
-	const maxWash = Number(
-		capacityRow?.max_slots_wash ?? options.defaultDailyCapacity,
-	)
-	const maxDetailing = Number(
-		capacityRow?.max_slots_detailing ?? options.defaultDailyCapacity,
-	)
+	const maxWash = Number(options.defaultCapacityWash)
+	const maxDetailing = Number(options.defaultCapacityDetailing)
 	const activeStatuses = new Set([
 		'pending',
 		'confirmed',
@@ -180,6 +175,7 @@ export function scheduleAvailabilityForDay(options: {
 			available_slots: Math.max(maxDetailing - usedDetailing, 0),
 		},
 		allowOverlap: options.allowOverlap,
+		enforceCapacity: options.enforceCapacity,
 		occupied,
 	}
 }
