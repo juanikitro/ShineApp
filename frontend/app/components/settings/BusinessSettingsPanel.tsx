@@ -273,6 +273,20 @@ export function BusinessSettingsPanel({
 						}
 					/>
 				</Field>
+				<Field label="Enlace de Google Maps">
+					<input
+						value={businessForm.maps_url}
+						name="business_maps_url"
+						type="url"
+						inputMode="url"
+						placeholder="https://maps.app.goo.gl/..."
+						onChange={(event) =>
+							onPatchBusinessForm({
+								maps_url: event.target.value,
+							})
+						}
+					/>
+				</Field>
 			</form>
 		</section>
 	)

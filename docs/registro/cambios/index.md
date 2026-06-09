@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Turnera: servicios desplegables, descripciones truncadas y contacto accionable](2026-06-09-turnera-desplegables-contacto-maps.md)
 - [Sidebar: la flechita despliega sin navegar; el item navega y despliega](2026-06-09-sidebar-chevron-toggle-independiente.md)
 - [Numeros principales del CRM a 32px (fix del cascade que los achicaba)](2026-06-09-fix-tamano-numeros-kpi.md)
 - [Dashboard: periodo mensual por defecto y navegacion entre meses (2026-06-09)](2026-06-09-dashboard-periodo-mensual.md)

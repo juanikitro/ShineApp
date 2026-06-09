@@ -14,21 +14,36 @@ vi.mock('@/lib/api', () => ({
 import { ApiResponseError, normalizeApiErrorPayload } from '@/lib/api-errors'
 import { PublicLandingClient } from './PublicLandingClient'
 
+const longNotes =
+	'Lavado premium con espuma activa, secado a mano, limpieza profunda de tapizados, perfumado interior y tratamiento ceramico de larga duracion para la carroceria.'
+
 const landingPayload = {
 	business: {
 		name: 'Lavadero Test',
 		slug: 'test',
-		logo_url: null,
+		logo_url: 'https://cdn.example.com/logo.png',
+		contact_phone: '11 6432-1234',
+		address: 'Av. Siempre Viva 742',
+		maps_url: 'https://maps.app.goo.gl/demo',
 		opening_time: null,
 		closing_time: null,
 	},
 	actions: { booking_requests: true, quote_requests: true },
+	display: { show_service_description: true, show_service_price: false },
 	services: [
 		{
 			id: 7,
 			name: 'Lavado Premium',
 			service_type: 'wash',
 			estimated_duration_minutes: null,
+			notes: longNotes,
+		},
+		{
+			id: 9,
+			name: 'Detailing Total',
+			service_type: 'detailing',
+			estimated_duration_minutes: null,
+			notes: 'Corto.',
 		},
 	],
 }
@@ -51,10 +66,10 @@ test('muestra el campo "Hora preferida" y el mensaje del backend cuando el submi
 	const user = userEvent.setup()
 	render(<PublicLandingClient slug="test" />)
 
-	await screen.findByRole('button', { name: /Lavado Premium/ })
+	await user.click(await screen.findByRole('button', { name: /Lavadero/ }))
+	await user.click(screen.getByRole('button', { name: /Lavado Premium/ }))
 	await user.type(screen.getByLabelText('Nombre'), 'Juan Pablo')
 	await user.type(screen.getByLabelText('Celular'), '1164321234')
-	await user.click(screen.getByRole('button', { name: /Lavado Premium/ }))
 	await user.click(screen.getByRole('button', { name: /Enviar solicitud/i }))
 
 	const alert = await screen.findByRole('alert')
@@ -70,7 +85,7 @@ test('validaciones locales muestran el mensaje sin listar campos', async () => {
 	const user = userEvent.setup()
 	render(<PublicLandingClient slug="test" />)
 
-	await screen.findByRole('button', { name: /Lavado Premium/ })
+	await screen.findByRole('button', { name: /Lavadero/ })
 	await user.type(screen.getByLabelText('Nombre'), 'Juan Pablo')
 	await user.type(screen.getByLabelText('Celular'), '1164321234')
 	await user.click(screen.getByRole('button', { name: /Enviar solicitud/i }))
@@ -78,4 +93,81 @@ test('validaciones locales muestran el mensaje sin listar campos', async () => {
 	const alert = await screen.findByRole('alert')
 	assert.match(alert.textContent ?? '', /Selecciona al menos un servicio/)
 	assert.equal(alert.querySelector('.alert-fields'), null)
+})
+
+test('los grupos de servicios arrancan colapsados y se abren al tocar el encabezado', async () => {
+	publicApiFetchMock.mockImplementationOnce(async () => landingPayload)
+
+	const user = userEvent.setup()
+	render(<PublicLandingClient slug="test" />)
+
+	const groupToggle = await screen.findByRole('button', { name: /Lavadero/ })
+	assert.equal(groupToggle.getAttribute('aria-expanded'), 'false')
+	assert.equal(screen.queryByRole('button', { name: /Lavado Premium/ }), null)
+
+	await user.click(groupToggle)
+	assert.equal(groupToggle.getAttribute('aria-expanded'), 'true')
+	assert.ok(screen.getByRole('button', { name: /Lavado Premium/ }))
+})
+
+test('las descripciones largas se truncan con "Ver mas" y se expanden', async () => {
+	publicApiFetchMock.mockImplementationOnce(async () => landingPayload)
+
+	const user = userEvent.setup()
+	const { container } = render(<PublicLandingClient slug="test" />)
+
+	await user.click(await screen.findByRole('button', { name: /Lavadero/ }))
+	const desc = container.querySelector('.public-service-desc small')
+	assert.equal(desc?.getAttribute('data-clamped'), 'true')
+
+	await user.click(screen.getByRole('button', { name: /Ver mas/i }))
+	assert.equal(desc?.getAttribute('data-clamped'), 'false')
+	assert.ok(screen.getByRole('button', { name: /Ver menos/i }))
+})
+
+test('las descripciones cortas no muestran el boton "Ver mas"', async () => {
+	publicApiFetchMock.mockImplementationOnce(async () => landingPayload)
+
+	const user = userEvent.setup()
+	render(<PublicLandingClient slug="test" />)
+
+	await user.click(await screen.findByRole('button', { name: /Detailing/ }))
+	assert.ok(screen.getByRole('button', { name: /Detailing Total/ }))
+	assert.equal(screen.queryByRole('button', { name: /Ver mas/i }), null)
+})
+
+test('el telefono abre WhatsApp y la direccion abre Google Maps', async () => {
+	publicApiFetchMock.mockImplementationOnce(async () => landingPayload)
+	render(<PublicLandingClient slug="test" />)
+
+	const whatsapp = await screen.findByRole('link', { name: /11 6432-1234/ })
+	assert.equal(whatsapp.getAttribute('href'), 'https://wa.me/541164321234')
+	assert.equal(whatsapp.getAttribute('target'), '_blank')
+	assert.match(whatsapp.getAttribute('rel') ?? '', /noopener/)
+
+	const maps = screen.getByRole('link', { name: /Av\. Siempre Viva 742/ })
+	assert.equal(maps.getAttribute('href'), 'https://maps.app.goo.gl/demo')
+})
+
+test('sin enlace de Maps, la direccion queda como texto plano', async () => {
+	const payload = {
+		...landingPayload,
+		business: { ...landingPayload.business, maps_url: undefined },
+	}
+	publicApiFetchMock.mockImplementationOnce(async () => payload)
+	render(<PublicLandingClient slug="test" />)
+
+	await screen.findByRole('button', { name: /Lavadero/ })
+	assert.equal(screen.queryByRole('link', { name: /Av\. Siempre Viva 742/ }), null)
+	assert.ok(screen.getByText(/Av\. Siempre Viva 742/))
+})
+
+test('muestra la inicial del negocio sin duplicar la imagen en la marca', async () => {
+	publicApiFetchMock.mockImplementationOnce(async () => landingPayload)
+	const { container } = render(<PublicLandingClient slug="test" />)
+
+	await screen.findByRole('button', { name: /Lavadero/ })
+	const brandMark = container.querySelector('.public-brand-mark')
+	assert.equal(brandMark?.textContent, 'L')
+	assert.equal(brandMark?.querySelector('img'), null)
 })
