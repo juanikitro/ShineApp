@@ -2029,6 +2029,25 @@
   line-height: 1.4;
 }
 
+.metric-spark {
+  margin-top: 2px;
+}
+
+.sparkline {
+  display: block;
+  height: 28px;
+  width: 100%;
+}
+
+.sparkline polyline {
+  fill: none;
+  stroke: var(--dashboard-spark-stroke);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
 .metric-grid-dashboard .metric {
   min-height: 128px;
 }
@@ -2121,6 +2140,26 @@
 .dashboard-aging-bars {
   display: grid;
   gap: 8px;
+}
+
+/* Proportion data-bar: a 3px track+fill strip pinned to the bottom of a row.
+   No overflow clip (would cut the card hover shadow); width via the --share var. */
+.dashboard-sharerow {
+  position: relative;
+}
+
+.dashboard-sharebar {
+  background: linear-gradient(
+    to right,
+    var(--dashboard-bar-fill) 0 var(--share, 0%),
+    var(--dashboard-bar-track) var(--share, 0%) 100%
+  );
+  bottom: 0;
+  height: 3px;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
 }
 
 .dashboard-aging-row,

@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.db.models import Count, DecimalField, Sum, Value
@@ -430,6 +430,155 @@ def dashboard_period_summary(business, date_from, date_to):
     }
 
 
+SERIES_DAILY_MAX_DAYS = 62
+
+SERIES_FLOW_KEYS = (
+    "billed_total",
+    "collected_total",
+    "material_cost_total",
+    "cashflow_income_total",
+    "cashflow_expense_total",
+)
+
+
+def series_local_day(value):
+    if isinstance(value, datetime):
+        return local_date_for_datetime(value)
+    return value
+
+
+def series_point(day, values):
+    return {
+        "date": day.isoformat(),
+        "billed_total": values["billed_total"],
+        "collected_total": values["collected_total"],
+        "estimated_margin_total": values["billed_total"] - values["material_cost_total"],
+        "cashflow_balance": values["cashflow_income_total"] - values["cashflow_expense_total"],
+    }
+
+
+def dashboard_period_series(business, date_from, date_to):
+    """Daily (or weekly for long ranges) time series of the flow metrics.
+
+    Each metric reuses the exact same rows/filters as ``dashboard_period_summary``
+    bucketed by local day, so ``sum(points[metric]) == summary[metric]`` always
+    holds. ``estimated_margin_total`` and ``cashflow_balance`` are derived per day.
+    Balance due is a point-in-time stock, not a flow, so it is intentionally absent.
+    """
+    total_days = (date_to - date_from).days + 1
+    if total_days < 1:
+        return {
+            "interval": "day",
+            "from": date_from.isoformat(),
+            "to": date_to.isoformat(),
+            "points": [],
+        }
+
+    daily = {
+        date_from + timedelta(days=offset): {key: ZERO for key in SERIES_FLOW_KEYS}
+        for offset in range(total_days)
+    }
+
+    work_orders = WorkOrder.objects.filter(
+        business=business,
+        created_at__date__gte=date_from,
+        created_at__date__lte=date_to,
+        reservation__status__in=WorkOrder.operational_statuses(),
+    )
+    for order in work_orders:
+        bucket = daily.get(series_local_day(order.created_at))
+        if bucket is not None:
+            bucket["billed_total"] += order.total_amount or ZERO
+
+    payments = Payment.objects.filter(
+        business=business,
+        paid_at__date__gte=date_from,
+        paid_at__date__lte=date_to,
+    )
+    for payment in payments:
+        bucket = daily.get(series_local_day(payment.paid_at))
+        if bucket is not None:
+            bucket["collected_total"] += payment.amount or ZERO
+
+    for consumption in MaterialConsumption.objects.filter(
+        business=business,
+        consumed_at__gte=date_from,
+        consumed_at__lte=date_to,
+    ):
+        bucket = daily.get(series_local_day(consumption.consumed_at))
+        if bucket is not None:
+            bucket["material_cost_total"] += consumption.estimated_total_cost or ZERO
+
+    for line in StockMovementLine.objects.filter(
+        movement__movement_type=StockMovement.MovementType.CONSUMPTION,
+        movement__business=business,
+        movement__occurred_on__gte=date_from,
+        movement__occurred_on__lte=date_to,
+    ).select_related("movement"):
+        bucket = daily.get(series_local_day(line.movement.occurred_on))
+        if bucket is not None:
+            bucket["material_cost_total"] += line.estimated_total_cost or ZERO
+
+    movements = CashMovement.objects.select_related(
+        "payment",
+        "material_purchase",
+        "stock_movement",
+        "debt",
+    ).filter(
+        business=business,
+        occurred_at__date__gte=date_from,
+        occurred_at__date__lte=date_to,
+    )
+    for movement in movements:
+        if not cash_movement_cashflow_effect(movement):
+            continue
+        bucket = daily.get(series_local_day(movement.occurred_at))
+        if bucket is None:
+            continue
+        if movement.movement_type == CashMovement.MovementType.INCOME:
+            bucket["cashflow_income_total"] += movement.amount
+        elif movement.movement_type == CashMovement.MovementType.EXPENSE:
+            bucket["cashflow_expense_total"] += movement.amount
+
+    for debt_payment in DebtPayment.objects.filter(
+        business=business,
+        paid_at__gte=date_from,
+        paid_at__lte=date_to,
+    ):
+        bucket = daily.get(series_local_day(debt_payment.paid_at))
+        if bucket is not None:
+            bucket["cashflow_expense_total"] += debt_payment.amount or ZERO
+
+    ordered_days = sorted(daily.keys())
+
+    if total_days <= SERIES_DAILY_MAX_DAYS:
+        return {
+            "interval": "day",
+            "from": date_from.isoformat(),
+            "to": date_to.isoformat(),
+            "points": [series_point(day, daily[day]) for day in ordered_days],
+        }
+
+    weekly = {}
+    weekly_order = []
+    for day in ordered_days:
+        week_index = (day - date_from).days // 7
+        bucket = weekly.get(week_index)
+        if bucket is None:
+            bucket = {"date": day, **{key: ZERO for key in SERIES_FLOW_KEYS}}
+            weekly[week_index] = bucket
+            weekly_order.append(week_index)
+        for key in SERIES_FLOW_KEYS:
+            bucket[key] += daily[day][key]
+
+    return {
+        "interval": "week",
+        "from": date_from.isoformat(),
+        "to": date_to.isoformat(),
+        "points": [series_point(weekly[idx]["date"], weekly[idx]) for idx in weekly_order],
+    }
+
+
 def dashboard_summary_has_activity(summary):
     activity_fields = [
         "billed_total",
@@ -790,6 +939,7 @@ class DashboardSummaryView(APIView):
                 "cost_breakdown": cost_breakdown_for(summary),
                 "comparison": comparison_for(summary, previous_summary, previous_has_activity),
                 "rankings": summary["rankings"],
+                "series": dashboard_period_series(business, date_from, date_to),
                 "data_quality": data_quality_for(current_has_activity, previous_has_activity),
                 **debt_summary,
                 "previous_period": {

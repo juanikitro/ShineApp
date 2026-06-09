@@ -3,6 +3,7 @@ import { ComponentPropsWithoutRef, ReactNode } from 'react'
 import { AnimatedNumber } from '@/app/components/motion/AnimatedNumber'
 
 import { cx } from '../utils'
+import { Sparkline } from './Sparkline'
 
 type MetricCardProps = ComponentPropsWithoutRef<'div'> & {
 	label: ReactNode
@@ -11,6 +12,7 @@ type MetricCardProps = ComponentPropsWithoutRef<'div'> & {
 	numericValue?: number
 	format?: (value: number) => string
 	animateValue?: boolean
+	sparkline?: number[]
 }
 
 export function MetricCard({
@@ -20,6 +22,7 @@ export function MetricCard({
 	numericValue,
 	format,
 	animateValue = true,
+	sparkline,
 	className,
 	...props
 }: MetricCardProps) {
@@ -32,6 +35,9 @@ export function MetricCard({
 			<span>{label}</span>
 			<strong>{renderedValue}</strong>
 			{hint ? <small>{hint}</small> : null}
+			{sparkline && sparkline.length >= 2 ? (
+				<Sparkline values={sparkline} className="metric-spark" />
+			) : null}
 		</div>
 	)
 }

@@ -13,6 +13,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Sidebar: la flechita despliega sin navegar; el item navega y despliega](2026-06-09-sidebar-chevron-toggle-independiente.md)
 - [Numeros principales del CRM a 32px (fix del cascade que los achicaba)](2026-06-09-fix-tamano-numeros-kpi.md)
 - [Dashboard: periodo mensual por defecto y navegacion entre meses (2026-06-09)](2026-06-09-dashboard-periodo-mensual.md)
+- [Dashboard: barras de proporcion y sparklines](2026-06-09-dashboard-barras-sparklines.md)
 - [Cupos globales de turnos con toggle de limite](2026-06-09-cupos-globales-turnos.md)
 - [Vida y animaciones en el CRM](2026-06-08-vida-animaciones-crm.md)
 - [Deploy: documentar VAPID keys para push notifications](2026-06-08-vapid-keys-deploy-docs.md)
