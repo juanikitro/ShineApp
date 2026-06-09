@@ -1,11 +1,13 @@
 from decimal import Decimal
 
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Sum
 from django.utils import timezone
 
+from core.soft_delete import SoftDeleteMixin
 
-class WorkOrder(models.Model):
+
+class WorkOrder(SoftDeleteMixin):
     class Status(models.TextChoices):
         PENDING = "pending", "Pendiente"
         CONFIRMED = "confirmed", "Confirmada"
@@ -30,7 +32,7 @@ class WorkOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["-created_at"]
         indexes = [
             models.Index(
@@ -77,6 +79,13 @@ class WorkOrder(models.Model):
             )
             if "reservation" in self._state.fields_cache:
                 self.reservation.status = requested_status
+
+    def delete(self, using=None, keep_parents=False):
+        with transaction.atomic():
+            for payment in list(self.payments.all()):
+                payment.delete()
+            self.deleted_at = timezone.now()
+            self.save(update_fields=["deleted_at", "updated_at"])
 
     @property
     def paid_amount(self):

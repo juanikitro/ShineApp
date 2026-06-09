@@ -11,6 +11,7 @@ from quotes.serializers import QuoteSerializer
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
 from core.models import BusinessProfile
 from core.permissions import business_from_request
+from finance.cash import cash_day, ensure_cash_day_open
 from workorders.metrics import build_work_order_financial_metrics
 
 from .models import DETAILING_BUCKET, WASH_BUCKET, DailyCapacity, Reservation
@@ -84,6 +85,34 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
                 {"detail": "Solo se pueden eliminar reservas canceladas."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        try:
+            work_order = reservation.work_order
+        except ObjectDoesNotExist:
+            work_order = None
+        has_inventory_links = reservation.stock_movements.exists() or (
+            work_order is not None
+            and (
+                work_order.material_consumptions.exists()
+                or work_order.stock_movements.exists()
+            )
+        )
+        if has_inventory_links:
+            return response.Response(
+                {
+                    "detail": (
+                        "La reserva tiene movimientos de inventario asociados. "
+                        "Revertilos antes de eliminarla."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if work_order is not None:
+            for payment in work_order.payments.all():
+                ensure_cash_day_open(
+                    cash_day(payment.paid_at),
+                    field="paid_at",
+                    business=payment.business,
+                )
         return super().destroy(request, *args, **kwargs)
 
     @decorators.action(detail=True, methods=["post"])

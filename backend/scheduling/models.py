@@ -1,7 +1,11 @@
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import models
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import models, transaction
+from django.utils import timezone
+
+from core.soft_delete import SoftDeleteMixin
 
 
 WASH_BUCKET = "wash"
@@ -41,7 +45,7 @@ class DailyCapacity(models.Model):
         super().save(*args, **kwargs)
 
 
-class Reservation(models.Model):
+class Reservation(SoftDeleteMixin):
     class Status(models.TextChoices):
         PENDING = "pending", "Pendiente"
         CONFIRMED = "confirmed", "Confirmada"
@@ -64,7 +68,7 @@ class Reservation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["day", "start_time", "id"]
         indexes = [
             models.Index(
@@ -89,6 +93,20 @@ class Reservation(models.Model):
         from .services import ensure_reservation_work_order
 
         ensure_reservation_work_order(self)
+
+    def delete(self, using=None, keep_parents=False):
+        with transaction.atomic():
+            try:
+                work_order = self.work_order
+            except ObjectDoesNotExist:
+                work_order = None
+            if work_order is not None:
+                work_order.delete()
+            for item in list(self.items.all()):
+                item.delete()
+            self._skip_work_order_sync = True
+            self.deleted_at = timezone.now()
+            self.save(update_fields=["deleted_at", "updated_at"])
 
     @property
     def service_items(self):
@@ -230,7 +248,7 @@ class Reservation(models.Model):
         return bucket_for_service_type(getattr(service, "service_type", None))
 
 
-class ReservationItem(models.Model):
+class ReservationItem(SoftDeleteMixin):
     reservation = models.ForeignKey(Reservation, related_name="items", on_delete=models.CASCADE)
     service = models.ForeignKey("catalog.Service", null=True, blank=True, on_delete=models.SET_NULL)
     description = models.CharField(max_length=180)
@@ -238,7 +256,7 @@ class ReservationItem(models.Model):
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
     line_total = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
 
-    class Meta:
+    class Meta(SoftDeleteMixin.Meta):
         ordering = ["id"]
 
     def save(self, *args, **kwargs):

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Car } from 'lucide-react'
+import { Car, Users } from 'lucide-react'
 import { test } from 'vitest'
 
 import { AppBrand } from './AppBrand'
@@ -60,6 +60,44 @@ test('SidebarNav exposes active state, collapsed labels and capped badges', asyn
 	assert.equal(screen.queryByText('Vehiculos'), null)
 	assert.equal(screen.getByLabelText('Navegacion principal').getAttribute('data-collapsed'), 'true')
 	assert.equal(screen.getByLabelText('Navegacion principal').getAttribute('data-mobile-open'), 'true')
+})
+
+test('SidebarNav chevron toggles a group without navigating, while the item navigates and opens', async () => {
+	const user = userEvent.setup()
+	const selected: string[] = []
+
+	render(
+		<SidebarNav
+			items={[
+				{
+					key: 'customers',
+					label: 'Clientes',
+					icon: Users,
+					children: [{ key: 'vehicles', label: 'Vehiculos', icon: Car }],
+				},
+			]}
+			active="dashboard"
+			onChange={(key) => selected.push(key)}
+		/>,
+	)
+
+	// Group starts collapsed because neither it nor its children are active.
+	assert.equal(screen.queryByRole('button', { name: 'Vehiculos' }), null)
+
+	// Clicking the chevron opens the group without navigating.
+	await user.click(screen.getByRole('button', { name: 'Expandir Clientes' }))
+	assert.ok(screen.getByRole('button', { name: 'Vehiculos' }))
+	assert.deepEqual(selected, [])
+
+	// Clicking it again collapses the group, still without navigating.
+	await user.click(screen.getByRole('button', { name: 'Contraer Clientes' }))
+	assert.equal(screen.queryByRole('button', { name: 'Vehiculos' }), null)
+	assert.deepEqual(selected, [])
+
+	// Clicking the item itself navigates to its page and opens the group.
+	await user.click(screen.getByRole('button', { name: 'Clientes' }))
+	assert.deepEqual(selected, ['customers'])
+	assert.ok(screen.getByRole('button', { name: 'Vehiculos' }))
 })
 
 test('AppShell and PageHeader render structured workspace regions', () => {

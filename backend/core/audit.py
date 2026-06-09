@@ -226,9 +226,11 @@ class AuditedModelViewSetMixin:
         entity = audit_entity_payload(instance)
         response = super().destroy(request, *args, **kwargs)
         after = None
-        if instance.pk and instance.__class__.objects.filter(pk=instance.pk).exists():
-            instance.refresh_from_db()
-            after = audit_snapshot(instance)
+        if instance.pk:
+            row_manager = getattr(instance.__class__, "all_objects", instance.__class__.objects)
+            row = row_manager.filter(pk=instance.pk).first()
+            if row is not None:
+                after = audit_snapshot(row)
         record_audit_event(
             request=request,
             action="delete",

@@ -1596,6 +1596,174 @@ def test_delete_canceled_reservation_removes_it(api_client, base_data):
 
 
 @pytest.mark.django_db
+def test_delete_canceled_reservation_with_payment_open_cash_succeeds(api_client, base_data):
+    customer, vehicle, service = base_data
+    order = create_work_order(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        total_amount=Decimal("15000.00"),
+    )
+    payment_response = api_client.post(
+        reverse("payment-list"),
+        {
+            "work_order": order.id,
+            "amount": "5000.00",
+            "payment_type": "deposit",
+            "method": "cash",
+        },
+        format="json",
+    )
+    assert payment_response.status_code == 201
+    payment_id = payment_response.data["id"]
+    order.reservation.status = Reservation.Status.CANCELED
+    order.reservation.save(update_fields=["status", "updated_at"])
+
+    delete_response = api_client.delete(reverse("reservation-detail", args=[order.reservation_id]))
+
+    assert delete_response.status_code == 204
+    assert not Reservation.objects.filter(pk=order.reservation_id).exists()
+    assert not WorkOrder.objects.filter(pk=order.pk).exists()
+    assert not Payment.objects.filter(pk=payment_id).exists()
+    assert not CashMovement.objects.filter(payment_id=payment_id).exists()
+
+
+@pytest.mark.django_db
+def test_delete_canceled_reservation_with_payment_closed_cash_returns_400(api_client, base_data):
+    customer, vehicle, service = base_data
+    order = create_work_order(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        total_amount=Decimal("15000.00"),
+    )
+    payment_response = api_client.post(
+        reverse("payment-list"),
+        {
+            "work_order": order.id,
+            "amount": "5000.00",
+            "payment_type": "deposit",
+            "method": "cash",
+        },
+        format="json",
+    )
+    assert payment_response.status_code == 201
+    payment_id = payment_response.data["id"]
+    payment = Payment.objects.get(pk=payment_id)
+    closed_day = payment.paid_at.date() if hasattr(payment.paid_at, "date") else payment.paid_at
+    CashClosure.objects.create(
+        day=closed_day,
+        total_income=Decimal("5000.00"),
+        total_expense=Decimal("0.00"),
+        balance=Decimal("5000.00"),
+    )
+    order.reservation.status = Reservation.Status.CANCELED
+    order.reservation.save(update_fields=["status", "updated_at"])
+
+    delete_response = api_client.delete(reverse("reservation-detail", args=[order.reservation_id]))
+
+    assert delete_response.status_code == 400
+    assert "paid_at" in delete_response.data
+    assert Reservation.objects.filter(pk=order.reservation_id).exists()
+    assert WorkOrder.objects.filter(pk=order.pk).exists()
+    assert Payment.objects.filter(pk=payment_id).exists()
+    assert CashMovement.objects.filter(payment_id=payment_id).exists()
+
+
+@pytest.mark.django_db
+def test_delete_canceled_reservation_soft_deletes_cascade_entities(api_client, base_data):
+    customer, vehicle, service = base_data
+    order = create_work_order(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        total_amount=Decimal("15000.00"),
+    )
+    payment_response = api_client.post(
+        reverse("payment-list"),
+        {
+            "work_order": order.id,
+            "amount": "5000.00",
+            "payment_type": "deposit",
+            "method": "cash",
+        },
+        format="json",
+    )
+    payment_id = payment_response.data["id"]
+    movement = CashMovement.objects.get(payment_id=payment_id)
+    order.reservation.status = Reservation.Status.CANCELED
+    order.reservation.save(update_fields=["status", "updated_at"])
+
+    delete_response = api_client.delete(reverse("reservation-detail", args=[order.reservation_id]))
+
+    assert delete_response.status_code == 204
+    reservation_dead = Reservation.all_objects.get(pk=order.reservation_id)
+    assert reservation_dead.deleted_at is not None
+    work_order_dead = WorkOrder.all_objects.get(pk=order.pk)
+    assert work_order_dead.deleted_at is not None
+    payment_dead = Payment.all_objects.get(pk=payment_id)
+    assert payment_dead.deleted_at is not None
+    movement_dead = CashMovement.all_objects.get(pk=movement.pk)
+    assert movement_dead.deleted_at is not None
+
+
+@pytest.mark.django_db
+def test_vehicle_unique_license_plate_allows_recreate_after_soft_delete(api_client, base_data):
+    customer, vehicle, _service = base_data
+    plate = vehicle.license_plate
+
+    delete_response = api_client.delete(reverse("vehicle-detail", args=[vehicle.id]))
+    assert delete_response.status_code == 204
+
+    create_response = api_client.post(
+        reverse("vehicle-list"),
+        {
+            "customer": customer.id,
+            "license_plate": plate,
+            "brand": "Ford",
+            "model": "EcoSport",
+            "color": "Negro",
+        },
+        format="json",
+    )
+    assert create_response.status_code == 201, create_response.data
+    assert create_response.data["license_plate"] == plate.upper()
+
+
+@pytest.mark.django_db
+def test_delete_canceled_reservation_with_stock_consumption_returns_400(api_client, base_data):
+    customer, vehicle, service = base_data
+    order = create_work_order(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        total_amount=Decimal("15000.00"),
+    )
+    material = Material.objects.create(
+        name="Shampoo",
+        unit="ml",
+        stock_quantity=Decimal("1000.00"),
+        estimated_unit_cost=Decimal("2.50"),
+    )
+    MaterialConsumption.objects.create(
+        work_order=order,
+        material=material,
+        consumed_at=date(2026, 4, 28),
+        quantity=Decimal("100.00"),
+        estimated_unit_cost=Decimal("2.50"),
+        estimated_total_cost=Decimal("250.00"),
+    )
+    order.reservation.status = Reservation.Status.CANCELED
+    order.reservation.save(update_fields=["status", "updated_at"])
+
+    delete_response = api_client.delete(reverse("reservation-detail", args=[order.reservation_id]))
+
+    assert delete_response.status_code == 400
+    assert "inventario" in str(delete_response.data).lower()
+    assert Reservation.objects.filter(pk=order.reservation_id).exists()
+
+
+@pytest.mark.django_db
 def test_delete_non_canceled_reservation_is_rejected(api_client, base_data):
     customer, vehicle, service = base_data
     for active_status in (
