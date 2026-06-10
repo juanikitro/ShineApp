@@ -76,6 +76,7 @@ nav:
   - Diseno y UI:
       - Resumen de diseno: design-brief.md
       - Sistema de diseno: design-system.md
+      - Patron de dashboards: design-dashboard-pattern.md
       - Inspiracion: inspiration.md
       - Checklist de revision UI: ui-review-checklist.md
       - Materiales y unidades: materiales-unidades-abiertas.md
