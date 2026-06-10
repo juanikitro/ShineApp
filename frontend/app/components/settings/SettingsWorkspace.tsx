@@ -8,9 +8,9 @@ import {
 } from 'react'
 
 import {
+	ArrowLeft,
 	CalendarDays,
 	ChevronDown,
-	Eye,
 	FileText,
 	Pencil,
 	Plus,
@@ -23,6 +23,7 @@ import changelogData from '@/app/data/changelog.generated.json'
 
 import { BusinessSettingsPanel } from '@/app/components/settings/BusinessSettingsPanel'
 import { TurneraSettingsPanel } from '@/app/components/settings/TurneraSettingsPanel'
+import { AuditLogCard } from '@/app/components/ui/AuditLogCard'
 import { Empty, LoadingState } from '@/app/components/ui/Empty'
 import { Field } from '@/app/components/ui/Field'
 import { MetricCard } from '@/app/components/ui/MetricCard'
@@ -37,13 +38,9 @@ import {
 import {
 	DataList,
 	formatDateTimeLabel,
-	formatFullDateLabel,
 	type AnyRecord,
 } from '@/lib/page-support'
 import {
-	auditActorLabel,
-	auditChangeRows,
-	type AuditLogEntry,
 	type AuditLogFilters,
 } from '@/lib/audit-log'
 
@@ -89,6 +86,10 @@ type SettingsWorkspaceProps = {
 	reservationUseReady: boolean
 	reservationUseCanceled: boolean
 	employees: AnyRecord[]
+	selectedEmployee: AnyRecord | null
+	employeeAuditLogs: AnyRecord[]
+	employeeAuditLogsLoading: boolean
+	employeeAuditLogsError: string | null
 	activeEmployeeCount: number
 	inactiveEmployeeCount: number
 	auditFilters: AuditLogFilters
@@ -113,6 +114,10 @@ type SettingsWorkspaceProps = {
 		subcategory: string,
 	) => void
 	onOpenEmployeeForm: () => void
+	onSelectEmployee: (employee: AnyRecord) => void
+	onDeselectEmployee: () => void
+	onChangeEmployeePassword: (pk: number | string, newPassword: string) => void
+	onToggleEmployeeActive: (pk: number | string, isActive: boolean) => void
 	onRefreshData: () => void
 	onRefreshAuditLogs: () => void
 	onApplyAuditFilters: (event: FormEvent) => void
@@ -149,6 +154,10 @@ export function SettingsWorkspace({
 	reservationUseReady,
 	reservationUseCanceled,
 	employees,
+	selectedEmployee,
+	employeeAuditLogs,
+	employeeAuditLogsLoading,
+	employeeAuditLogsError,
 	activeEmployeeCount,
 	inactiveEmployeeCount,
 	auditFilters,
@@ -169,6 +178,10 @@ export function SettingsWorkspace({
 	onEditExpenseClassification,
 	onDeleteExpenseClassification,
 	onOpenEmployeeForm,
+	onSelectEmployee,
+	onDeselectEmployee,
+	onChangeEmployeePassword,
+	onToggleEmployeeActive,
 	onRefreshData,
 	onRefreshAuditLogs,
 	onApplyAuditFilters,
@@ -259,10 +272,21 @@ export function SettingsWorkspace({
 				{settingsSection === 'users' ? (
 					<UsersSettingsPanel
 						activeEmployeeCount={activeEmployeeCount}
+						currentUserId={currentUserId}
 						employees={employees}
+						employeeAuditLogs={employeeAuditLogs}
+						employeeAuditLogsError={employeeAuditLogsError}
+						employeeAuditLogsLoading={employeeAuditLogsLoading}
 						inactiveEmployeeCount={inactiveEmployeeCount}
+						selectedEmployee={selectedEmployee}
+						onChangeEmployeePassword={onChangeEmployeePassword}
+						onDeselectEmployee={onDeselectEmployee}
 						onOpenEmployeeForm={onOpenEmployeeForm}
 						onRefreshData={onRefreshData}
+						onSelectEmployee={onSelectEmployee}
+						onToggleEmployeeActive={onToggleEmployeeActive}
+						onAuditActionLabel={onAuditActionLabel}
+						onAuditModuleLabel={onAuditModuleLabel}
 					/>
 				) : null}
 				{settingsSection === 'history' ? (
@@ -829,23 +853,169 @@ function DailyCapacitiesPanel({
 
 function UsersSettingsPanel({
 	activeEmployeeCount,
+	currentUserId,
 	employees,
+	employeeAuditLogs,
+	employeeAuditLogsError,
+	employeeAuditLogsLoading,
 	inactiveEmployeeCount,
+	selectedEmployee,
+	onChangeEmployeePassword,
+	onDeselectEmployee,
 	onOpenEmployeeForm,
 	onRefreshData,
+	onSelectEmployee,
+	onToggleEmployeeActive,
+	onAuditActionLabel,
+	onAuditModuleLabel,
 }: {
 	activeEmployeeCount: number
+	currentUserId?: number | string | null
 	employees: AnyRecord[]
+	employeeAuditLogs: AnyRecord[]
+	employeeAuditLogsError: string | null
+	employeeAuditLogsLoading: boolean
 	inactiveEmployeeCount: number
+	selectedEmployee: AnyRecord | null
+	onChangeEmployeePassword: (pk: number | string, newPassword: string) => void
+	onDeselectEmployee: () => void
 	onOpenEmployeeForm: () => void
 	onRefreshData: () => void
+	onSelectEmployee: (employee: AnyRecord) => void
+	onToggleEmployeeActive: (pk: number | string, isActive: boolean) => void
+	onAuditActionLabel: (action: string) => string
+	onAuditModuleLabel: (module: string) => string
 }) {
+	const [newPassword, setNewPassword] = useState('')
+	const [confirmPassword, setConfirmPassword] = useState('')
+	const [passwordError, setPasswordError] = useState<string | null>(null)
+	const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null)
+
+	function handlePasswordSubmit(event: FormEvent) {
+		event.preventDefault()
+		if (newPassword !== confirmPassword) {
+			setPasswordError('Las contraseñas no coinciden')
+			return
+		}
+		setPasswordError(null)
+		onChangeEmployeePassword(selectedEmployee!.id, newPassword)
+		setNewPassword('')
+		setConfirmPassword('')
+	}
+
+	if (selectedEmployee) {
+		return (
+			<section className="panel">
+				<div className="panel-head">
+					<div>
+						<span className="panel-kicker">Equipo y permisos</span>
+						<h2>{selectedEmployee.username}</h2>
+						<p>
+							{selectedEmployee.email || 'Sin email'} -{' '}
+							{selectedEmployee.is_active ? 'Activo' : 'Inactivo'}
+						</p>
+					</div>
+					<div className="settings-action-rail">
+						<div className="settings-primary-actions">
+							<button
+								type="button"
+								className={selectedEmployee.is_active ? 'danger' : 'primary'}
+								onClick={() =>
+									onToggleEmployeeActive(
+										selectedEmployee.id,
+										selectedEmployee.is_active,
+									)
+								}
+							>
+								{selectedEmployee.is_active ? 'Desactivar' : 'Activar'}
+							</button>
+						</div>
+						<div className="settings-secondary-actions">
+							<button type="button" className="ghost" onClick={onDeselectEmployee}>
+								<ArrowLeft size={16} />
+								Volver
+							</button>
+						</div>
+					</div>
+				</div>
+
+				<section className="employee-detail-section">
+					<h3 className="employee-detail-heading">Cambiar contraseña</h3>
+					<form className="form-grid" onSubmit={handlePasswordSubmit}>
+						<div className="form-row">
+							<Field label="Nueva contraseña">
+								<input
+									type="password"
+									value={newPassword}
+									onChange={(e) => setNewPassword(e.target.value)}
+									required
+									minLength={8}
+								/>
+							</Field>
+							<Field label="Confirmar contraseña">
+								<input
+									type="password"
+									value={confirmPassword}
+									onChange={(e) => setConfirmPassword(e.target.value)}
+									required
+									minLength={8}
+								/>
+							</Field>
+						</div>
+						{passwordError ? (
+							<p className="employee-password-error">{passwordError}</p>
+						) : null}
+						<div className="record-actions">
+							<button type="submit" className="primary">
+								<Pencil size={16} />
+								Actualizar contraseña
+							</button>
+						</div>
+					</form>
+				</section>
+
+				<section className="employee-detail-section">
+					<h3 className="employee-detail-heading">Historial de acciones</h3>
+					{employeeAuditLogsLoading ? (
+						<LoadingState
+							text="Cargando historial..."
+							hint="Trayendo los eventos registrados para este empleado."
+						/>
+					) : employeeAuditLogsError ? (
+						<div className="record-sub employee-audit-error">
+							{employeeAuditLogsError}
+						</div>
+					) : employeeAuditLogs.length ? (
+						<div className="records audit-log-list">
+							{employeeAuditLogs.map((item) => (
+								<AuditLogCard
+									key={item.id}
+									item={item}
+									expanded={expandedAuditId === String(item.id)}
+									currentUserId={currentUserId}
+									onToggle={setExpandedAuditId}
+									onAuditActionLabel={onAuditActionLabel}
+									onAuditModuleLabel={onAuditModuleLabel}
+								/>
+							))}
+						</div>
+					) : (
+						<Empty
+							text="Sin acciones registradas para este empleado."
+							hint="Las acciones del empleado apareceran aqui cuando se registren."
+						/>
+					)}
+				</section>
+			</section>
+		)
+	}
+
 	return (
 		<section className="panel">
 			<div className="panel-head">
 				<div>
 					<span className="panel-kicker">Equipo y permisos</span>
-					<h2>Empleados activos</h2>
+					<h2>Empleados</h2>
 					<p>
 						Usuarios operativos que acceden al CRM con permisos de empleado.
 					</p>
@@ -879,6 +1049,17 @@ function UsersSettingsPanel({
 								subtitle={`${item.email || 'Sin email'} - ${
 									item.is_active ? 'Activo' : 'Inactivo'
 								}`}
+								actions={
+									<button
+										type="button"
+										className="ghost"
+										onClick={() => onSelectEmployee(item)}
+										aria-label={`Ver detalle de ${item.username}`}
+									>
+										<Pencil size={16} />
+										Editar
+									</button>
+								}
 							>
 								<div className="record-sub">
 									Rol empleado - Alta {formatDateTimeLabel(item.date_joined)}
@@ -942,72 +1123,6 @@ function HistorySettingsPanel({
 	onToggleAuditLog: (id: string | null) => void
 	onUpdateAuditFilter: (key: keyof AuditLogFilters, value: string) => void
 }) {
-	function auditFieldLabel(field: string) {
-		return field.replaceAll('_', ' ')
-	}
-
-	function renderAuditLogCard(item: AnyRecord) {
-		const itemId = String(item.id)
-		const expanded = expandedAuditLogId === itemId
-		const rows = auditChangeRows(item.changes ?? {})
-		const actorLabel = auditActorLabel(item as AuditLogEntry, currentUserId)
-		return (
-			<RecordCard className="audit-log-card" key={item.id}>
-				<RecordCardHeader
-					title={
-						<>
-							{onAuditActionLabel(String(item.action ?? ''))} -{' '}
-							{item.entity_label || item.entity_type || 'Registro'}
-						</>
-					}
-					subtitle={
-						<>
-							{onAuditModuleLabel(String(item.module ?? ''))} -{' '}
-							{String(item.entity_type ?? '')}
-							{item.entity_id ? ` #${item.entity_id}` : ''}
-						</>
-					}
-					actions={
-						<button
-							type="button"
-							className="ghost"
-							onClick={() => onToggleAuditLog(expanded ? null : itemId)}
-						>
-							<Eye size={16} />
-							{expanded ? 'Ocultar' : 'Detalle'}
-						</button>
-					}
-				>
-					<div className="record-sub">
-						{formatDateTimeLabel(item.created_at)} - {actorLabel}
-					</div>
-				</RecordCardHeader>
-				{expanded ? (
-					<div className="audit-change-table">
-						<div className="audit-change-row audit-change-row--head">
-							<span>Campo</span>
-							<span>Antes</span>
-							<span>Despues</span>
-						</div>
-						{rows.length ? (
-							rows.map((row) => (
-								<div className="audit-change-row" key={row.field}>
-									<span>{auditFieldLabel(row.field)}</span>
-									<strong>{row.before}</strong>
-									<strong>{row.after}</strong>
-								</div>
-							))
-						) : (
-							<div className="record-sub audit-empty-change">
-								Accion registrada sin cambios campo por campo.
-							</div>
-						)}
-					</div>
-				) : null}
-			</RecordCard>
-		)
-	}
-
 	return (
 		<section className="panel audit-log-panel">
 			<div className="panel-head">
@@ -1114,7 +1229,17 @@ function HistorySettingsPanel({
 			) : (
 				<div className="records audit-log-list">
 					{auditLogs.length ? (
-						auditLogs.map(renderAuditLogCard)
+						auditLogs.map((item) => (
+							<AuditLogCard
+								key={item.id}
+								item={item}
+								expanded={expandedAuditLogId === String(item.id)}
+								currentUserId={currentUserId}
+								onToggle={onToggleAuditLog}
+								onAuditActionLabel={onAuditActionLabel}
+								onAuditModuleLabel={onAuditModuleLabel}
+							/>
+						))
 					) : (
 						<Empty
 							text="Sin acciones registradas para estos filtros."

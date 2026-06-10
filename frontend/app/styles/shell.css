@@ -3573,6 +3573,28 @@
   padding: 10px 12px;
 }
 
+.employee-detail-section {
+  border-top: 1px solid var(--shop-border);
+  margin-top: 20px;
+  padding-top: 16px;
+}
+
+.employee-detail-heading {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.employee-password-error {
+  color: var(--color-danger, #c0392b);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.employee-audit-error {
+  color: var(--color-danger, #c0392b);
+}
+
 .material-kpi {
   background: var(--shop-surface-raised);
   border: 1px solid var(--shop-border);
