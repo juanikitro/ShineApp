@@ -12,7 +12,8 @@ body {
   position: relative;
   background: var(--color-canvas);
   color: var(--shop-ink);
-  font-family: "Segoe UI", "Aptos", system-ui, sans-serif;
+  font-family: var(--font-sans, 'Montserrat'), -apple-system, BlinkMacSystemFont,
+               'Segoe UI', system-ui, sans-serif;
   letter-spacing: 0;
 }
 
@@ -79,23 +80,23 @@ button.ghost:hover:not(:disabled) {
 button {
   align-items: center;
   background: var(--color-surface);
-  border: 1px solid var(--shop-border);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-  color: var(--shop-ink);
+  color: var(--color-text);
   cursor: pointer;
   display: inline-flex;
   flex: 0 1 auto;
-  font-size: var(--button-font-size);
-  font-weight: 650;
+  font-size: var(--text-base);
+  font-weight: 500;
   gap: var(--button-gap);
   justify-content: center;
   justify-self: start;
   line-height: 1.2;
   max-width: 100%;
-  min-height: var(--button-height);
+  min-height: 36px;
   min-width: 0;
   overflow-wrap: anywhere;
-  padding: var(--button-padding-block) var(--button-padding-inline);
+  padding: 0 14px;
   text-align: center;
 }
 
@@ -104,34 +105,39 @@ button svg {
 }
 
 button:hover:not(:disabled) {
-  background: var(--color-control-hover);
-  border-color: var(--shop-border-strong);
-  color: var(--shop-ink);
+  background: var(--color-surface-raised);
 }
 
 button.primary {
-  background: var(--shop-action);
-  border-color: var(--shop-action);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: var(--color-primary-foreground);
-  font-weight: 700;
+  font-weight: 500;
+  transition: background 160ms ease, border-color 160ms ease;
 }
 
 button.primary:hover:not(:disabled) {
-  background: var(--shop-action-strong);
-  border-color: var(--shop-action-strong);
-  box-shadow: 0 6px 14px var(--color-shadow-soft);
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
   color: var(--color-primary-foreground);
+}
+
+button.primary:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 button.ghost {
   background: transparent;
-  color: var(--shop-ink-soft);
+  border-color: transparent;
+  color: var(--color-text-soft);
 }
 
 button.ghost:hover:not(:disabled) {
-  background: var(--color-control-hover);
-  border-color: var(--shop-border-strong);
-  color: var(--shop-ink);
+  background: var(--color-surface-raised);
+  border-color: var(--color-border);
+  color: var(--color-text);
 }
 
 .inline-link-button {
@@ -155,29 +161,26 @@ button.ghost:hover:not(:disabled) {
 }
 
 button.danger {
-  background: var(--color-danger-bg);
-  border-color: var(--status-canceled-border);
-  color: var(--shop-danger);
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: var(--color-primary-foreground);
 }
 
 button.danger:hover:not(:disabled) {
-  background: var(--status-canceled-bg);
-  border-color: var(--shop-danger);
-  box-shadow: none;
-  color: var(--shop-danger);
+  background: var(--color-danger-hover);
+  border-color: var(--color-danger-hover);
+  color: var(--color-primary-foreground);
 }
 
 .app-shell[data-theme='dark'] button.danger {
-  background: var(--color-danger-bg);
-  border-color: rgba(225, 106, 90, 0.3);
-  color: var(--status-canceled-text);
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: var(--color-primary-foreground);
 }
 
 .app-shell[data-theme='dark'] button.danger:hover:not(:disabled) {
-  background: rgba(225, 106, 90, 0.22);
-  border-color: rgba(225, 106, 90, 0.4);
-  box-shadow: none;
-  color: #ffffff;
+  background: var(--color-danger-hover);
+  border-color: var(--color-danger-hover);
 }
 
 button.icon-button,
@@ -190,7 +193,7 @@ button.icon-button,
 
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 .button-label-slot {
@@ -290,17 +293,42 @@ textarea:focus-visible,
 input,
 select,
 textarea {
-  background: var(--shop-control);
-  border: 1px solid var(--shop-border);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-  color: var(--shop-ink);
-  min-height: 40px;
-  padding: 9px 12px;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-base);
+  height: 36px;
+  padding: 0 10px;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
   width: 100%;
 }
 
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--color-border-focus);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  outline: none;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: var(--color-surface-soft);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
 select {
-  background-color: var(--shop-surface);
+  background-color: var(--color-surface);
 }
 
 select option,
@@ -679,6 +707,14 @@ button.button-sm {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+.kpi-value,
+.metric-value,
+[data-numeric],
+td.numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 /* Skeleton primitives: shimmer placeholder for slow first-load */

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { Montserrat } from 'next/font/google'
 
 import { AppMotionProvider } from '@/app/components/motion/AppMotionProvider'
 
@@ -35,9 +36,16 @@ export const viewport: Viewport = {
 	],
 }
 
+const montserrat = Montserrat({
+	subsets: ['latin'],
+	variable: '--font-sans',
+	display: 'swap',
+	weight: ['400', '500', '600', '700'],
+})
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="es">
+		<html lang="es" className={montserrat.variable}>
 			<body>
 				<AppMotionProvider>{children}</AppMotionProvider>
 			</body>
