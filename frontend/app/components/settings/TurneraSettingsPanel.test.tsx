@@ -77,3 +77,37 @@ test('TurneraSettingsPanel propagates toggling the price flag', async () => {
 		public_show_service_price: true,
 	})
 })
+
+test('TurneraSettingsPanel exposes an "Abrir turnera" link when a slug is present', () => {
+	render(
+		<TurneraSettingsPanel
+			businessForm={baseForm()}
+			businessSlug="king-shine"
+			services={[]}
+			onPatchBusinessForm={() => {}}
+			onSaveBusinessProfile={() => {}}
+		/>,
+	)
+	const link = screen.getByLabelText(
+		'Abrir turnera en una nueva pestana',
+	) as HTMLAnchorElement
+	assert.equal(link.tagName, 'A')
+	assert.equal(link.target, '_blank')
+	assert.match(link.href, /\/publica\/king-shine$/)
+})
+
+test('TurneraSettingsPanel hides the "Abrir" link when there is no slug', () => {
+	render(
+		<TurneraSettingsPanel
+			businessForm={baseForm()}
+			businessSlug=""
+			services={[]}
+			onPatchBusinessForm={() => {}}
+			onSaveBusinessProfile={() => {}}
+		/>,
+	)
+	assert.equal(
+		screen.queryByLabelText('Abrir turnera en una nueva pestana'),
+		null,
+	)
+})
