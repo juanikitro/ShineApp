@@ -2,7 +2,7 @@
 
 import { type FormEvent, useMemo } from 'react'
 
-import { Eye, EyeOff, Globe } from 'lucide-react'
+import { ExternalLink, Eye, EyeOff, Globe } from 'lucide-react'
 
 import { Field } from '@/app/components/ui/Field'
 import { type AnyRecord } from '@/lib/page-support'
@@ -140,12 +140,27 @@ export function TurneraSettingsPanel({
 			>
 				<div className="landing-config">
 					<Field label="URL publica">
-						<input
-							readOnly
-							name="business_public_url"
-							value={publicLandingUrl}
-							placeholder="Disponible al iniciar sesion con negocio"
-						/>
+						<div className="landing-config-url">
+							<input
+								readOnly
+								name="business_public_url"
+								value={publicLandingUrl}
+								placeholder="Disponible al iniciar sesion con negocio"
+							/>
+							{publicLandingUrl ? (
+								<a
+									className="ghost inline-link-button"
+									href={publicLandingUrl}
+									rel="noreferrer"
+									target="_blank"
+									aria-label="Abrir turnera en una nueva pestana"
+									title="Abrir turnera"
+								>
+									<ExternalLink size={16} />
+									Abrir
+								</a>
+							) : null}
+						</div>
 					</Field>
 					<label>
 						<input
