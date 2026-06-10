@@ -935,6 +935,7 @@ export default function Home() {
 	const useReservationTimes = businessForm.use_reservation_times !== false
 	const showStayDaysInAgenda =
 		businessForm.show_stay_days_in_agenda !== false
+	const autoChargeOnStart = businessForm.auto_charge_on_start === true
 	const reservationStatusConfig: ReservationStatusConfig = useMemo(
 		() => reservationStatusConfigFromProfile(businessForm),
 		[
@@ -1318,6 +1319,8 @@ export default function Home() {
 						profile.reservation_use_ready !== false,
 					reservation_use_canceled:
 						profile.reservation_use_canceled !== false,
+					auto_charge_on_start:
+						profile.auto_charge_on_start === true,
 					public_landing_enabled:
 						profile.public_landing_enabled !== false,
 					public_landing_intro: String(
@@ -12943,6 +12946,7 @@ export default function Home() {
 						reservationUseInProgress={reservationStatusConfig.useInProgress}
 						reservationUseReady={reservationStatusConfig.useReady}
 						reservationUseCanceled={reservationStatusConfig.useCanceled}
+						autoChargeOnStart={autoChargeOnStart}
 						onApplyAuditFilters={applyAuditFilters}
 						onAuditActionLabel={auditActionLabel}
 						onAuditModuleLabel={auditModuleLabel}

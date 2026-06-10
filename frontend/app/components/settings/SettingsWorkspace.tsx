@@ -88,6 +88,7 @@ type SettingsWorkspaceProps = {
 	reservationUseInProgress: boolean
 	reservationUseReady: boolean
 	reservationUseCanceled: boolean
+	autoChargeOnStart: boolean
 	employees: AnyRecord[]
 	activeEmployeeCount: number
 	inactiveEmployeeCount: number
@@ -148,6 +149,7 @@ export function SettingsWorkspace({
 	reservationUseInProgress,
 	reservationUseReady,
 	reservationUseCanceled,
+	autoChargeOnStart,
 	employees,
 	activeEmployeeCount,
 	inactiveEmployeeCount,
@@ -246,6 +248,7 @@ export function SettingsWorkspace({
 							reservationUseCanceled={reservationUseCanceled}
 							showStayDaysInAgenda={showStayDaysInAgenda}
 							useReservationTimes={useReservationTimes}
+							autoChargeOnStart={autoChargeOnStart}
 							onPatchBusinessForm={onPatchBusinessForm}
 							onSaveBusinessProfile={onSaveBusinessProfile}
 						/>
@@ -529,6 +532,7 @@ function AgendaSettingsPanel({
 	reservationUseCanceled,
 	showStayDaysInAgenda,
 	useReservationTimes,
+	autoChargeOnStart,
 	onPatchBusinessForm,
 	onSaveBusinessProfile,
 }: {
@@ -538,6 +542,7 @@ function AgendaSettingsPanel({
 	reservationUseCanceled: boolean
 	showStayDaysInAgenda: boolean
 	useReservationTimes: boolean
+	autoChargeOnStart: boolean
 	onPatchBusinessForm: (patch: AnyRecord) => void
 	onSaveBusinessProfile: (event: FormEvent) => void
 }) {
@@ -704,6 +709,28 @@ function AgendaSettingsPanel({
 									onChange={(nextValue) =>
 										onPatchBusinessForm({
 											reservation_use_canceled: nextValue === 'use',
+										})
+									}
+								/>
+							}
+						/>
+					</RecordCard>
+					<RecordCard>
+						<RecordCardHeader
+							title="Cobro automatico"
+							subtitle="Al iniciar una reserva (pasar a En proceso) se registra automaticamente el cobro total de la orden."
+							actions={
+								<SegmentedControl
+									ariaLabel="Cobro automatico"
+									className="settings-mode-toggle"
+									options={[
+										{ value: 'on', label: 'Activar' },
+										{ value: 'off', label: 'Desactivar' },
+									]}
+									value={autoChargeOnStart ? 'on' : 'off'}
+									onChange={(nextValue) =>
+										onPatchBusinessForm({
+											auto_charge_on_start: nextValue === 'on',
 										})
 									}
 								/>

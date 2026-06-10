@@ -442,6 +442,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "reservation_use_in_progress",
             "reservation_use_ready",
             "reservation_use_canceled",
+            "auto_charge_on_start",
             "public_landing_enabled",
             "public_landing_intro",
             "allow_public_booking_requests",

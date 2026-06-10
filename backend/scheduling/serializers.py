@@ -171,6 +171,9 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
         service = attrs.get("service") or getattr(self.instance, "service", None)
         day = attrs["day"] if "day" in attrs else getattr(self.instance, "day", None)
         exit_day = attrs["exit_day"] if "exit_day" in attrs else getattr(self.instance, "exit_day", None)
+        if not self.instance and day and not exit_day:
+            attrs["exit_day"] = day
+            exit_day = day
         start_time = (
             attrs["start_time"]
             if "start_time" in attrs

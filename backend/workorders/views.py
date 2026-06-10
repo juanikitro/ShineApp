@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import decorators, response, status, viewsets
 
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
@@ -9,6 +10,38 @@ from scheduling.services import ensure_reservation_work_order
 from .models import WorkOrder
 from .metrics import build_work_order_financial_metrics
 from .serializers import WorkOrderSerializer
+
+
+def _auto_charge_if_enabled(order):
+    from core.models import BusinessProfile, register_income_classification
+    profile = BusinessProfile.get_solo(business=order.business)
+    if not profile.auto_charge_on_start:
+        return
+    balance_due = order.balance_due
+    if balance_due <= 0:
+        return
+    from django.utils import timezone
+    from finance.cash import cash_day, is_cash_day_closed
+    from finance.models import CashMovement, Payment
+    paid_at = timezone.now()
+    if is_cash_day_closed(cash_day(paid_at), business=order.business):
+        return
+    payment = Payment.objects.create(
+        work_order=order,
+        amount=balance_due,
+        paid_at=paid_at,
+    )
+    CashMovement.objects.create(
+        movement_type=CashMovement.MovementType.INCOME,
+        category="Pago",
+        subcategory=payment.get_method_display(),
+        amount=payment.amount,
+        occurred_at=payment.paid_at,
+        description=f"Cobro automatico orden #{payment.work_order_id}",
+        payment=payment,
+        business=payment.business,
+    )
+    register_income_classification("Pago", payment.get_method_display(), business=payment.business)
 
 
 class WorkOrderViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
@@ -52,6 +85,12 @@ class WorkOrderViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         order.reservation.status = new_status
         order.reservation.save(update_fields=["status", "updated_at"])
         order.refresh_from_db()
+        if new_status == Reservation.Status.IN_PROGRESS:
+            try:
+                with transaction.atomic():
+                    _auto_charge_if_enabled(order)
+            except Exception:
+                pass
         if new_status == Reservation.Status.READY:
             send_work_order_ready(order)
         record_audit_event(

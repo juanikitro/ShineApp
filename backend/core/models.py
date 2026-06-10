@@ -312,6 +312,7 @@ class BusinessProfile(models.Model):
     reservation_use_in_progress = models.BooleanField(default=True)
     reservation_use_ready = models.BooleanField(default=True)
     reservation_use_canceled = models.BooleanField(default=True)
+    auto_charge_on_start = models.BooleanField(default=False)
     public_landing_enabled = models.BooleanField(default=True)
     public_landing_intro = models.CharField(max_length=240, blank=True)
     allow_public_booking_requests = models.BooleanField(default=True)
