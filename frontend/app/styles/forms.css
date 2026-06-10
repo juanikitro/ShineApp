@@ -51,7 +51,7 @@
 .service-notes,
 .quote-item-summary-row span {
   color: var(--shop-ink-soft);
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1.4;
 }
 
@@ -68,7 +68,7 @@
 
 .quote-item-summary-row strong {
   color: var(--shop-ink);
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 
 .quote-detail-summary {
@@ -87,12 +87,12 @@
 
 .quote-detail-summary > div:first-child strong {
   color: var(--shop-ink);
-  font-size: 16px;
+  font-size: var(--text-lg);
 }
 
 .quote-detail-summary > div:first-child span {
   color: var(--shop-ink-soft);
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 
 .quote-detail-meta {
@@ -100,7 +100,7 @@
   color: var(--shop-ink-soft);
   display: flex;
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: var(--text-sm);
   gap: 8px;
 }
 
@@ -223,7 +223,7 @@
 
 .quote-lane-head span {
   color: var(--shop-ink-soft);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .quote-lane-head strong {
@@ -272,7 +272,7 @@
 
 .quote-card-service-name {
   color: var(--shop-ink);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 750;
   line-height: 1.25;
   overflow-wrap: anywhere;
@@ -281,7 +281,7 @@
 .emoji-picker-field {
   color: var(--shop-ink-soft);
   display: grid;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 650;
   gap: 6px;
   isolation: isolate;
@@ -331,7 +331,7 @@
 .emoji-picker-trigger-value {
   align-items: center;
   display: inline-flex;
-  font-size: 18px;
+  font-size: var(--text-xl);
   height: 24px;
   justify-content: center;
   line-height: 1;
