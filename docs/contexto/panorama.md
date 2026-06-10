@@ -1,16 +1,20 @@
 # Panorama
 
-ShineApp es un MVP web para negocios de car detailing, lavado y estetica vehicular.
+ShineApp es una plataforma web para negocios de servicio vehicular. Nacio como
+herramienta para lavaderos y detailing, pero el modelo de datos soporta cualquier
+rubro configurable via **Sectores**: cada negocio define sus propios sectores
+(lavadero, detailing, lubricentro, taller, etc.) con agenda, capacidad y
+visibilidad publica independientes por sector.
 
 Capacidades visibles en el repo:
 - clientes y vehiculos,
-- catalogo de servicios,
-- reservas y agenda diaria,
+- catalogo de servicios agrupados por sector,
+- reservas y agenda diaria (vista por sector o todos en paralelo),
 - ordenes de trabajo,
 - pagos y caja,
 - materiales, compras y consumos,
 - cotizaciones,
-- dashboard,
+- dashboard (desglose por sector),
 - notificaciones.
 
 Stack operativo:

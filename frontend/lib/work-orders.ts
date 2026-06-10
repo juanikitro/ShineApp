@@ -6,7 +6,6 @@ export type AnyRecord = Record<string, any>
 
 export type WorkOrderViewMode = 'agenda' | 'status' | 'entry-date'
 
-export type WorkOrderServiceBucket = 'wash' | 'detailing'
 
 export type ReservationStatusGroup = {
 	key: string
@@ -29,11 +28,6 @@ export type ReservationEntryDateGroup = {
 	reservations: AnyRecord[]
 }
 
-export type WorkOrderServiceTypeLookup = Record<
-	string,
-	string | AnyRecord | null | undefined
->
-
 function normalizeId(value: any) {
 	if (value === null || value === undefined || value === '') {
 		return null
@@ -41,27 +35,11 @@ function normalizeId(value: any) {
 	return String(value)
 }
 
-function normalizeServiceType(value: any) {
-	const raw =
-		value && typeof value === 'object' ? value.service_type : value
-	const serviceType = String(raw ?? '').trim().toLowerCase()
-	return serviceType || null
-}
-
 function serviceRefId(value: any) {
 	if (value && typeof value === 'object') {
 		return normalizeId(value.id)
 	}
 	return normalizeId(value)
-}
-
-function serviceTypeForRef(
-	value: any,
-	serviceTypeById: WorkOrderServiceTypeLookup,
-) {
-	const id = serviceRefId(value)
-	const fromLookup = id ? normalizeServiceType(serviceTypeById[id]) : null
-	return fromLookup ?? normalizeServiceType(value)
 }
 
 function primaryItem(record: AnyRecord) {
@@ -184,31 +162,6 @@ export function buildWorkStatusColumns(
 	return columns
 }
 
-export function serviceBucketForRecord(
-	record: AnyRecord,
-	serviceTypeById: WorkOrderServiceTypeLookup = {},
-): WorkOrderServiceBucket {
-	const item = primaryItem(record)
-	const serviceType =
-		normalizeServiceType(record.service_type) ??
-		normalizeServiceType(record.primary_service_type) ??
-		serviceTypeForRef(record.service, serviceTypeById) ??
-		serviceTypeForRef(item?.service, serviceTypeById) ??
-		normalizeServiceType(item)
-
-	return serviceType === 'detailing' ? 'detailing' : 'wash'
-}
-
-export function filterReservationsByServiceBucket(
-	reservations: AnyRecord[],
-	serviceTypeById: WorkOrderServiceTypeLookup,
-	bucket: WorkOrderServiceBucket,
-) {
-	return (reservations ?? []).filter(
-		(reservation) =>
-			serviceBucketForRecord(reservation, serviceTypeById) === bucket,
-	)
-}
 
 export function groupReservationsByWorkOrderStatus(
 	reservations: AnyRecord[],
@@ -314,15 +267,20 @@ function quoteHasReservation(quote: AnyRecord) {
 	return Boolean(quote.has_reservation ?? quote.reservation)
 }
 
-export function filterFreeQuotesByServiceBucket(
+export function filterFreeQuotesBySector(
 	quotes: AnyRecord[],
-	serviceTypeById: WorkOrderServiceTypeLookup,
-	bucket: WorkOrderServiceBucket,
+	sectorIdByServiceId: Record<string, number | null>,
+	sectorId: number | null,
 ) {
-	return (quotes ?? []).filter(
-		(quote) =>
-			!quoteHasReservation(quote) &&
-			!quote.reservation_day &&
-			serviceBucketForRecord(quote, serviceTypeById) === bucket,
-	)
+	return (quotes ?? []).filter((quote) => {
+		if (quoteHasReservation(quote) || quote.reservation_day) return false
+		if (sectorId === null) return true
+		const item = primaryItem(quote)
+		const rawServiceId = item?.service ?? quote.service
+		const serviceIdStr =
+			rawServiceId != null ? serviceRefId(rawServiceId) : null
+		if (!serviceIdStr) return true
+		const quoteSectorId = sectorIdByServiceId[serviceIdStr]
+		return quoteSectorId === sectorId
+	})
 }

@@ -253,8 +253,6 @@ class Command(BaseCommand):
         profile.use_reservation_times = True
         profile.show_stay_days_in_agenda = True
         profile.enforce_capacity_limit = True
-        profile.default_capacity_wash = 8
-        profile.default_capacity_detailing = 4
         profile.public_landing_enabled = True
         profile.public_landing_intro = (
             "Detailing, lavado premium y proteccion ceramica con agenda online."
@@ -375,13 +373,21 @@ class Command(BaseCommand):
         return vehicles
 
     def seed_services(self, business):
+        from catalog.sector_defaults import ensure_default_sectors
+
+        sectors = ensure_default_sectors(business)
+        sectors["lavadero"].default_capacity = 8
+        sectors["lavadero"].save(update_fields=["default_capacity", "updated_at"])
+        sectors["detailing"].default_capacity = 4
+        sectors["detailing"].save(update_fields=["default_capacity", "updated_at"])
+
         specs = [
-            ("Lavado exterior express", "wash", Service.ServiceType.WASH, "9500.00", 45, "Lavado exterior y secado con microfibra."),
-            ("Lavado premium", "spark", Service.ServiceType.WASH, "18000.00", 90, "Exterior, interior, llantas y terminacion rapida."),
-            ("Detailing interior profundo", "seat", Service.ServiceType.DETAILING, "52000.00", 240, "Limpieza profunda de tapizados, plasticos y baul."),
-            ("Correccion de pintura one step", "polish", Service.ServiceType.DETAILING, "85000.00", 360, "Pulido de un paso para recuperar brillo."),
-            ("Tratamiento ceramico 12 meses", "shield", Service.ServiceType.DETAILING, "145000.00", 480, "Descontaminado, correccion liviana y coating."),
-            ("Combo venta pre entrega", "combo", Service.ServiceType.COMBO, "118000.00", 420, "Interior profundo, lavado premium y proteccion express."),
+            ("Lavado exterior express", "wash", "lavadero", "9500.00", 45, "Lavado exterior y secado con microfibra."),
+            ("Lavado premium", "spark", "lavadero", "18000.00", 90, "Exterior, interior, llantas y terminacion rapida."),
+            ("Detailing interior profundo", "seat", "detailing", "52000.00", 240, "Limpieza profunda de tapizados, plasticos y baul."),
+            ("Correccion de pintura one step", "polish", "detailing", "85000.00", 360, "Pulido de un paso para recuperar brillo."),
+            ("Tratamiento ceramico 12 meses", "shield", "detailing", "145000.00", 480, "Descontaminado, correccion liviana y coating."),
+            ("Combo venta pre entrega", "combo", "lavadero", "118000.00", 420, "Interior profundo, lavado premium y proteccion express."),
         ]
         return {
             name: upsert(
@@ -389,14 +395,14 @@ class Command(BaseCommand):
                 {"business": business, "name": name},
                 {
                     "icon": icon,
-                    "service_type": service_type,
+                    "sector": sectors[sector_key],
                     "base_price": money(price),
                     "estimated_duration_minutes": duration,
                     "notes": notes,
                     "is_active": True,
                 },
             )
-            for name, icon, service_type, price, duration, notes in specs
+            for name, icon, sector_key, price, duration, notes in specs
         }
 
     def seed_reservations(self, business, customers, vehicles, services, today):

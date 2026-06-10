@@ -12,17 +12,12 @@ import { ServiceIconPicker } from '@/app/components/ui/ServiceIconPicker'
 import { type AnyRecord } from '@/lib/page-support'
 import { applyBasePriceToTypes, VEHICLE_TYPES } from '@/lib/service-pricing'
 
-const serviceFormTypeOptions = [
-	{ value: 'wash', label: 'Lavado' },
-	{ value: 'detailing', label: 'Detailing' },
-	{ value: 'combo', label: 'Combo' },
-]
-
 type ServiceFormProps = {
 	submitLabel: string
 	serviceForm: AnyRecord
 	setServiceForm: (form: AnyRecord) => void
 	onSubmit: (e: FormEvent<HTMLFormElement>) => void
+	sectors: AnyRecord[]
 	focusNextOnEnter: (
 		key: string,
 	) => (event: KeyboardEvent<HTMLElement>) => void
@@ -34,9 +29,17 @@ export function ServiceForm({
 	serviceForm,
 	setServiceForm,
 	onSubmit,
+	sectors,
 	focusNextOnEnter,
 	focusField,
 }: ServiceFormProps) {
+	const sectorOptions = sectors
+		.filter((s) => s.is_active !== false)
+		.map((s) => ({ value: String(s.id), label: String(s.name ?? '') }))
+	function serviceTypeFromSectorId(sectorId: string | number): string {
+		const sector = sectors.find((s) => String(s.id) === String(sectorId))
+		return sector?.key === 'detailing' ? 'detailing' : 'wash'
+	}
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
 			<div className="form-row">
@@ -67,14 +70,15 @@ export function ServiceForm({
 				/>
 			</div>
 			<SearchSelect
-				label="Tipo"
-				value={serviceForm.service_type}
-				options={serviceFormTypeOptions}
-				focusKey="service.type"
+				label="Sector"
+				value={String(serviceForm.sector ?? '')}
+				options={sectorOptions}
+				focusKey="service.sector"
 				onChange={(value) => {
 					setServiceForm({
 						...serviceForm,
-						service_type: value || 'wash',
+						sector: value ? Number(value) : null,
+						service_type: value ? serviceTypeFromSectorId(value) : 'wash',
 					})
 					focusField('service.base_price')
 				}}

@@ -13,7 +13,8 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from catalog.models import Service
+from catalog.models import Sector, Service
+from catalog.sector_defaults import ensure_default_sectors, SERVICE_TYPE_TO_SECTOR_KEY
 from core.models import BusinessAccount, BusinessProfile, UserProfile
 from customers.models import Customer, Vehicle
 from notifications.models import PublicRequest
@@ -31,6 +32,7 @@ def create_business(name="King Shine", slug="king-shine"):
         address="Parana 158",
         public_landing_intro="Detailing profesional por turno.",
     )
+    ensure_default_sectors(business)
     return business
 
 
@@ -45,11 +47,16 @@ def create_employer_client(business, username="dueno"):
     return client
 
 
-def create_service(business, name="Lavado premium", service_type=Service.ServiceType.WASH):
+def create_service(business, name="Lavado premium", service_type="wash", sector=None):
+    if sector is None:
+        sector_key = SERVICE_TYPE_TO_SECTOR_KEY.get(service_type, "lavadero")
+        sector = Sector.objects.filter(business=business, key=sector_key).first()
+        if sector is None:
+            sector = Sector.objects.filter(business=business).first()
     return Service.objects.create(
         business=business,
         name=name,
-        service_type=service_type,
+        sector=sector,
         base_price=Decimal("15000.00"),
         estimated_duration_minutes=90,
         notes="Incluye interior y llantas.",
@@ -1061,15 +1068,15 @@ def test_confirm_reservation_without_public_request_does_not_fail(api_client):
     mock_push.assert_not_called()
 
 
-# ── public_show_wash/detailing_services filter ────────────────────────────────
+# ── sector public_visible filter ─────────────────────────────────────────────
 
 
 @pytest.mark.django_db
-def test_public_landing_shows_all_service_types_by_default():
+def test_public_landing_shows_all_sectors_by_default():
     business = create_business()
-    wash = create_service(business, name="Lavado exterior", service_type=Service.ServiceType.WASH)
-    detail = create_service(business, name="Full detail", service_type=Service.ServiceType.DETAILING)
-    combo = create_service(business, name="Combo total", service_type=Service.ServiceType.COMBO)
+    wash = create_service(business, name="Lavado exterior", service_type="wash")
+    detail = create_service(business, name="Full detail", service_type="detailing")
+    combo = create_service(business, name="Combo total", service_type="combo")
     client = APIClient()
 
     response = client.get(reverse("public-landing", args=[business.slug]))
@@ -1082,15 +1089,14 @@ def test_public_landing_shows_all_service_types_by_default():
 
 
 @pytest.mark.django_db
-def test_public_landing_hides_detailing_and_combo_when_only_wash_enabled():
+def test_public_landing_hides_services_in_sector_marked_not_visible():
     business = create_business()
-    profile = BusinessProfile.objects.get(business=business)
-    profile.public_show_wash_services = True
-    profile.public_show_detailing_services = False
-    profile.save(update_fields=["public_show_wash_services", "public_show_detailing_services", "updated_at"])
-    wash = create_service(business, name="Lavado exterior", service_type=Service.ServiceType.WASH)
-    detail = create_service(business, name="Full detail", service_type=Service.ServiceType.DETAILING)
-    combo = create_service(business, name="Combo total", service_type=Service.ServiceType.COMBO)
+    detailing_sector = Sector.objects.get(business=business, key="detailing")
+    detailing_sector.public_visible = False
+    detailing_sector.save(update_fields=["public_visible", "updated_at"])
+    wash = create_service(business, name="Lavado exterior", service_type="wash")
+    detail = create_service(business, name="Full detail", service_type="detailing")
+    combo = create_service(business, name="Combo total", service_type="combo")
     client = APIClient()
 
     response = client.get(reverse("public-landing", args=[business.slug]))
@@ -1098,41 +1104,17 @@ def test_public_landing_hides_detailing_and_combo_when_only_wash_enabled():
     assert response.status_code == 200
     ids = {s["id"] for s in response.data["services"]}
     assert wash.id in ids
+    assert combo.id in ids
     assert detail.id not in ids
-    assert combo.id not in ids
 
 
 @pytest.mark.django_db
-def test_public_landing_hides_wash_and_combo_when_only_detailing_enabled():
+def test_public_landing_hides_all_services_when_all_sectors_not_visible():
     business = create_business()
-    profile = BusinessProfile.objects.get(business=business)
-    profile.public_show_wash_services = False
-    profile.public_show_detailing_services = True
-    profile.save(update_fields=["public_show_wash_services", "public_show_detailing_services", "updated_at"])
-    wash = create_service(business, name="Lavado exterior", service_type=Service.ServiceType.WASH)
-    detail = create_service(business, name="Full detail", service_type=Service.ServiceType.DETAILING)
-    combo = create_service(business, name="Combo total", service_type=Service.ServiceType.COMBO)
-    client = APIClient()
-
-    response = client.get(reverse("public-landing", args=[business.slug]))
-
-    assert response.status_code == 200
-    ids = {s["id"] for s in response.data["services"]}
-    assert wash.id not in ids
-    assert detail.id in ids
-    assert combo.id not in ids
-
-
-@pytest.mark.django_db
-def test_public_landing_returns_empty_services_when_both_disabled():
-    business = create_business()
-    profile = BusinessProfile.objects.get(business=business)
-    profile.public_show_wash_services = False
-    profile.public_show_detailing_services = False
-    profile.save(update_fields=["public_show_wash_services", "public_show_detailing_services", "updated_at"])
-    create_service(business, name="Lavado exterior", service_type=Service.ServiceType.WASH)
-    create_service(business, name="Full detail", service_type=Service.ServiceType.DETAILING)
-    create_service(business, name="Combo total", service_type=Service.ServiceType.COMBO)
+    Sector.objects.filter(business=business).update(public_visible=False)
+    create_service(business, name="Lavado exterior", service_type="wash")
+    create_service(business, name="Full detail", service_type="detailing")
+    create_service(business, name="Combo total", service_type="combo")
     client = APIClient()
 
     response = client.get(reverse("public-landing", args=[business.slug]))
@@ -1142,31 +1124,29 @@ def test_public_landing_returns_empty_services_when_both_disabled():
 
 
 @pytest.mark.django_db
-def test_business_profile_patch_saves_service_type_filters(api_client):
-    url = reverse("business-profile")
+def test_sector_patch_public_visible_controls_landing_visibility(api_client):
+    business = api_client.user.profile.business
+    detailing_sector = Sector.objects.get(business=business, key="detailing")
 
     response = api_client.patch(
-        url,
-        {"public_show_wash_services": False, "public_show_detailing_services": True},
+        reverse("sector-detail", args=[detailing_sector.id]),
+        {"public_visible": False},
         format="json",
     )
 
     assert response.status_code == 200
-    assert response.data["public_show_wash_services"] is False
-    assert response.data["public_show_detailing_services"] is True
-    business = api_client.user.profile.business
-    profile = BusinessProfile.objects.get(business=business)
-    assert profile.public_show_wash_services is False
-    assert profile.public_show_detailing_services is True
+    assert response.data["public_visible"] is False
+    detailing_sector.refresh_from_db()
+    assert detailing_sector.public_visible is False
 
 
 @pytest.mark.django_db
 def test_public_landing_hides_services_listed_in_hidden_service_ids():
     business = create_business()
-    visible_wash = create_service(business, name="Lavado exterior", service_type=Service.ServiceType.WASH)
-    hidden_wash = create_service(business, name="Lavado express", service_type=Service.ServiceType.WASH)
-    visible_detail = create_service(business, name="Full detail", service_type=Service.ServiceType.DETAILING)
-    hidden_detail = create_service(business, name="Pulido faros", service_type=Service.ServiceType.DETAILING)
+    visible_wash = create_service(business, name="Lavado exterior", service_type="wash")
+    hidden_wash = create_service(business, name="Lavado express", service_type="wash")
+    visible_detail = create_service(business, name="Full detail", service_type="detailing")
+    hidden_detail = create_service(business, name="Pulido faros", service_type="detailing")
     profile = BusinessProfile.objects.get(business=business)
     profile.public_hidden_service_ids = [hidden_wash.id, hidden_detail.id]
     profile.save(update_fields=["public_hidden_service_ids", "updated_at"])

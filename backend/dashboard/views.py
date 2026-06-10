@@ -131,6 +131,18 @@ def work_order_rankings(work_orders, metrics):
             "work_orders_count": 0,
         }
     )
+    sectors = defaultdict(
+        lambda: {
+            "sector_id": None,
+            "sector_name": "",
+            "sector_color": "",
+            "billed_total": ZERO,
+            "collected_total": ZERO,
+            "balance_due_total": ZERO,
+            "estimated_margin_total": ZERO,
+            "work_orders_count": 0,
+        }
+    )
     order_margins = []
 
     for order in work_orders:
@@ -161,6 +173,20 @@ def work_order_rankings(work_orders, metrics):
             group["balance_due_total"] += balance_due
             group["estimated_margin_total"] += estimated_margin
             group["work_orders_count"] += 1
+        if order.sector_id:
+            sector_group = sectors[order.sector_id]
+            sector_group.update(
+                {
+                    "sector_id": order.sector_id,
+                    "sector_name": order.sector.name if order.sector else "",
+                    "sector_color": order.sector.color if order.sector else "",
+                }
+            )
+            sector_group["billed_total"] += billed
+            sector_group["collected_total"] += collected
+            sector_group["balance_due_total"] += balance_due
+            sector_group["estimated_margin_total"] += estimated_margin
+            sector_group["work_orders_count"] += 1
         order_margins.append(
             {
                 "id": order.id,
@@ -196,13 +222,21 @@ def work_order_rankings(work_orders, metrics):
             key=lambda item: item["estimated_margin"],
             reverse=True,
         )[:5],
+        "by_sector": [
+            ranking_entry_for_group(group)
+            for group in sorted(
+                sectors.values(),
+                key=lambda item: item["billed_total"],
+                reverse=True,
+            )
+        ],
     }
 
 
 def work_order_financials(queryset, today=None):
     today = today or date.today()
     work_orders = list(
-        queryset.select_related("customer", "vehicle", "service", "reservation")
+        queryset.select_related("customer", "vehicle", "service", "sector", "reservation")
     )
     metrics = build_work_order_financial_metrics(work_orders)
     billed_total = sum((order.total_amount or ZERO for order in work_orders), ZERO)

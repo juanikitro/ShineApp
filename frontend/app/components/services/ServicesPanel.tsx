@@ -37,6 +37,7 @@ type ServicesPanelProps = {
 	serviceDashboardLoading: boolean
 	serviceQuickActions: (service: AnyRecord) => QuickAction[]
 	serviceTypeLabels: Record<string, string>
+	sectors: AnyRecord[]
 	services: AnyRecord[]
 	workOrders: AnyRecord[]
 	customerDaysAgoText: (value: any, fallback: string) => string
@@ -76,6 +77,7 @@ export function ServicesPanel({
 	serviceDashboardLoading,
 	serviceQuickActions,
 	serviceTypeLabels,
+	sectors,
 	services,
 	workOrders,
 	customerDaysAgoText,
@@ -93,6 +95,19 @@ export function ServicesPanel({
 	onOpenServiceDetail,
 	onOpenWorkOrderDetail,
 }: ServicesPanelProps) {
+	const sectorNameById = sectors.reduce<Record<string, string>>((acc, s) => {
+		if (s.id != null) acc[String(s.id)] = String(s.name ?? '')
+		return acc
+	}, {})
+
+	function sectorLabel(service: AnyRecord): string {
+		const sectorId = service.sector
+		if (sectorId != null && sectorId !== '') {
+			return sectorNameById[String(sectorId)] ?? serviceTypeLabels[service.service_type] ?? ''
+		}
+		return serviceTypeLabels[service.service_type] ?? ''
+	}
+
 	function renderServiceOperationalSnapshot(
 		history: AnyRecord,
 		upcomingReservations: AnyRecord[],
@@ -354,11 +369,9 @@ export function ServicesPanel({
 					</div>
 					<div className="customer-dashboard-profile service-dashboard-profile">
 						<div>
-							<span>Tipo</span>
+							<span>Sector</span>
 							<strong>
-								{serviceTypeLabels[service.service_type] ??
-									service.service_type ??
-									'Sin tipo'}
+								{sectorLabel(service) || 'Sin sector'}
 							</strong>
 						</div>
 						<div>
@@ -467,8 +480,7 @@ export function ServicesPanel({
 					<div>
 						<h2>Servicios</h2>
 						<p>
-							Lavados, detailing y combos disponibles para reservas y
-							cotizaciones.
+							Servicios disponibles para reservas y cotizaciones.
 						</p>
 					</div>
 					<button type="button" className="primary" onClick={onCreateService}>
@@ -497,7 +509,7 @@ export function ServicesPanel({
 									<RecordCardHeader
 										title={serviceDisplayName(item)}
 										subtitle={joinDisplayParts([
-											serviceTypeLabels[item.service_type],
+											sectorLabel(item),
 											money(item.base_price),
 											formatDurationLabel(item.estimated_duration_minutes),
 										])}

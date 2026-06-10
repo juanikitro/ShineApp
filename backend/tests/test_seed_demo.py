@@ -51,10 +51,11 @@ def test_seed_demo_populates_realistic_dataset_across_modules():
     assert Customer.objects.filter(business=business, is_active=True).count() >= 5
     assert Customer.objects.filter(business=business, is_active=False).exists()
     assert Vehicle.objects.filter(business=business, is_active=True).count() >= 5
-    assert Service.objects.filter(business=business, service_type=Service.ServiceType.DETAILING).count() >= 3
+    from catalog.models import Sector
+    assert Service.objects.filter(business=business, sector__key="detailing").count() >= 3
     assert profile.enforce_capacity_limit is True
-    assert profile.default_capacity_wash == 8
-    assert profile.default_capacity_detailing == 4
+    assert Sector.objects.filter(business=business, key="detailing").values_list("default_capacity", flat=True).first() == 4
+    assert Sector.objects.filter(business=business, key="lavadero").values_list("default_capacity", flat=True).first() == 8
 
     reservation_statuses = set(Reservation.objects.filter(business=business).values_list("status", flat=True))
     assert {

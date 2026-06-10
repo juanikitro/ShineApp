@@ -189,11 +189,10 @@ import {
 	type AgendaCalendarSegment,
 	type AgendaOperationalPhase,
 	type AgendaOperationalRow,
-	type AgendaServiceBucket,
 	buildAgendaCalendarSegments,
 	buildAgendaOperationalRows,
 	buildWorkOrderByReservation,
-	filterAgendaReservationsByBucket,
+	filterAgendaReservationsBySector,
 } from '@/lib/agenda'
 import {
 	buildAgendaReservationActions,
@@ -201,7 +200,7 @@ import {
 } from '@/lib/reservation-actions'
 import {
 	buildWorkStatusColumns,
-	filterFreeQuotesByServiceBucket,
+	filterFreeQuotesBySector,
 	groupReservationsByEntryDate,
 	groupReservationsByWorkOrderStatusColumns,
 	reservationCanMoveWorkStatus,
@@ -417,13 +416,6 @@ type PendingUndoAction = {
 const SIDEBAR_NAV_ID = 'app-sidebar-navigation'
 const UNDO_WINDOW_MS = 7000
 
-const agendaServiceBuckets: Array<{
-	value: AgendaServiceBucket
-	label: string
-}> = [
-	{ value: 'wash', label: 'Lavado' },
-	{ value: 'detailing', label: 'Detailing' },
-]
 const workViewModes: Array<{
 	value: WorkOrderViewMode
 	label: string
@@ -438,11 +430,6 @@ const quoteStatusLabels: Record<string, string> = {
 	accepted: 'Aceptada',
 	rejected: 'Rechazada',
 }
-const serviceFormTypeOptions = [
-	{ value: 'wash', label: 'Lavado' },
-	{ value: 'detailing', label: 'Detailing' },
-	{ value: 'combo', label: 'Combo' },
-]
 const stockMovementTypeOptions = [
 	{ value: 'purchase', label: 'Compra' },
 	{ value: 'initial_stock', label: 'Stock inicial' },
@@ -658,8 +645,8 @@ export default function Home() {
 	const [customerCardFilter, setCustomerCardFilter] =
 		useState<CustomerCardFilter>('all')
 	const [agendaStartDay, setAgendaStartDay] = useState(today)
-	const [agendaServiceBucket, setAgendaServiceBucket] =
-		useState<AgendaServiceBucket>('wash')
+	const [agendaSectorId, setAgendaSectorId] =
+		useState<number | null>(null)
 	const [workViewMode, setWorkViewMode] =
 		useState<WorkOrderViewMode>('agenda')
 	const [selectedDay, setSelectedDay] = useState(today)
@@ -695,6 +682,7 @@ export default function Home() {
 	const [customers, setCustomers] = useState<AnyRecord[]>([])
 	const [vehicles, setVehicles] = useState<AnyRecord[]>([])
 	const [services, setServices] = useState<AnyRecord[]>([])
+	const [sectors, setSectors] = useState<AnyRecord[]>([])
 	const [reservations, setReservations] = useState<AnyRecord[]>([])
 	const [workOrders, setWorkOrders] = useState<AnyRecord[]>([])
 	const [payments, setPayments] = useState<AnyRecord[]>([])
@@ -757,6 +745,7 @@ export default function Home() {
 		id: '',
 		name: '',
 		icon: '',
+		sector: null,
 		service_type: 'wash',
 		base_price: '',
 		price_moto: '',
@@ -1782,22 +1771,33 @@ export default function Home() {
 		() => buildWorkOrderByReservation(workOrders),
 		[workOrders],
 	)
-	const serviceTypeById = useMemo(
+	const sectorSelectOptions = useMemo(
 		() =>
-			services.reduce<Record<string, string>>((byId, service) => {
-				byId[String(service.id)] = String(service.service_type ?? '')
+			sectors
+				.filter((s) => s.is_active !== false)
+				.map((s) => ({ value: String(s.id), label: String(s.name ?? '') })),
+		[sectors],
+	)
+
+	function serviceTypeFromSectorId(sectorId: string | number): string {
+		const sector = sectors.find((s) => String(s.id) === String(sectorId))
+		return sector?.key === 'detailing' ? 'detailing' : 'wash'
+	}
+
+	const sectorIdByServiceId = useMemo(
+		() =>
+			services.reduce<Record<string, number | null>>((byId, service) => {
+				const id = String(service.id ?? '')
+				if (!id) return byId
+				const sectorId = Number(service.sector)
+				byId[id] = Number.isFinite(sectorId) && sectorId > 0 ? sectorId : null
 				return byId
 			}, {}),
 		[services],
 	)
 	const visibleAgendaReservations = useMemo(
-		() =>
-			filterAgendaReservationsByBucket(
-				reservations,
-				serviceTypeById,
-				agendaServiceBucket,
-			),
-		[agendaServiceBucket, reservations, serviceTypeById],
+		() => filterAgendaReservationsBySector(reservations, agendaSectorId),
+		[agendaSectorId, reservations],
 	)
 	const workStatusGroups = useMemo(
 		() =>
@@ -1813,13 +1813,8 @@ export default function Home() {
 		[currentDay, visibleAgendaReservations],
 	)
 	const workFreeQuotesWithoutEntryDate = useMemo(
-		() =>
-			filterFreeQuotesByServiceBucket(
-				quotes,
-				serviceTypeById,
-				agendaServiceBucket,
-			),
-		[agendaServiceBucket, quotes, serviceTypeById],
+		() => filterFreeQuotesBySector(quotes, sectorIdByServiceId, agendaSectorId),
+		[agendaSectorId, quotes, sectorIdByServiceId],
 	)
 	const agendaBoardModel = useMemo(() => {
 		const rowsByDay = buildAgendaOperationalRows(
@@ -1861,10 +1856,11 @@ export default function Home() {
 		workOrderByReservation,
 		showStayDaysInAgenda,
 	])
-	const agendaServiceBucketLabel =
-		agendaServiceBuckets.find((item) => item.value === agendaServiceBucket)
-			?.label ?? 'Agenda'
-	const agendaRangeSummary = `${agendaServiceBucketLabel}: ${
+	const agendaSectorLabel =
+		agendaSectorId === null
+			? 'Todos'
+			: (sectors.find((s) => s.id === agendaSectorId)?.name ?? 'Sector')
+	const agendaRangeSummary = `${agendaSectorLabel}: ${
 		visibleAgendaReservations.length
 	} ${
 		visibleAgendaReservations.length === 1
@@ -2105,6 +2101,7 @@ export default function Home() {
 		customers: setCustomers,
 		vehicles: setVehicles,
 		services: setServices,
+		sectors: setSectors,
 		reservations: setReservations,
 		workOrders: setWorkOrders,
 		payments: setPayments,
@@ -6046,6 +6043,7 @@ export default function Home() {
 				id: '',
 				name: '',
 				icon: '',
+				sector: null,
 				service_type: 'wash',
 				base_price: '',
 				price_moto: '',
@@ -6152,6 +6150,7 @@ export default function Home() {
 				id: '',
 				name: '',
 				icon: '',
+				sector: null,
 				service_type: 'wash',
 				base_price: '',
 				price_moto: '',
@@ -6238,6 +6237,7 @@ export default function Home() {
 				id: '',
 				name: '',
 				icon: '',
+				sector: null,
 				service_type: 'wash',
 				base_price: '',
 				price_moto: '',
@@ -7863,11 +7863,14 @@ export default function Home() {
 						/>
 					</div>
 					<SearchSelect
-						label="Tipo"
-						value={String(data.service_type ?? '')}
-						options={serviceFormTypeOptions}
+						label="Sector"
+						value={String(data.sector ?? '')}
+						options={sectorSelectOptions}
 						onChange={(value) =>
-							updateDetailEdit({ service_type: value })
+							updateDetailEdit({
+								sector: value ? Number(value) : null,
+								service_type: value ? serviceTypeFromSectorId(value) : 'wash',
+							})
 						}
 					/>
 					<div className="form-row">
@@ -9420,6 +9423,7 @@ export default function Home() {
 				id: '',
 				name: '',
 				icon: '',
+				sector: null,
 				service_type: 'wash',
 				base_price: '',
 				price_moto: '',
@@ -11032,6 +11036,7 @@ export default function Home() {
 						onSubmit={saveService}
 						serviceForm={serviceForm}
 						setServiceForm={setServiceForm}
+						sectors={sectors}
 						focusNextOnEnter={focusNextOnEnter}
 						focusField={focusField}
 					/>
@@ -11430,12 +11435,7 @@ export default function Home() {
 							enforceCapacity={
 								businessForm.enforce_capacity_limit !== false
 							}
-							defaultCapacityWash={
-								Number(businessForm.default_capacity_wash) || 0
-							}
-							defaultCapacityDetailing={
-								Number(businessForm.default_capacity_detailing) || 0
-							}
+							sectors={sectors}
 							services={services}
 							reservations={reservations}
 							openQuickCreate={openQuickCreate}
@@ -11695,13 +11695,14 @@ export default function Home() {
 								}
 							/>
 							<SearchSelect
-								label="Tipo"
-								value={serviceForm.service_type}
-								options={serviceFormTypeOptions}
+								label="Sector"
+								value={String(serviceForm.sector ?? '')}
+								options={sectorSelectOptions}
 								onChange={(value) =>
 									setServiceForm({
 										...serviceForm,
-										service_type: value || 'wash',
+										sector: value ? Number(value) : null,
+										service_type: value ? serviceTypeFromSectorId(value) : 'wash',
 									})
 								}
 							/>
@@ -12158,15 +12159,20 @@ export default function Home() {
 						title={title.label}
 						subtitle={title.subtitle}
 						titleAddon={
-							displayedActive === 'agenda' ? (
+							displayedActive === 'agenda' && sectorSelectOptions.length > 0 ? (
 								<SegmentedControl
-									ariaLabel="Tipo de servicio"
+									ariaLabel="Sector de agenda"
 									className="agenda-type-toggle"
-									options={agendaServiceBuckets}
+									options={[
+										{ value: 'todos', label: 'Todos' },
+										...sectorSelectOptions,
+									]}
 									selectionMode="tabs"
-									value={agendaServiceBucket}
+									value={agendaSectorId === null ? 'todos' : String(agendaSectorId)}
 									onChange={(nextValue) =>
-										setAgendaServiceBucket(nextValue as AgendaServiceBucket)
+										setAgendaSectorId(
+											nextValue === 'todos' ? null : Number(nextValue),
+										)
 									}
 								/>
 							) : null
@@ -12708,6 +12714,7 @@ export default function Home() {
 						serviceDashboardLoading={serviceDashboardLoading}
 						serviceQuickActions={serviceQuickActions}
 						serviceTypeLabels={serviceTypeLabels}
+						sectors={sectors}
 						services={services}
 						workOrders={workOrders}
 						onBackToServices={() => setServiceDashboard(null)}
@@ -12738,7 +12745,7 @@ export default function Home() {
 					<div className="work-view-strip">
 						<div className="work-view-copy">
 							<span className="agenda-toolbar-kicker">Agenda / Trabajos</span>
-							<strong>{agendaServiceBucketLabel}</strong>
+							<strong>{agendaSectorLabel}</strong>
 							<small>
 								{visibleAgendaReservations.length}{' '}
 								{visibleAgendaReservations.length === 1
@@ -13214,6 +13221,7 @@ export default function Home() {
 						loading={loading}
 						safeBusinessLogoPdfThumbnail={safeBusinessLogoPdfThumbnail}
 						safeBusinessLogoPreview={safeBusinessLogoPreview}
+						sectors={sectors}
 						services={services}
 						settingsSection={settingsSection}
 						settingsSectionLabel={settingsSectionLabel}
@@ -13239,6 +13247,22 @@ export default function Home() {
 						onOpenEmployeeForm={() => openFormModal('employee')}
 						onOpenExpenseClassificationForm={() =>
 							openFormModal('expense-classification')
+						}
+						onCreateSector={(data) =>
+							runAction(() =>
+								apiFetch('/sectors/', {
+									method: 'POST',
+									body: JSON.stringify(data),
+								}),
+							)
+						}
+						onSaveSector={(id, patch) =>
+							runAction(() =>
+								apiFetch(`/sectors/${id}/`, {
+									method: 'PATCH',
+									body: JSON.stringify(patch),
+								}),
+							)
 						}
 						onPatchBusinessForm={patchBusinessForm}
 						onRefreshAuditLogs={() => refreshAuditLogs()}
