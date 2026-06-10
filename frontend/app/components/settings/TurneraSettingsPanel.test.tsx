@@ -87,6 +87,7 @@ test('TurneraSettingsPanel exposes an "Abrir turnera" link when a slug is presen
 			businessForm={baseForm()}
 			businessSlug="king-shine"
 			services={[]}
+			sectors={[]}
 			onPatchBusinessForm={() => {}}
 			onSaveBusinessProfile={() => {}}
 		/>,
@@ -105,6 +106,7 @@ test('TurneraSettingsPanel hides the "Abrir" link when there is no slug', () => 
 			businessForm={baseForm()}
 			businessSlug=""
 			services={[]}
+			sectors={[]}
 			onPatchBusinessForm={() => {}}
 			onSaveBusinessProfile={() => {}}
 		/>,
