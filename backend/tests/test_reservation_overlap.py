@@ -6,7 +6,8 @@ from django.contrib.auth.models import Group
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from catalog.models import Service
+from catalog.models import Sector, Service
+from catalog.sector_defaults import ensure_default_sectors, SERVICE_TYPE_TO_SECTOR_KEY
 from core.models import BusinessAccount, BusinessProfile, UserProfile
 from customers.models import Customer, Vehicle
 from scheduling.models import Reservation
@@ -32,9 +33,12 @@ def base_data(db):
         model="Focus",
         color="Gris",
     )
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    lavadero = ensure_default_sectors(BusinessAccount.get_default())["lavadero"]
     service = Service.objects.create(
         name="Lavado premium",
-        service_type=Service.ServiceType.WASH,
+        sector=lavadero,
         base_price=Decimal("15000.00"),
         estimated_duration_minutes=60,
     )
@@ -148,24 +152,33 @@ def _create_public_business(slug="overlap-test", capacity_wash=8, capacity_detai
         allow_public_quote_requests=True,
         allow_overlapping_reservations=False,
         enforce_capacity_limit=True,
-        default_capacity_wash=capacity_wash,
-        default_capacity_detailing=capacity_detailing,
         opening_time=time(9, 0),
         closing_time=time(20, 0),
     )
+    sectors = ensure_default_sectors(business)
+    sectors["lavadero"].default_capacity = capacity_wash
+    sectors["lavadero"].save(update_fields=["default_capacity", "updated_at"])
+    sectors["detailing"].default_capacity = capacity_detailing
+    sectors["detailing"].save(update_fields=["default_capacity", "updated_at"])
     return business
+
+
+def _service_for_business(business, service_type="wash", name="Lavado"):
+    sector_key = SERVICE_TYPE_TO_SECTOR_KEY.get(service_type, "lavadero")
+    sector = Sector.objects.filter(business=business, key=sector_key).first()
+    return Service.objects.create(
+        business=business,
+        name=name,
+        sector=sector,
+        base_price=Decimal("10000"),
+        estimated_duration_minutes=60,
+    )
 
 
 @pytest.mark.django_db
 def test_public_availability_endpoint_returns_capacity_and_occupied():
     business = _create_public_business(capacity_wash=2, capacity_detailing=1)
-    service = Service.objects.create(
-        business=business,
-        name="Lavado",
-        service_type=Service.ServiceType.WASH,
-        base_price=Decimal("10000"),
-        estimated_duration_minutes=60,
-    )
+    service = _service_for_business(business, "wash")
     customer = Customer.objects.create(business=business, name="Cliente", phone="1234")
     vehicle = Vehicle.objects.create(
         business=business,
@@ -194,11 +207,12 @@ def test_public_availability_endpoint_returns_capacity_and_occupied():
     assert body["date"] == "2026-08-12"
     assert body["allow_overlapping"] is False
     assert body["capacity_enforced"] is True
-    assert body["wash"]["max_slots"] == 2
-    assert body["wash"]["used_slots"] == 1
-    assert body["wash"]["available_slots"] == 1
-    assert body["detailing"]["max_slots"] == 1
-    assert body["detailing"]["used_slots"] == 0
+    sectors_by_key = {s["key"]: s for s in body["sectors"]}
+    assert sectors_by_key["lavadero"]["max_slots"] == 2
+    assert sectors_by_key["lavadero"]["used_slots"] == 1
+    assert sectors_by_key["lavadero"]["available_slots"] == 1
+    assert sectors_by_key["detailing"]["max_slots"] == 1
+    assert sectors_by_key["detailing"]["used_slots"] == 0
     assert body["occupied"] == [{"start_time": "10:00", "duration_minutes": 60}]
 
 
@@ -207,13 +221,7 @@ def test_public_request_rejected_when_capacity_full():
     business = _create_public_business(
         slug="overlap-test-full", capacity_wash=1, capacity_detailing=1
     )
-    service = Service.objects.create(
-        business=business,
-        name="Lavado",
-        service_type=Service.ServiceType.WASH,
-        base_price=Decimal("10000"),
-        estimated_duration_minutes=60,
-    )
+    service = _service_for_business(business, "wash")
     customer = Customer.objects.create(business=business, name="Cliente", phone="1234")
     vehicle = Vehicle.objects.create(
         business=business,
@@ -265,13 +273,7 @@ def test_public_request_allowed_when_capacity_limit_disabled():
     profile = BusinessProfile.objects.get(business=business)
     profile.enforce_capacity_limit = False
     profile.save(update_fields=["enforce_capacity_limit"])
-    service = Service.objects.create(
-        business=business,
-        name="Lavado",
-        service_type=Service.ServiceType.WASH,
-        base_price=Decimal("10000"),
-        estimated_duration_minutes=60,
-    )
+    service = _service_for_business(business, "wash")
     customer = Customer.objects.create(business=business, name="Cliente", phone="1234")
     vehicle = Vehicle.objects.create(
         business=business,
@@ -319,13 +321,7 @@ def test_public_request_rejects_overlapping_time():
     business = _create_public_business(
         slug="overlap-test-time", capacity_wash=5, capacity_detailing=5
     )
-    service = Service.objects.create(
-        business=business,
-        name="Lavado",
-        service_type=Service.ServiceType.WASH,
-        base_price=Decimal("10000"),
-        estimated_duration_minutes=60,
-    )
+    service = _service_for_business(business, "wash")
     customer = Customer.objects.create(business=business, name="Cliente", phone="1234")
     vehicle = Vehicle.objects.create(
         business=business,
@@ -377,13 +373,7 @@ def test_public_request_allows_overlap_when_setting_on():
     profile = BusinessProfile.objects.get(business=business)
     profile.allow_overlapping_reservations = True
     profile.save(update_fields=["allow_overlapping_reservations"])
-    service = Service.objects.create(
-        business=business,
-        name="Lavado",
-        service_type=Service.ServiceType.WASH,
-        base_price=Decimal("10000"),
-        estimated_duration_minutes=60,
-    )
+    service = _service_for_business(business, "wash")
     customer = Customer.objects.create(business=business, name="Cliente", phone="1234")
     vehicle = Vehicle.objects.create(
         business=business,

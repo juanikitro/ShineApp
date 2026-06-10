@@ -32,9 +32,12 @@ def base_data(db):
         model="Focus",
         color="Gris",
     )
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    lavadero = ensure_default_sectors(BusinessAccount.get_default())["lavadero"]
     service = Service.objects.create(
         name="Lavado premium",
-        service_type=Service.ServiceType.WASH,
+        sector=lavadero,
         base_price=Decimal("15000.00"),
         estimated_duration_minutes=90,
     )

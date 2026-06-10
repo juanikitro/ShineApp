@@ -25,13 +25,14 @@ from scheduling.models import Reservation, ReservationItem
 from workorders.models import WorkOrder
 
 
-def _set_global_capacity(wash, detailing):
-    profile = BusinessProfile.get_solo()
-    profile.default_capacity_wash = wash
-    profile.default_capacity_detailing = detailing
-    profile.save(
-        update_fields=["default_capacity_wash", "default_capacity_detailing"]
-    )
+def _set_sector_capacity(wash, detailing):
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    sectors = ensure_default_sectors(BusinessAccount.get_default())
+    sectors["lavadero"].default_capacity = wash
+    sectors["lavadero"].save(update_fields=["default_capacity", "updated_at"])
+    sectors["detailing"].default_capacity = detailing
+    sectors["detailing"].save(update_fields=["default_capacity", "updated_at"])
 
 
 @pytest.fixture
@@ -56,6 +57,9 @@ def employee_client(db, django_user_model):
 
 @pytest.fixture
 def base_data(db):
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    sectors = ensure_default_sectors(BusinessAccount.get_default())
     customer = Customer.objects.create(name="Juan Perez", phone="1122334455", email="juan@example.com")
     vehicle = Vehicle.objects.create(
         customer=customer,
@@ -66,7 +70,7 @@ def base_data(db):
     )
     service = Service.objects.create(
         name="Lavado premium",
-        service_type=Service.ServiceType.WASH,
+        sector=sectors["lavadero"],
         base_price=Decimal("15000.00"),
         estimated_duration_minutes=90,
     )
@@ -117,11 +121,14 @@ def pdf_text(pdf_content):
 
 @pytest.mark.django_db
 def test_service_icon_is_optional_editable_and_exposed(api_client):
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    sector = ensure_default_sectors(BusinessAccount.get_default())["lavadero"]
     response = api_client.post(
         reverse("service-list"),
         {
             "name": "Lavado express",
-            "service_type": Service.ServiceType.WASH,
+            "sector": sector.id,
             "base_price": "9000.00",
             "estimated_duration_minutes": 45,
             "icon": "🧽",
@@ -154,11 +161,14 @@ def test_service_icon_is_optional_editable_and_exposed(api_client):
 @pytest.mark.django_db
 def test_service_icon_travels_to_reservation_and_quote_items(api_client, base_data):
     customer, vehicle, _service = base_data
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    detailing_sector = ensure_default_sectors(BusinessAccount.get_default())["detailing"]
     service_response = api_client.post(
         reverse("service-list"),
         {
             "name": "Limpieza interior",
-            "service_type": Service.ServiceType.DETAILING,
+            "sector": detailing_sector.id,
             "base_price": "18000.00",
             "estimated_duration_minutes": 90,
             "icon": "✨",
@@ -837,7 +847,7 @@ def test_customer_history_dashboard_returns_rankings_and_payments_history(api_cl
     customer, vehicle, service = base_data
     ceramic = Service.objects.create(
         name="Sellado ceramico",
-        service_type=Service.ServiceType.DETAILING,
+        sector=service.sector.business.sectors.filter(key="detailing").first(),
         base_price=Decimal("30000.00"),
         estimated_duration_minutes=180,
     )
@@ -965,7 +975,7 @@ def test_customer_history_dashboard_returns_operational_insights_quotes_and_upco
     )
     polishing = Service.objects.create(
         name="Pulido premium",
-        service_type=Service.ServiceType.DETAILING,
+        sector=service.sector.business.sectors.filter(key="detailing").first(),
         base_price=Decimal("40000.00"),
         estimated_duration_minutes=240,
     )
@@ -1135,7 +1145,7 @@ def test_service_history_returns_operational_summary_and_separates_additional_us
     )
     ceramic = Service.objects.create(
         name="Sellado ceramico",
-        service_type=Service.ServiceType.DETAILING,
+        sector=service.sector.business.sectors.filter(key="detailing").first(),
         base_price=Decimal("30000.00"),
         estimated_duration_minutes=180,
     )
@@ -1358,7 +1368,7 @@ def test_employee_operational_endpoints_do_not_expose_money_fields(employee_clie
 @pytest.mark.django_db
 def test_reservation_capacity_blocks_overbooking(api_client, base_data):
     customer, vehicle, service = base_data
-    _set_global_capacity(1, 1)
+    _set_sector_capacity(1, 1)
     Reservation.objects.create(
         customer=customer,
         vehicle=vehicle,
@@ -1388,7 +1398,7 @@ def test_reservation_capacity_blocks_overbooking(api_client, base_data):
 @pytest.mark.django_db
 def test_reservation_capacity_not_enforced_when_limit_disabled(api_client, base_data):
     customer, vehicle, service = base_data
-    _set_global_capacity(1, 1)
+    _set_sector_capacity(1, 1)
     profile = BusinessProfile.get_solo()
     profile.enforce_capacity_limit = False
     profile.save(update_fields=["enforce_capacity_limit"])
@@ -1419,14 +1429,25 @@ def test_reservation_capacity_not_enforced_when_limit_disabled(api_client, base_
 
 @pytest.mark.django_db
 def test_reservation_capacity_separates_wash_and_detailing(api_client, base_data):
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+
     customer, vehicle, wash_service = base_data
+    sectors = ensure_default_sectors(BusinessAccount.get_default())
     detailing_service = Service.objects.create(
         name="Detailing completo",
-        service_type=Service.ServiceType.DETAILING,
+        sector=sectors["detailing"],
         base_price=Decimal("60000.00"),
         estimated_duration_minutes=180,
     )
-    _set_global_capacity(1, 1)
+    for sector in sectors.values():
+        sector.default_capacity = 1
+        sector.save(update_fields=["default_capacity", "updated_at"])
+    wash_service.sector = sectors["lavadero"]
+    wash_service.save(update_fields=["sector"])
+    detailing_service.sector = sectors["detailing"]
+    detailing_service.save(update_fields=["sector"])
+
     Reservation.objects.create(
         customer=customer,
         vehicle=vehicle,
@@ -1463,7 +1484,7 @@ def test_reservation_capacity_separates_wash_and_detailing(api_client, base_data
         format="json",
     )
     assert second_wash_response.status_code == 400
-    assert "lavado" in str(second_wash_response.data).lower()
+    assert "lavadero" in str(second_wash_response.data).lower()
 
     second_detailing_response = api_client.post(
         reverse("reservation-list"),
@@ -1585,7 +1606,7 @@ def test_confirm_action_reactivates_canceled_reservation(api_client, base_data):
 @pytest.mark.django_db
 def test_confirm_action_rejects_canceled_reservation_when_day_is_full(api_client, base_data):
     customer, vehicle, service = base_data
-    _set_global_capacity(1, 1)
+    _set_sector_capacity(1, 1)
     Reservation.objects.create(
         customer=customer,
         vehicle=vehicle,
@@ -1832,7 +1853,7 @@ def test_reservation_patch_can_move_it_to_another_day_with_capacity(api_client, 
         start_time=time(10, 0),
         status=Reservation.Status.CONFIRMED,
     )
-    _set_global_capacity(2, 2)
+    _set_sector_capacity(2, 2)
 
     response = api_client.patch(
         reverse("reservation-detail", args=[reservation.id]),
@@ -1857,7 +1878,7 @@ def test_reservation_patch_rejects_move_to_full_day_and_keeps_original_day(api_c
         start_time=time(10, 0),
         status=Reservation.Status.CONFIRMED,
     )
-    _set_global_capacity(1, 1)
+    _set_sector_capacity(1, 1)
     Reservation.objects.create(
         customer=customer,
         vehicle=vehicle,
@@ -2778,9 +2799,12 @@ def test_quote_creation_snapshots_defaults_and_calculates_commercial_totals(api_
         brand="Fiat",
         model="Cronos",
     )
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    lavadero = ensure_default_sectors(BusinessAccount.get_default())["lavadero"]
     service = Service.objects.create(
         name="Lavado premium",
-        service_type=Service.ServiceType.WASH,
+        sector=lavadero,
         base_price=Decimal("100.00"),
     )
 
@@ -3019,7 +3043,7 @@ def test_quote_accepts_multiple_services_with_default_and_edited_prices(api_clie
     customer, vehicle, service = base_data
     ceramic = Service.objects.create(
         name="Sellado ceramico",
-        service_type=Service.ServiceType.DETAILING,
+        sector=service.sector.business.sectors.filter(key="detailing").first(),
         base_price=Decimal("45000.00"),
         estimated_duration_minutes=180,
     )
@@ -3059,7 +3083,7 @@ def test_reservation_accepts_multiple_services_and_keeps_primary_service(api_cli
     service.save(update_fields=["notes", "updated_at"])
     ceramic = Service.objects.create(
         name="Sellado ceramico",
-        service_type=Service.ServiceType.DETAILING,
+        sector=service.sector.business.sectors.filter(key="detailing").first(),
         base_price=Decimal("45000.00"),
         estimated_duration_minutes=180,
         notes="Requiere descontaminado previo.",
@@ -3119,7 +3143,7 @@ def test_confirmed_multiservice_reservation_creates_work_order_with_combined_tot
     customer, vehicle, service = base_data
     ceramic = Service.objects.create(
         name="Sellado ceramico",
-        service_type=Service.ServiceType.DETAILING,
+        sector=service.sector.business.sectors.filter(key="detailing").first(),
         base_price=Decimal("45000.00"),
         estimated_duration_minutes=180,
     )
@@ -3153,7 +3177,7 @@ def test_reservation_quote_action_is_idempotent_and_copies_items(api_client, bas
     customer, vehicle, service = base_data
     ceramic = Service.objects.create(
         name="Sellado ceramico",
-        service_type=Service.ServiceType.DETAILING,
+        sector=service.sector.business.sectors.filter(key="detailing").first(),
         base_price=Decimal("45000.00"),
         estimated_duration_minutes=180,
     )
@@ -3216,7 +3240,7 @@ def test_quote_to_reservation_requires_day_then_creates_reservation_with_items(a
     customer, vehicle, service = base_data
     ceramic = Service.objects.create(
         name="Sellado ceramico",
-        service_type=Service.ServiceType.DETAILING,
+        sector=service.sector.business.sectors.filter(key="detailing").first(),
         base_price=Decimal("45000.00"),
         estimated_duration_minutes=180,
     )

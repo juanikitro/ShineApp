@@ -1,12 +1,5 @@
 export type AnyRecord = Record<string, any>
 
-export type AgendaServiceBucket = 'wash' | 'detailing'
-
-export type AgendaServiceTypeLookup = Record<
-	string,
-	string | AnyRecord | null | undefined
->
-
 export type AgendaOperationalRowKind =
 	| 'reservation-only'
 	| 'reservation-work-order'
@@ -48,52 +41,20 @@ function normalizeId(value: any) {
 	return String(value)
 }
 
-function normalizeServiceType(value: any) {
-	const raw =
-		value && typeof value === 'object' ? value.service_type : value
-	const serviceType = String(raw ?? '').trim().toLowerCase()
-	return serviceType || null
+export function agendaSectorForReservation(reservation: AnyRecord): number | null {
+	const sectorId = reservation?.sector
+	if (sectorId === null || sectorId === undefined || sectorId === '') return null
+	const n = Number(sectorId)
+	return Number.isFinite(n) && n > 0 ? n : null
 }
 
-function serviceRefId(value: any) {
-	if (value && typeof value === 'object') {
-		return normalizeId(value.id)
-	}
-	return normalizeId(value)
-}
-
-function serviceTypeForRef(value: any, serviceTypeById: AgendaServiceTypeLookup) {
-	const id = serviceRefId(value)
-	const fromLookup = id ? normalizeServiceType(serviceTypeById[id]) : null
-	return fromLookup ?? normalizeServiceType(value)
-}
-
-export function agendaServiceBucketForReservation(
-	reservation: AnyRecord,
-	serviceTypeById: AgendaServiceTypeLookup = {},
-): AgendaServiceBucket {
-	const primaryItem = Array.isArray(reservation.items)
-		? reservation.items[0]
-		: null
-	const serviceType =
-		normalizeServiceType(reservation.service_type) ??
-		normalizeServiceType(reservation.primary_service_type) ??
-		serviceTypeForRef(reservation.service, serviceTypeById) ??
-		serviceTypeForRef(primaryItem?.service, serviceTypeById) ??
-		normalizeServiceType(primaryItem)
-
-	return serviceType === 'detailing' ? 'detailing' : 'wash'
-}
-
-export function filterAgendaReservationsByBucket(
+export function filterAgendaReservationsBySector(
 	reservations: AnyRecord[],
-	serviceTypeById: AgendaServiceTypeLookup,
-	bucket: AgendaServiceBucket,
-) {
+	sectorId: number | null,
+): AnyRecord[] {
+	if (sectorId === null) return reservations ?? []
 	return (reservations ?? []).filter(
-		(reservation) =>
-			agendaServiceBucketForReservation(reservation, serviceTypeById) ===
-			bucket,
+		(r) => agendaSectorForReservation(r) === sectorId,
 	)
 }
 

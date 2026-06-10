@@ -56,6 +56,7 @@ def ensure_reservation_work_order(reservation):
             "customer": reservation.customer,
             "vehicle": reservation.vehicle,
             "service": reservation.service,
+            "sector": reservation.sector,
             "total_amount": reservation.services_total,
         },
     )
@@ -63,7 +64,7 @@ def ensure_reservation_work_order(reservation):
         return order
 
     update_fields = []
-    for field in ["business", "customer", "vehicle", "service"]:
+    for field in ["business", "customer", "vehicle", "service", "sector"]:
         field_id = f"{field}_id"
         reservation_value = getattr(reservation, field_id)
         if getattr(order, field_id) != reservation_value:
