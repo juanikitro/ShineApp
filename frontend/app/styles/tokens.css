@@ -61,7 +61,11 @@
 
   --dashboard-bar-track: var(--color-surface-soft);
   --dashboard-bar-fill: rgba(2, 132, 199, 0.22);
-  --dashboard-spark-stroke: var(--color-accent);
+  --dashboard-bar-income: rgba(2, 132, 199, 0.32);
+  --dashboard-bar-expense: rgba(154, 167, 184, 0.55);
+  --risk-fresh: #9aa7b8;
+  --risk-mid: #d97706;
+  --risk-high: #e00000;
 
   --shop-canvas: var(--color-canvas);
   --shop-surface: var(--color-surface);
@@ -195,6 +199,11 @@
 
   --dashboard-bar-track: rgba(255, 255, 255, 0.08);
   --dashboard-bar-fill: rgba(165, 215, 232, 0.3);
+  --dashboard-bar-income: rgba(165, 215, 232, 0.42);
+  --dashboard-bar-expense: rgba(171, 192, 216, 0.32);
+  --risk-fresh: #7c93ad;
+  --risk-mid: #e0a22f;
+  --risk-high: #e16a5a;
 
   --shop-canvas: var(--color-canvas);
   --shop-surface: var(--color-surface);

@@ -2000,10 +2000,19 @@
 }
 
 .metric {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   min-height: 112px;
   padding: 16px;
+}
+
+/* La viz (caja sparkline / medidor de riesgo) se ancla al pie: el numero queda
+   arriba y alineado entre cards de la misma fila. */
+.metric > .caja-spark,
+.metric > .risk-meter {
+  margin-top: auto;
+  padding-top: 8px;
 }
 
 /* Solo el label (hijo directo): el <strong> puede envolver el <span> de
@@ -2029,23 +2038,161 @@
   line-height: 1.4;
 }
 
-.metric-spark {
-  margin-top: 2px;
-}
-
-.sparkline {
+/* Caja real: sparkline cero-aware (positivo acento, negativo rojo, base punteada). */
+.caja-spark {
   display: block;
-  height: 28px;
+  height: 26px;
   width: 100%;
 }
 
-.sparkline polyline {
+.caja-spark-base {
+  stroke: var(--shop-border-strong);
+  stroke-dasharray: 2 2;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.caja-spark-pos {
   fill: none;
-  stroke: var(--dashboard-spark-stroke);
+  stroke: var(--color-accent);
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
+}
+
+.caja-spark-neg {
+  fill: none;
+  stroke: var(--risk-high);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Por cobrar: medidor de antiguedad por riesgo (fresco neutro -> vencido rojo). */
+.risk-meter {
+  border-radius: 2px;
+  display: flex;
+  gap: 1px;
+  height: 9px;
+  overflow: hidden;
+}
+
+.risk-seg--fresh {
+  background: var(--risk-fresh);
+}
+.risk-seg--mid {
+  background: var(--risk-mid);
+}
+.risk-seg--high {
+  background: var(--risk-high);
+}
+
+/* Lecturas cruzadas: grilla pareja de 4 columnas con cards compactas y uniformes. */
+.dashboard-cross-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dashboard-cross-metric {
+  min-height: 96px;
+}
+
+.dashboard-cross-metric strong {
+  font-size: 24px;
+}
+
+.dashboard-cross-metric.metric-text strong {
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.dashboard-cross-pos {
+  color: var(--color-success);
+}
+.dashboard-cross-neg {
+  color: var(--color-danger);
+}
+
+/* Caja por categoria: dos columnas de desglose con barra de proporcion. */
+.dashboard-cat-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.dashboard-cat-col .dashboard-section-kicker {
+  margin-bottom: 6px;
+}
+
+.dashboard-cat-col .dashboard-section-kicker strong {
+  color: var(--shop-ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-catbreak {
+  display: grid;
+  gap: 2px;
+}
+
+.dashboard-catrow {
+  padding: 8px 0 9px;
+  position: relative;
+}
+
+.dashboard-catrow-top {
+  align-items: baseline;
+  display: flex;
+  font-size: 13px;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.dashboard-catrow-top > span {
+  color: var(--shop-ink-soft);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-catrow-top > strong {
+  color: var(--shop-ink);
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dashboard-catrow-top > strong small {
+  color: var(--shop-ink-muted);
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 5px;
+}
+
+.dashboard-catbar {
+  background: linear-gradient(
+    to right,
+    var(--bar-fill, var(--dashboard-bar-fill)) 0 var(--share, 0%),
+    var(--dashboard-bar-track) var(--share, 0%) 100%
+  );
+  bottom: 0;
+  height: 3px;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+@media (max-width: 980px) {
+  .dashboard-cross-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dashboard-cat-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .metric-grid-dashboard .metric {
@@ -2151,7 +2298,7 @@
 .dashboard-sharebar {
   background: linear-gradient(
     to right,
-    var(--dashboard-bar-fill) 0 var(--share, 0%),
+    var(--bar-fill, var(--dashboard-bar-fill)) 0 var(--share, 0%),
     var(--dashboard-bar-track) var(--share, 0%) 100%
   );
   bottom: 0;
@@ -2341,6 +2488,19 @@
 .dashboard-ranking-record .record-head {
   align-items: flex-start;
   gap: 10px;
+}
+
+/* El nombre se acorta/wrappea por palabra en vez de desbordar la columna. */
+.dashboard-ranking-record .record-head > div {
+  min-width: 0;
+}
+
+.dashboard-ranking-record .record-head > div span {
+  overflow-wrap: break-word;
+}
+
+.dashboard-ranking-record .record-head > strong {
+  flex: 0 0 auto;
 }
 
 .dashboard-alert-record span,
