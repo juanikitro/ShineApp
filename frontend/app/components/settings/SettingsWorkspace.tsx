@@ -882,6 +882,7 @@ function UsersSettingsPanel({
 	onDeselectEmployee: () => void
 	onOpenEmployeeForm: () => void
 	onRefreshData: () => void
+	onSelectEmployee: (employee: AnyRecord) => void
 	onToggleEmployeeActive: (pk: number | string, isActive: boolean) => void
 	onAuditActionLabel: (action: string) => string
 	onAuditModuleLabel: (module: string) => string
