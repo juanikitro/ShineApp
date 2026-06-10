@@ -54,13 +54,13 @@ export async function loadAppDataSet(
 		case 'payments':
 			return loaders.apiList<AnyRecord>('/payments/')
 		case 'debts':
-			return loaders.apiFetch<AnyRecord[] | { results: AnyRecord[]; skipped_recurring_periods?: AnyRecord[] }>(
-				'/debts/',
-			)
+			return loaders.apiList<AnyRecord>('/debts/')
 		case 'debtPayments':
 			return loaders.apiList<AnyRecord>('/debt-payments/')
-		case 'recurringDebts':
-			return loaders.apiList<AnyRecord>('/recurring-debts/')
+		case 'fixedExpenses':
+			return loaders.apiList<AnyRecord>('/fixed-expenses/')
+		case 'fixedExpenseOccurrences':
+			return loaders.apiList<AnyRecord>('/fixed-expense-occurrences/')
 		case 'materials':
 			return loaders.apiList<AnyRecord>('/materials/')
 		case 'suppliers':

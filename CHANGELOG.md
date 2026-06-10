@@ -11,6 +11,8 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-10
+- [Revert de deudas recurrentes (2026-06-10)](docs/registro/cambios/2026-06-10-revert-deudas-recurrentes.md)
+- [Modulo Gastos fijos (2026-06-10)](docs/registro/cambios/2026-06-10-gastos-fijos.md)
 - [Turnera: atajos para abrir la landing publica desde la app](docs/registro/cambios/2026-06-10-turnera-atajos-de-acceso.md)
 - [Gestión de empleados: detalle, toggle activo y cambio de contraseña](docs/registro/cambios/2026-06-10-gestion-empleados-detalle.md)
 - [Detalle de empleado: cambio de contraseña e historial](docs/registro/cambios/2026-06-10-employee-detail-password-history.md)
