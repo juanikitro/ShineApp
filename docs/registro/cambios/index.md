@@ -14,6 +14,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Gestión de empleados: detalle, toggle activo y cambio de contraseña](2026-06-10-gestion-empleados-detalle.md)
 - [Modulo Gastos fijos (2026-06-10)](2026-06-10-gastos-fijos.md)
 - [Gastos fijos: edicion, revertir pago y correctitud de caja cerrada (2026-06-10)](2026-06-10-gastos-fijos-mejoras.md)
+- [Gastos fijos: proyeccion de pendientes en dashboard y dialogo de pago (2026-06-10)](2026-06-10-gastos-fijos-mejoras-2.md)
 - [Detalle de empleado: cambio de contraseña e historial](2026-06-10-employee-detail-password-history.md)
 - [Design System v2 — Fase 1 (tokens) + Fase 2 (base layer y fuente)](2026-06-10-design-system-v2-fase1-fase2.md)
 - [Dashboard: senales de riesgo de cobranza/caja + lecturas cruzadas](2026-06-10-dashboard-senales-riesgo-cruces.md)
