@@ -12,6 +12,9 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-10
 - [Turnera: atajos para abrir la landing publica desde la app](docs/registro/cambios/2026-06-10-turnera-atajos-de-acceso.md)
+- [Gestión de empleados: detalle, toggle activo y cambio de contraseña](docs/registro/cambios/2026-06-10-gestion-empleados-detalle.md)
+- [Design System v2 — Fase 3 (migración de tokens en shell, agenda, forms, public)](docs/registro/cambios/2026-06-10-design-system-v2-fase3.md)
+- [Design System v2 — Fase 1 (tokens) + Fase 2 (base layer y fuente)](docs/registro/cambios/2026-06-10-design-system-v2-fase1-fase2.md)
 - [Dashboard: senales de riesgo de cobranza/caja + lecturas cruzadas](docs/registro/cambios/2026-06-10-dashboard-senales-riesgo-cruces.md)
 - [Changelog sin conflictos entre PRs concurrentes](docs/registro/cambios/2026-06-10-changelog-sin-conflictos-en-prs.md)
 
