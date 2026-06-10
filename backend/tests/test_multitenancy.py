@@ -171,12 +171,15 @@ def test_quote_defaults_use_request_business_profile():
     business_b.profile.default_quote_terms = "Terminos B"
     business_b.profile.save()
 
+    from catalog.sector_defaults import ensure_default_sectors
+    sectors_a = ensure_default_sectors(business_a)
+    sectors_b = ensure_default_sectors(business_b)
     customer_a = Customer.objects.create(business=business_a, name="Cliente A")
     vehicle_a = Vehicle.objects.create(business=business_a, customer=customer_a, license_plate="AA111AA")
     service_a = Service.objects.create(
         business=business_a,
         name="Lavado A",
-        service_type=Service.ServiceType.WASH,
+        sector=sectors_a["lavadero"],
         base_price=Decimal("100.00"),
     )
     customer_b = Customer.objects.create(business=business_b, name="Cliente B")
@@ -184,7 +187,7 @@ def test_quote_defaults_use_request_business_profile():
     service_b = Service.objects.create(
         business=business_b,
         name="Lavado B",
-        service_type=Service.ServiceType.WASH,
+        sector=sectors_b["lavadero"],
         base_price=Decimal("200.00"),
     )
 

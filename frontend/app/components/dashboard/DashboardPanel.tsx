@@ -191,6 +191,9 @@ export function DashboardPanel({
 	)
 		? dashboardRankings.top_materials_by_cost
 		: []
+	const dashboardBySector = Array.isArray(dashboardRankings.by_sector)
+		? dashboardRankings.by_sector
+		: []
 	const dashboardWorkStatusMax = dashboardWorkStatusEntries.reduce(
 		(max, [key]) =>
 			Math.max(max, numberValue(dashboard.work_orders_by_status?.[key])),
@@ -213,6 +216,7 @@ export function DashboardPanel({
 	const dashboardTopMaterialsMax = numberValue(
 		dashboardTopMaterialsByCost[0]?.estimated_total_cost,
 	)
+	const dashboardBySectorMax = numberValue(dashboardBySector[0]?.billed_total)
 	const dashboardSeriesPoints = Array.isArray(dashboard.series?.points)
 		? dashboard.series.points
 		: []
@@ -910,7 +914,8 @@ export function DashboardPanel({
 							{dashboardTopCustomersByBilled.length ||
 							dashboardTopServicesByBilled.length ||
 							dashboardTopWorkOrdersByMargin.length ||
-							dashboardTopMaterialsByCost.length ? (
+							dashboardTopMaterialsByCost.length ||
+							dashboardBySector.length ? (
 								<Panel
 									title="Rankings economicos"
 									subtitle="Donde se concentra facturacion, margen y costo de materiales."
@@ -1018,6 +1023,35 @@ export function DashboardPanel({
 												))}
 											</div>
 										</div>
+										{dashboardBySector.length ? (
+											<div className="dashboard-ranking-column">
+												<div className="dashboard-section-kicker">
+													<span>Sectores por facturacion</span>
+												</div>
+												<div className="records dashboard-ranking-records">
+													{dashboardBySector.map((item: AnyRecord) => (
+														<RecordCard
+															className="dashboard-ranking-record dashboard-sharerow"
+															key={item.sector_id ?? item.sector_name}
+														>
+															<div className="record-head">
+																<div>
+																	<span>{item.sector_name}</span>
+																	<small>
+																		{dashboardCountText(
+																			numberValue(item.work_orders_count),
+																			'trabajo',
+																			'trabajos',
+																		)}
+																	</small>
+																</div>
+																<strong>{money(item.billed_total)}</strong>{dashboardShareBar(item.billed_total, dashboardBySectorMax)}
+															</div>
+														</RecordCard>
+													))}
+												</div>
+											</div>
+										) : null}
 									</div>
 								</Panel>
 							) : null}

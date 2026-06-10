@@ -25,10 +25,12 @@ def base_data(db, default_business):
         model="Focus",
         color="Gris",
     )
+    from catalog.models import Sector
+    lavadero = Sector.objects.get(business=default_business, key="lavadero")
     service = Service.objects.create(
         business=default_business,
         name="Lavado premium",
-        service_type=Service.ServiceType.WASH,
+        sector=lavadero,
         base_price=Decimal("15000.00"),
         estimated_duration_minutes=90,
     )

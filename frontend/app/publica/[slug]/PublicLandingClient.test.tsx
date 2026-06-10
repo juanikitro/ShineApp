@@ -30,18 +30,22 @@ const landingPayload = {
 	},
 	actions: { booking_requests: true, quote_requests: true },
 	display: { show_service_description: true, show_service_price: false },
+	sectors: [
+		{ id: 1, name: 'Lavadero', key: 'lavadero', color: '', order: 0 },
+		{ id: 2, name: 'Detailing', key: 'detailing', color: '', order: 1 },
+	],
 	services: [
 		{
 			id: 7,
 			name: 'Lavado Premium',
-			service_type: 'wash',
+			sector: 1,
 			estimated_duration_minutes: null,
 			notes: longNotes,
 		},
 		{
 			id: 9,
 			name: 'Detailing Total',
-			service_type: 'detailing',
+			sector: 2,
 			estimated_duration_minutes: null,
 			notes: 'Corto.',
 		},

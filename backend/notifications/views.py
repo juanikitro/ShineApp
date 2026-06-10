@@ -6,15 +6,11 @@ from django.utils import timezone
 from rest_framework import decorators, mixins, permissions, response, status, viewsets
 from rest_framework.views import APIView
 
-from catalog.models import Service
+from catalog.models import Sector, Service
 from core.audit import audit_snapshot, record_audit_event
 from core.models import BusinessAccount, BusinessProfile
 from core.permissions import EmployerOnly, business_from_request, file_url
-from scheduling.models import (
-    DETAILING_BUCKET,
-    WASH_BUCKET,
-    Reservation,
-)
+from scheduling.models import Reservation
 
 from .models import PublicRequest
 from .service import send_business_push_notification, send_new_public_request_notification
@@ -59,23 +55,28 @@ class PublicLandingView(APIView):
 
     def get(self, request, slug):
         business, profile = public_business_or_404(slug)
-        enabled_types = []
-        if profile.public_show_wash_services:
-            enabled_types.append("wash")
-        if profile.public_show_detailing_services:
-            enabled_types.append("detailing")
-        if profile.public_show_wash_services and profile.public_show_detailing_services:
-            enabled_types.append("combo")
         hidden_ids = [
             int(value)
             for value in (profile.public_hidden_service_ids or [])
             if isinstance(value, (int, str)) and str(value).lstrip("-").isdigit()
         ]
-        services = Service.objects.filter(
-            business=business,
-            is_active=True,
-            service_type__in=enabled_types,
-        ).exclude(id__in=hidden_ids).order_by("service_type", "name")
+        visible_sectors = list(
+            Sector.objects.filter(
+                business=business,
+                is_active=True,
+                public_visible=True,
+                deleted_at__isnull=True,
+            ).order_by("order", "name")
+        )
+        services = (
+            Service.objects.filter(
+                business=business,
+                is_active=True,
+                sector__in=visible_sectors,
+            )
+            .exclude(id__in=hidden_ids)
+            .order_by("sector__order", "name")
+        )
         show_description = profile.public_show_service_description
         show_price = profile.public_show_service_price
         landing = response.Response(
@@ -100,6 +101,16 @@ class PublicLandingView(APIView):
                     "show_service_description": show_description,
                     "show_service_price": show_price,
                 },
+                "sectors": [
+                    {
+                        "id": sector.id,
+                        "name": sector.name,
+                        "key": sector.key,
+                        "color": sector.color,
+                        "order": sector.order,
+                    }
+                    for sector in visible_sectors
+                ],
                 "services": PublicLandingServiceSerializer(
                     services,
                     many=True,
@@ -119,10 +130,28 @@ class PublicLandingView(APIView):
 
 
 def _availability_payload(business, profile, day):
-    max_slots_wash = Reservation.capacity_for_day(day, business=business, bucket=WASH_BUCKET)
-    max_slots_detailing = Reservation.capacity_for_day(day, business=business, bucket=DETAILING_BUCKET)
-    used_slots_wash = Reservation.used_slots_for_day(day, business=business, bucket=WASH_BUCKET)
-    used_slots_detailing = Reservation.used_slots_for_day(day, business=business, bucket=DETAILING_BUCKET)
+    active_sectors = list(
+        Sector.objects.filter(
+            business=business,
+            is_active=True,
+            deleted_at__isnull=True,
+        ).order_by("order", "name")
+    )
+    sectors_payload = []
+    for sector in active_sectors:
+        max_slots = Reservation.capacity_for_day(day, business=business, sector=sector)
+        used_slots = Reservation.used_slots_for_day(day, business=business, sector=sector)
+        sectors_payload.append(
+            {
+                "id": sector.id,
+                "name": sector.name,
+                "key": sector.key,
+                "color": sector.color,
+                "max_slots": max_slots,
+                "used_slots": used_slots,
+                "available_slots": max(max_slots - used_slots, 0),
+            }
+        )
     reservations = (
         Reservation.objects.filter(business=business, day=day)
         .filter(status__in=Reservation.active_statuses())
@@ -144,16 +173,7 @@ def _availability_payload(business, profile, day):
         "date": day.isoformat(),
         "allow_overlapping": bool(profile.allow_overlapping_reservations),
         "capacity_enforced": bool(profile.enforce_capacity_limit),
-        "wash": {
-            "max_slots": max_slots_wash,
-            "used_slots": used_slots_wash,
-            "available_slots": max(max_slots_wash - used_slots_wash, 0),
-        },
-        "detailing": {
-            "max_slots": max_slots_detailing,
-            "used_slots": used_slots_detailing,
-            "available_slots": max(max_slots_detailing - used_slots_detailing, 0),
-        },
+        "sectors": sectors_payload,
         "occupied": occupied,
     }
 
