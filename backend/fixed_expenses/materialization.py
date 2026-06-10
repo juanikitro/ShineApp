@@ -7,8 +7,8 @@ que el usuario registre el pago (`register_occurrence_payment`).
 
 La generacion es idempotente: `last_generated_for`/`cycles_generated` actuan de
 sentinela y `select_for_update` evita duplicados en requests concurrentes. Si el
-periodo cae en un dia de caja cerrado, el egreso se registra como ajuste
-(`adjusts_closed_day`) en lugar de saltarse.
+periodo cae en un dia de caja cerrado, el egreso se postea al dia actual
+(abierto) marcando `adjusts_closed_day` al periodo, en lugar de saltarse.
 """
 
 from datetime import date, datetime, time, timedelta
@@ -17,7 +17,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from core.models import register_expense_classification
-from finance.cash import is_cash_day_closed
+from finance.cash import cash_day, ensure_cash_day_open, is_cash_day_closed
 from finance.models import CashMovement
 
 from .models import FixedExpense, FixedExpenseOccurrence, PaymentMethod
@@ -81,7 +81,19 @@ def _build_occurrence(plan: FixedExpense, origin: date) -> FixedExpenseOccurrenc
     )
 
 
-def _settle_occurrence(occurrence: FixedExpenseOccurrence, *, method, paid_at, user=None) -> CashMovement:
+def _resolve_settlement(target_day, today, business):
+    """El egreso debe quedar en un dia de caja abierto. Si ``target_day`` esta
+    cerrado, se postea a ``today`` (abierto) marcando ``target_day`` como dia
+    ajustado. Devuelve (occurred_at, adjusts_closed_day, settlement_date)."""
+    if is_cash_day_closed(target_day, business=business):
+        return occurrence_datetime(today), target_day, today
+    return occurrence_datetime(target_day), None, target_day
+
+
+def _settle_occurrence(occurrence, *, target_day, today, method, user=None) -> CashMovement:
+    occurred_at, adjusts_closed_day, settlement_date = _resolve_settlement(
+        target_day, today, occurrence.business
+    )
     category = occurrence.expense_category or "Servicios"
     subcategory = occurrence.expense_subcategory or "Otros"
     kwargs = {
@@ -90,17 +102,17 @@ def _settle_occurrence(occurrence: FixedExpenseOccurrence, *, method, paid_at, u
         "category": category,
         "subcategory": subcategory,
         "amount": occurrence.amount,
-        "occurred_at": occurrence_datetime(occurrence.period_date),
+        "occurred_at": occurred_at,
         "description": f"Gasto fijo: {occurrence.fixed_expense.concept}",
     }
-    if is_cash_day_closed(occurrence.period_date, business=occurrence.business):
-        kwargs["adjusts_closed_day"] = occurrence.period_date
+    if adjusts_closed_day is not None:
+        kwargs["adjusts_closed_day"] = adjusts_closed_day
     movement = CashMovement.objects.create(created_by=user, **kwargs)
     register_expense_classification(category, subcategory, business=occurrence.business)
     occurrence.cash_movement = movement
     occurrence.status = FixedExpenseOccurrence.Status.PAID
     occurrence.method = method
-    occurrence.paid_at = paid_at
+    occurrence.paid_at = settlement_date
     occurrence.save(
         update_fields=["cash_movement", "status", "method", "paid_at", "updated_at"]
     )
@@ -108,13 +120,78 @@ def _settle_occurrence(occurrence: FixedExpenseOccurrence, *, method, paid_at, u
 
 
 def register_occurrence_payment(occurrence, *, user=None, method=None, paid_at=None):
-    """Registra el pago manual de una ocurrencia pendiente (idempotente)."""
-    if occurrence.status == FixedExpenseOccurrence.Status.PAID or occurrence.cash_movement_id:
-        return occurrence.cash_movement
-    method = method or occurrence.method or PaymentMethod.TRANSFER
-    paid_at = paid_at or occurrence.period_date
+    """Registra el pago manual de una ocurrencia pendiente (idempotente, con lock)."""
+    today = timezone.localdate()
     with transaction.atomic():
-        return _settle_occurrence(occurrence, method=method, paid_at=paid_at, user=user)
+        locked = (
+            FixedExpenseOccurrence.objects.select_for_update()
+            .filter(pk=occurrence.pk)
+            .first()
+        )
+        if locked is None:
+            return None
+        if locked.status == FixedExpenseOccurrence.Status.PAID or locked.cash_movement_id:
+            return locked.cash_movement
+        method = method or locked.method or PaymentMethod.TRANSFER
+        target_day = paid_at or today
+        return _settle_occurrence(
+            locked, target_day=target_day, today=today, method=method, user=user
+        )
+
+
+def register_occurrence_unpay(occurrence):
+    """Revierte el pago: borra el CashMovement y vuelve la ocurrencia a
+    pendiente. Bloquea si el dia del movimiento ya esta cerrado (habria que
+    reabrir la caja primero)."""
+    with transaction.atomic():
+        locked = (
+            FixedExpenseOccurrence.objects.select_for_update()
+            .filter(pk=occurrence.pk)
+            .first()
+        )
+        if (
+            locked is None
+            or locked.status != FixedExpenseOccurrence.Status.PAID
+            or not locked.cash_movement_id
+        ):
+            return occurrence
+        movement = locked.cash_movement
+        if movement is not None:
+            ensure_cash_day_open(
+                cash_day(movement.occurred_at), field="period", business=locked.business
+            )
+        FixedExpenseOccurrence.all_objects.filter(pk=locked.pk).update(cash_movement=None)
+        locked.cash_movement = None
+        locked.status = FixedExpenseOccurrence.Status.PENDING
+        locked.paid_at = None
+        locked.save(
+            update_fields=["cash_movement", "status", "paid_at", "updated_at"]
+        )
+        if movement is not None:
+            movement.delete()
+    return locked
+
+
+def sync_pending_occurrences(plan):
+    """Propaga cambios de la plantilla a sus ocurrencias pendientes (no pagadas).
+    Las pagadas son egresos saldados y no se tocan."""
+    pending = plan.occurrences.filter(status=FixedExpenseOccurrence.Status.PENDING)
+    for occurrence in pending:
+        occurrence.amount = plan.amount
+        occurrence.expense_category = plan.expense_category or "Servicios"
+        occurrence.expense_subcategory = plan.expense_subcategory or "Otros"
+        occurrence.due_date = due_date_for(plan, occurrence.period_date)
+        occurrence.method = plan.payment_method
+        occurrence.save(
+            update_fields=[
+                "amount",
+                "expense_category",
+                "expense_subcategory",
+                "due_date",
+                "method",
+                "updated_at",
+            ]
+        )
 
 
 def materialize_due(business=None, today: date | None = None, user=None) -> int:
@@ -152,8 +229,9 @@ def _materialize_plan(plan_id: int, today: date, user=None) -> int:
             if plan.auto_pay:
                 _settle_occurrence(
                     occurrence,
+                    target_day=candidate,
+                    today=today,
                     method=plan.payment_method,
-                    paid_at=candidate,
                     user=user,
                 )
             plan.last_generated_for = candidate

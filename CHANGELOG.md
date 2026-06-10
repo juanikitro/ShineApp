@@ -12,6 +12,12 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-10
 - [Turnera: atajos para abrir la landing publica desde la app](docs/registro/cambios/2026-06-10-turnera-atajos-de-acceso.md)
+- [Revert de deudas recurrentes (2026-06-10)](docs/registro/cambios/2026-06-10-revert-deudas-recurrentes.md)
+- [Gestión de empleados: detalle, toggle activo y cambio de contraseña](docs/registro/cambios/2026-06-10-gestion-empleados-detalle.md)
+- [Modulo Gastos fijos (2026-06-10)](docs/registro/cambios/2026-06-10-gastos-fijos.md)
+- [Gastos fijos: edicion, revertir pago y correctitud de caja cerrada (2026-06-10)](docs/registro/cambios/2026-06-10-gastos-fijos-mejoras.md)
+- [Gastos fijos: proyeccion de pendientes en dashboard y dialogo de pago (2026-06-10)](docs/registro/cambios/2026-06-10-gastos-fijos-mejoras-2.md)
+- [Detalle de empleado: cambio de contraseña e historial](docs/registro/cambios/2026-06-10-employee-detail-password-history.md)
 - [Sectores fase 4 - Limpieza legacy: service_type y campos por tipo eliminados (2026-06-10)](docs/registro/cambios/2026-06-10-sectores-fase-4-limpieza-legacy.md)
 - [Sectores fase 3 - Dashboard segmentado y landing pública por sector (2026-06-10)](docs/registro/cambios/2026-06-10-sectores-fase-3-dashboard-landing.md)
 - [Sectores fase 2 - Frontend: gestión de sectores, agenda dinámica y settings (2026-06-10)](docs/registro/cambios/2026-06-10-sectores-fase-2-frontend.md)

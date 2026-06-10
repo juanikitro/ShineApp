@@ -1,6 +1,6 @@
 'use client'
 
-import { CalendarClock, CreditCard, Eye, RefreshCw } from 'lucide-react'
+import { CalendarClock, CreditCard, Eye, RefreshCw, RotateCcw } from 'lucide-react'
 
 import { FinanceRecordCard } from '@/app/components/finance/FinanceRecordCard'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
@@ -14,6 +14,7 @@ import {
 	formatDateLabel,
 	money,
 	numberValue,
+	today,
 } from '@/lib/page-support'
 
 type FixedExpensePanelProps = {
@@ -26,9 +27,10 @@ type FixedExpensePanelProps = {
 	search: string
 	onSearchChange: (value: string) => void
 	onCreateFixedExpense: () => void
-	onOpenFixedExpenseDetail: (item: AnyRecord) => void
+	onEditFixedExpense: (item: AnyRecord) => void
 	onOpenOccurrenceDetail: (item: AnyRecord) => void
 	onPayOccurrence: (id: string | number) => void
+	onUnpayOccurrence: (id: string | number) => void
 	onPauseFixedExpense: (id: string | number) => void
 	onResumeFixedExpense: (id: string | number) => void
 	onDeleteFixedExpense: (id: string | number) => void
@@ -38,6 +40,13 @@ type FixedExpensePanelProps = {
 function matchesSearch(text: string, query: string) {
 	if (!query) return true
 	return text.toLowerCase().includes(query.toLowerCase())
+}
+
+function monthlyEquivalent(plan: AnyRecord) {
+	const amount = numberValue(plan.amount)
+	const count = Math.max(Number(plan.interval_count) || 1, 1)
+	const perMonth = plan.interval_unit === 'weeks' ? 52 / 12 / count : 1 / count
+	return amount * perMonth
 }
 
 export function FixedExpensePanel({
@@ -50,9 +59,10 @@ export function FixedExpensePanel({
 	search,
 	onSearchChange,
 	onCreateFixedExpense,
-	onOpenFixedExpenseDetail,
+	onEditFixedExpense,
 	onOpenOccurrenceDetail,
 	onPayOccurrence,
+	onUnpayOccurrence,
 	onPauseFixedExpense,
 	onResumeFixedExpense,
 	onDeleteFixedExpense,
@@ -61,8 +71,10 @@ export function FixedExpensePanel({
 	const pending = occurrences.filter((item) => item.status === 'pending')
 	const paid = occurrences.filter((item) => item.status === 'paid')
 	const pendingTotal = pending.reduce((sum, item) => sum + numberValue(item.amount), 0)
-	const paidTotal = paid.reduce((sum, item) => sum + numberValue(item.amount), 0)
 	const activeCount = fixedExpenses.filter((item) => item.is_active).length
+	const monthlyEstimate = fixedExpenses
+		.filter((item) => item.is_active)
+		.reduce((sum, item) => sum + monthlyEquivalent(item), 0)
 
 	const filteredPlans = fixedExpenses.filter((plan) =>
 		matchesSearch(joinDisplayParts([plan.concept, plan.supplier_name]) || '', search),
@@ -129,8 +141,8 @@ export function FixedExpensePanel({
 								<strong>{money(pendingTotal)}</strong>
 							</div>
 							<div className="metric">
-								<span>Pagado</span>
-								<strong>{money(paidTotal)}</strong>
+								<span>Estimado mensual</span>
+								<strong>{money(monthlyEstimate)}</strong>
 							</div>
 						</section>
 						<section className="fixed-expense-filters section-block-end">
@@ -146,55 +158,62 @@ export function FixedExpensePanel({
 							<>
 								<h2 className="subsection-title">Por pagar del periodo</h2>
 								<div className="records finance-records fixed-expense-records">
-									{filteredPending.map((item) => (
-										<FinanceRecordCard
-											amount={{
-												label: 'Monto',
-												value: money(item.amount),
-												tone: 'warning',
-											}}
-											badges={[
-												{ label: 'Por pagar', className: 'status warning' },
-											]}
-											className={recordClass(
-												'fixed-expense-occurrence',
-												item.id,
-												'fixed-expense-record-card',
-											)}
-											key={item.id}
-											primaryAction={{
-												label: 'Registrar pago',
-												icon: <CreditCard size={15} />,
-												onClick: () => onPayOccurrence(item.id),
-												variant: 'primary',
-											}}
-											secondaryActions={[
-												{
-													label: 'Detalle',
-													icon: <Eye size={15} />,
-													onClick: () => onOpenOccurrenceDetail(item),
-													variant: 'ghost',
-												},
-											]}
-											stats={[
-												{
-													label: 'Periodo',
-													value: item.period_date
-														? formatDateLabel(item.period_date)
-														: 'Sin fecha',
-												},
-												{
-													label: 'Vence',
-													value: item.due_date
-														? formatDateLabel(item.due_date)
-														: 'Sin limite',
-													hint: item.expense_subcategory || item.expense_category,
-												},
-											]}
-											subtitle="Periodo pendiente de pago"
-											title={item.fixed_expense_concept}
-										/>
-									))}
+									{filteredPending.map((item) => {
+										const overdue = Boolean(
+											item.due_date && String(item.due_date) < today,
+										)
+										return (
+											<FinanceRecordCard
+												amount={{
+													label: 'Monto',
+													value: money(item.amount),
+													tone: overdue ? 'expense' : 'warning',
+												}}
+												badges={[
+													overdue
+														? { label: 'Vencido', className: 'status overdue' }
+														: { label: 'Por pagar', className: 'status warning' },
+												]}
+												className={recordClass(
+													'fixed-expense-occurrence',
+													item.id,
+													'fixed-expense-record-card',
+												)}
+												key={item.id}
+												primaryAction={{
+													label: 'Registrar pago',
+													icon: <CreditCard size={15} />,
+													onClick: () => onPayOccurrence(item.id),
+													variant: 'primary',
+												}}
+												secondaryActions={[
+													{
+														label: 'Detalle',
+														icon: <Eye size={15} />,
+														onClick: () => onOpenOccurrenceDetail(item),
+														variant: 'ghost',
+													},
+												]}
+												stats={[
+													{
+														label: 'Periodo',
+														value: item.period_date
+															? formatDateLabel(item.period_date)
+															: 'Sin fecha',
+													},
+													{
+														label: 'Vence',
+														value: item.due_date
+															? formatDateLabel(item.due_date)
+															: 'Sin limite',
+														hint: item.expense_subcategory || item.expense_category,
+													},
+												]}
+												subtitle="Periodo pendiente de pago"
+												title={item.fixed_expense_concept}
+											/>
+										)
+									})}
 								</div>
 							</>
 						) : null}
@@ -214,7 +233,7 @@ export function FixedExpensePanel({
 												<button
 													type="button"
 													className="fixed-expense-item-main"
-													onClick={() => onOpenFixedExpenseDetail(plan)}
+													onClick={() => onEditFixedExpense(plan)}
 												>
 													<strong>{plan.concept}</strong>
 													<span>
@@ -315,6 +334,14 @@ export function FixedExpensePanel({
 												onClick: () => onOpenOccurrenceDetail(item),
 												variant: 'primary',
 											}}
+											secondaryActions={[
+												{
+													label: 'Revertir',
+													icon: <RotateCcw size={15} />,
+													onClick: () => onUnpayOccurrence(item.id),
+													variant: 'ghost',
+												},
+											]}
 											stats={[
 												{
 													label: 'Periodo',

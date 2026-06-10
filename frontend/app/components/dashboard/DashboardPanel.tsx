@@ -137,6 +137,12 @@ export function DashboardPanel({
 	const dashboardMaterialPurchasesTotal = numberValue(
 		dashboard.material_purchases_total,
 	)
+	const dashboardFixedExpensesPendingTotal = numberValue(
+		dashboard.fixed_expenses_pending_total,
+	)
+	const dashboardFixedExpensesPendingCount = numberValue(
+		dashboard.fixed_expenses_pending_count,
+	)
 	const dashboardEconomicAlerts = Array.isArray(dashboard.economic_alerts)
 		? dashboard.economic_alerts
 		: []
@@ -592,6 +598,20 @@ export function DashboardPanel({
 												numericValue={dashboardOverdueDebtsTotal}
 												format={money}
 												hint={`${dashboardOverdueDebtsCount} pendientes`}
+											/>
+										</StaggerItem>
+										<StaggerItem>
+											<MetricCard
+												className={
+													dashboardFixedExpensesPendingTotal > 0
+														? 'metric--attention'
+														: ''
+												}
+												label="Gastos fijos por pagar"
+												value={money(dashboardFixedExpensesPendingTotal)}
+												numericValue={dashboardFixedExpensesPendingTotal}
+												format={money}
+												hint={`${dashboardFixedExpensesPendingCount} pendientes en el periodo`}
 											/>
 										</StaggerItem>
 									</Stagger>

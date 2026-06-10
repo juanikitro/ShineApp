@@ -72,6 +72,9 @@ class FixedExpense(SoftDeleteMixin):
         self.is_active = False
         self.deleted_at = timezone.now()
         self.save(update_fields=["is_active", "deleted_at", "updated_at"])
+        # las ocurrencias pendientes (sin pagar) dejan de adeudarse; las pagadas
+        # quedan como egresos historicos
+        self.occurrences.filter(status="pending").delete()
 
 
 class FixedExpenseOccurrence(SoftDeleteMixin):

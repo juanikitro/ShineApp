@@ -17,6 +17,7 @@ from customers.serializers import CustomerSerializer
 from debts.models import Debt, DebtPayment
 from finance.cash import cash_movement_cashflow_effect
 from finance.models import CashMovement, Payment
+from fixed_expenses.models import FixedExpenseOccurrence
 from inventory.models import MaterialConsumption, MaterialPurchase, StockMovement, StockMovementLine
 from workorders.metrics import build_work_order_financial_metrics
 from workorders.models import WorkOrder
@@ -427,6 +428,19 @@ def material_purchases_total_for_period(business, date_from, date_to):
     return decimal_sum(purchases, "total_cost") + decimal_sum(stock_purchases, "total_amount")
 
 
+def fixed_expenses_pending_for_period(business, date_from, date_to):
+    qs = FixedExpenseOccurrence.objects.filter(
+        business=business,
+        status=FixedExpenseOccurrence.Status.PENDING,
+        period_date__gte=date_from,
+        period_date__lte=date_to,
+    )
+    return {
+        "fixed_expenses_pending_total": qs.aggregate(total=Sum("amount"))["total"] or ZERO,
+        "fixed_expenses_pending_count": qs.count(),
+    }
+
+
 def material_cost_rankings_for_period(business, date_from, date_to):
     materials = defaultdict(
         lambda: {
@@ -503,6 +517,7 @@ def dashboard_period_summary(business, date_from, date_to):
     financials = work_order_financials(work_orders)
     material_cost_total = material_cost_total_for_period(business, date_from, date_to)
     cashflow_totals = cashflow_totals_for_period(business, date_from, date_to)
+    fixed_pending = fixed_expenses_pending_for_period(business, date_from, date_to)
     rankings = {
         **financials["rankings"],
         "top_materials_by_cost": material_cost_rankings_for_period(business, date_from, date_to),
@@ -515,6 +530,7 @@ def dashboard_period_summary(business, date_from, date_to):
         "material_purchases_total": material_purchases_total_for_period(business, date_from, date_to),
         "rankings": rankings,
         **cashflow_totals,
+        **fixed_pending,
     }
 
 
@@ -1023,6 +1039,8 @@ class DashboardSummaryView(APIView):
                 "cashflow_income_total": summary["cashflow_income_total"],
                 "cashflow_expense_total": summary["cashflow_expense_total"],
                 "cashflow_balance": summary["cashflow_balance"],
+                "fixed_expenses_pending_total": summary["fixed_expenses_pending_total"],
+                "fixed_expenses_pending_count": summary["fixed_expenses_pending_count"],
                 "margin_basis": margin_basis(),
                 "cost_breakdown": cost_breakdown_for(summary),
                 "comparison": comparison_for(summary, previous_summary, previous_has_activity),
