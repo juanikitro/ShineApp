@@ -3,8 +3,7 @@
 .githooks/* text eol=lf
 *.sh text eol=lf
 
-# Archivos auto-generados por el pre-commit hook: resolver conflictos de merge
-# combinando ambos lados (union) en lugar de dejar markers. El driver union-docs
-# esta definido en .git/config del repo (y aplica a todos los worktrees).
-CHANGELOG.md merge=union-docs
-docs/registro/cambios/index.md merge=union-docs
+# Los archivos generados (CHANGELOG.md, indices) no se commitean en feature
+# branches, por lo que no necesitan un merge driver especial: simplemente no
+# hay conflicto. El driver union-docs queda deprecado y se mantiene solo para
+# clones viejos que aun lo tengan configurado en .git/config local.
