@@ -71,7 +71,6 @@ import { ProfileModal } from '@/app/components/profile/ProfileModal'
 import { PublicRequestCard } from '@/app/components/requests/PublicRequestCard'
 import { CashMovementForm } from '@/app/components/forms/CashMovementForm'
 import { CustomerForm } from '@/app/components/forms/CustomerForm'
-import { DailyCapacityForm } from '@/app/components/forms/DailyCapacityForm'
 import { DebtForm } from '@/app/components/forms/DebtForm'
 import { DebtPaymentForm } from '@/app/components/forms/DebtPaymentForm'
 import { MaterialForm } from '@/app/components/forms/MaterialForm'
@@ -348,6 +347,7 @@ import {
 	fullPaymentAmountForOrder,
 	mergeStringValues,
 	money,
+	monthRange,
 	moveReservationToDay,
 	normalizedAmountInput,
 	normalizeExpenseCategoryTree,
@@ -685,10 +685,7 @@ export default function Home() {
 		adjusts_closed_day: '',
 		...overrides,
 	})
-	const [period, setPeriod] = useState({
-		from: today.slice(0, 8) + '01',
-		to: today,
-	})
+	const [period, setPeriod] = useState(() => monthRange(today))
 
 	const [dashboard, setDashboard] = useState<AnyRecord>({})
 	const [cash, setCash] = useState<AnyRecord>({})
@@ -696,7 +693,6 @@ export default function Home() {
 	const [vehicles, setVehicles] = useState<AnyRecord[]>([])
 	const [services, setServices] = useState<AnyRecord[]>([])
 	const [reservations, setReservations] = useState<AnyRecord[]>([])
-	const [dailyCapacities, setDailyCapacities] = useState<AnyRecord[]>([])
 	const [workOrders, setWorkOrders] = useState<AnyRecord[]>([])
 	const [payments, setPayments] = useState<AnyRecord[]>([])
 	const [debts, setDebts] = useState<AnyRecord[]>([])
@@ -718,6 +714,10 @@ export default function Home() {
 		Record<string, { customer?: string; vehicle?: string }>
 	>({})
 	const [employees, setEmployees] = useState<AnyRecord[]>([])
+	const [selectedEmployee, setSelectedEmployee] = useState<AnyRecord | null>(null)
+	const [employeeAuditLogs, setEmployeeAuditLogs] = useState<AnyRecord[]>([])
+	const [employeeAuditLogsLoading, setEmployeeAuditLogsLoading] = useState(false)
+	const [employeeAuditLogsError, setEmployeeAuditLogsError] = useState<string | null>(null)
 	const [auditLogs, setAuditLogs] = useState<AnyRecord[]>([])
 	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>({})
 	const auditLogsLoadedRef = useRef(false)
@@ -764,13 +764,6 @@ export default function Home() {
 		price_combi: '',
 		price_camion: '',
 		estimated_duration_minutes: '60',
-		notes: '',
-	})
-	const [dailyCapacityForm, setDailyCapacityForm] = useState<AnyRecord>({
-		id: '',
-		day: today,
-		max_slots_wash: '',
-		max_slots_detailing: '',
 		notes: '',
 	})
 	const [reservationForm, setReservationForm] = useState<AnyRecord>(
@@ -1293,6 +1286,7 @@ export default function Home() {
 					contact_phone: String(profile.contact_phone ?? ''),
 					contact_email: String(profile.contact_email ?? ''),
 					address: String(profile.address ?? ''),
+					maps_url: String(profile.maps_url ?? ''),
 					default_quote_validity_days: String(
 						profile.default_quote_validity_days ?? '7',
 					),
@@ -1312,6 +1306,14 @@ export default function Home() {
 						profile.show_stay_days_in_agenda !== false,
 					allow_overlapping_reservations:
 						profile.allow_overlapping_reservations === true,
+					enforce_capacity_limit:
+						profile.enforce_capacity_limit !== false,
+					default_capacity_wash: String(
+						profile.default_capacity_wash ?? '8',
+					),
+					default_capacity_detailing: String(
+						profile.default_capacity_detailing ?? '4',
+					),
 					reservation_use_pending:
 						profile.reservation_use_pending !== false,
 					reservation_use_in_progress:
@@ -1471,7 +1473,6 @@ export default function Home() {
 			'material-consumption': 'material-consumption.work_order',
 			tool: 'tool.name',
 			employee: 'employee.username',
-			'daily-capacity': 'daily-capacity.max_slots_wash',
 		}
 		focusField(firstFocus[formModal.kind], formModal.kind !== 'customer')
 	}, [formModal?.kind])
@@ -2084,6 +2085,7 @@ export default function Home() {
 		force?: boolean
 		section?: Section
 		settingsSection?: SettingsSection
+		period?: { from: string; to: string }
 	}
 
 	const appDataAppliers: AppDataAppliers = {
@@ -2093,7 +2095,6 @@ export default function Home() {
 		vehicles: setVehicles,
 		services: setServices,
 		reservations: setReservations,
-		dailyCapacities: setDailyCapacities,
 		workOrders: setWorkOrders,
 		payments: setPayments,
 		debts: (data: any) => {
@@ -2130,7 +2131,7 @@ export default function Home() {
 	}
 
 	async function loadData(options: LoadDataOptions = {}) {
-		const dataScope = { period, selectedDay }
+		const dataScope = { period: options.period ?? period, selectedDay }
 		const keys = dataSetKeysForSection({
 			section: options.section ?? displayedActive,
 			settingsSection: options.settingsSection ?? settingsSection,
@@ -2272,7 +2273,7 @@ export default function Home() {
 		}
 		periodReloadTimeoutRef.current = window.setTimeout(() => {
 			periodReloadTimeoutRef.current = null
-			loadData({ force: true, section: 'dashboard' })
+			loadData({ force: true, section: 'dashboard', period: next })
 		}, 400)
 	}
 	function triggerPeriodReloadNow() {
@@ -2280,7 +2281,16 @@ export default function Home() {
 			window.clearTimeout(periodReloadTimeoutRef.current)
 			periodReloadTimeoutRef.current = null
 		}
-		loadData({ force: true, section: 'dashboard' })
+		loadData({ force: true, section: 'dashboard', period })
+	}
+	function goToMonth(offset: number) {
+		const next = monthRange(period.from, offset)
+		if (periodReloadTimeoutRef.current) {
+			window.clearTimeout(periodReloadTimeoutRef.current)
+			periodReloadTimeoutRef.current = null
+		}
+		setPeriod(next)
+		loadData({ force: true, section: 'dashboard', period: next })
 	}
 	useEffect(() => {
 		return () => {
@@ -6017,15 +6027,6 @@ export default function Home() {
 		if (kind === 'stock-movement') {
 			setStockMovementDocumentFile(null)
 		}
-		if (kind === 'daily-capacity') {
-			setDailyCapacityForm({
-				id: '',
-				day: selectedDay,
-				max_slots_wash: '',
-				max_slots_detailing: '',
-				notes: '',
-			})
-		}
 		setFormModal({ kind })
 	}
 
@@ -6294,6 +6295,7 @@ export default function Home() {
 			String(currentBusinessForm.contact_email ?? ''),
 		)
 		payload.append('address', String(currentBusinessForm.address ?? ''))
+		payload.append('maps_url', String(currentBusinessForm.maps_url ?? ''))
 		payload.append(
 			'default_quote_validity_days',
 			String(currentBusinessForm.default_quote_validity_days ?? '7'),
@@ -6325,6 +6327,18 @@ export default function Home() {
 		payload.append(
 			'allow_overlapping_reservations',
 			String(currentBusinessForm.allow_overlapping_reservations === true),
+		)
+		payload.append(
+			'enforce_capacity_limit',
+			String(currentBusinessForm.enforce_capacity_limit !== false),
+		)
+		payload.append(
+			'default_capacity_wash',
+			String(currentBusinessForm.default_capacity_wash ?? '8'),
+		)
+		payload.append(
+			'default_capacity_detailing',
+			String(currentBusinessForm.default_capacity_detailing ?? '4'),
 		)
 		payload.append(
 			'reservation_use_pending',
@@ -6463,6 +6477,66 @@ export default function Home() {
 			},
 			{
 				successTitle: (created) => `Empleado ${created.username} creado`,
+			},
+		)
+	}
+
+	function deselectEmployee() {
+		setSelectedEmployee(null)
+		setEmployeeAuditLogs([])
+		setEmployeeAuditLogsError(null)
+		setEmployeeAuditLogsLoading(false)
+	}
+
+	async function selectEmployee(employee: AnyRecord) {
+		setSelectedEmployee(employee)
+		setEmployeeAuditLogs([])
+		setEmployeeAuditLogsError(null)
+		setEmployeeAuditLogsLoading(true)
+		try {
+			const logs = await apiFetch<AnyRecord[]>(
+				`/audit-log/?entity_type=User&entity_id=${employee.id}`,
+			)
+			setEmployeeAuditLogs(Array.isArray(logs) ? logs : [])
+		} catch {
+			setEmployeeAuditLogsError('No se pudo cargar el historial')
+		} finally {
+			setEmployeeAuditLogsLoading(false)
+		}
+	}
+
+	async function changeEmployeePassword(pk: number | string, newPassword: string) {
+		await runAction(
+			async () => {
+				const updated = await apiFetch<AnyRecord>(`/auth/employees/${pk}/`, {
+					method: 'PATCH',
+					body: JSON.stringify({ password: newPassword }),
+				})
+				setSelectedEmployee(updated)
+				setEmployees((prev) =>
+					prev.map((e) => (String(e.id) === String(pk) ? updated : e)),
+				)
+				return updated
+			},
+			{ successTitle: 'Contraseña actualizada' },
+		)
+	}
+
+	async function toggleEmployeeActive(pk: number | string, isActive: boolean) {
+		await runAction(
+			async () => {
+				const updated = await apiFetch<AnyRecord>(`/auth/employees/${pk}/`, {
+					method: 'PATCH',
+					body: JSON.stringify({ is_active: !isActive }),
+				})
+				setSelectedEmployee(updated)
+				setEmployees((prev) =>
+					prev.map((e) => (String(e.id) === String(pk) ? updated : e)),
+				)
+				return updated
+			},
+			{
+				successTitle: isActive ? 'Empleado desactivado' : 'Empleado activado',
 			},
 		)
 	}
@@ -9329,65 +9403,6 @@ export default function Home() {
 		})
 	}
 
-	function editDailyCapacity(item: AnyRecord) {
-		if (!canViewEconomy) return
-		setDailyCapacityForm({
-			id: item.id,
-			day: item.day,
-			max_slots_wash: String(item.max_slots_wash ?? ''),
-			max_slots_detailing: String(item.max_slots_detailing ?? ''),
-			notes: item.notes ?? '',
-		})
-		setFormModal({ kind: 'daily-capacity' })
-	}
-
-	async function saveDailyCapacity(event: FormEvent) {
-		event.preventDefault()
-		if (!canViewEconomy) return
-		const currentId = dailyCapacityForm.id
-		await runAction(
-			async () => {
-				const path = currentId
-					? `/daily-capacities/${currentId}/`
-					: '/daily-capacities/'
-				const method = currentId ? 'PATCH' : 'POST'
-				const saved = await apiFetch<AnyRecord>(path, {
-					method,
-					body: JSON.stringify(asPayload(dailyCapacityForm)),
-				})
-				setDailyCapacityForm({
-					id: '',
-					day: selectedDay,
-					max_slots_wash: '',
-					max_slots_detailing: '',
-					notes: '',
-				})
-				formModalExit.close()
-				return saved
-			},
-			{
-				successTitle: entityFeedbackTitle(
-					'daily-capacity',
-					currentId ? 'updated' : 'created',
-				),
-			},
-		)
-	}
-
-	async function deleteDailyCapacity(item: AnyRecord) {
-		if (!canViewEconomy || !item?.id) return
-		await runAction(
-			async () => {
-				await apiFetch(`/daily-capacities/${item.id}/`, {
-					method: 'DELETE',
-				})
-			},
-			{
-				successTitle: entityFeedbackTitle('daily-capacity', 'deleted'),
-			},
-		)
-	}
-
 	async function saveReservation(event: FormEvent) {
 		event.preventDefault()
 		const reservationItems = (reservationForm.items ?? []).filter(
@@ -10915,28 +10930,6 @@ export default function Home() {
 					/>
 					</Modal>
 				) : null}
-				{canViewEconomy && formModal?.kind === 'daily-capacity' ? (
-					<Modal
-						key="form-daily-capacity"
-						title={
-							dailyCapacityForm.id
-								? 'Editar capacidad'
-								: 'Nueva capacidad'
-						}
-						onClose={formModalExit.close}
-					>
-						<DailyCapacityForm
-							submitLabel={
-								dailyCapacityForm.id
-									? 'Guardar cambios'
-									: 'Crear capacidad'
-							}
-							onSubmit={saveDailyCapacity}
-							dailyCapacityForm={dailyCapacityForm}
-							setDailyCapacityForm={setDailyCapacityForm}
-						/>
-					</Modal>
-				) : null}
 				{canViewEconomy && formModal?.kind === 'payment' ? (
 					<Modal
 						key="form-payment"
@@ -11252,10 +11245,17 @@ export default function Home() {
 							}
 							openingTime={businessForm.opening_time as string | null}
 							closingTime={businessForm.closing_time as string | null}
-							defaultDailyCapacity={8}
+							enforceCapacity={
+								businessForm.enforce_capacity_limit !== false
+							}
+							defaultCapacityWash={
+								Number(businessForm.default_capacity_wash) || 0
+							}
+							defaultCapacityDetailing={
+								Number(businessForm.default_capacity_detailing) || 0
+							}
 							services={services}
 							reservations={reservations}
-							dailyCapacities={dailyCapacities}
 							openQuickCreate={openQuickCreate}
 							updateReservationCustomer={updateReservationCustomer}
 							updateReservationVehicle={updateReservationVehicle}
@@ -11777,22 +11777,39 @@ export default function Home() {
 						mobileOpen={sidebarMobileOpen}
 						header={
 							businessProfile && sidebarBusinessLogoSrc ? (
-								<button
-									type="button"
-									className="ghost sidebar-business-button"
-									onClick={() => {
-										handleSectionChange('settings')
-										setSettingsSection('business')
-									}}
-									aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
-									title="Configuracion del negocio"
-								>
-									<img
-										src={sidebarBusinessLogoSrc}
-										alt={String(businessProfile.name ?? '')}
-										className="sidebar-business-logo"
-									/>
-								</button>
+								currentUser?.business?.slug ? (
+									<a
+										className="ghost sidebar-business-button"
+										href={`/publica/${String(currentUser.business.slug)}`}
+										rel="noreferrer"
+										target="_blank"
+										aria-label={`Abrir turnera de ${String(businessProfile.name ?? 'negocio')}`}
+										title="Abrir turnera"
+									>
+										<img
+											src={sidebarBusinessLogoSrc}
+											alt={String(businessProfile.name ?? '')}
+											className="sidebar-business-logo"
+										/>
+									</a>
+								) : (
+									<button
+										type="button"
+										className="ghost sidebar-business-button"
+										onClick={() => {
+											handleSectionChange('settings')
+											setSettingsSection('business')
+										}}
+										aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
+										title="Configuracion del negocio"
+									>
+										<img
+											src={sidebarBusinessLogoSrc}
+											alt={String(businessProfile.name ?? '')}
+											className="sidebar-business-logo"
+										/>
+									</button>
+								)
 							) : null
 						}
 						items={navItems}
@@ -11983,6 +12000,15 @@ export default function Home() {
 											triggerPeriodReloadNow()
 										}}
 									>
+										<button
+											type="button"
+											className="ghost icon-button"
+											onClick={() => goToMonth(-1)}
+											aria-label="Mes anterior"
+											title="Mes anterior"
+										>
+											<ChevronLeft size={16} />
+										</button>
 										<Field label="Desde">
 											<input
 												type="date"
@@ -12001,6 +12027,15 @@ export default function Home() {
 												}
 											/>
 										</Field>
+										<button
+											type="button"
+											className="ghost icon-button"
+											onClick={() => goToMonth(1)}
+											aria-label="Mes siguiente"
+											title="Mes siguiente"
+										>
+											<ChevronRight size={16} />
+										</button>
 										<Button
 											type="submit"
 											variant="primary"
@@ -12971,8 +13006,11 @@ export default function Home() {
 						businessSlug={String(currentUser?.business?.slug ?? '')}
 						cashClassificationPairs={cashClassificationPairs}
 						currentUserId={currentUser?.id ?? null}
-						dailyCapacities={dailyCapacities}
 						employees={employees}
+						selectedEmployee={selectedEmployee}
+						employeeAuditLogs={employeeAuditLogs}
+						employeeAuditLogsLoading={employeeAuditLogsLoading}
+						employeeAuditLogsError={employeeAuditLogsError}
 						expandedAuditLogId={expandedAuditLogId}
 						expenseClassificationPairs={expenseClassificationPairs}
 						inactiveEmployeeCount={inactiveEmployeeCount}
@@ -12995,12 +13033,13 @@ export default function Home() {
 						onAuditModuleLabel={auditModuleLabel}
 						onBusinessLogoChange={handleBusinessLogoChange}
 						onClearAuditFilters={clearAuditFilters}
-						onDeleteDailyCapacity={deleteDailyCapacity}
 						onDeleteExpenseClassification={deleteExpenseClassification}
-						onEditDailyCapacity={editDailyCapacity}
 						onEditExpenseClassification={openExpenseClassificationEditor}
 						onOpenBusinessLogoPicker={openBusinessLogoPicker}
-						onOpenDailyCapacityForm={() => openFormModal('daily-capacity')}
+						onSelectEmployee={selectEmployee}
+						onDeselectEmployee={deselectEmployee}
+						onChangeEmployeePassword={changeEmployeePassword}
+						onToggleEmployeeActive={toggleEmployeeActive}
 						onOpenEmployeeForm={() => openFormModal('employee')}
 						onOpenExpenseClassificationForm={() =>
 							openFormModal('expense-classification')
@@ -13009,7 +13048,10 @@ export default function Home() {
 						onRefreshAuditLogs={() => refreshAuditLogs()}
 						onRefreshData={() => loadData({ force: true })}
 						onSaveBusinessProfile={saveBusinessProfile}
-						onSettingsSectionChange={setSettingsSection}
+						onSettingsSectionChange={(section) => {
+								setSettingsSection(section)
+								if (section !== 'users') deselectEmployee()
+							}}
 						onToggleAuditLog={setExpandedAuditLogId}
 						onUpdateAuditFilter={updateAuditFilter}
 					/>

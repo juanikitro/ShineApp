@@ -44,6 +44,57 @@ def test_employee_creation_uses_django_password_validators(api_client, django_us
     assert not django_user_model.objects.filter(username="operario-numerico").exists()
 
 
+@pytest.mark.django_db
+def test_patch_employee_password_invalidates_employee_token(api_client, django_user_model, default_business):
+    from django.contrib.auth.models import Group
+    from rest_framework.authtoken.models import Token
+    from core.models import UserProfile
+
+    employee = django_user_model.objects.create_user(
+        username="empleado-token-test",
+        password="oldpassword123",
+    )
+    employee_group, _ = Group.objects.get_or_create(name="empleado")
+    employee.groups.add(employee_group)
+    UserProfile.objects.get_or_create(user=employee, defaults={"business": default_business})
+    employee_token = Token.objects.create(user=employee)
+
+    response = api_client.patch(
+        reverse("auth-employee-detail", kwargs={"pk": employee.pk}),
+        {"password": "newpassword456"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert not Token.objects.filter(pk=employee_token.pk).exists()
+
+
+@pytest.mark.django_db
+def test_patch_employee_active_does_not_invalidate_token(api_client, django_user_model, default_business):
+    from django.contrib.auth.models import Group
+    from rest_framework.authtoken.models import Token
+    from core.models import UserProfile
+
+    employee = django_user_model.objects.create_user(
+        username="empleado-active-test",
+        password="somepassword123",
+    )
+    employee_group, _ = Group.objects.get_or_create(name="empleado")
+    employee.groups.add(employee_group)
+    UserProfile.objects.get_or_create(user=employee, defaults={"business": default_business})
+    employee_token = Token.objects.create(user=employee)
+
+    response = api_client.patch(
+        reverse("auth-employee-detail", kwargs={"pk": employee.pk}),
+        {"is_active": False},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert not response.data["is_active"]
+    assert Token.objects.filter(pk=employee_token.pk).exists()
+
+
 def test_production_settings_enable_standard_password_validators(monkeypatch):
     monkeypatch.setenv("DJANGO_SECRET_KEY", "x" * 60)
     monkeypatch.setenv("DJANGO_ALLOWED_HOSTS", "shineapp-api.example.com")

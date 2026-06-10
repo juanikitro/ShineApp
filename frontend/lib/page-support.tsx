@@ -69,7 +69,6 @@ type FormModalKind =
 	| 'material-consumption'
 	| 'tool'
 	| 'employee'
-	| 'daily-capacity'
 
 type Section =
 	| 'dashboard'
@@ -114,6 +113,16 @@ function dayOffset(from: string, to: string) {
 		(parseIsoDate(to).getTime() - parseIsoDate(from).getTime()) /
 			86_400_000,
 	)
+}
+
+function monthRange(value: string, offset = 0) {
+	const date = parseIsoDate(value)
+	const year = date.getFullYear()
+	const month = date.getMonth() + offset
+	return {
+		from: toIsoDate(new Date(year, month, 1)),
+		to: toIsoDate(new Date(year, month + 1, 0)),
+	}
 }
 
 function formatDayName(value: string) {
@@ -204,6 +213,7 @@ function blankBusinessForm() {
 		contact_phone: '',
 		contact_email: '',
 		address: '',
+		maps_url: '',
 		default_quote_validity_days: '7',
 		default_quote_tax_rate: '0',
 		default_quote_discount_rate: '0',
@@ -212,6 +222,9 @@ function blankBusinessForm() {
 		use_reservation_times: true,
 		show_stay_days_in_agenda: true,
 		allow_overlapping_reservations: false,
+		enforce_capacity_limit: true,
+		default_capacity_wash: '8',
+		default_capacity_detailing: '4',
 		public_landing_enabled: true,
 		public_landing_intro: '',
 		allow_public_booking_requests: true,
@@ -667,11 +680,6 @@ const entityFeedbackTitles: Record<
 		created: 'Cotizacion creada',
 		updated: 'Cotizacion editada',
 		deleted: 'Cotizacion eliminada',
-	},
-	'daily-capacity': {
-		created: 'Capacidad creada',
-		updated: 'Capacidad editada',
-		deleted: 'Capacidad eliminada',
 	},
 }
 
@@ -2083,6 +2091,7 @@ export {
 	fullPaymentAmountForOrder,
 	mergeStringValues,
 	money,
+	monthRange,
 	moveReservationToDay,
 	normalizedAmountInput,
 	normalizeExpenseCategoryTree,

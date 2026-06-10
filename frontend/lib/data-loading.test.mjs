@@ -93,7 +93,6 @@ test('settings history does not eager-load audit logs', () => {
 	assert.deepEqual(keys, [
 		'businessProfile',
 		'employees',
-		'dailyCapacities',
 		'services',
 		'publicRequests',
 	])

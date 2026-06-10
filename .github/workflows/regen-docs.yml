@@ -1,0 +1,53 @@
+name: Regen docs
+
+# Regenera CHANGELOG.md y los indices despues de cada merge a main.
+# Los archivos generados no se commitean en feature branches (para evitar
+# conflictos entre PRs concurrentes), por lo que este job los mantiene al
+# dia en main luego de cada merge.
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  regen:
+    name: regen
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install docs dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-docs.txt
+
+      - name: Regenerar archivos generados
+        run: python scripts/check_docs.py --write --skip-build
+
+      - name: Commitear si hay cambios
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet && exit 0
+          git add CHANGELOG.md \
+            docs/registro/cambios/index.md \
+            docs/registro/decisiones/index.md \
+            docs/plans/index.md
+          git commit -m "chore: regenerar changelog e indice tras merge [skip ci]"
+          git push

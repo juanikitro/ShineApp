@@ -25,7 +25,17 @@ $PY scripts/check_docs.py --write --skip-build >/dev/null
 
 # Reincorporar al commit lo que se haya regenerado (no-op si no cambio nada).
 # changelog.generated.json esta en .gitignore (se genera en prebuild de Next.js).
-git add CHANGELOG.md \
-  docs/registro/cambios/index.md \
-  docs/registro/decisiones/index.md \
-  docs/plans/index.md
+#
+# En feature branches NO se agregan los archivos generados: cada branch los
+# regenera con solo sus propios fragmentos, y commitearlos causa conflictos
+# inevitables entre PRs concurrentes. En main/development si se agregan,
+# porque CI (regen-docs.yml) los mantiene al dia despues de cada merge.
+CURRENT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+case "$CURRENT_BRANCH" in
+  main|development)
+    git add CHANGELOG.md \
+      docs/registro/cambios/index.md \
+      docs/registro/decisiones/index.md \
+      docs/plans/index.md
+    ;;
+esac

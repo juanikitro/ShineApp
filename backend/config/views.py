@@ -422,6 +422,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "city",
             "country",
             "address",
+            "maps_url",
             "trial_started_at",
             "trial_ends_at",
             "default_quote_validity_days",
@@ -434,6 +435,9 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "use_reservation_times",
             "show_stay_days_in_agenda",
             "allow_overlapping_reservations",
+            "enforce_capacity_limit",
+            "default_capacity_wash",
+            "default_capacity_detailing",
             "reservation_use_pending",
             "reservation_use_in_progress",
             "reservation_use_ready",
@@ -481,9 +485,22 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
     def validate_address(self, value):
         return value.strip()
 
+    def validate_maps_url(self, value):
+        return value.strip()
+
     def validate_default_quote_validity_days(self, value):
         if value < 0:
             raise serializers.ValidationError("La validez no puede ser negativa.")
+        return value
+
+    def validate_default_capacity_wash(self, value):
+        if value < 0:
+            raise serializers.ValidationError("El cupo de lavado no puede ser negativo.")
+        return value
+
+    def validate_default_capacity_detailing(self, value):
+        if value < 0:
+            raise serializers.ValidationError("El cupo de detailing no puede ser negativo.")
         return value
 
     def validate_default_quote_terms(self, value):
@@ -713,6 +730,76 @@ class EmployeeUsersView(APIView):
             entity_label=user.get_username(),
         )
         return Response(EmployeeUserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+
+class EmployeeUserUpdateSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True, min_length=8, required=False)
+    is_active = serializers.BooleanField(required=False)
+
+    def validate_password(self, value):
+        validate_password(value)
+        return value
+
+
+class EmployeeUserDetailView(APIView):
+    permission_classes = [EmployerOnly]
+
+    def _get_employee(self, request, pk):
+        user_model = get_user_model()
+        try:
+            return user_model.objects.get(
+                pk=pk,
+                groups__name=EMPLOYEE_ROLE,
+                profile__business=business_from_request(request),
+                is_superuser=False,
+            )
+        except user_model.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        user = self._get_employee(request, pk)
+        if user is None:
+            return Response({"detail": "Empleado no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(EmployeeUserSerializer(user).data)
+
+    def patch(self, request, pk):
+        user = self._get_employee(request, pk)
+        if user is None:
+            return Response({"detail": "Empleado no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = EmployeeUserUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        password_changed = "password" in data
+        before = audit_snapshot(user)
+
+        update_fields = []
+        if password_changed:
+            user.set_password(data["password"])
+            update_fields.append("password")
+        if "is_active" in data:
+            user.is_active = data["is_active"]
+            update_fields.append("is_active")
+
+        if update_fields:
+            with transaction.atomic():
+                user.save(update_fields=update_fields)
+                if password_changed:
+                    Token.objects.filter(user=user).delete()
+
+        record_audit_event(
+            request=request,
+            action="update",
+            instance=user,
+            before=before,
+            after=audit_snapshot(user),
+            module="auth",
+            entity_type="User",
+            entity_id=user.id,
+            entity_label=user.get_username(),
+        )
+        return Response(EmployeeUserSerializer(user).data)
 
 
 class BusinessProfileView(APIView):

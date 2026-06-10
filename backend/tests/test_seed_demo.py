@@ -21,7 +21,7 @@ from inventory.models import (
 )
 from notifications.models import PublicRequest, PublicRequestItem
 from quotes.models import Quote, QuoteItem
-from scheduling.models import DailyCapacity, Reservation, ReservationItem
+from scheduling.models import Reservation, ReservationItem
 from workorders.models import WorkOrder
 
 
@@ -52,7 +52,9 @@ def test_seed_demo_populates_realistic_dataset_across_modules():
     assert Customer.objects.filter(business=business, is_active=False).exists()
     assert Vehicle.objects.filter(business=business, is_active=True).count() >= 5
     assert Service.objects.filter(business=business, service_type=Service.ServiceType.DETAILING).count() >= 3
-    assert DailyCapacity.objects.filter(business=business).count() >= 20
+    assert profile.enforce_capacity_limit is True
+    assert profile.default_capacity_wash == 8
+    assert profile.default_capacity_detailing == 4
 
     reservation_statuses = set(Reservation.objects.filter(business=business).values_list("status", flat=True))
     assert {

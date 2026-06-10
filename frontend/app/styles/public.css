@@ -96,7 +96,7 @@
 .public-kicker {
   color: var(--shop-ink-soft);
   display: block;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 800;
   letter-spacing: 0;
   margin-bottom: 4px;
@@ -124,7 +124,8 @@
   gap: 10px;
 }
 
-.public-contact span {
+.public-contact span,
+.public-contact a {
   align-items: center;
   background: var(--color-surface-soft);
   border: 1px solid var(--shop-border);
@@ -137,6 +138,20 @@
   padding: 7px 12px;
 }
 
+.public-contact a {
+  text-decoration: none;
+}
+
+.public-contact a:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.public-contact a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .public-section-head {
   align-items: center;
   display: flex;
@@ -144,7 +159,7 @@
 }
 
 .public-section-head h2 {
-  font-size: 18px;
+  font-size: var(--text-xl);
   margin: 0;
 }
 
@@ -158,13 +173,55 @@
   gap: 10px;
 }
 
+.public-service-group-toggle {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  padding: 0;
+  width: 100%;
+}
+
+.public-service-group-toggle:focus-visible {
+  border-radius: var(--radius-md);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
 .public-service-group-title {
   color: var(--shop-ink-muted);
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: 0.08em;
-  margin: 0;
+  margin: 0 auto 0 0;
   text-transform: uppercase;
+}
+
+.public-service-group-count {
+  align-items: center;
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+  color: var(--color-primary);
+  display: inline-flex;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  justify-content: center;
+  min-width: 20px;
+  padding: 1px 7px;
+}
+
+.public-service-group-chevron {
+  color: var(--shop-ink-soft);
+  flex-shrink: 0;
+  transition: transform 180ms ease;
+}
+
+.public-service-group-chevron--open {
+  transform: rotate(180deg);
 }
 
 .public-service-list {
@@ -174,18 +231,13 @@
 }
 
 .public-service-card {
-  align-items: center;
   background: var(--color-surface-raised);
   border: 1px solid var(--shop-border);
   border-radius: var(--radius-md);
   color: var(--shop-ink);
   display: grid;
-  gap: 12px;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  justify-content: stretch;
-  min-height: 88px;
+  gap: 8px;
   padding: 12px;
-  text-align: left;
   white-space: normal;
   width: 100%;
 }
@@ -193,6 +245,27 @@
 .public-service-card[data-selected='true'] {
   border-color: var(--color-primary);
   box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.public-service-card-select {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 64px;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.public-service-card-select:focus-visible {
+  border-radius: var(--radius-md);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .public-service-icon {
@@ -220,7 +293,7 @@
 
 .public-service-card small {
   color: var(--shop-ink-soft);
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1.35;
   margin-top: 3px;
 }
@@ -229,7 +302,7 @@
   align-items: center;
   color: var(--shop-ink-soft);
   display: inline-flex;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-style: normal;
   gap: 4px;
   margin-top: 6px;
@@ -238,9 +311,44 @@
 .public-service-price {
   color: var(--shop-ink);
   display: block;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 700;
   margin-top: 6px;
+}
+
+.public-service-desc {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+}
+
+.public-service-card small[data-clamped='true'] {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
+  overflow: hidden;
+}
+
+.public-service-desc-toggle {
+  background: none;
+  border: none;
+  color: var(--shop-ink-soft);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  width: fit-content;
+}
+
+.public-service-desc-toggle:hover {
+  color: var(--shop-ink);
+}
+
+.public-service-desc-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .public-request-type {
@@ -268,7 +376,7 @@
 .public-request-form label {
   color: var(--shop-ink-soft);
   display: grid;
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 700;
   gap: 7px;
   min-width: 0;
@@ -276,7 +384,7 @@
 
 .public-form-note {
   color: var(--shop-ink-soft);
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1.35;
   margin: 6px 0 0;
 }
@@ -306,7 +414,7 @@
 .public-form-error,
 .public-state--error {
   background: rgba(239, 68, 68, 0.09);
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  border: 1px solid var(--color-danger-border);
   color: #991b1b;
 }
 
@@ -316,13 +424,13 @@
 }
 
 .public-form-error > strong {
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 700;
 }
 
 .public-form-error > p {
   color: inherit;
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1.45;
   margin: 0;
 }
@@ -334,7 +442,7 @@
 .public-form-success {
   align-items: center;
   background: rgba(22, 163, 74, 0.09);
-  border: 1px solid rgba(22, 163, 74, 0.22);
+  border: 1px solid var(--color-success-border);
   color: #166534;
   display: flex;
   gap: 8px;
@@ -395,12 +503,12 @@
 .public-recall-banner {
   align-items: center;
   background: rgba(59, 130, 246, 0.07);
-  border: 1px solid rgba(59, 130, 246, 0.22);
+  border: 1px solid var(--color-info-border);
   border-radius: var(--radius-md);
   color: var(--shop-ink);
   display: flex;
   flex-wrap: wrap;
-  font-size: 13px;
+  font-size: var(--text-base);
   gap: 8px;
   padding: 10px 14px;
 }
@@ -422,7 +530,7 @@
   border-radius: var(--radius-md);
   color: var(--shop-ink);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
   min-height: 28px;
   padding: 4px 10px;
@@ -438,7 +546,7 @@
   border: none;
   color: var(--shop-ink-soft);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-sm);
   padding: 0;
   text-align: left;
   text-decoration: underline;
@@ -468,7 +576,7 @@
   border-radius: var(--radius-md);
   color: var(--shop-ink);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 600;
   min-height: 38px;
   padding: 0 14px;

@@ -10,8 +10,21 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-06-10
+- [Turnera: atajos para abrir la landing publica desde la app](docs/registro/cambios/2026-06-10-turnera-atajos-de-acceso.md)
+- [Gestión de empleados: detalle, toggle activo y cambio de contraseña](docs/registro/cambios/2026-06-10-gestion-empleados-detalle.md)
+- [Design System v2 — Fase 3 (migración de tokens en shell, agenda, forms, public)](docs/registro/cambios/2026-06-10-design-system-v2-fase3.md)
+- [Design System v2 — Fase 1 (tokens) + Fase 2 (base layer y fuente)](docs/registro/cambios/2026-06-10-design-system-v2-fase1-fase2.md)
+- [Dashboard: senales de riesgo de cobranza/caja + lecturas cruzadas](docs/registro/cambios/2026-06-10-dashboard-senales-riesgo-cruces.md)
+- [Changelog sin conflictos entre PRs concurrentes](docs/registro/cambios/2026-06-10-changelog-sin-conflictos-en-prs.md)
+
 ## 2026-06-09
+- [Turnera: servicios desplegables, descripciones truncadas y contacto accionable](docs/registro/cambios/2026-06-09-turnera-desplegables-contacto-maps.md)
 - [Sidebar: la flechita despliega sin navegar; el item navega y despliega](docs/registro/cambios/2026-06-09-sidebar-chevron-toggle-independiente.md)
+- [Numeros principales del CRM a 32px (fix del cascade que los achicaba)](docs/registro/cambios/2026-06-09-fix-tamano-numeros-kpi.md)
+- [Dashboard: periodo mensual por defecto y navegacion entre meses (2026-06-09)](docs/registro/cambios/2026-06-09-dashboard-periodo-mensual.md)
+- [Dashboard: barras de proporcion y sparklines](docs/registro/cambios/2026-06-09-dashboard-barras-sparklines.md)
+- [Cupos globales de turnos con toggle de limite](docs/registro/cambios/2026-06-09-cupos-globales-turnos.md)
 
 ## 2026-06-08
 - [Vida y animaciones en el CRM](docs/registro/cambios/2026-06-08-vida-animaciones-crm.md)

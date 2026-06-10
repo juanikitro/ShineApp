@@ -8,6 +8,7 @@ type MetricCardProps = ComponentPropsWithoutRef<'div'> & {
 	label: ReactNode
 	value: ReactNode
 	hint?: ReactNode
+	footer?: ReactNode
 	numericValue?: number
 	format?: (value: number) => string
 	animateValue?: boolean
@@ -17,6 +18,7 @@ export function MetricCard({
 	label,
 	value,
 	hint,
+	footer,
 	numericValue,
 	format,
 	animateValue = true,
@@ -32,6 +34,7 @@ export function MetricCard({
 			<span>{label}</span>
 			<strong>{renderedValue}</strong>
 			{hint ? <small>{hint}</small> : null}
+			{footer ?? null}
 		</div>
 	)
 }

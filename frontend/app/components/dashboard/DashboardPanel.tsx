@@ -1,6 +1,6 @@
 'use client'
 
-import { type ReactNode } from 'react'
+import { type CSSProperties, type ReactNode } from 'react'
 
 import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
@@ -8,7 +8,11 @@ import { CalendarDays, CreditCard, Info } from 'lucide-react'
 
 import { Stagger, StaggerItem } from '@/app/components/motion/Stagger'
 import { Empty } from '@/app/components/ui/Empty'
+import { CajaSparkline } from '@/app/components/ui/CajaSparkline'
 import { MetricCard } from '@/app/components/ui/MetricCard'
+import { RiskMeter } from '@/app/components/ui/RiskMeter'
+import { DashboardCashByCategory } from './DashboardCashByCategory'
+import { DashboardCrossReadings } from './DashboardCrossReadings'
 import { Panel } from '@/app/components/ui/Panel'
 import { RecordCard } from '@/app/components/ui/RecordCard'
 import { SkeletonMetric } from '@/app/components/ui/Skeleton'
@@ -42,6 +46,46 @@ function dashboardCountText(count: number, singular: string, plural: string) {
 function dashboardTarget(record: AnyRecord): Section | null {
 	const section = String(record.action_section ?? '')
 	return section in sectionMeta ? (section as Section) : null
+}
+
+function dashboardSharePct(value: unknown, maxValue: unknown) {
+	const current = Math.max(numberValue(value), 0)
+	const max = numberValue(maxValue)
+	if (max <= 0) return 0
+	return Math.min(100, Math.round((current / max) * 100))
+}
+
+function dashboardShareBar(value: unknown, maxValue: unknown) {
+	const pct = dashboardSharePct(value, maxValue)
+	return (
+		<span
+			className="dashboard-sharebar"
+			style={{ ['--share']: `${pct}%` } as CSSProperties}
+			aria-hidden="true"
+		/>
+	)
+}
+
+const DASHBOARD_AGING_RISK: Record<string, string> = {
+	'0_7': 'var(--risk-fresh)',
+	'8_15': 'var(--risk-mid)',
+	'16_30': 'var(--risk-mid)',
+	'31_plus': 'var(--risk-high)',
+}
+
+// Barra de antiguedad coloreada por riesgo: fresco neutro, vencido en rojo.
+function dashboardAgingBar(bucket: AnyRecord, maxValue: unknown) {
+	const pct = dashboardSharePct(bucket.amount, maxValue)
+	const fill = DASHBOARD_AGING_RISK[String(bucket.id ?? '')] ?? 'var(--risk-mid)'
+	return (
+		<span
+			className="dashboard-sharebar"
+			style={
+				{ ['--share']: `${pct}%`, ['--bar-fill']: fill } as CSSProperties
+			}
+			aria-hidden="true"
+		/>
+	)
 }
 
 export function DashboardPanel({
@@ -147,6 +191,33 @@ export function DashboardPanel({
 	)
 		? dashboardRankings.top_materials_by_cost
 		: []
+	const dashboardWorkStatusMax = dashboardWorkStatusEntries.reduce(
+		(max, [key]) =>
+			Math.max(max, numberValue(dashboard.work_orders_by_status?.[key])),
+		0,
+	)
+	const dashboardReceivablesAgingMax = dashboardReceivablesAging.reduce(
+		(max: number, bucket: AnyRecord) =>
+			Math.max(max, numberValue(bucket.amount)),
+		0,
+	)
+	const dashboardTopCustomersMax = numberValue(
+		dashboardTopCustomersByBilled[0]?.billed_total,
+	)
+	const dashboardTopServicesMax = numberValue(
+		dashboardTopServicesByBilled[0]?.billed_total,
+	)
+	const dashboardTopWorkOrdersMarginMax = numberValue(
+		dashboardTopWorkOrdersByMargin[0]?.estimated_margin,
+	)
+	const dashboardTopMaterialsMax = numberValue(
+		dashboardTopMaterialsByCost[0]?.estimated_total_cost,
+	)
+	const dashboardSeriesPoints = Array.isArray(dashboard.series?.points)
+		? dashboard.series.points
+		: []
+	const dashboardSeriesValues = (key: string) =>
+		dashboardSeriesPoints.map((point: AnyRecord) => numberValue(point?.[key]))
 	const dashboardPreviousHasActivity =
 		dashboardPreviousPeriod.has_activity === true ||
 		(dashboardPreviousPeriod.has_activity !== false &&
@@ -301,7 +372,7 @@ export function DashboardPanel({
 							maximumFractionDigits: 1,
 						})
 						const prefix = delta > 0 ? '+' : delta < 0 ? '-' : ''
-						content = `${prefix}${percent}% ${label}`
+						content = `${prefix}${percent}% ${label} (${money(previousValue)})`
 					}
 				}
 			}
@@ -406,6 +477,11 @@ export function DashboardPanel({
 									<MetricCard
 										className="dashboard-executive-metric"
 										label="Caja real"
+										footer={
+											<CajaSparkline
+												values={dashboardSeriesValues('cashflow_balance')}
+											/>
+										}
 										value={money(dashboardCashflowBalance)}
 										numericValue={dashboardCashflowBalance}
 										format={money}
@@ -423,6 +499,7 @@ export function DashboardPanel({
 											dashboardBalanceDueTotal > 0 && 'metric--attention',
 										)}
 										label="Por cobrar"
+										footer={<RiskMeter buckets={dashboardReceivablesAging} />}
 										value={money(dashboardBalanceDueTotal)}
 										numericValue={dashboardBalanceDueTotal}
 										format={money}
@@ -464,7 +541,9 @@ export function DashboardPanel({
 									</button>
 								</RecordCard>
 							</Panel>
-							<div className="dashboard-insight-grid">
+							<DashboardCrossReadings dashboard={dashboard} />
+								<DashboardCashByCategory dashboard={dashboard} />
+								<div className="dashboard-insight-grid">
 								<Panel
 									title="Composicion economica"
 									subtitle="Separacion entre facturado, cobrado, costos y obligaciones."
@@ -535,11 +614,11 @@ export function DashboardPanel({
 													{dashboardReceivablesAging.map(
 														(bucket: AnyRecord) => (
 															<div
-																className="dashboard-aging-row"
+																className="dashboard-aging-row dashboard-sharerow"
 																key={bucket.id ?? bucket.label}
 															>
 																<span>{bucket.label}</span>
-																<strong>{money(bucket.amount)}</strong>
+																<strong>{money(bucket.amount)}</strong>{dashboardAgingBar(bucket, dashboardReceivablesAgingMax)}
 																<small>
 																	{dashboardCountText(
 																		numberValue(bucket.count),
@@ -845,7 +924,7 @@ export function DashboardPanel({
 												{dashboardTopCustomersByBilled.map(
 													(item: AnyRecord) => (
 														<RecordCard
-															className="dashboard-ranking-record"
+															className="dashboard-ranking-record dashboard-sharerow"
 															key={item.customer_id ?? item.customer_name}
 														>
 															<div className="record-head">
@@ -859,7 +938,7 @@ export function DashboardPanel({
 																		)}
 																	</small>
 																</div>
-																<strong>{money(item.billed_total)}</strong>
+																<strong>{money(item.billed_total)}</strong>{dashboardShareBar(item.billed_total, dashboardTopCustomersMax)}
 															</div>
 														</RecordCard>
 													),
@@ -874,12 +953,12 @@ export function DashboardPanel({
 												{dashboardTopServicesByBilled.map(
 													(item: AnyRecord) => (
 														<RecordCard
-															className="dashboard-ranking-record"
+															className="dashboard-ranking-record dashboard-sharerow"
 															key={item.service_id ?? item.service_name}
 														>
 															<div className="record-head">
 																<div>
-																	<span>{item.service_name}</span>
+																	<span>{item.service_name}</span>{dashboardShareBar(item.billed_total, dashboardTopServicesMax)}
 																	<small>
 																		Margen {money(item.estimated_margin_total)}
 																	</small>
@@ -899,7 +978,7 @@ export function DashboardPanel({
 												{dashboardTopWorkOrdersByMargin.map(
 													(item: AnyRecord) => (
 														<RecordCard
-															className="dashboard-ranking-record"
+															className="dashboard-ranking-record dashboard-sharerow"
 															key={item.id}
 														>
 															<div className="record-head">
@@ -909,7 +988,7 @@ export function DashboardPanel({
 																	</span>
 																	<small>{item.service_name}</small>
 																</div>
-																<strong>{money(item.estimated_margin)}</strong>
+																<strong>{money(item.estimated_margin)}</strong>{dashboardShareBar(item.estimated_margin, dashboardTopWorkOrdersMarginMax)}
 															</div>
 														</RecordCard>
 													),
@@ -923,7 +1002,7 @@ export function DashboardPanel({
 											<div className="records dashboard-ranking-records">
 												{dashboardTopMaterialsByCost.map((item: AnyRecord) => (
 													<RecordCard
-														className="dashboard-ranking-record"
+														className="dashboard-ranking-record dashboard-sharerow"
 														key={item.material_id ?? item.material_name}
 													>
 														<div className="record-head">
@@ -933,7 +1012,7 @@ export function DashboardPanel({
 																	{quantity(item.quantity)} {item.unit}
 																</small>
 															</div>
-															<strong>{money(item.estimated_total_cost)}</strong>
+															<strong>{money(item.estimated_total_cost)}</strong>{dashboardShareBar(item.estimated_total_cost, dashboardTopMaterialsMax)}
 														</div>
 													</RecordCard>
 												))}
@@ -958,11 +1037,11 @@ export function DashboardPanel({
 									<Stagger className="records dashboard-status-records">
 										{dashboardWorkStatusEntries.map(([key, label]) => (
 											<StaggerItem key={key}>
-												<RecordCard className="dashboard-status-record">
+												<RecordCard className="dashboard-status-record dashboard-sharerow">
 													<div className="record-head">
 														<span>{label}</span>
 														<strong>
-															{dashboard.work_orders_by_status?.[key] ?? 0}
+															{dashboard.work_orders_by_status?.[key] ?? 0}{dashboardShareBar(dashboard.work_orders_by_status?.[key], dashboardWorkStatusMax)}
 														</strong>
 													</div>
 												</RecordCard>
