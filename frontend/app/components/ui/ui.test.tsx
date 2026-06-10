@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { Car } from 'lucide-react'
 import { test, vi } from 'vitest'
 
+import { AuditLogCard } from './AuditLogCard'
 import { BirthdayFields } from './BirthdayFields'
 import { NumericInput } from './NumericInput'
 import { DetailModal } from './DetailModal'
@@ -540,4 +541,67 @@ test('NumericInput renders empty string when value has no digits', () => {
 		</label>,
 	)
 	assert.equal((screen.getByLabelText('Etiqueta') as HTMLInputElement).value, '')
+})
+
+test('AuditLogCard renders action label, entity and toggle button', async () => {
+	const user = userEvent.setup()
+	const toggled: Array<string | null> = []
+	const item = {
+		id: '42',
+		action: 'update',
+		module: 'auth',
+		entity_type: 'User',
+		entity_id: '7',
+		entity_label: 'juan',
+		created_at: '2026-01-01T00:00:00Z',
+		actor_id: 1,
+		actor_username: 'admin',
+		changes: { is_active: { before: true, after: false } },
+	}
+
+	render(
+		<AuditLogCard
+			item={item}
+			expanded={false}
+			currentUserId={99}
+			onToggle={(id) => toggled.push(id)}
+			onAuditActionLabel={(a) => `Accion:${a}`}
+			onAuditModuleLabel={(m) => `Modulo:${m}`}
+		/>,
+	)
+
+	assert.ok(screen.getByText(/Accion:update/))
+	assert.ok(screen.getByText(/juan/))
+	const btn = screen.getByRole('button', { name: /Detalle/i })
+	await user.click(btn)
+	assert.deepEqual(toggled, ['42'])
+})
+
+test('AuditLogCard shows change table when expanded', () => {
+	const item = {
+		id: '10',
+		action: 'create',
+		module: 'auth',
+		entity_type: 'User',
+		entity_id: '3',
+		entity_label: 'empleado',
+		created_at: '2026-01-01T00:00:00Z',
+		actor_id: 1,
+		actor_username: 'admin',
+		changes: { username: { before: null, after: 'empleado' } },
+	}
+
+	render(
+		<AuditLogCard
+			item={item}
+			expanded={true}
+			currentUserId={1}
+			onToggle={() => {}}
+			onAuditActionLabel={(a) => a}
+			onAuditModuleLabel={(m) => m}
+		/>,
+	)
+
+	assert.ok(screen.getByText('Campo'))
+	assert.ok(screen.getByText('username'))
 })

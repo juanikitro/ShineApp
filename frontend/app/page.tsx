@@ -715,6 +715,10 @@ export default function Home() {
 		Record<string, { customer?: string; vehicle?: string }>
 	>({})
 	const [employees, setEmployees] = useState<AnyRecord[]>([])
+	const [selectedEmployee, setSelectedEmployee] = useState<AnyRecord | null>(null)
+	const [employeeAuditLogs, setEmployeeAuditLogs] = useState<AnyRecord[]>([])
+	const [employeeAuditLogsLoading, setEmployeeAuditLogsLoading] = useState(false)
+	const [employeeAuditLogsError, setEmployeeAuditLogsError] = useState<string | null>(null)
 	const [auditLogs, setAuditLogs] = useState<AnyRecord[]>([])
 	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>({})
 	const auditLogsLoadedRef = useRef(false)
@@ -6516,6 +6520,66 @@ export default function Home() {
 		)
 	}
 
+	function deselectEmployee() {
+		setSelectedEmployee(null)
+		setEmployeeAuditLogs([])
+		setEmployeeAuditLogsError(null)
+		setEmployeeAuditLogsLoading(false)
+	}
+
+	async function selectEmployee(employee: AnyRecord) {
+		setSelectedEmployee(employee)
+		setEmployeeAuditLogs([])
+		setEmployeeAuditLogsError(null)
+		setEmployeeAuditLogsLoading(true)
+		try {
+			const logs = await apiFetch<AnyRecord[]>(
+				`/audit-log/?entity_type=User&entity_id=${employee.id}`,
+			)
+			setEmployeeAuditLogs(Array.isArray(logs) ? logs : [])
+		} catch {
+			setEmployeeAuditLogsError('No se pudo cargar el historial')
+		} finally {
+			setEmployeeAuditLogsLoading(false)
+		}
+	}
+
+	async function changeEmployeePassword(pk: number | string, newPassword: string) {
+		await runAction(
+			async () => {
+				const updated = await apiFetch<AnyRecord>(`/auth/employees/${pk}/`, {
+					method: 'PATCH',
+					body: JSON.stringify({ password: newPassword }),
+				})
+				setSelectedEmployee(updated)
+				setEmployees((prev) =>
+					prev.map((e) => (String(e.id) === String(pk) ? updated : e)),
+				)
+				return updated
+			},
+			{ successTitle: 'Contraseña actualizada' },
+		)
+	}
+
+	async function toggleEmployeeActive(pk: number | string, isActive: boolean) {
+		await runAction(
+			async () => {
+				const updated = await apiFetch<AnyRecord>(`/auth/employees/${pk}/`, {
+					method: 'PATCH',
+					body: JSON.stringify({ is_active: !isActive }),
+				})
+				setSelectedEmployee(updated)
+				setEmployees((prev) =>
+					prev.map((e) => (String(e.id) === String(pk) ? updated : e)),
+				)
+				return updated
+			},
+			{
+				successTitle: isActive ? 'Empleado desactivado' : 'Empleado activado',
+			},
+		)
+	}
+
 	async function saveProfile(event: FormEvent) {
 		event.preventDefault()
 		if (!currentUser) return
@@ -11776,22 +11840,39 @@ export default function Home() {
 						mobileOpen={sidebarMobileOpen}
 						header={
 							businessProfile && sidebarBusinessLogoSrc ? (
-								<button
-									type="button"
-									className="ghost sidebar-business-button"
-									onClick={() => {
-										handleSectionChange('settings')
-										setSettingsSection('business')
-									}}
-									aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
-									title="Configuracion del negocio"
-								>
-									<img
-										src={sidebarBusinessLogoSrc}
-										alt={String(businessProfile.name ?? '')}
-										className="sidebar-business-logo"
-									/>
-								</button>
+								currentUser?.business?.slug ? (
+									<a
+										className="ghost sidebar-business-button"
+										href={`/publica/${String(currentUser.business.slug)}`}
+										rel="noreferrer"
+										target="_blank"
+										aria-label={`Abrir turnera de ${String(businessProfile.name ?? 'negocio')}`}
+										title="Abrir turnera"
+									>
+										<img
+											src={sidebarBusinessLogoSrc}
+											alt={String(businessProfile.name ?? '')}
+											className="sidebar-business-logo"
+										/>
+									</a>
+								) : (
+									<button
+										type="button"
+										className="ghost sidebar-business-button"
+										onClick={() => {
+											handleSectionChange('settings')
+											setSettingsSection('business')
+										}}
+										aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
+										title="Configuracion del negocio"
+									>
+										<img
+											src={sidebarBusinessLogoSrc}
+											alt={String(businessProfile.name ?? '')}
+											className="sidebar-business-logo"
+										/>
+									</button>
+								)
 							) : null
 						}
 						items={navItems}
@@ -13004,6 +13085,10 @@ export default function Home() {
 						cashClassificationPairs={cashClassificationPairs}
 						currentUserId={currentUser?.id ?? null}
 						employees={employees}
+						selectedEmployee={selectedEmployee}
+						employeeAuditLogs={employeeAuditLogs}
+						employeeAuditLogsLoading={employeeAuditLogsLoading}
+						employeeAuditLogsError={employeeAuditLogsError}
 						expandedAuditLogId={expandedAuditLogId}
 						expenseClassificationPairs={expenseClassificationPairs}
 						inactiveEmployeeCount={inactiveEmployeeCount}
@@ -13029,6 +13114,10 @@ export default function Home() {
 						onDeleteExpenseClassification={deleteExpenseClassification}
 						onEditExpenseClassification={openExpenseClassificationEditor}
 						onOpenBusinessLogoPicker={openBusinessLogoPicker}
+						onSelectEmployee={selectEmployee}
+						onDeselectEmployee={deselectEmployee}
+						onChangeEmployeePassword={changeEmployeePassword}
+						onToggleEmployeeActive={toggleEmployeeActive}
 						onOpenEmployeeForm={() => openFormModal('employee')}
 						onOpenExpenseClassificationForm={() =>
 							openFormModal('expense-classification')
@@ -13037,7 +13126,10 @@ export default function Home() {
 						onRefreshAuditLogs={() => refreshAuditLogs()}
 						onRefreshData={() => loadData({ force: true })}
 						onSaveBusinessProfile={saveBusinessProfile}
-						onSettingsSectionChange={setSettingsSection}
+						onSettingsSectionChange={(section) => {
+								setSettingsSection(section)
+								if (section !== 'users') deselectEmployee()
+							}}
 						onToggleAuditLog={setExpandedAuditLogId}
 						onUpdateAuditFilter={updateAuditFilter}
 					/>
