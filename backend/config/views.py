@@ -351,6 +351,16 @@ class EmployeeUserCreateSerializer(serializers.Serializer):
         return user
 
 
+class EmployeeUserUpdateSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True, min_length=8, required=False)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    is_active = serializers.BooleanField(required=False)
+
+    def validate_password(self, value):
+        validate_password(value)
+        return value
+
+
 def validate_category_tree_payload(value, normalizer):
     if isinstance(value, str):
         try:
@@ -730,6 +740,57 @@ class EmployeeUsersView(APIView):
             entity_label=user.get_username(),
         )
         return Response(EmployeeUserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+
+class EmployeeUserDetailView(APIView):
+    permission_classes = [EmployerOnly]
+
+    def _get_employee(self, request, pk):
+        user_model = get_user_model()
+        try:
+            return (
+                user_model.objects.filter(pk=pk, groups__name=EMPLOYEE_ROLE, is_superuser=False)
+                .filter(profile__business=business_from_request(request))
+                .exclude(groups__name="empleador")
+                .distinct()
+                .get()
+            )
+        except user_model.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        user = self._get_employee(request, pk)
+        if user is None:
+            return Response({"detail": "Empleado no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(EmployeeUserSerializer(user).data)
+
+    def patch(self, request, pk):
+        user = self._get_employee(request, pk)
+        if user is None:
+            return Response({"detail": "Empleado no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        serializer = EmployeeUserUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        before = audit_snapshot(user)
+        data = serializer.validated_data
+        if "password" in data:
+            user.set_password(data["password"])
+        if "email" in data:
+            user.email = data["email"]
+        if "is_active" in data:
+            user.is_active = data["is_active"]
+        user.save()
+        record_audit_event(
+            request=request,
+            action="update",
+            instance=user,
+            before=before,
+            after=audit_snapshot(user),
+            module="auth",
+            entity_type="User",
+            entity_id=user.id,
+            entity_label=user.get_username(),
+        )
+        return Response(EmployeeUserSerializer(user).data)
 
 
 class BusinessProfileView(APIView):
