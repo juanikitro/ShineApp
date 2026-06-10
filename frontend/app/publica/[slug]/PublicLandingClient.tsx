@@ -29,7 +29,6 @@ import {
 } from '@/lib/api-errors'
 import { isPdfAssetSource, renderPdfPreviewDataUrl, safeImageAssetSource } from '@/lib/pdf-preview'
 import {
-	type AvailabilityBucket,
 	type AvailabilityOccupied,
 	buildTimeSlots,
 	todayIsoDate,
@@ -41,39 +40,38 @@ type PublicAvailabilityPayload = {
 	date: string
 	allow_overlapping: boolean
 	capacity_enforced: boolean
-	wash: AvailabilityBucket
-	detailing: AvailabilityBucket
+	sectors: Array<{
+		id: number
+		name: string
+		key: string
+		color: string
+		max_slots: number
+		used_slots: number
+		available_slots: number
+	}>
 	occupied: AvailabilityOccupied[]
+}
+
+type PublicLandingSector = {
+	id: number
+	name: string
+	key: string
+	color: string
+	order: number
 }
 
 type PublicService = {
 	id: number
 	name: string
 	icon?: string
-	service_type?: string
+	sector?: number | null
 	estimated_duration_minutes?: number | null
 	notes?: string
 	base_price?: string | number | null
 }
 
-type ServiceGroupKey = 'wash' | 'combo' | 'detailing'
-
-const serviceGroupOrder: ServiceGroupKey[] = ['wash', 'combo', 'detailing']
-
 // A partir de cuantos caracteres una descripcion se trunca con "Ver mas".
 const DESCRIPTION_TRUNCATE_THRESHOLD = 120
-
-const serviceGroupLabels: Record<ServiceGroupKey, string> = {
-	wash: 'Lavadero',
-	combo: 'Combos',
-	detailing: 'Detailing',
-}
-
-function groupKeyForService(service: PublicService): ServiceGroupKey {
-	const type = String(service.service_type ?? '').toLowerCase()
-	if (type === 'wash' || type === 'combo' || type === 'detailing') return type
-	return 'wash'
-}
 
 type PublicLandingPayload = {
 	business: {
@@ -96,6 +94,7 @@ type PublicLandingPayload = {
 		show_service_description?: boolean
 		show_service_price?: boolean
 	}
+	sectors?: PublicLandingSector[]
 	services: PublicService[]
 }
 
@@ -301,9 +300,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	const [errorNotice, setErrorNotice] = useState<ApiErrorNotice | null>(null)
 	const [success, setSuccess] = useState(false)
 	const [logoLoadFailed, setLogoLoadFailed] = useState(false)
-	const [openGroups, setOpenGroups] = useState<Record<ServiceGroupKey, boolean>>(
-		{ wash: false, combo: false, detailing: false },
-	)
+	const [openGroups, setOpenGroups] = useState<Record<number, boolean>>({})
 	const [expandedDescriptions, setExpandedDescriptions] = useState<Set<number>>(
 		new Set(),
 	)
@@ -399,15 +396,15 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		setLogoLoadFailed(false)
 	}, [logoPdfThumbnail, logoSource])
 
-	const servicesByGroup = useMemo(() => {
-		const groups: Record<ServiceGroupKey, PublicService[]> = {
-			wash: [],
-			combo: [],
-			detailing: [],
-		}
+	const servicesBySector = useMemo(() => {
+		const groups: Record<number, PublicService[]> = {}
 		if (!landing) return groups
+		for (const sector of landing.sectors ?? []) groups[sector.id] = []
 		for (const service of landing.services) {
-			groups[groupKeyForService(service)].push(service)
+			const sectorId = service.sector
+			if (sectorId != null && groups[sectorId] !== undefined) {
+				groups[sectorId].push(service)
+			}
 		}
 		return groups
 	}, [landing])
@@ -427,8 +424,8 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		return total || 60
 	}, [form.service_ids, landing])
 
-	const selectedBuckets = useMemo(() => {
-		const result = { wash: 0, detailing: 0 }
+	const selectedSectors = useMemo(() => {
+		const result: Record<number, number> = {}
 		if (!landing) return result
 		const byId = new Map<number, PublicService>()
 		for (const service of landing.services) byId.set(service.id, service)
@@ -436,10 +433,8 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 			const id = Number(idString)
 			if (!Number.isFinite(id)) continue
 			const service = byId.get(id)
-			if (!service) continue
-			const type = String(service.service_type ?? '').toLowerCase()
-			if (type === 'detailing') result.detailing += 1
-			else result.wash += 1
+			if (!service || service.sector == null) continue
+			result[service.sector] = (result[service.sector] ?? 0) + 1
 		}
 		return result
 	}, [form.service_ids, landing])
@@ -468,33 +463,26 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	const capacityWarning = useMemo(() => {
 		if (!availability || !availability.capacity_enforced) return null
 		const issues: string[] = []
-		if (
-			selectedBuckets.wash > 0 &&
-			availability.wash.available_slots < selectedBuckets.wash
-		) {
-			issues.push(
-				`No hay cupo de lavado disponible (${availability.wash.used_slots}/${availability.wash.max_slots}).`,
-			)
+		const availBySectorId = new Map(availability.sectors.map((s) => [s.id, s]))
+		for (const [sectorIdStr, requested] of Object.entries(selectedSectors)) {
+			const sectorId = Number(sectorIdStr)
+			const bucket = availBySectorId.get(sectorId)
+			if (!bucket) continue
+			if (bucket.available_slots < requested) {
+				issues.push(
+					`No hay cupo de ${bucket.name} disponible (${bucket.used_slots}/${bucket.max_slots}).`,
+				)
+			}
 		}
-		if (
-			selectedBuckets.detailing > 0 &&
-			availability.detailing.available_slots < selectedBuckets.detailing
-		) {
-			issues.push(
-				`No hay cupo de detailing disponible (${availability.detailing.used_slots}/${availability.detailing.max_slots}).`,
-			)
-		}
-		if (
-			!issues.length &&
-			selectedBuckets.wash === 0 &&
-			selectedBuckets.detailing === 0 &&
-			availability.wash.available_slots === 0 &&
-			availability.detailing.available_slots === 0
-		) {
-			issues.push('Este dia ya no tiene cupo de lavado ni de detailing.')
+		if (!issues.length && Object.keys(selectedSectors).length === 0) {
+			const allFull = availability.sectors.every((s) => s.available_slots === 0)
+			if (allFull && availability.sectors.length > 0) {
+				const names = availability.sectors.map((s) => s.name).join(' ni de ')
+				issues.push(`Este dia ya no tiene cupo de ${names}.`)
+			}
 		}
 		return issues.length ? issues.join(' ') : null
-	}, [availability, selectedBuckets])
+	}, [availability, selectedSectors])
 	const blockSubmit = Boolean(capacityWarning) || isPastPreferredDay
 
 	function patchForm(patch: Partial<PublicRequestForm>) {
@@ -513,8 +501,8 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		}))
 	}
 
-	function toggleGroup(group: ServiceGroupKey) {
-		setOpenGroups((current) => ({ ...current, [group]: !current[group] }))
+	function toggleGroup(sectorId: number) {
+		setOpenGroups((current) => ({ ...current, [sectorId]: !current[sectorId] }))
 	}
 
 	function toggleDescription(serviceId: number) {
@@ -864,10 +852,10 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							<Wrench size={18} />
 							<h2>Servicios</h2>
 						</div>
-						{serviceGroupOrder.map((group) => {
-							const items = servicesByGroup[group]
+						{(landing.sectors ?? []).map((sector) => {
+							const items = servicesBySector[sector.id] ?? []
 							if (!items.length) return null
-							const open = openGroups[group]
+							const open = openGroups[sector.id] ?? false
 							const selectedCount = items.reduce(
 								(count, service) =>
 									form.service_ids.includes(String(service.id))
@@ -876,15 +864,15 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 								0,
 							)
 							return (
-								<div className="public-service-group" key={group}>
+								<div className="public-service-group" key={sector.id}>
 									<button
 										type="button"
 										className="public-service-group-toggle"
 										aria-expanded={open}
-										onClick={() => toggleGroup(group)}
+										onClick={() => toggleGroup(sector.id)}
 									>
 										<span className="public-service-group-title">
-											{serviceGroupLabels[group]}
+											{sector.name}
 										</span>
 										{!open && selectedCount > 0 ? (
 											<span className="public-service-group-count">
@@ -1195,10 +1183,12 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							{capacityWarning ??
 								(availability.capacity_enforced ? (
 									<>
-										Cupo lavado: {availability.wash.used_slots}/
-										{availability.wash.max_slots} · Cupo detailing:{' '}
-										{availability.detailing.used_slots}/
-										{availability.detailing.max_slots}
+										{availability.sectors.map((s, i) => (
+											<span key={s.id}>
+												{i > 0 ? ' · ' : ''}
+												{s.name}: {s.used_slots}/{s.max_slots}
+											</span>
+										))}
 									</>
 								) : (
 									'Sin límite de cupos'
