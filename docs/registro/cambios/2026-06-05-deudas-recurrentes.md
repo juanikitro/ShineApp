@@ -1,5 +1,9 @@
 # Deudas recurrentes con materializacion lazy (2026-06-05)
 
+> **REVERTIDO el 2026-06-10.** Reemplazado por el modulo Gastos fijos
+> (`2026-06-10-gastos-fijos.md`); detalle del revert en
+> `2026-06-10-revert-deudas-recurrentes.md`.
+
 **Objetivo:** automatizar la creacion de deudas mensuales recurrentes (alquiler,
 servicios, abonos). Cada plantilla define monto, periodicidad y vencimiento;
 cuando se consulta la lista de deudas el backend materializa los ciclos
