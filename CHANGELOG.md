@@ -11,6 +11,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-10
+- [Turnera: atajos para abrir la landing publica desde la app](docs/registro/cambios/2026-06-10-turnera-atajos-de-acceso.md)
 - [Dashboard: senales de riesgo de cobranza/caja + lecturas cruzadas](docs/registro/cambios/2026-06-10-dashboard-senales-riesgo-cruces.md)
 - [Changelog sin conflictos entre PRs concurrentes](docs/registro/cambios/2026-06-10-changelog-sin-conflictos-en-prs.md)
 
