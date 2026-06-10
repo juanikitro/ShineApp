@@ -1,8 +1,11 @@
 import importlib
 
 import pytest
+from django.contrib.auth.models import Group
 from django.test import override_settings
 from django.urls import reverse
+
+from core.models import UserProfile
 
 
 @pytest.mark.django_db
@@ -113,3 +116,54 @@ def test_production_settings_enable_standard_password_validators(monkeypatch):
         "django.contrib.auth.password_validation.CommonPasswordValidator",
         "django.contrib.auth.password_validation.NumericPasswordValidator",
     ]
+
+
+@pytest.mark.django_db
+def test_employer_can_change_employee_password(api_client, django_user_model, default_business):
+    employee_group, _ = Group.objects.get_or_create(name="empleado")
+    employee = django_user_model.objects.create_user(username="emp-pw-test", password="oldpassword1")
+    employee.groups.set([employee_group])
+    UserProfile.objects.create(user=employee, business=default_business)
+
+    response = api_client.patch(
+        reverse("auth-employee-detail", kwargs={"pk": employee.pk}),
+        {"password": "newpassword1"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    employee.refresh_from_db()
+    assert employee.check_password("newpassword1")
+
+
+@pytest.mark.django_db
+def test_employer_cannot_change_password_to_too_short(api_client, django_user_model, default_business):
+    employee_group, _ = Group.objects.get_or_create(name="empleado")
+    employee = django_user_model.objects.create_user(username="emp-short-pw", password="oldpassword1")
+    employee.groups.set([employee_group])
+    UserProfile.objects.create(user=employee, business=default_business)
+
+    response = api_client.patch(
+        reverse("auth-employee-detail", kwargs={"pk": employee.pk}),
+        {"password": "corta"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "password" in response.data
+
+
+@pytest.mark.django_db
+def test_employee_cannot_change_other_employee_password(employee_client, django_user_model, default_business):
+    employee_group, _ = Group.objects.get_or_create(name="empleado")
+    other = django_user_model.objects.create_user(username="emp-other", password="otherpass1")
+    other.groups.set([employee_group])
+    UserProfile.objects.create(user=other, business=default_business)
+
+    response = employee_client.patch(
+        reverse("auth-employee-detail", kwargs={"pk": other.pk}),
+        {"password": "newpassword1"},
+        format="json",
+    )
+
+    assert response.status_code == 403

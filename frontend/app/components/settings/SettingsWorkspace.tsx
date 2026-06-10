@@ -12,6 +12,7 @@ import {
 	CalendarDays,
 	ChevronDown,
 	FileText,
+	KeyRound,
 	Pencil,
 	Plus,
 	RefreshCw,
@@ -1054,11 +1055,11 @@ function UsersSettingsPanel({
 										type="button"
 										className="ghost"
 										onClick={() => onSelectEmployee(item)}
-										aria-label={`Ver detalle de ${item.username}`}
-									>
-										<Pencil size={16} />
-										Editar
-									</button>
+									aria-label={`Ver detalle de ${item.username}`}
+								>
+									<Pencil size={16} />
+									Editar
+								</button>
 								}
 							>
 								<div className="record-sub">
