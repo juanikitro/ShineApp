@@ -4,6 +4,8 @@ import {
 	type ChangeEvent,
 	type FormEvent,
 	type RefObject,
+	useEffect,
+	useMemo,
 	useState,
 } from 'react'
 
@@ -81,6 +83,7 @@ type SettingsWorkspaceProps = {
 	cashClassificationPairs: CashClassificationPair[]
 	expenseClassificationPairs: AnyRecord[]
 	incomeClassificationPairs: AnyRecord[]
+	sectors: AnyRecord[]
 	services: AnyRecord[]
 	useReservationTimes: boolean
 	showStayDaysInAgenda: boolean
@@ -113,6 +116,8 @@ type SettingsWorkspaceProps = {
 		subcategory: string,
 	) => void
 	onOpenEmployeeForm: () => void
+	onCreateSector: (data: AnyRecord) => void
+	onSaveSector: (id: number, patch: AnyRecord) => void
 	onRefreshData: () => void
 	onRefreshAuditLogs: () => void
 	onApplyAuditFilters: (event: FormEvent) => void
@@ -141,6 +146,7 @@ export function SettingsWorkspace({
 	cashClassificationPairs,
 	expenseClassificationPairs,
 	incomeClassificationPairs,
+	sectors,
 	services,
 	useReservationTimes,
 	showStayDaysInAgenda,
@@ -169,6 +175,8 @@ export function SettingsWorkspace({
 	onEditExpenseClassification,
 	onDeleteExpenseClassification,
 	onOpenEmployeeForm,
+	onCreateSector,
+	onSaveSector,
 	onRefreshData,
 	onRefreshAuditLogs,
 	onApplyAuditFilters,
@@ -216,6 +224,7 @@ export function SettingsWorkspace({
 						businessForm={businessForm}
 						businessSlug={businessSlug}
 						services={services}
+						sectors={sectors}
 						onPatchBusinessForm={onPatchBusinessForm}
 						onSaveBusinessProfile={onSaveBusinessProfile}
 					/>
@@ -249,10 +258,13 @@ export function SettingsWorkspace({
 							onPatchBusinessForm={onPatchBusinessForm}
 							onSaveBusinessProfile={onSaveBusinessProfile}
 						/>
-						<DailyCapacitiesPanel
+						<SectorsSettingsPanel
 							businessForm={businessForm}
+							sectors={sectors}
 							onPatchBusinessForm={onPatchBusinessForm}
 							onSaveBusinessProfile={onSaveBusinessProfile}
+							onCreateSector={onCreateSector}
+							onSaveSector={onSaveSector}
 						/>
 					</>
 				) : null}
@@ -725,25 +737,130 @@ function AgendaSettingsPanel({
 	)
 }
 
-function DailyCapacitiesPanel({
+function SectorRow({
+	sector,
+	enforceCapacity,
+	onSave,
+}: {
+	sector: AnyRecord
+	enforceCapacity: boolean
+	onSave: (patch: AnyRecord) => void
+}) {
+	const isActive = sector.is_active !== false
+	const [name, setName] = useState(String(sector.name ?? ''))
+	const [capacity, setCapacity] = useState(String(sector.default_capacity ?? ''))
+	const [color, setColor] = useState(String(sector.color ?? ''))
+
+	useEffect(() => {
+		setName(String(sector.name ?? ''))
+		setCapacity(String(sector.default_capacity ?? ''))
+		setColor(String(sector.color ?? ''))
+	}, [sector.id, sector.name, sector.default_capacity, sector.color])
+
+	return (
+		<RecordCard>
+			<form
+				className="sector-row"
+				onSubmit={(e) => {
+					e.preventDefault()
+					onSave({
+						name: name.trim() || String(sector.name ?? ''),
+						default_capacity:
+							capacity === '' ? null : Number(capacity) || 0,
+						color: color.trim(),
+					})
+				}}
+			>
+				<div className="form-row">
+					<Field label="Nombre">
+						<input
+							value={name}
+							onChange={(e) => setName(e.target.value)}
+							required
+						/>
+					</Field>
+					<Field label="Cupo diario">
+						<input
+							type="number"
+							min="0"
+							placeholder="0"
+							disabled={!enforceCapacity}
+							value={capacity}
+							onChange={(e) => setCapacity(e.target.value)}
+						/>
+					</Field>
+					<Field label="Color">
+						<input
+							type="color"
+							value={color || '#888888'}
+							onChange={(e) => setColor(e.target.value)}
+						/>
+					</Field>
+				</div>
+				<div className="sector-row-actions">
+					<button type="submit" className="ghost">
+						<Pencil size={14} />
+						Guardar
+					</button>
+					<button
+						type="button"
+						className="ghost"
+						onClick={() => onSave({ is_active: !isActive })}
+					>
+						{isActive ? (
+							<>
+								<Trash2 size={14} />
+								Desactivar
+							</>
+						) : (
+							<>
+								<Eye size={14} />
+								Activar
+							</>
+						)}
+					</button>
+				</div>
+			</form>
+		</RecordCard>
+	)
+}
+
+function SectorsSettingsPanel({
 	businessForm,
+	sectors,
 	onPatchBusinessForm,
 	onSaveBusinessProfile,
+	onCreateSector,
+	onSaveSector,
 }: {
 	businessForm: AnyRecord
+	sectors: AnyRecord[]
 	onPatchBusinessForm: (patch: AnyRecord) => void
 	onSaveBusinessProfile: (event: FormEvent) => void
+	onCreateSector: (data: AnyRecord) => void
+	onSaveSector: (id: number, patch: AnyRecord) => void
 }) {
+	const [newName, setNewName] = useState('')
 	const enforceCapacity = businessForm.enforce_capacity_limit !== false
+
+	const sortedSectors = useMemo(
+		() =>
+			[...sectors].sort(
+				(a, b) =>
+					Number(a.order ?? 0) - Number(b.order ?? 0) ||
+					String(a.name ?? '').localeCompare(String(b.name ?? ''), 'es'),
+			),
+		[sectors],
+	)
+
 	return (
 		<section className="panel">
 			<div className="panel-head">
 				<div>
 					<span className="panel-kicker">Operacion diaria</span>
-					<h2>Capacidad de turnos</h2>
+					<h2>Sectores y cupos</h2>
 					<p>
-						Define el cupo de turnos que la agenda y la turnera aceptan por dia.
-						El cupo rige todos los dias por igual.
+						Gestioná los sectores del negocio y sus cupos diarios de turnos.
 					</p>
 				</div>
 				<div className="settings-action-rail">
@@ -754,7 +871,7 @@ function DailyCapacitiesPanel({
 							form="settings-capacity-form"
 						>
 							<CalendarDays size={16} />
-							Guardar cupos
+							Guardar limite
 						</button>
 					</div>
 				</div>
@@ -788,40 +905,40 @@ function DailyCapacitiesPanel({
 						/>
 					</RecordCard>
 				</div>
+			</form>
+			<div className="records">
+				{sortedSectors.map((sector) => (
+					<SectorRow
+						key={sector.id}
+						sector={sector}
+						enforceCapacity={enforceCapacity}
+						onSave={(patch) => onSaveSector(Number(sector.id), patch)}
+					/>
+				))}
+			</div>
+			<form
+				className="form-grid"
+				onSubmit={(e) => {
+					e.preventDefault()
+					if (newName.trim()) {
+						onCreateSector({ name: newName.trim() })
+						setNewName('')
+					}
+				}}
+			>
 				<div className="form-row">
-					<Field label="Cupo de lavado por dia">
+					<Field label="Nombre del nuevo sector">
 						<input
-							type="number"
-							min="0"
-							placeholder="8"
-							disabled={!enforceCapacity}
-							value={businessForm.default_capacity_wash ?? ''}
-							onChange={(event) =>
-								onPatchBusinessForm({
-									default_capacity_wash: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<Field label="Cupo de detailing por dia">
-						<input
-							type="number"
-							min="0"
-							placeholder="4"
-							disabled={!enforceCapacity}
-							value={businessForm.default_capacity_detailing ?? ''}
-							onChange={(event) =>
-								onPatchBusinessForm({
-									default_capacity_detailing: event.target.value,
-								})
-							}
+							value={newName}
+							placeholder="Ej: Gomeria, Taller, ..."
+							onChange={(e) => setNewName(e.target.value)}
 						/>
 					</Field>
 				</div>
-				<div className="record-sub">
-					Lavado incluye los servicios de lavadero y combos. Detailing cuenta
-					solo los servicios de detailing.
-				</div>
+				<button type="submit" className="primary">
+					<Plus size={16} />
+					Agregar sector
+				</button>
 			</form>
 		</section>
 	)

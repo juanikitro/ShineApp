@@ -11,18 +11,9 @@ type TurneraSettingsPanelProps = {
 	businessForm: AnyRecord
 	businessSlug: string
 	services: AnyRecord[]
+	sectors: AnyRecord[]
 	onPatchBusinessForm: (patch: AnyRecord) => void
 	onSaveBusinessProfile: (event: FormEvent) => void
-}
-
-type ServiceGroupKey = 'wash' | 'combo' | 'detailing'
-
-const serviceGroupOrder: ServiceGroupKey[] = ['wash', 'combo', 'detailing']
-
-const serviceGroupLabels: Record<ServiceGroupKey, string> = {
-	wash: 'Lavadero',
-	combo: 'Combos',
-	detailing: 'Detailing',
 }
 
 function isPositiveInt(value: unknown): value is number {
@@ -47,6 +38,7 @@ export function TurneraSettingsPanel({
 	businessForm,
 	businessSlug,
 	services,
+	sectors,
 	onPatchBusinessForm,
 	onSaveBusinessProfile,
 }: TurneraSettingsPanelProps) {
@@ -60,28 +52,31 @@ export function TurneraSettingsPanel({
 	)
 	const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds])
 
-	const groupedServices = useMemo(() => {
-		const groups: Record<ServiceGroupKey, AnyRecord[]> = {
-			wash: [],
-			combo: [],
-			detailing: [],
+	const activeSectors = useMemo(
+		() => sectors.filter((s) => s.is_active !== false),
+		[sectors],
+	)
+	const servicesBySector = useMemo(() => {
+		const bySector: Record<number, AnyRecord[]> = {}
+		for (const sector of activeSectors) {
+			bySector[Number(sector.id)] = []
 		}
 		for (const service of services) {
 			if (service.is_active === false) continue
-			const type = String(service.service_type ?? '')
-			if (type === 'wash' || type === 'combo' || type === 'detailing') {
-				groups[type].push(service)
+			const sectorId = Number(service.sector)
+			if (sectorId > 0 && bySector[sectorId] !== undefined) {
+				bySector[sectorId].push(service)
 			}
 		}
-		for (const key of serviceGroupOrder) {
-			groups[key].sort((a, b) =>
+		for (const group of Object.values(bySector)) {
+			group.sort((a, b) =>
 				String(a.name ?? '').localeCompare(String(b.name ?? ''), 'es', {
 					sensitivity: 'base',
 				}),
 			)
 		}
-		return groups
-	}, [services])
+		return bySector
+	}, [activeSectors, services])
 
 	function setHiddenIds(next: number[]) {
 		onPatchBusinessForm({ public_hidden_service_ids: next })
@@ -96,8 +91,8 @@ export function TurneraSettingsPanel({
 		}
 	}
 
-	function setGroupVisibility(group: ServiceGroupKey, visible: boolean) {
-		const groupIds = groupedServices[group]
+	function setGroupVisibility(sectorId: number, visible: boolean) {
+		const groupIds = (servicesBySector[sectorId] ?? [])
 			.map((service) => Number(service.id))
 			.filter(isPositiveInt)
 		if (visible) {
@@ -286,21 +281,22 @@ export function TurneraSettingsPanel({
 							</p>
 						</div>
 					</div>
-					{serviceGroupOrder.map((group) => {
-						const items = groupedServices[group]
+					{activeSectors.map((sector) => {
+						const sectorId = Number(sector.id)
+						const items = servicesBySector[sectorId] ?? []
 						if (!items.length) return null
 						const hiddenInGroup = items.filter((service) =>
 							hiddenSet.has(Number(service.id)),
 						).length
 						const allHidden = hiddenInGroup === items.length
 						return (
-							<div className="turnera-services-group" key={group}>
+							<div className="turnera-services-group" key={sectorId}>
 								<div className="turnera-services-group-head">
-									<h4>{serviceGroupLabels[group]}</h4>
+									<h4>{String(sector.name ?? '')}</h4>
 									<button
 										type="button"
 										className="ghost"
-										onClick={() => setGroupVisibility(group, allHidden)}
+										onClick={() => setGroupVisibility(sectorId, allHidden)}
 									>
 										{allHidden ? (
 											<>
@@ -336,8 +332,9 @@ export function TurneraSettingsPanel({
 							</div>
 						)
 					})}
-					{serviceGroupOrder.every(
-						(group) => groupedServices[group].length === 0,
+					{activeSectors.length === 0 ||
+					activeSectors.every(
+						(s) => (servicesBySector[Number(s.id)] ?? []).length === 0,
 					) ? (
 						<p className="turnera-services-empty">
 							Aun no hay servicios cargados. Crea servicios en la seccion

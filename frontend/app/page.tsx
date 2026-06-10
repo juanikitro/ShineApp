@@ -12451,6 +12451,7 @@ export default function Home() {
 						serviceDashboardLoading={serviceDashboardLoading}
 						serviceQuickActions={serviceQuickActions}
 						serviceTypeLabels={serviceTypeLabels}
+						sectors={sectors}
 						services={services}
 						workOrders={workOrders}
 						onBackToServices={() => setServiceDashboard(null)}
@@ -12939,6 +12940,7 @@ export default function Home() {
 						loading={loading}
 						safeBusinessLogoPdfThumbnail={safeBusinessLogoPdfThumbnail}
 						safeBusinessLogoPreview={safeBusinessLogoPreview}
+						sectors={sectors}
 						services={services}
 						settingsSection={settingsSection}
 						settingsSectionLabel={settingsSectionLabel}
@@ -12960,6 +12962,22 @@ export default function Home() {
 						onOpenEmployeeForm={() => openFormModal('employee')}
 						onOpenExpenseClassificationForm={() =>
 							openFormModal('expense-classification')
+						}
+						onCreateSector={(data) =>
+							runAction(() =>
+								apiFetch('/sectors/', {
+									method: 'POST',
+									body: JSON.stringify(data),
+								}),
+							)
+						}
+						onSaveSector={(id, patch) =>
+							runAction(() =>
+								apiFetch(`/sectors/${id}/`, {
+									method: 'PATCH',
+									body: JSON.stringify(patch),
+								}),
+							)
 						}
 						onPatchBusinessForm={patchBusinessForm}
 						onRefreshAuditLogs={() => refreshAuditLogs()}

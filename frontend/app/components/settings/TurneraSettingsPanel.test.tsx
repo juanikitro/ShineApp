@@ -28,6 +28,7 @@ test('TurneraSettingsPanel renders description and price checkboxes with profile
 			businessForm={baseForm()}
 			businessSlug="king-shine"
 			services={[]}
+			sectors={[]}
 			onPatchBusinessForm={() => {}}
 			onSaveBusinessProfile={() => {}}
 		/>,
@@ -50,6 +51,7 @@ test('TurneraSettingsPanel propagates toggling the description flag', async () =
 			businessForm={baseForm()}
 			businessSlug="king-shine"
 			services={[]}
+			sectors={[]}
 			onPatchBusinessForm={patch}
 			onSaveBusinessProfile={() => {}}
 		/>,
@@ -68,6 +70,7 @@ test('TurneraSettingsPanel propagates toggling the price flag', async () => {
 			businessForm={baseForm()}
 			businessSlug="king-shine"
 			services={[]}
+			sectors={[]}
 			onPatchBusinessForm={patch}
 			onSaveBusinessProfile={() => {}}
 		/>,
