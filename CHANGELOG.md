@@ -11,11 +11,13 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-10
-- [Revert de deudas recurrentes (2026-06-10)](docs/registro/cambios/2026-06-10-revert-deudas-recurrentes.md)
-- [Modulo Gastos fijos (2026-06-10)](docs/registro/cambios/2026-06-10-gastos-fijos.md)
 - [Turnera: atajos para abrir la landing publica desde la app](docs/registro/cambios/2026-06-10-turnera-atajos-de-acceso.md)
+- [Revert de deudas recurrentes (2026-06-10)](docs/registro/cambios/2026-06-10-revert-deudas-recurrentes.md)
 - [Gestión de empleados: detalle, toggle activo y cambio de contraseña](docs/registro/cambios/2026-06-10-gestion-empleados-detalle.md)
+- [Modulo Gastos fijos (2026-06-10)](docs/registro/cambios/2026-06-10-gastos-fijos.md)
+- [Gastos fijos: edicion, revertir pago y correctitud de caja cerrada (2026-06-10)](docs/registro/cambios/2026-06-10-gastos-fijos-mejoras.md)
 - [Detalle de empleado: cambio de contraseña e historial](docs/registro/cambios/2026-06-10-employee-detail-password-history.md)
+- [Design System v2 — Fase 1 (tokens) + Fase 2 (base layer y fuente)](docs/registro/cambios/2026-06-10-design-system-v2-fase1-fase2.md)
 - [Dashboard: senales de riesgo de cobranza/caja + lecturas cruzadas](docs/registro/cambios/2026-06-10-dashboard-senales-riesgo-cruces.md)
 - [Changelog sin conflictos entre PRs concurrentes](docs/registro/cambios/2026-06-10-changelog-sin-conflictos-en-prs.md)
 

@@ -9649,28 +9649,32 @@ export default function Home() {
 
 	async function saveFixedExpense(event: FormEvent) {
 		event.preventDefault()
+		const editingId = fixedExpenseForm.id
 		await runAction(async () => {
-			const created = await apiFetch<AnyRecord>('/fixed-expenses/', {
-				method: 'POST',
-				body: JSON.stringify({
-					concept: fixedExpenseForm.concept,
-					supplier: fixedExpenseForm.supplier || null,
-					amount: fixedExpenseForm.amount,
-					expense_category: fixedExpenseForm.expense_category,
-					expense_subcategory: fixedExpenseForm.expense_subcategory,
-					notes: fixedExpenseForm.notes,
-					interval_unit: fixedExpenseForm.interval_unit || 'months',
-					interval_count: Number(fixedExpenseForm.interval_count || 1),
-					start_date: fixedExpenseForm.start_date,
-					due_offset_days: Number(fixedExpenseForm.due_offset_days || 0),
-					end_date: fixedExpenseForm.end_date || null,
-					max_cycles: fixedExpenseForm.max_cycles
-						? Number(fixedExpenseForm.max_cycles)
-						: null,
-					auto_pay: Boolean(fixedExpenseForm.auto_pay),
-					payment_method: fixedExpenseForm.payment_method || 'transfer',
-				}),
-			})
+			const created = await apiFetch<AnyRecord>(
+				editingId ? `/fixed-expenses/${editingId}/` : '/fixed-expenses/',
+				{
+					method: editingId ? 'PATCH' : 'POST',
+					body: JSON.stringify({
+						concept: fixedExpenseForm.concept,
+						supplier: fixedExpenseForm.supplier || null,
+						amount: fixedExpenseForm.amount,
+						expense_category: fixedExpenseForm.expense_category,
+						expense_subcategory: fixedExpenseForm.expense_subcategory,
+						notes: fixedExpenseForm.notes,
+						interval_unit: fixedExpenseForm.interval_unit || 'months',
+						interval_count: Number(fixedExpenseForm.interval_count || 1),
+						start_date: fixedExpenseForm.start_date,
+						due_offset_days: Number(fixedExpenseForm.due_offset_days || 0),
+						end_date: fixedExpenseForm.end_date || null,
+						max_cycles: fixedExpenseForm.max_cycles
+							? Number(fixedExpenseForm.max_cycles)
+							: null,
+						auto_pay: Boolean(fixedExpenseForm.auto_pay),
+						payment_method: fixedExpenseForm.payment_method || 'transfer',
+					}),
+				},
+			)
 			setFixedExpenseForm(blankFixedExpenseForm(today))
 			formModalExit.close()
 			return created
@@ -9678,8 +9682,11 @@ export default function Home() {
 			key: 'save:fixed-expense',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('fixed-expense', created?.id),
-			successTitle: entityFeedbackTitle('fixed-expense', 'created'),
-			undo: undoCreatedRecord('fixed-expense'),
+			successTitle: entityFeedbackTitle(
+				'fixed-expense',
+				editingId ? 'updated' : 'created',
+			),
+			undo: editingId ? undefined : undoCreatedRecord('fixed-expense'),
 		})
 	}
 
@@ -9724,6 +9731,44 @@ export default function Home() {
 				apiFetch<AnyRecord>(`/fixed-expenses/${id}/`, { method: 'DELETE' }),
 			{ successTitle: entityFeedbackTitle('fixed-expense', 'deleted') },
 		)
+	}
+
+	async function unpayFixedExpenseOccurrence(id: string | number) {
+		const confirmed =
+			typeof window === 'undefined'
+				? true
+				: window.confirm(
+						'Revertir el pago elimina el egreso de la caja. Continuar?',
+					)
+		if (!confirmed) return
+		await runAction(
+			async () =>
+				apiFetch<AnyRecord>(`/fixed-expense-occurrences/${id}/unpay/`, {
+					method: 'POST',
+				}),
+			{ successTitle: 'Pago revertido' },
+		)
+	}
+
+	function openFixedExpenseForEdit(plan: AnyRecord) {
+		setFixedExpenseForm({
+			id: plan.id,
+			concept: plan.concept ?? '',
+			supplier: plan.supplier ? String(plan.supplier) : '',
+			amount: String(plan.amount ?? ''),
+			expense_category: plan.expense_category ?? 'Servicios',
+			expense_subcategory: plan.expense_subcategory ?? 'Otros',
+			notes: plan.notes ?? '',
+			interval_unit: plan.interval_unit ?? 'months',
+			interval_count: String(plan.interval_count ?? '1'),
+			start_date: plan.start_date ?? today,
+			due_offset_days: String(plan.due_offset_days ?? '0'),
+			end_date: plan.end_date ?? '',
+			max_cycles: plan.max_cycles != null ? String(plan.max_cycles) : '',
+			auto_pay: Boolean(plan.auto_pay),
+			payment_method: plan.payment_method ?? 'transfer',
+		})
+		setFormModal({ kind: 'fixed-expense' })
 	}
 
 	async function saveDebtPayment(event: FormEvent) {
@@ -11055,7 +11100,7 @@ export default function Home() {
 				{canViewEconomy && formModal?.kind === 'fixed-expense' ? (
 					<Modal
 						key="form-fixed-expense"
-						title="Nuevo gasto fijo"
+						title={fixedExpenseForm.id ? 'Editar gasto fijo' : 'Nuevo gasto fijo'}
 						onClose={formModalExit.close}
 					>
 						<FixedExpenseForm
@@ -12939,13 +12984,12 @@ export default function Home() {
 						search={search}
 						onSearchChange={setSearch}
 						onCreateFixedExpense={() => openFormModal('fixed-expense')}
-						onOpenFixedExpenseDetail={(item) =>
-							openDetailModal('Gasto fijo', item)
-						}
+						onEditFixedExpense={openFixedExpenseForEdit}
 						onOpenOccurrenceDetail={(item) =>
 							openDetailModal('Pago de gasto fijo', item)
 						}
 						onPayOccurrence={payFixedExpenseOccurrence}
+						onUnpayOccurrence={unpayFixedExpenseOccurrence}
 						onPauseFixedExpense={pauseFixedExpense}
 						onResumeFixedExpense={resumeFixedExpense}
 						onDeleteFixedExpense={deleteFixedExpense}

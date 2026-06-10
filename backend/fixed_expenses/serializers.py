@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from core.serializers import BusinessScopedSerializerMixin
@@ -88,6 +89,14 @@ class FixedExpenseSerializer(BusinessScopedSerializerMixin, serializers.ModelSer
         supplier = attrs.get("supplier", getattr(self.instance, "supplier", None))
         self.validate_same_business(supplier)
         return attrs
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        from .materialization import sync_pending_occurrences
+
+        instance = super().update(instance, validated_data)
+        sync_pending_occurrences(instance)
+        return instance
 
 
 class FixedExpenseOccurrenceSerializer(serializers.ModelSerializer):

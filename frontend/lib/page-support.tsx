@@ -576,6 +576,7 @@ function blankDebtPaymentForm(paidAt: string) {
 
 function blankFixedExpenseForm(startDate: string) {
 	return {
+		id: '',
 		concept: '',
 		supplier: '',
 		amount: '',

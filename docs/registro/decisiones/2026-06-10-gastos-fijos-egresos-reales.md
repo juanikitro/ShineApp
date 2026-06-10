@@ -25,9 +25,12 @@ pagos parciales (una ocurrencia = un egreso).
 
 ## Dia de caja cerrado
 
-Si el periodo cae en un dia ya cerrado, el egreso se registra con
-`adjusts_closed_day` (ajuste, que igual cuenta en cashflow) en lugar de saltarse.
-Evita la complejidad de "skipped/banner" de la feature recurrente revertida.
+El egreso debe quedar en un dia de caja ABIERTO. Si el periodo cae en un dia ya
+cerrado, el `CashMovement` se postea al dia actual (`occurred_at = hoy`) marcando
+`adjusts_closed_day = periodo` (ajuste, que igual cuenta en cashflow). Asi se
+respeta la convencion del serializer de caja y no se altera el `CashClosure`
+congelado ni la atribucion por periodo del dashboard. Evita la complejidad de
+"skipped/banner" de la feature recurrente revertida.
 
 ## Trade-off
 

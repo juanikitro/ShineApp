@@ -7,7 +7,11 @@ from rest_framework.response import Response
 from core.audit import AuditedModelViewSetMixin
 from core.permissions import CanViewEconomy
 
-from .materialization import materialize_due, register_occurrence_payment
+from .materialization import (
+    materialize_due,
+    register_occurrence_payment,
+    register_occurrence_unpay,
+)
 from .models import FixedExpense, FixedExpenseOccurrence, PaymentMethod
 from .serializers import FixedExpenseOccurrenceSerializer, FixedExpenseSerializer
 
@@ -89,5 +93,12 @@ class FixedExpenseOccurrenceViewSet(AuditedModelViewSetMixin, viewsets.ReadOnlyM
             method=method,
             paid_at=paid_at,
         )
+        occurrence.refresh_from_db()
+        return Response(self.get_serializer(occurrence).data)
+
+    @action(detail=True, methods=["post"], url_path="unpay")
+    def unpay(self, request, pk=None):
+        occurrence = self.get_object()
+        register_occurrence_unpay(occurrence)
         occurrence.refresh_from_db()
         return Response(self.get_serializer(occurrence).data)
