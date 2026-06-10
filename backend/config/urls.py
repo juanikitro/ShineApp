@@ -32,6 +32,7 @@ from notifications.views import (
 
 from .views import (
     BusinessProfileView,
+    EmployeeUserDetailView,
     EmployeeUsersView,
     HealthCheckView,
     LoginView,
@@ -71,6 +72,7 @@ urlpatterns = [
     path("api/auth/logout/", LogoutView.as_view(), name="auth-logout"),
     path("api/auth/me/", MeView.as_view(), name="auth-me"),
     path("api/auth/employees/", EmployeeUsersView.as_view(), name="auth-employees"),
+    path("api/auth/employees/<int:pk>/", EmployeeUserDetailView.as_view(), name="auth-employee-detail"),
     path("api/auth/password-reset/", PasswordResetRequestView.as_view(), name="auth-password-reset"),
     path("api/auth/password-reset/confirm/", PasswordResetConfirmView.as_view(), name="auth-password-reset-confirm"),
     path("api/audit-log/", AuditLogView.as_view(), name="audit-log"),
