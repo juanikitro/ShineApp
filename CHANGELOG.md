@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-06-10
+- [Dashboard: senales de riesgo de cobranza/caja + lecturas cruzadas](docs/registro/cambios/2026-06-10-dashboard-senales-riesgo-cruces.md)
+
 ## 2026-06-09
 - [Turnera: servicios desplegables, descripciones truncadas y contacto accionable](docs/registro/cambios/2026-06-09-turnera-desplegables-contacto-maps.md)
 - [Sidebar: la flechita despliega sin navegar; el item navega y despliega](docs/registro/cambios/2026-06-09-sidebar-chevron-toggle-independiente.md)
