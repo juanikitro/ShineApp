@@ -3714,33 +3714,7 @@
   color: var(--status-pending-text);
 }
 
-.status.recurring {
-  background: var(--status-confirmed-bg, #e6f0ff);
-  border-color: var(--status-confirmed-border, #a4c4ff);
-  color: var(--status-confirmed-text, #1c4a99);
-}
-
-.debt-skipped-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  justify-content: space-between;
-}
-
-.debt-skipped-banner ul {
-  margin: 6px 0 0;
-  padding-left: 18px;
-}
-
-.debt-recurrence,
-.debt-recurring-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: 12px 0;
-}
-
-.debt-recurrence-toggle {
+.fixed-expense-toggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -3748,20 +3722,15 @@
   cursor: pointer;
 }
 
-.debt-recurrence-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  border: 1px dashed var(--shop-border);
-  border-radius: var(--radius-md);
+.fixed-expense-filters {
+  margin: 12px 0;
 }
 
-.debt-recurring-list header {
-  margin-bottom: 4px;
+.fixed-expense-list {
+  margin: 12px 0;
 }
 
-.debt-recurring-list ul {
+.fixed-expense-list ul {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -3770,7 +3739,7 @@
   gap: 8px;
 }
 
-.debt-recurring-item {
+.fixed-expense-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -3780,28 +3749,35 @@
   border-radius: var(--radius-md);
 }
 
-.debt-recurring-item.paused {
+.fixed-expense-item.paused {
   opacity: 0.65;
 }
 
-.debt-recurring-item > div:first-child {
+.fixed-expense-item-main {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 6px 14px;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
 }
 
-.debt-recurring-item > div:first-child strong {
+.fixed-expense-item-main strong {
   font-size: 1.05em;
 }
 
-.debt-recurring-actions {
+.fixed-expense-item-actions {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.debt-recurring-actions .ghost.danger {
+.fixed-expense-item-actions .ghost.danger {
   color: var(--status-canceled-text, #b54040);
 }
 
