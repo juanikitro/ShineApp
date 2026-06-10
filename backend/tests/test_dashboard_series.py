@@ -8,7 +8,13 @@ from django.utils import timezone
 from catalog.models import Service
 from core.models import BusinessAccount
 from customers.models import Customer, Vehicle
-from dashboard.views import dashboard_period_series, dashboard_period_summary
+from dashboard.views import (
+    cash_by_category_for_period,
+    cashflow_totals_for_period,
+    dashboard_period_series,
+    dashboard_period_summary,
+)
+from debts.models import Debt, DebtPayment
 from finance.models import CashMovement, Payment
 from inventory.models import Material, MaterialConsumption
 from scheduling.models import Reservation
@@ -179,4 +185,40 @@ def test_dashboard_summary_endpoint_hides_series_from_employee(employee_client):
 
     assert response.status_code == 200
     assert "series" not in response.data
+    assert "cash_by_category" not in response.data
+
+
+@pytest.mark.django_db
+def test_dashboard_cash_by_category_sums_match_cashflow_totals():
+    business = BusinessAccount.get_default()
+    period_from = date(2026, 4, 1)
+    period_to = date(2026, 4, 30)
+
+    CashMovement.objects.create(business=business, movement_type=CashMovement.MovementType.INCOME, amount=Decimal("50000.00"), occurred_at=at(date(2026, 4, 3)), category="Lavado")
+    CashMovement.objects.create(business=business, movement_type=CashMovement.MovementType.INCOME, amount=Decimal("30000.00"), occurred_at=at(date(2026, 4, 5)), category="Detailing")
+    CashMovement.objects.create(business=business, movement_type=CashMovement.MovementType.EXPENSE, amount=Decimal("12000.00"), occurred_at=at(date(2026, 4, 6)), category="Insumos", subcategory="Productos")
+    CashMovement.objects.create(business=business, movement_type=CashMovement.MovementType.EXPENSE, amount=Decimal("8000.00"), occurred_at=at(date(2026, 4, 7)), category="Insumos", subcategory="Productos")
+
+    debt = Debt.objects.create(business=business, concept="Pulidora", principal_amount=Decimal("40000.00"), origin_date=date(2026, 4, 1))
+    DebtPayment.objects.create(business=business, debt=debt, amount=Decimal("15000.00"), paid_at=date(2026, 4, 8))
+
+    cashflow = cashflow_totals_for_period(business, period_from, period_to)
+    breakdown = cash_by_category_for_period(business, period_from, period_to)
+
+    income = {row["category"]: row["total"] for row in breakdown["income_by_category"]}
+    expense = {row["category"]: row["total"] for row in breakdown["expense_by_category"]}
+
+    # Cada categoria suma sus movimientos; rubros repetidos se agrupan.
+    assert income["Lavado"] == Decimal("50000.00")
+    assert income["Detailing"] == Decimal("30000.00")
+    assert expense["Insumos"] == Decimal("20000.00")
+    assert expense["Pago de deudas"] == Decimal("15000.00")
+
+    # Invariante: el desglose por categoria suma exactamente los totales de caja.
+    assert sum((row["total"] for row in breakdown["income_by_category"]), Decimal("0.00")) == cashflow["cashflow_income_total"]
+    assert sum((row["total"] for row in breakdown["expense_by_category"]), Decimal("0.00")) == cashflow["cashflow_expense_total"]
+
+    # Ordenado de mayor a menor.
+    expense_totals = [row["total"] for row in breakdown["expense_by_category"]]
+    assert expense_totals == sorted(expense_totals, reverse=True)
 
