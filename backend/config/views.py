@@ -768,17 +768,29 @@ class EmployeeUserDetailView(APIView):
         user = self._get_employee(request, pk)
         if user is None:
             return Response({"detail": "Empleado no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-        serializer = EmployeeUserUpdateSerializer(data=request.data)
+        serializer = EmployeeUserUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        before = audit_snapshot(user)
         data = serializer.validated_data
-        if "password" in data:
+
+        password_changed = "password" in data
+        before = audit_snapshot(user)
+
+        update_fields = []
+        if password_changed:
             user.set_password(data["password"])
+            update_fields.append("password")
         if "email" in data:
             user.email = data["email"]
+            update_fields.append("email")
         if "is_active" in data:
             user.is_active = data["is_active"]
-        user.save()
+            update_fields.append("is_active")
+
+        if update_fields:
+            with transaction.atomic():
+                user.save(update_fields=update_fields)
+                if password_changed:
+                    Token.objects.filter(user=user).delete()
         record_audit_event(
             request=request,
             action="update",

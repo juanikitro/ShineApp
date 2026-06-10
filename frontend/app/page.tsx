@@ -716,7 +716,8 @@ export default function Home() {
 	const [employees, setEmployees] = useState<AnyRecord[]>([])
 	const [selectedEmployee, setSelectedEmployee] = useState<AnyRecord | null>(null)
 	const [employeeAuditLogs, setEmployeeAuditLogs] = useState<AnyRecord[]>([])
-	const [expandedEmployeeAuditLogId, setExpandedEmployeeAuditLogId] = useState<string | null>(null)
+	const [employeeAuditLogsLoading, setEmployeeAuditLogsLoading] = useState(false)
+	const [employeeAuditLogsError, setEmployeeAuditLogsError] = useState<string | null>(null)
 	const [auditLogs, setAuditLogs] = useState<AnyRecord[]>([])
 	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>({})
 	const auditLogsLoadedRef = useRef(false)
@@ -6480,22 +6481,28 @@ export default function Home() {
 		)
 	}
 
-	async function selectEmployee(employee: AnyRecord) {
-		setSelectedEmployee(employee)
-		setEmployeeAuditLogs([])
-		setExpandedEmployeeAuditLogId(null)
-		try {
-			const logs = await apiList<AnyRecord>(`/audit-log/?actor=${employee.id}`)
-			setEmployeeAuditLogs(logs)
-		} catch {
-			setEmployeeAuditLogs([])
-		}
-	}
-
 	function deselectEmployee() {
 		setSelectedEmployee(null)
 		setEmployeeAuditLogs([])
-		setExpandedEmployeeAuditLogId(null)
+		setEmployeeAuditLogsError(null)
+		setEmployeeAuditLogsLoading(false)
+	}
+
+	async function selectEmployee(employee: AnyRecord) {
+		setSelectedEmployee(employee)
+		setEmployeeAuditLogs([])
+		setEmployeeAuditLogsError(null)
+		setEmployeeAuditLogsLoading(true)
+		try {
+			const logs = await apiFetch<AnyRecord[]>(
+				`/audit-log/?entity_type=User&entity_id=${employee.id}`,
+			)
+			setEmployeeAuditLogs(Array.isArray(logs) ? logs : [])
+		} catch {
+			setEmployeeAuditLogsError('No se pudo cargar el historial')
+		} finally {
+			setEmployeeAuditLogsLoading(false)
+		}
 	}
 
 	async function changeEmployeePassword(pk: number | string, newPassword: string) {
@@ -6506,9 +6513,31 @@ export default function Home() {
 					body: JSON.stringify({ password: newPassword }),
 				})
 				setSelectedEmployee(updated)
+				setEmployees((prev) =>
+					prev.map((e) => (String(e.id) === String(pk) ? updated : e)),
+				)
 				return updated
 			},
 			{ successTitle: 'Contraseña actualizada' },
+		)
+	}
+
+	async function toggleEmployeeActive(pk: number | string, isActive: boolean) {
+		await runAction(
+			async () => {
+				const updated = await apiFetch<AnyRecord>(`/auth/employees/${pk}/`, {
+					method: 'PATCH',
+					body: JSON.stringify({ is_active: !isActive }),
+				})
+				setSelectedEmployee(updated)
+				setEmployees((prev) =>
+					prev.map((e) => (String(e.id) === String(pk) ? updated : e)),
+				)
+				return updated
+			},
+			{
+				successTitle: isActive ? 'Empleado desactivado' : 'Empleado activado',
+			},
 		)
 	}
 
@@ -12978,11 +13007,12 @@ export default function Home() {
 						cashClassificationPairs={cashClassificationPairs}
 						currentUserId={currentUser?.id ?? null}
 						employees={employees}
-						employeeAuditLogs={employeeAuditLogs}
-						expandedAuditLogId={expandedAuditLogId}
-						expandedEmployeeAuditLogId={expandedEmployeeAuditLogId}
-						expenseClassificationPairs={expenseClassificationPairs}
 						selectedEmployee={selectedEmployee}
+						employeeAuditLogs={employeeAuditLogs}
+						employeeAuditLogsLoading={employeeAuditLogsLoading}
+						employeeAuditLogsError={employeeAuditLogsError}
+						expandedAuditLogId={expandedAuditLogId}
+						expenseClassificationPairs={expenseClassificationPairs}
 						inactiveEmployeeCount={inactiveEmployeeCount}
 						incomeClassificationPairs={incomeClassificationPairs}
 						loading={loading}
@@ -13006,11 +13036,11 @@ export default function Home() {
 						onDeleteExpenseClassification={deleteExpenseClassification}
 						onEditExpenseClassification={openExpenseClassificationEditor}
 						onOpenBusinessLogoPicker={openBusinessLogoPicker}
-						onChangeEmployeePassword={changeEmployeePassword}
-						onDeselectEmployee={deselectEmployee}
-						onOpenEmployeeForm={() => openFormModal('employee')}
 						onSelectEmployee={selectEmployee}
-						onToggleEmployeeAuditLog={setExpandedEmployeeAuditLogId}
+						onDeselectEmployee={deselectEmployee}
+						onChangeEmployeePassword={changeEmployeePassword}
+						onToggleEmployeeActive={toggleEmployeeActive}
+						onOpenEmployeeForm={() => openFormModal('employee')}
 						onOpenExpenseClassificationForm={() =>
 							openFormModal('expense-classification')
 						}
@@ -13018,7 +13048,10 @@ export default function Home() {
 						onRefreshAuditLogs={() => refreshAuditLogs()}
 						onRefreshData={() => loadData({ force: true })}
 						onSaveBusinessProfile={saveBusinessProfile}
-						onSettingsSectionChange={setSettingsSection}
+						onSettingsSectionChange={(section) => {
+								setSettingsSection(section)
+								if (section !== 'users') deselectEmployee()
+							}}
 						onToggleAuditLog={setExpandedAuditLogId}
 						onUpdateAuditFilter={updateAuditFilter}
 					/>
