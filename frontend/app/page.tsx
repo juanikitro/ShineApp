@@ -11713,22 +11713,39 @@ export default function Home() {
 						mobileOpen={sidebarMobileOpen}
 						header={
 							businessProfile && sidebarBusinessLogoSrc ? (
-								<button
-									type="button"
-									className="ghost sidebar-business-button"
-									onClick={() => {
-										handleSectionChange('settings')
-										setSettingsSection('business')
-									}}
-									aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
-									title="Configuracion del negocio"
-								>
-									<img
-										src={sidebarBusinessLogoSrc}
-										alt={String(businessProfile.name ?? '')}
-										className="sidebar-business-logo"
-									/>
-								</button>
+								currentUser?.business?.slug ? (
+									<a
+										className="ghost sidebar-business-button"
+										href={`/publica/${String(currentUser.business.slug)}`}
+										rel="noreferrer"
+										target="_blank"
+										aria-label={`Abrir turnera de ${String(businessProfile.name ?? 'negocio')}`}
+										title="Abrir turnera"
+									>
+										<img
+											src={sidebarBusinessLogoSrc}
+											alt={String(businessProfile.name ?? '')}
+											className="sidebar-business-logo"
+										/>
+									</a>
+								) : (
+									<button
+										type="button"
+										className="ghost sidebar-business-button"
+										onClick={() => {
+											handleSectionChange('settings')
+											setSettingsSection('business')
+										}}
+										aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
+										title="Configuracion del negocio"
+									>
+										<img
+											src={sidebarBusinessLogoSrc}
+											alt={String(businessProfile.name ?? '')}
+											className="sidebar-business-logo"
+										/>
+									</button>
+								)
 							) : null
 						}
 						items={navItems}

@@ -403,12 +403,14 @@
   background: transparent;
   border: 1px solid var(--shop-border);
   border-radius: var(--radius-md);
+  color: inherit;
   cursor: pointer;
   display: flex;
   justify-content: center;
   min-height: auto;
   overflow: hidden;
   padding: 8px;
+  text-decoration: none;
   width: 100%;
 }
 
@@ -940,6 +942,22 @@
   height: 18px;
   min-width: 18px;
   width: 18px;
+}
+
+.landing-config-url {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.landing-config-url input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.landing-config-url .inline-link-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .turnera-services {
