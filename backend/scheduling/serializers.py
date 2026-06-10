@@ -7,10 +7,8 @@ from core.permissions import context_can_view_economy
 from core.serializers import BusinessScopedSerializerMixin
 
 from .models import (
-    DETAILING_BUCKET,
     Reservation,
     ReservationItem,
-    bucket_for_service_type,
 )
 from .services import ensure_reservation_work_order
 
@@ -50,6 +48,7 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
     vehicle_label = serializers.SerializerMethodField()
     service_name = serializers.SerializerMethodField()
     service_icon = serializers.CharField(source="service.icon", read_only=True)
+    sector = serializers.IntegerField(source="sector_id", read_only=True, allow_null=True)
     items = ReservationItemSerializer(many=True, required=False)
     work_order = serializers.SerializerMethodField()
     status = serializers.CharField(required=False)
@@ -65,6 +64,7 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
             "service",
             "service_name",
             "service_icon",
+            "sector",
             "items",
             "day",
             "exit_day",
@@ -225,18 +225,18 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
         if day and status in Reservation.active_statuses() and service:
             business = self.get_business() or getattr(self.instance, "business", None)
             profile = BusinessProfile.get_solo(business=business) if business is not None else None
-            bucket = bucket_for_service_type(getattr(service, "service_type", None))
+            sector = getattr(service, "sector", None)
             if profile is None or profile.enforce_capacity_limit:
                 used_slots = Reservation.used_slots_for_day(
                     day,
                     exclude_id=getattr(self.instance, "id", None),
                     business=business,
-                    bucket=bucket,
+                    sector=sector,
                 )
-                if used_slots >= Reservation.capacity_for_day(day, business=business, bucket=bucket):
-                    bucket_label = "detailing" if bucket == DETAILING_BUCKET else "lavado"
+                if used_slots >= Reservation.capacity_for_day(day, business=business, sector=sector):
+                    sector_label = sector.name if sector is not None else "turnos"
                     raise serializers.ValidationError(
-                        {"day": f"La capacidad de turnos de {bucket_label} para este dia ya esta completa."}
+                        {"day": f"La capacidad de {sector_label} para este dia ya esta completa."}
                     )
             if start_time:
                 if profile is not None and not profile.allow_overlapping_reservations:
@@ -317,6 +317,7 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
             service = validated_data["service"]
             items_data = [{"service": service}]
         validated_data["service"] = items_data[0]["service"]
+        validated_data["sector"] = items_data[0]["service"].sector
         validated_data.setdefault("estimated_duration_minutes", self._duration_from_items(items_data))
         if "status" not in validated_data:
             profile = self._profile_for_validation()
@@ -333,7 +334,10 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
         legacy_service = validated_data.get("service") if items_data is None and "service" in validated_data else None
         if items_data is not None:
             validated_data["service"] = items_data[0]["service"]
+            validated_data["sector"] = items_data[0]["service"].sector
             validated_data.setdefault("estimated_duration_minutes", self._duration_from_items(items_data))
+        elif legacy_service is not None:
+            validated_data["sector"] = legacy_service.sector
         reservation = super().update(instance, validated_data)
         if items_data is not None:
             self._replace_items(reservation, items_data)

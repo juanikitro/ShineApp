@@ -375,6 +375,14 @@ class Command(BaseCommand):
         return vehicles
 
     def seed_services(self, business):
+        from catalog.sector_defaults import SERVICE_TYPE_TO_SECTOR_KEY, ensure_default_sectors
+
+        sectors = ensure_default_sectors(business)
+        sectors["lavadero"].default_capacity = 8
+        sectors["lavadero"].save(update_fields=["default_capacity", "updated_at"])
+        sectors["detailing"].default_capacity = 4
+        sectors["detailing"].save(update_fields=["default_capacity", "updated_at"])
+
         specs = [
             ("Lavado exterior express", "wash", Service.ServiceType.WASH, "9500.00", 45, "Lavado exterior y secado con microfibra."),
             ("Lavado premium", "spark", Service.ServiceType.WASH, "18000.00", 90, "Exterior, interior, llantas y terminacion rapida."),
@@ -390,6 +398,7 @@ class Command(BaseCommand):
                 {
                     "icon": icon,
                     "service_type": service_type,
+                    "sector": sectors[SERVICE_TYPE_TO_SECTOR_KEY.get(service_type, "lavadero")],
                     "base_price": money(price),
                     "estimated_duration_minutes": duration,
                     "notes": notes,

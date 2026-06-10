@@ -22,6 +22,7 @@ export type DataSetKey =
 	| 'customers'
 	| 'vehicles'
 	| 'services'
+	| 'sectors'
 	| 'reservations'
 	| 'workOrders'
 	| 'payments'
@@ -52,6 +53,7 @@ const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 		'customers',
 		'vehicles',
 		'services',
+		'sectors',
 		'reservations',
 		'workOrders',
 		'materials',
@@ -99,12 +101,13 @@ const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 		'customers',
 		'vehicles',
 		'services',
+		'sectors',
 		'reservations',
 		'businessProfile',
 	],
-	services: ['services', 'customers', 'vehicles'],
-	notifications: ['publicRequests', 'customers', 'vehicles', 'services'],
-	settings: ['businessProfile', 'employees', 'services'],
+	services: ['services', 'sectors', 'customers', 'vehicles'],
+	notifications: ['publicRequests', 'customers', 'vehicles', 'services', 'sectors'],
+	settings: ['businessProfile', 'employees', 'services', 'sectors'],
 }
 
 const shellDataSets: readonly DataSetKey[] = ['businessProfile', 'publicRequests']

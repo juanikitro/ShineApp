@@ -12,8 +12,7 @@ export type AvailabilityOccupied = {
 }
 
 export type ScheduleAvailability = {
-	wash: AvailabilityBucket
-	detailing: AvailabilityBucket
+	sectors: Record<number, AvailabilityBucket>
 	allowOverlap: boolean
 	enforceCapacity: boolean
 	occupied: AvailabilityOccupied[]
@@ -109,26 +108,17 @@ export function scheduleAvailabilityForDay(options: {
 	day: string
 	allowOverlap: boolean
 	enforceCapacity: boolean
-	defaultCapacityWash: number
-	defaultCapacityDetailing: number
+	sectors: AnyAvailabilityRecord[]
 	reservations: AnyAvailabilityRecord[]
 	services: AnyAvailabilityRecord[]
 	excludeReservationId?: number | string | null
 }): ScheduleAvailability {
-	const serviceTypeById = new Map<number, string>()
-	for (const service of options.services) {
-		const id = Number(service.id)
+	const sectorCapacity = new Map<number, number>()
+	for (const sector of options.sectors) {
+		const id = Number(sector.id)
 		if (!Number.isFinite(id) || id <= 0) continue
-		const type = String(service.service_type ?? '').toLowerCase()
-		serviceTypeById.set(id, type)
+		sectorCapacity.set(id, Number(sector.default_capacity) || 0)
 	}
-	function bucketForService(serviceId: number | null | undefined): 'wash' | 'detailing' {
-		if (typeof serviceId !== 'number') return 'wash'
-		const type = serviceTypeById.get(serviceId)
-		return type === 'detailing' ? 'detailing' : 'wash'
-	}
-	const maxWash = Number(options.defaultCapacityWash)
-	const maxDetailing = Number(options.defaultCapacityDetailing)
 	const activeStatuses = new Set([
 		'pending',
 		'confirmed',
@@ -136,8 +126,7 @@ export function scheduleAvailabilityForDay(options: {
 		'ready',
 		'delivered',
 	])
-	let usedWash = 0
-	let usedDetailing = 0
+	const usedBySector = new Map<number, number>()
 	const occupied: AvailabilityOccupied[] = []
 	for (const reservation of options.reservations) {
 		if (String(reservation.day) !== options.day) continue
@@ -151,10 +140,10 @@ export function scheduleAvailabilityForDay(options: {
 		}
 		const status = String(reservation.status ?? '').toLowerCase()
 		if (!activeStatuses.has(status)) continue
-		const serviceId = Number(reservation.service)
-		const bucket = bucketForService(Number.isFinite(serviceId) ? serviceId : null)
-		if (bucket === 'detailing') usedDetailing += 1
-		else usedWash += 1
+		const sectorId = Number(reservation.sector)
+		if (Number.isFinite(sectorId) && sectorId > 0) {
+			usedBySector.set(sectorId, (usedBySector.get(sectorId) ?? 0) + 1)
+		}
 		const startTime =
 			typeof reservation.start_time === 'string' && reservation.start_time
 				? reservation.start_time.slice(0, 5)
@@ -163,17 +152,17 @@ export function scheduleAvailabilityForDay(options: {
 		const duration = Number(reservation.estimated_duration_minutes) || 60
 		occupied.push({ start_time: startTime, duration_minutes: duration })
 	}
+	const sectors: Record<number, AvailabilityBucket> = {}
+	for (const [sectorId, maxSlots] of sectorCapacity) {
+		const used = usedBySector.get(sectorId) ?? 0
+		sectors[sectorId] = {
+			max_slots: maxSlots,
+			used_slots: used,
+			available_slots: Math.max(maxSlots - used, 0),
+		}
+	}
 	return {
-		wash: {
-			max_slots: maxWash,
-			used_slots: usedWash,
-			available_slots: Math.max(maxWash - usedWash, 0),
-		},
-		detailing: {
-			max_slots: maxDetailing,
-			used_slots: usedDetailing,
-			available_slots: Math.max(maxDetailing - usedDetailing, 0),
-		},
+		sectors,
 		allowOverlap: options.allowOverlap,
 		enforceCapacity: options.enforceCapacity,
 		occupied,
@@ -212,29 +201,28 @@ export function computeReservationFormItemsDuration(
 	return total
 }
 
-export function bucketLabel(bucket: 'wash' | 'detailing'): string {
-	return bucket === 'detailing' ? 'detailing' : 'lavado'
-}
-
-export function selectedBucketsFromItems(
+export function selectedSectorsFromItems(
 	items: AnyAvailabilityRecord[] | undefined,
 	services: AnyAvailabilityRecord[],
-): { wash: number; detailing: number } {
-	const result = { wash: 0, detailing: 0 }
+): Record<number, number> {
+	const result: Record<number, number> = {}
 	if (!items || !items.length) return result
-	const typeById = new Map<number, string>()
+	const sectorById = new Map<number, number>()
 	for (const service of services) {
 		const id = Number(service.id)
-		if (Number.isFinite(id) && id > 0) {
-			typeById.set(id, String(service.service_type ?? '').toLowerCase())
+		if (!Number.isFinite(id) || id <= 0) continue
+		const sectorId = Number(service.sector)
+		if (Number.isFinite(sectorId) && sectorId > 0) {
+			sectorById.set(id, sectorId)
 		}
 	}
 	for (const item of items) {
 		const serviceId = Number(item.service)
 		if (!Number.isFinite(serviceId) || serviceId <= 0) continue
-		const type = typeById.get(serviceId) ?? ''
-		if (type === 'detailing') result.detailing += 1
-		else result.wash += 1
+		const sectorId = sectorById.get(serviceId)
+		if (sectorId != null) {
+			result[sectorId] = (result[sectorId] ?? 0) + 1
+		}
 	}
 	return result
 }

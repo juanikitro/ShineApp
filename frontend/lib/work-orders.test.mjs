@@ -2,51 +2,15 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
 import {
-	filterFreeQuotesByServiceBucket,
-	filterReservationsByServiceBucket,
+	filterFreeQuotesBySector,
 	groupReservationsByEntryDate,
 	groupReservationsByWorkOrderStatus,
 	groupReservationsByWorkOrderStatusColumns,
 	reservationCanMoveWorkStatus,
-	serviceBucketForRecord,
 	workOrderForReservation,
 	workStatusColumnForStatus,
 	workStatusForReservation,
 } from './work-orders'
-
-test('filters reservations by global service bucket using reservation service data', () => {
-	const serviceTypes = {
-		1: 'wash',
-		2: 'detailing',
-		3: 'combo',
-	}
-	const reservations = [
-		{ id: 10, service: 2, day: '2026-05-09' },
-		{ id: 11, service: 1, day: '2026-05-10' },
-		{
-			id: 12,
-			day: '2026-05-11',
-			items: [{ id: 100, service: 3 }],
-		},
-	]
-
-	assert.deepEqual(
-		filterReservationsByServiceBucket(
-			reservations,
-			serviceTypes,
-			'wash',
-		).map((item) => item.id),
-		[11, 12],
-	)
-	assert.deepEqual(
-		filterReservationsByServiceBucket(
-			reservations,
-			serviceTypes,
-			'detailing',
-		).map((item) => item.id),
-		[10],
-	)
-})
 
 test('groups reservations by associated work order status in operational order', () => {
 	const reservations = [
@@ -212,11 +176,8 @@ test('groups reservations by future entry date with nearest dates first', () => 
 	)
 })
 
-test('keeps free quotes without reservation or date as the final no-date group', () => {
-	const serviceTypes = {
-		1: 'wash',
-		2: 'detailing',
-	}
+test('keeps free quotes without reservation or date filtered by sector', () => {
+	const sectorByService = { '1': 10, '2': 20 }
 	const quotes = [
 		{
 			id: 1,
@@ -245,10 +206,12 @@ test('keeps free quotes without reservation or date as the final no-date group',
 	]
 
 	assert.deepEqual(
-		filterFreeQuotesByServiceBucket(quotes, serviceTypes, 'wash').map(
-			(item) => item.id,
-		),
+		filterFreeQuotesBySector(quotes, sectorByService, 10).map((item) => item.id),
 		[1],
+	)
+	assert.deepEqual(
+		filterFreeQuotesBySector(quotes, sectorByService, null).map((item) => item.id),
+		[1, 4],
 	)
 })
 
@@ -301,22 +264,6 @@ test('groups only reservations with real active work orders by work status', () 
 	assert.equal(reservationCanMoveWorkStatus(reservations[2], workOrders), false)
 })
 
-test('service bucket detection accepts direct, primary and object service type sources', () => {
-	const lookup = {
-		1: { service_type: 'detailing' },
-		2: null,
-	}
-
-	assert.equal(serviceBucketForRecord({ service_type: 'detailing' }), 'detailing')
-	assert.equal(serviceBucketForRecord({ primary_service_type: 'wash' }), 'wash')
-	assert.equal(serviceBucketForRecord({ service: { id: 1 } }, lookup), 'detailing')
-	assert.equal(
-		serviceBucketForRecord({ items: [{ service: { service_type: 'detailing' } }] }, lookup),
-		'detailing',
-	)
-	assert.equal(serviceBucketForRecord({ service: 2 }, lookup), 'wash')
-})
-
 test('work-order helpers handle missing ids, unknown columns and reservation flags', () => {
 	assert.equal(workOrderForReservation({ id: '' }, [{ id: 1, reservation: '' }]), null)
 	assert.equal(workStatusForReservation({ id: 1 }, []), null)
@@ -324,13 +271,13 @@ test('work-order helpers handle missing ids, unknown columns and reservation fla
 	assert.equal(workStatusColumnForStatus('moved', []), null)
 
 	assert.deepEqual(
-		filterFreeQuotesByServiceBucket(
+		filterFreeQuotesBySector(
 			[
-				{ id: 1, reservation: { id: 10 }, items: [{ service_type: 'wash' }] },
-				{ id: 2, reservation: null, has_reservation: false, items: [{ service_type: 'wash' }] },
+				{ id: 1, reservation: { id: 10 }, items: [{ service: 1 }] },
+				{ id: 2, reservation: null, has_reservation: false, items: [{ service: 1 }] },
 			],
-			{},
-			'wash',
+			{ '1': 5 },
+			5,
 		).map((quote) => quote.id),
 		[2],
 	)

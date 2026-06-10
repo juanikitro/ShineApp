@@ -4,14 +4,38 @@ from decimal import Decimal
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import decorators, permissions, response, viewsets
+from rest_framework.exceptions import ValidationError
 
 from core.audit import AuditedModelViewSetMixin
 from core.permissions import CanViewEconomy, EmployerRequiredForUnsafe
 from quotes.models import Quote, QuoteItem
 from scheduling.models import Reservation, ReservationItem
 from workorders.models import WorkOrder
-from .models import Service
-from .serializers import ServiceSerializer
+from .models import Sector, Service
+from .serializers import SectorSerializer, ServiceSerializer
+
+
+class SectorViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
+    serializer_class = SectorSerializer
+    queryset = Sector.objects.all()
+    permission_classes = [permissions.IsAuthenticated, EmployerRequiredForUnsafe]
+
+    def get_queryset(self):
+        queryset = self.queryset
+        if self.request.query_params.get("include_inactive") != "1":
+            queryset = queryset.filter(is_active=True)
+        return queryset
+
+    def perform_destroy(self, instance):
+        business = self.get_business() or instance.business
+        remaining = (
+            Sector.objects.filter(business=business, is_active=True)
+            .exclude(pk=instance.pk)
+            .count()
+        )
+        if remaining == 0:
+            raise ValidationError("No se puede eliminar el unico sector activo del negocio.")
+        instance.delete()
 
 
 def service_history_bucket(**extra):

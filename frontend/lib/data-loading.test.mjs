@@ -22,7 +22,7 @@ test('agenda keeps operational dependencies and gates economy-only datasets', ()
 			section: 'agenda',
 			canViewEconomy: false,
 		}),
-		['customers', 'vehicles', 'services', 'reservations', 'workOrders'],
+		['customers', 'vehicles', 'services', 'sectors', 'reservations', 'workOrders'],
 	)
 	assert.deepEqual(
 		dataSetKeysForSection({
@@ -33,6 +33,7 @@ test('agenda keeps operational dependencies and gates economy-only datasets', ()
 			'customers',
 			'vehicles',
 			'services',
+			'sectors',
 			'reservations',
 			'workOrders',
 			'materials',
@@ -68,7 +69,7 @@ test('customer and service dashboards keep editable linked records hydrated', ()
 			section: 'services',
 			canViewEconomy: true,
 		}),
-		['services', 'customers', 'vehicles', 'businessProfile', 'publicRequests'],
+		['services', 'sectors', 'customers', 'vehicles', 'businessProfile', 'publicRequests'],
 	)
 })
 
@@ -94,6 +95,7 @@ test('settings history does not eager-load audit logs', () => {
 		'businessProfile',
 		'employees',
 		'services',
+		'sectors',
 		'publicRequests',
 	])
 	assert.equal(keys.includes('auditLogs'), false)

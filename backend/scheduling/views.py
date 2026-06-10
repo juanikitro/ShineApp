@@ -13,8 +13,9 @@ from core.models import BusinessProfile
 from core.permissions import business_from_request
 from finance.cash import cash_day, ensure_cash_day_open
 from workorders.metrics import build_work_order_financial_metrics
+from catalog.models import Sector
 
-from .models import DETAILING_BUCKET, WASH_BUCKET, Reservation
+from .models import Reservation
 from .serializers import ReservationSerializer
 from .services import ensure_reservation_work_order
 
@@ -223,17 +224,22 @@ class DailyAgendaView(APIView):
             day = date.today()
         business = business_from_request(request)
         profile = BusinessProfile.get_solo(business=business)
-        max_slots_wash = Reservation.capacity_for_day(day, business=business, bucket=WASH_BUCKET)
-        max_slots_detailing = Reservation.capacity_for_day(day, business=business, bucket=DETAILING_BUCKET)
+        sector_filter = request.query_params.get("sector")
+        sectors = list(Sector.objects.filter(business=business, is_active=True))
+        if sector_filter:
+            sectors = [sector for sector in sectors if sector.key == sector_filter]
         reservations = Reservation.objects.select_related(
             "customer",
             "vehicle",
             "service",
+            "sector",
             "work_order",
             "work_order__customer",
             "work_order__vehicle",
             "work_order__service",
         ).prefetch_related("items", "items__service").filter(business=business)
+        if sector_filter:
+            reservations = reservations.filter(sector__key=sector_filter)
         if profile.show_stay_days_in_agenda:
             reservations = reservations.filter(day__lte=day).filter(
                 Q(exit_day__gte=day) | Q(day=day, exit_day__isnull=True)
@@ -244,22 +250,28 @@ class DailyAgendaView(APIView):
         work_order_metrics = build_work_order_financial_metrics(
             work_orders_for_reservations(reservation_rows)
         )
-        used_slots_wash = Reservation.used_slots_for_day(day, business=business, bucket=WASH_BUCKET)
-        used_slots_detailing = Reservation.used_slots_for_day(day, business=business, bucket=DETAILING_BUCKET)
+        sectors_payload = []
+        for sector in sectors:
+            max_slots = Reservation.capacity_for_day(day, business=business, sector=sector)
+            used_slots = Reservation.used_slots_for_day(day, business=business, sector=sector)
+            sectors_payload.append(
+                {
+                    "id": sector.id,
+                    "key": sector.key,
+                    "name": sector.name,
+                    "color": sector.color,
+                    "icon": sector.icon,
+                    "order": sector.order,
+                    "max_slots": max_slots,
+                    "used_slots": used_slots,
+                    "available_slots": max(max_slots - used_slots, 0),
+                }
+            )
         return response.Response(
             {
                 "date": day.isoformat(),
                 "capacity_enforced": bool(profile.enforce_capacity_limit),
-                "wash": {
-                    "max_slots": max_slots_wash,
-                    "used_slots": used_slots_wash,
-                    "available_slots": max(max_slots_wash - used_slots_wash, 0),
-                },
-                "detailing": {
-                    "max_slots": max_slots_detailing,
-                    "used_slots": used_slots_detailing,
-                    "available_slots": max(max_slots_detailing - used_slots_detailing, 0),
-                },
+                "sectors": sectors_payload,
                 "reservations": ReservationSerializer(
                     reservation_rows,
                     many=True,

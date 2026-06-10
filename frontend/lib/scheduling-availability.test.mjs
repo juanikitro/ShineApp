@@ -75,16 +75,16 @@ test('computeReservationFormItemsDuration sums duration by service id and quanti
 	assert.equal(computeReservationFormItemsDuration(items, services), 150)
 })
 
-test('scheduleAvailabilityForDay computes used slots per bucket', () => {
-	const services = [
-		{ id: 1, service_type: 'wash' },
-		{ id: 2, service_type: 'detailing' },
+test('scheduleAvailabilityForDay computes used slots per sector', () => {
+	const sectors = [
+		{ id: 1, default_capacity: 4 },
+		{ id: 2, default_capacity: 2 },
 	]
 	const reservations = [
 		{
 			id: 10,
 			day: '2026-08-12',
-			service: 1,
+			sector: 1,
 			status: 'confirmed',
 			start_time: '10:00:00',
 			estimated_duration_minutes: 60,
@@ -92,7 +92,7 @@ test('scheduleAvailabilityForDay computes used slots per bucket', () => {
 		{
 			id: 11,
 			day: '2026-08-12',
-			service: 2,
+			sector: 2,
 			status: 'pending',
 			start_time: '11:00:00',
 			estimated_duration_minutes: 90,
@@ -100,7 +100,7 @@ test('scheduleAvailabilityForDay computes used slots per bucket', () => {
 		{
 			id: 12,
 			day: '2026-08-13',
-			service: 1,
+			sector: 1,
 			status: 'confirmed',
 			start_time: '09:00:00',
 			estimated_duration_minutes: 60,
@@ -110,35 +110,32 @@ test('scheduleAvailabilityForDay computes used slots per bucket', () => {
 		day: '2026-08-12',
 		allowOverlap: false,
 		enforceCapacity: true,
-		defaultCapacityWash: 4,
-		defaultCapacityDetailing: 2,
+		sectors,
 		reservations,
-		services,
+		services: [],
 	})
-	assert.equal(result.wash.max_slots, 4)
-	assert.equal(result.wash.used_slots, 1)
-	assert.equal(result.wash.available_slots, 3)
-	assert.equal(result.detailing.max_slots, 2)
-	assert.equal(result.detailing.used_slots, 1)
-	assert.equal(result.detailing.available_slots, 1)
+	assert.equal(result.sectors[1].max_slots, 4)
+	assert.equal(result.sectors[1].used_slots, 1)
+	assert.equal(result.sectors[1].available_slots, 3)
+	assert.equal(result.sectors[2].max_slots, 2)
+	assert.equal(result.sectors[2].used_slots, 1)
+	assert.equal(result.sectors[2].available_slots, 1)
 	assert.equal(result.enforceCapacity, true)
 	assert.equal(result.occupied.length, 2)
 })
 
-test('scheduleAvailabilityForDay uses global wash/detailing defaults every day', () => {
-	const services = [{ id: 1, service_type: 'wash' }]
+test('scheduleAvailabilityForDay uses sector default_capacity', () => {
+	const sectors = [{ id: 1, default_capacity: 5 }]
 	const result = scheduleAvailabilityForDay({
 		day: '2026-09-01',
 		allowOverlap: false,
 		enforceCapacity: true,
-		defaultCapacityWash: 5,
-		defaultCapacityDetailing: 3,
+		sectors,
 		reservations: [],
-		services,
+		services: [],
 	})
-	assert.equal(result.wash.max_slots, 5)
-	assert.equal(result.detailing.max_slots, 3)
-	assert.equal(result.wash.available_slots, 5)
+	assert.equal(result.sectors[1].max_slots, 5)
+	assert.equal(result.sectors[1].available_slots, 5)
 })
 
 test('scheduleAvailabilityForDay propagates enforceCapacity flag when limit is off', () => {
@@ -146,10 +143,9 @@ test('scheduleAvailabilityForDay propagates enforceCapacity flag when limit is o
 		day: '2026-09-01',
 		allowOverlap: false,
 		enforceCapacity: false,
-		defaultCapacityWash: 4,
-		defaultCapacityDetailing: 2,
+		sectors: [{ id: 1, default_capacity: 4 }],
 		reservations: [],
-		services: [{ id: 1, service_type: 'wash' }],
+		services: [],
 	})
 	assert.equal(result.enforceCapacity, false)
 })

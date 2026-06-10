@@ -1419,6 +1419,9 @@ def test_reservation_capacity_not_enforced_when_limit_disabled(api_client, base_
 
 @pytest.mark.django_db
 def test_reservation_capacity_separates_wash_and_detailing(api_client, base_data):
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+
     customer, vehicle, wash_service = base_data
     detailing_service = Service.objects.create(
         name="Detailing completo",
@@ -1426,7 +1429,15 @@ def test_reservation_capacity_separates_wash_and_detailing(api_client, base_data
         base_price=Decimal("60000.00"),
         estimated_duration_minutes=180,
     )
-    _set_global_capacity(1, 1)
+    sectors = ensure_default_sectors(BusinessAccount.get_default())
+    for sector in sectors.values():
+        sector.default_capacity = 1
+        sector.save(update_fields=["default_capacity", "updated_at"])
+    wash_service.sector = sectors["lavadero"]
+    wash_service.save(update_fields=["sector"])
+    detailing_service.sector = sectors["detailing"]
+    detailing_service.save(update_fields=["sector"])
+
     Reservation.objects.create(
         customer=customer,
         vehicle=vehicle,
@@ -1463,7 +1474,7 @@ def test_reservation_capacity_separates_wash_and_detailing(api_client, base_data
         format="json",
     )
     assert second_wash_response.status_code == 400
-    assert "lavado" in str(second_wash_response.data).lower()
+    assert "lavadero" in str(second_wash_response.data).lower()
 
     second_detailing_response = api_client.post(
         reverse("reservation-list"),

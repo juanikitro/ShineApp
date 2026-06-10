@@ -26,6 +26,7 @@ from core.models import (
 )
 from core.permissions import EMPLOYEE_ROLE, EMPLOYER_ROLE, EmployerOnly, can_view_economy, file_url, user_context_payload
 from core.permissions import business_for_user, business_from_request
+from catalog.sector_defaults import ensure_default_sectors
 from notifications.service import send_password_reset_email, send_trial_welcome_email
 
 
@@ -182,6 +183,7 @@ class TrialSignupSerializer(serializers.Serializer):
                 trial_started_at=now,
                 trial_ends_at=trial_ends_at,
             )
+            ensure_default_sectors(business)
             user = user_model.objects.create_user(
                 username=unique_username_from_email(validated_data["email"]),
                 email=validated_data["email"],

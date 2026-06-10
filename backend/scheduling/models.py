@@ -29,6 +29,13 @@ class Reservation(SoftDeleteMixin):
     customer = models.ForeignKey("customers.Customer", related_name="reservations", on_delete=models.PROTECT)
     vehicle = models.ForeignKey("customers.Vehicle", related_name="reservations", on_delete=models.PROTECT)
     service = models.ForeignKey("catalog.Service", related_name="reservations", on_delete=models.PROTECT)
+    sector = models.ForeignKey(
+        "catalog.Sector",
+        related_name="reservations",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+    )
     day = models.DateField()
     exit_day = models.DateField(null=True, blank=True)
     start_time = models.TimeField(null=True, blank=True)
@@ -58,6 +65,8 @@ class Reservation(SoftDeleteMixin):
             from core.models import BusinessAccount
 
             self.business = BusinessAccount.get_default()
+        if self.service_id and not self.sector_id:
+            self.sector_id = self.service.sector_id
         super().save(*args, **kwargs)
         if getattr(self, "_skip_work_order_sync", False):
             return
@@ -192,7 +201,13 @@ class Reservation(SoftDeleteMixin):
         return cls.Status.DELIVERED
 
     @classmethod
-    def capacity_for_day(cls, day, business=None, bucket=WASH_BUCKET):
+    def capacity_for_day(cls, day, business=None, sector=None, bucket=None):
+        # Camino nuevo: la capacidad la define el sector.
+        if sector is not None:
+            if sector.default_capacity is not None:
+                return sector.default_capacity
+            return settings.DEFAULT_DAILY_CAPACITY
+        # Camino legacy (landing publica, hasta Fase 3): capacidad por bucket.
         from core.models import BusinessProfile
 
         profile = BusinessProfile.get_solo(business=business)
@@ -203,21 +218,19 @@ class Reservation(SoftDeleteMixin):
         return profile.default_capacity_wash
 
     @classmethod
-    def used_slots_for_day(cls, day, exclude_id=None, business=None, bucket=None):
+    def used_slots_for_day(cls, day, exclude_id=None, business=None, sector=None, bucket=None):
         queryset = cls.objects.filter(day=day, status__in=cls.active_statuses())
         if business is not None:
             queryset = queryset.filter(business=business)
-        if bucket == DETAILING_BUCKET:
+        if sector is not None:
+            queryset = queryset.filter(sector=sector)
+        elif bucket == DETAILING_BUCKET:
             queryset = queryset.filter(service__service_type="detailing")
         elif bucket == WASH_BUCKET:
             queryset = queryset.exclude(service__service_type="detailing")
         if exclude_id:
             queryset = queryset.exclude(pk=exclude_id)
         return queryset.count()
-
-    @classmethod
-    def bucket_for_service(cls, service):
-        return bucket_for_service_type(getattr(service, "service_type", None))
 
 
 class ReservationItem(SoftDeleteMixin):
