@@ -28,8 +28,6 @@ class WorkOrder(SoftDeleteMixin):
     sector = models.ForeignKey(
         "catalog.Sector",
         related_name="work_orders",
-        null=True,
-        blank=True,
         on_delete=models.PROTECT,
     )
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))

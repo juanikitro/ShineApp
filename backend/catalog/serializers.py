@@ -66,7 +66,6 @@ class ServiceSerializer(BusinessScopedSerializerMixin, EconomyFieldsMixin, seria
             "id",
             "name",
             "icon",
-            "service_type",
             "sector",
             "base_price",
             *PRICE_BY_TYPE_FIELDS,

@@ -119,7 +119,6 @@ def test_sector_protects_hard_delete_with_services(default_business):
     Service.objects.create(
         business=default_business,
         name="Servicio",
-        service_type="wash",
         sector=sector,
         base_price=1000,
     )

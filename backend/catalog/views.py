@@ -135,7 +135,7 @@ class ServiceViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=True)
         search = self.request.query_params.get("search")
         if search:
-            queryset = queryset.filter(Q(name__icontains=search) | Q(service_type__icontains=search))
+            queryset = queryset.filter(Q(name__icontains=search) | Q(sector__name__icontains=search))
         return queryset
 
     def perform_destroy(self, instance):

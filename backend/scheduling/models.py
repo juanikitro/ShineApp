@@ -8,12 +8,6 @@ from django.utils import timezone
 from core.soft_delete import SoftDeleteMixin
 
 
-WASH_BUCKET = "wash"
-DETAILING_BUCKET = "detailing"
-
-
-def bucket_for_service_type(service_type):
-    return DETAILING_BUCKET if service_type == "detailing" else WASH_BUCKET
 
 
 class Reservation(SoftDeleteMixin):
@@ -32,8 +26,6 @@ class Reservation(SoftDeleteMixin):
     sector = models.ForeignKey(
         "catalog.Sector",
         related_name="reservations",
-        null=True,
-        blank=True,
         on_delete=models.PROTECT,
     )
     day = models.DateField()
@@ -201,33 +193,19 @@ class Reservation(SoftDeleteMixin):
         return cls.Status.DELIVERED
 
     @classmethod
-    def capacity_for_day(cls, day, business=None, sector=None, bucket=None):
-        # Camino nuevo: la capacidad la define el sector.
+    def capacity_for_day(cls, day, business=None, sector=None):
         if sector is not None:
             if sector.default_capacity is not None:
                 return sector.default_capacity
-            return settings.DEFAULT_DAILY_CAPACITY
-        # Camino legacy (landing publica, hasta Fase 3): capacidad por bucket.
-        from core.models import BusinessProfile
-
-        profile = BusinessProfile.get_solo(business=business)
-        if profile is None:
-            return settings.DEFAULT_DAILY_CAPACITY
-        if bucket == DETAILING_BUCKET:
-            return profile.default_capacity_detailing
-        return profile.default_capacity_wash
+        return settings.DEFAULT_DAILY_CAPACITY
 
     @classmethod
-    def used_slots_for_day(cls, day, exclude_id=None, business=None, sector=None, bucket=None):
+    def used_slots_for_day(cls, day, exclude_id=None, business=None, sector=None):
         queryset = cls.objects.filter(day=day, status__in=cls.active_statuses())
         if business is not None:
             queryset = queryset.filter(business=business)
         if sector is not None:
             queryset = queryset.filter(sector=sector)
-        elif bucket == DETAILING_BUCKET:
-            queryset = queryset.filter(service__service_type="detailing")
-        elif bucket == WASH_BUCKET:
-            queryset = queryset.exclude(service__service_type="detailing")
         if exclude_id:
             queryset = queryset.exclude(pk=exclude_id)
         return queryset.count()

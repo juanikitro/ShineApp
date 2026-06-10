@@ -33,9 +33,12 @@ def base_data(db):
         model="Focus",
         color="Gris",
     )
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    lavadero = ensure_default_sectors(BusinessAccount.get_default())["lavadero"]
     service = Service.objects.create(
         name="Lavado premium",
-        service_type=Service.ServiceType.WASH,
+        sector=lavadero,
         base_price=Decimal("15000.00"),
         estimated_duration_minutes=60,
     )
@@ -149,8 +152,6 @@ def _create_public_business(slug="overlap-test", capacity_wash=8, capacity_detai
         allow_public_quote_requests=True,
         allow_overlapping_reservations=False,
         enforce_capacity_limit=True,
-        default_capacity_wash=capacity_wash,
-        default_capacity_detailing=capacity_detailing,
         opening_time=time(9, 0),
         closing_time=time(20, 0),
     )
@@ -162,13 +163,12 @@ def _create_public_business(slug="overlap-test", capacity_wash=8, capacity_detai
     return business
 
 
-def _service_for_business(business, service_type=Service.ServiceType.WASH, name="Lavado"):
+def _service_for_business(business, service_type="wash", name="Lavado"):
     sector_key = SERVICE_TYPE_TO_SECTOR_KEY.get(service_type, "lavadero")
     sector = Sector.objects.filter(business=business, key=sector_key).first()
     return Service.objects.create(
         business=business,
         name=name,
-        service_type=service_type,
         sector=sector,
         base_price=Decimal("10000"),
         estimated_duration_minutes=60,
@@ -178,7 +178,7 @@ def _service_for_business(business, service_type=Service.ServiceType.WASH, name=
 @pytest.mark.django_db
 def test_public_availability_endpoint_returns_capacity_and_occupied():
     business = _create_public_business(capacity_wash=2, capacity_detailing=1)
-    service = _service_for_business(business, Service.ServiceType.WASH)
+    service = _service_for_business(business, "wash")
     customer = Customer.objects.create(business=business, name="Cliente", phone="1234")
     vehicle = Vehicle.objects.create(
         business=business,
@@ -221,7 +221,7 @@ def test_public_request_rejected_when_capacity_full():
     business = _create_public_business(
         slug="overlap-test-full", capacity_wash=1, capacity_detailing=1
     )
-    service = _service_for_business(business, Service.ServiceType.WASH)
+    service = _service_for_business(business, "wash")
     customer = Customer.objects.create(business=business, name="Cliente", phone="1234")
     vehicle = Vehicle.objects.create(
         business=business,
@@ -273,7 +273,7 @@ def test_public_request_allowed_when_capacity_limit_disabled():
     profile = BusinessProfile.objects.get(business=business)
     profile.enforce_capacity_limit = False
     profile.save(update_fields=["enforce_capacity_limit"])
-    service = _service_for_business(business, Service.ServiceType.WASH)
+    service = _service_for_business(business, "wash")
     customer = Customer.objects.create(business=business, name="Cliente", phone="1234")
     vehicle = Vehicle.objects.create(
         business=business,
@@ -321,7 +321,7 @@ def test_public_request_rejects_overlapping_time():
     business = _create_public_business(
         slug="overlap-test-time", capacity_wash=5, capacity_detailing=5
     )
-    service = _service_for_business(business, Service.ServiceType.WASH)
+    service = _service_for_business(business, "wash")
     customer = Customer.objects.create(business=business, name="Cliente", phone="1234")
     vehicle = Vehicle.objects.create(
         business=business,
@@ -373,7 +373,7 @@ def test_public_request_allows_overlap_when_setting_on():
     profile = BusinessProfile.objects.get(business=business)
     profile.allow_overlapping_reservations = True
     profile.save(update_fields=["allow_overlapping_reservations"])
-    service = _service_for_business(business, Service.ServiceType.WASH)
+    service = _service_for_business(business, "wash")
     customer = Customer.objects.create(business=business, name="Cliente", phone="1234")
     vehicle = Vehicle.objects.create(
         business=business,

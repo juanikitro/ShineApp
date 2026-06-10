@@ -70,20 +70,12 @@ class Sector(SoftDeleteMixin):
 
 
 class Service(SoftDeleteMixin):
-    class ServiceType(models.TextChoices):
-        WASH = "wash", "Lavado"
-        DETAILING = "detailing", "Detailing"
-        COMBO = "combo", "Combo"
-
     business = models.ForeignKey("core.BusinessAccount", related_name="services", on_delete=models.PROTECT)
     name = models.CharField(max_length=140)
     icon = models.CharField(max_length=24, blank=True)
-    service_type = models.CharField(max_length=20, choices=ServiceType.choices)
     sector = models.ForeignKey(
         "catalog.Sector",
         related_name="services",
-        null=True,
-        blank=True,
         on_delete=models.PROTECT,
     )
     base_price = models.DecimalField(max_digits=12, decimal_places=2)
@@ -99,7 +91,7 @@ class Service(SoftDeleteMixin):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta(SoftDeleteMixin.Meta):
-        ordering = ["service_type", "name"]
+        ordering = ["sector__order", "name"]
 
     def __str__(self):
         return self.name

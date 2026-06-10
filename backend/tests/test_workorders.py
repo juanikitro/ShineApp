@@ -17,6 +17,9 @@ from workorders.serializers import WorkOrderSerializer
 
 @pytest.fixture
 def base_data(db):
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    lavadero = ensure_default_sectors(BusinessAccount.get_default())["lavadero"]
     customer = Customer.objects.create(name="Juan Perez", phone="1122334455", email="juan@example.com")
     vehicle = Vehicle.objects.create(
         customer=customer,
@@ -27,7 +30,7 @@ def base_data(db):
     )
     service = Service.objects.create(
         name="Lavado premium",
-        service_type=Service.ServiceType.WASH,
+        sector=lavadero,
         base_price=Decimal("15000.00"),
         estimated_duration_minutes=90,
     )
