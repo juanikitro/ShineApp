@@ -107,6 +107,10 @@ jobs:
 
   docs:
     name: docs
+    # Solo se verifica en push a main/development: en feature branches los archivos
+    # generados (CHANGELOG.md, indices) no se commitean, por lo que siempre
+    # estarian "desactualizados" respecto al fragmento recien agregado.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -158,11 +162,15 @@ jobs:
           printf 'docs=%s\n' "$DOCS_RESULT"
 
           failed=0
-          for result in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_AUDIT_RESULT" "$DOCS_RESULT"; do
+          for result in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_AUDIT_RESULT"; do
             if [ "$result" != "success" ]; then
               failed=1
             fi
           done
+          # docs solo corre en push; en PRs queda "skipped", lo cual es valido.
+          if [ "$DOCS_RESULT" != "success" ] && [ "$DOCS_RESULT" != "skipped" ]; then
+            failed=1
+          fi
 
           if [ "$failed" -ne 0 ]; then
             echo "One or more required CI jobs failed, were cancelled, or were skipped." >&2
