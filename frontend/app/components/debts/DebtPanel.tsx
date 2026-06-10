@@ -56,9 +56,6 @@ type DebtPanelProps = {
 	loading: boolean
 	loadBlocked: boolean
 	loadErrorNotice: ApiErrorNotice | null
-	recurringDebts: AnyRecord[]
-	skippedRecurringPeriods: AnyRecord[]
-	onDismissSkippedRecurring: () => void
 	recordClass: (kind: string, id: string | number, extraClass?: string) => string
 	renderQuickActionsTrigger: (
 		title: string,
@@ -75,10 +72,6 @@ type DebtPanelProps = {
 	onOpenDebtDetail: (debt: AnyRecord) => void
 	onOpenDebtPaymentDetail: (payment: AnyRecord) => void
 	onOpenDebtPaymentForDebt: (debt: AnyRecord) => void
-	onPauseRecurringDebt: (planId: string | number) => void
-	onResumeRecurringDebt: (planId: string | number) => void
-	onApplyRecurringToCurrent: (planId: string | number) => void
-	onDeleteRecurringDebt: (planId: string | number) => void
 	onQuickActionsContext: (
 		event: MouseEvent<HTMLDivElement>,
 		title: string,
@@ -110,9 +103,6 @@ export function DebtPanel({
 	loading,
 	loadBlocked,
 	loadErrorNotice,
-	recurringDebts,
-	skippedRecurringPeriods,
-	onDismissSkippedRecurring,
 	recordClass,
 	renderQuickActionsTrigger,
 	search,
@@ -123,10 +113,6 @@ export function DebtPanel({
 	onOpenDebtDetail,
 	onOpenDebtPaymentDetail,
 	onOpenDebtPaymentForDebt,
-	onPauseRecurringDebt,
-	onResumeRecurringDebt,
-	onApplyRecurringToCurrent,
-	onDeleteRecurringDebt,
 	onQuickActionsContext,
 	onRefresh,
 	onSearchChange,
@@ -204,92 +190,6 @@ export function DebtPanel({
 							El reporte economico cuenta el egreso al crear la deuda; los
 							pagos no duplican ese gasto.
 						</div>
-						{skippedRecurringPeriods.length ? (
-							<div className="info-note warning debt-skipped-banner">
-								<div>
-									<strong>Ciclos no generados:</strong>
-									<ul>
-										{skippedRecurringPeriods.map((skip, index) => (
-											<li key={`${skip.plan_id}-${skip.period_date}-${index}`}>
-												{skip.plan_concept} - {skip.period_date} (caja cerrada)
-											</li>
-										))}
-									</ul>
-								</div>
-								<button
-									type="button"
-									className="ghost"
-									onClick={onDismissSkippedRecurring}
-								>
-									Entendido
-								</button>
-							</div>
-						) : null}
-						{recurringDebts.length ? (
-							<section className="debt-recurring-list section-block-end">
-								<header>
-									<h3>Plantillas recurrentes</h3>
-									<p>
-										Generan deudas automaticamente segun el periodo configurado.
-									</p>
-								</header>
-								<ul>
-									{recurringDebts.map((plan) => (
-										<li
-											key={plan.id}
-											className={`debt-recurring-item${plan.is_active ? '' : ' paused'}`}
-										>
-											<div>
-												<strong>{plan.concept}</strong>
-												<span>
-													Cada {plan.interval_count} {plan.interval_unit}
-												</span>
-												{plan.next_occurrence ? (
-													<span>Proxima: {plan.next_occurrence}</span>
-												) : (
-													<span>Sin proximas generaciones</span>
-												)}
-												{plan.auto_settle ? <span>Pago automatico</span> : null}
-											</div>
-											<div className="debt-recurring-actions">
-												<button
-													type="button"
-													className="ghost"
-													onClick={() => onApplyRecurringToCurrent(plan.id)}
-													title="Si la deuda del ciclo actual existe y no tiene pagos, le aplica los cambios de la plantilla."
-												>
-													Aplicar al ciclo
-												</button>
-												{plan.is_active ? (
-													<button
-														type="button"
-														className="ghost"
-														onClick={() => onPauseRecurringDebt(plan.id)}
-													>
-														Pausar
-													</button>
-												) : (
-													<button
-														type="button"
-														className="ghost"
-														onClick={() => onResumeRecurringDebt(plan.id)}
-													>
-														Reanudar
-													</button>
-												)}
-												<button
-													type="button"
-													className="ghost danger"
-													onClick={() => onDeleteRecurringDebt(plan.id)}
-												>
-													Eliminar
-												</button>
-											</div>
-										</li>
-									))}
-								</ul>
-							</section>
-						) : null}
 						<section
 							className="cash-filters debt-filters section-block-end"
 							aria-labelledby="debt-filters-title"
@@ -345,7 +245,6 @@ export function DebtPanel({
 								filteredDebts.map((item) => {
 									const quickActions = debtQuickActions(item)
 									const hasBalance = numberValue(item.balance_due) > 0
-									const isRecurring = Boolean(item.recurring_source)
 									const baseBadges = [
 										{
 											label:
@@ -359,15 +258,7 @@ export function DebtPanel({
 												: 'status paid',
 										},
 									]
-									const badges = isRecurring
-										? [
-												...baseBadges,
-												{
-													label: 'Recurrente',
-													className: 'status recurring',
-												},
-											]
-										: baseBadges
+									const badges = baseBadges
 									return (
 										<FinanceRecordCard
 											amount={{

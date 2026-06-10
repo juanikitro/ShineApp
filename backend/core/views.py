@@ -34,6 +34,12 @@ class AuditLogView(generics.ListAPIView):
             queryset = queryset.filter(created_at__date__gte=date_from)
         if date_to:
             queryset = queryset.filter(created_at__date__lte=date_to)
+        entity_type = self.request.query_params.get("entity_type")
+        entity_id = self.request.query_params.get("entity_id")
+        if entity_type:
+            queryset = queryset.filter(entity_type=entity_type)
+        if entity_id:
+            queryset = queryset.filter(entity_id=str(entity_id))
         if query:
             queryset = queryset.filter(
                 Q(actor_username__icontains=query)

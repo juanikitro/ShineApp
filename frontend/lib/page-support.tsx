@@ -1,6 +1,7 @@
 import { MouseSensor, TouchSensor } from '@dnd-kit/core'
 import {
 	Bell,
+	CalendarClock,
 	CalendarDays,
 	Building2,
 	Car,
@@ -61,6 +62,7 @@ type FormModalKind =
 	| 'expense-classification'
 	| 'debt'
 	| 'debt-payment'
+	| 'fixed-expense'
 	| 'material'
 	| 'supplier'
 	| 'stock-movement'
@@ -78,6 +80,7 @@ type Section =
 	| 'vehicles'
 	| 'cash'
 	| 'debts'
+	| 'fixed-expenses'
 	| 'inventory'
 	| 'tools'
 	| 'quotes'
@@ -558,14 +561,6 @@ function blankDebtForm(originDate: string) {
 		expense_category: 'Servicios',
 		expense_subcategory: 'Otros',
 		notes: '',
-		is_recurring: false,
-		interval_unit: 'months',
-		interval_count: '1',
-		due_offset_days: '0',
-		end_date: '',
-		max_cycles: '',
-		auto_settle: false,
-		auto_settle_method: 'transfer',
 	}
 }
 
@@ -576,6 +571,25 @@ function blankDebtPaymentForm(paidAt: string) {
 		paid_at: paidAt,
 		method: DEFAULT_PAYMENT_METHOD,
 		notes: '',
+	}
+}
+
+function blankFixedExpenseForm(startDate: string) {
+	return {
+		concept: '',
+		supplier: '',
+		amount: '',
+		expense_category: 'Servicios',
+		expense_subcategory: 'Otros',
+		notes: '',
+		interval_unit: 'months',
+		interval_count: '1',
+		start_date: startDate,
+		due_offset_days: '0',
+		end_date: '',
+		max_cycles: '',
+		auto_pay: false,
+		payment_method: 'transfer',
 	}
 }
 
@@ -636,10 +650,13 @@ const entityFeedbackTitles: Record<
 		updated: 'Pago de deuda editado',
 		deleted: 'Pago de deuda eliminado',
 	},
-	'recurring-debt': {
-		created: 'Plantilla recurrente creada',
-		updated: 'Plantilla recurrente editada',
-		deleted: 'Plantilla recurrente eliminada',
+	'fixed-expense': {
+		created: 'Gasto fijo creado',
+		updated: 'Gasto fijo editado',
+		deleted: 'Gasto fijo eliminado',
+	},
+	'fixed-expense-occurrence': {
+		updated: 'Pago de gasto fijo registrado',
 	},
 	material: {
 		created: 'Material creado',
@@ -873,6 +890,11 @@ const sectionMeta: Record<
 		icon: ReceiptText,
 		subtitle: 'Saldos, vencimientos y pagos parciales',
 	},
+	'fixed-expenses': {
+		label: 'Gastos fijos',
+		icon: CalendarClock,
+		subtitle: 'Servicios, alquiler y abonos recurrentes',
+	},
 	inventory: {
 		label: 'Materiales',
 		icon: Package,
@@ -908,6 +930,7 @@ const sectionMeta: Record<
 const economySections: Section[] = [
 	'cash',
 	'debts',
+	'fixed-expenses',
 	'inventory',
 	'suppliers',
 	'tools',
@@ -991,13 +1014,12 @@ const debtPaymentMethodLabels: Record<string, string> = {
 	other: 'Otro',
 }
 
-const recurringDebtIntervalLabels: Record<string, string> = {
-	days: 'dias',
+const fixedExpenseIntervalLabels: Record<string, string> = {
 	weeks: 'semanas',
 	months: 'meses',
 }
 
-const recurringDebtIntervalOptions = Object.entries(recurringDebtIntervalLabels).map(
+const fixedExpenseIntervalOptions = Object.entries(fixedExpenseIntervalLabels).map(
 	([value, label]) => ({ value, label }),
 )
 
@@ -2062,6 +2084,7 @@ export {
 	blankCustomerForm,
 	blankDebtForm,
 	blankDebtPaymentForm,
+	blankFixedExpenseForm,
 	blankPaymentForm,
 	blankQuoteForm,
 	blankQuoteItem,
@@ -2071,8 +2094,8 @@ export {
 	cleanCustomerPayload,
 	debtPaymentMethodLabels,
 	debtStatusLabels,
-	recurringDebtIntervalLabels,
-	recurringDebtIntervalOptions,
+	fixedExpenseIntervalLabels,
+	fixedExpenseIntervalOptions,
 	defaultCashCategory,
 	detailRequiresEconomy,
 	entityFeedbackTitle,

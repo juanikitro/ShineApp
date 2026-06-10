@@ -72,6 +72,7 @@ import { PublicRequestCard } from '@/app/components/requests/PublicRequestCard'
 import { CashMovementForm } from '@/app/components/forms/CashMovementForm'
 import { CustomerForm } from '@/app/components/forms/CustomerForm'
 import { DebtForm } from '@/app/components/forms/DebtForm'
+import { FixedExpenseForm } from '@/app/components/forms/FixedExpenseForm'
 import { DebtPaymentForm } from '@/app/components/forms/DebtPaymentForm'
 import { MaterialForm } from '@/app/components/forms/MaterialForm'
 import { PaymentForm } from '@/app/components/forms/PaymentForm'
@@ -93,6 +94,7 @@ import {
 	type DebtFilterState,
 	type DebtSummary,
 } from '@/app/components/debts/DebtPanel'
+import { FixedExpensePanel } from '@/app/components/fixed-expenses/FixedExpensePanel'
 import { DashboardPanel } from '@/app/components/dashboard/DashboardPanel'
 import { InventoryPanel } from '@/app/components/inventory/InventoryPanel'
 import {
@@ -323,6 +325,7 @@ import {
 	blankCustomerForm,
 	blankDebtForm,
 	blankDebtPaymentForm,
+	blankFixedExpenseForm,
 	blankPaymentForm,
 	blankQuoteForm,
 	blankQuoteItem,
@@ -685,10 +688,8 @@ export default function Home() {
 	const [payments, setPayments] = useState<AnyRecord[]>([])
 	const [debts, setDebts] = useState<AnyRecord[]>([])
 	const [debtPayments, setDebtPayments] = useState<AnyRecord[]>([])
-	const [recurringDebts, setRecurringDebts] = useState<AnyRecord[]>([])
-	const [skippedRecurringPeriods, setSkippedRecurringPeriods] = useState<
-		AnyRecord[]
-	>([])
+	const [fixedExpenses, setFixedExpenses] = useState<AnyRecord[]>([])
+	const [fixedExpenseOccurrences, setFixedExpenseOccurrences] = useState<AnyRecord[]>([])
 	const [materials, setMaterials] = useState<AnyRecord[]>([])
 	const [suppliers, setSuppliers] = useState<AnyRecord[]>([])
 	const [stockMovements, setStockMovements] = useState<AnyRecord[]>([])
@@ -702,6 +703,10 @@ export default function Home() {
 		Record<string, { customer?: string; vehicle?: string }>
 	>({})
 	const [employees, setEmployees] = useState<AnyRecord[]>([])
+	const [selectedEmployee, setSelectedEmployee] = useState<AnyRecord | null>(null)
+	const [employeeAuditLogs, setEmployeeAuditLogs] = useState<AnyRecord[]>([])
+	const [employeeAuditLogsLoading, setEmployeeAuditLogsLoading] = useState(false)
+	const [employeeAuditLogsError, setEmployeeAuditLogsError] = useState<string | null>(null)
 	const [auditLogs, setAuditLogs] = useState<AnyRecord[]>([])
 	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>({})
 	const auditLogsLoadedRef = useRef(false)
@@ -759,6 +764,9 @@ export default function Home() {
 		blankMovementForm(),
 	)
 	const [debtForm, setDebtForm] = useState<AnyRecord>(blankDebtForm(today))
+	const [fixedExpenseForm, setFixedExpenseForm] = useState<AnyRecord>(
+		blankFixedExpenseForm(today),
+	)
 	const [debtPaymentForm, setDebtPaymentForm] = useState<AnyRecord>(
 		blankDebtPaymentForm(today),
 	)
@@ -1450,6 +1458,7 @@ export default function Home() {
 			'expense-classification': 'expense-classification.type',
 			debt: 'debt.concept',
 			'debt-payment': 'debt-payment.debt',
+			'fixed-expense': 'fixed-expense.concept',
 			material: 'material.name',
 			supplier: 'supplier.name',
 			'stock-movement': 'stock-movement.type',
@@ -2090,26 +2099,10 @@ export default function Home() {
 		reservations: setReservations,
 		workOrders: setWorkOrders,
 		payments: setPayments,
-		debts: (data: any) => {
-			if (Array.isArray(data)) {
-				setDebts(data)
-				setSkippedRecurringPeriods([])
-				return
-			}
-			if (data && typeof data === 'object') {
-				setDebts(Array.isArray(data.results) ? data.results : [])
-				setSkippedRecurringPeriods(
-					Array.isArray(data.skipped_recurring_periods)
-						? data.skipped_recurring_periods
-						: [],
-				)
-				return
-			}
-			setDebts([])
-			setSkippedRecurringPeriods([])
-		},
+		debts: setDebts,
 		debtPayments: setDebtPayments,
-		recurringDebts: setRecurringDebts,
+		fixedExpenses: setFixedExpenses,
+		fixedExpenseOccurrences: setFixedExpenseOccurrences,
 		materials: setMaterials,
 		suppliers: setSuppliers,
 		stockMovements: setStockMovements,
@@ -4263,6 +4256,7 @@ export default function Home() {
 						...buildNavItem('cash'),
 						children: [
 							buildNavItem('debts'),
+							buildNavItem('fixed-expenses'),
 							buildNavItem('suppliers'),
 							buildNavItem('inventory'),
 							buildNavItem('tools'),
@@ -4497,6 +4491,10 @@ export default function Home() {
 		cashExpenseCategoryValues,
 		debtForm.expense_category,
 	)
+	const fixedExpenseCategorySelectOptions = selectOptionsFromValues(
+		cashExpenseCategoryValues,
+		fixedExpenseForm.expense_category,
+	)
 	const settingsExpenseCategoryOptions = selectOptionsFromValues(
 		cashExpenseCategoryValues,
 		expenseClassificationForm.category,
@@ -4548,6 +4546,24 @@ export default function Home() {
 	const debtExpenseSubcategorySelectOptions = selectOptionsFromValues(
 		debtExpenseSubcategoryValues,
 		debtForm.expense_subcategory,
+	)
+	const fixedExpenseSubcategoryValues = mergeStringValues(
+		expenseSubcategoriesForCategory(
+			expenseCategoryTree,
+			fixedExpenseForm.expense_category,
+		),
+		uniqueValues(
+			fixedExpenses.filter(
+				(item: AnyRecord) =>
+					String(item.expense_category ?? '') ===
+					String(fixedExpenseForm.expense_category ?? ''),
+			),
+			'expense_subcategory',
+		),
+	)
+	const fixedExpenseSubcategorySelectOptions = selectOptionsFromValues(
+		fixedExpenseSubcategoryValues,
+		fixedExpenseForm.expense_subcategory,
 	)
 	const settingsExpenseSubcategoryOptions = selectOptionsFromValues(
 		expenseSubcategoriesForCategory(
@@ -4698,6 +4714,9 @@ export default function Home() {
 	const cashLoadBlocked = Boolean(loadErrorNotice && !cashEntries.length)
 	const debtLoadBlocked = Boolean(
 		loadErrorNotice && !debts.length && !debtPayments.length,
+	)
+	const fixedExpenseLoadBlocked = Boolean(
+		loadErrorNotice && !fixedExpenses.length && !fixedExpenseOccurrences.length,
 	)
 
 	function materialUsageRows(material: AnyRecord) {
@@ -5743,6 +5762,27 @@ export default function Home() {
 		focusField('debt.notes')
 	}
 
+	function updateFixedExpenseCategory(value: string) {
+		setFixedExpenseForm((current: AnyRecord) => ({
+			...current,
+			expense_category: value,
+			expense_subcategory: validExpenseSubcategoryForCategory(
+				value,
+				current.expense_subcategory,
+			),
+		}))
+		focusField('fixed-expense.expense_subcategory')
+	}
+
+	function registerFixedExpenseSubcategory(value: string) {
+		updateExpenseCategoryTreeLocal(fixedExpenseForm.expense_category, value)
+		setFixedExpenseForm({
+			...fixedExpenseForm,
+			expense_subcategory: value,
+		})
+		focusField('fixed-expense.notes')
+	}
+
 	function resetExpenseClassificationForm() {
 		setExpenseClassificationForm({
 			movement_type: 'expense',
@@ -6020,6 +6060,9 @@ export default function Home() {
 		}
 		if (kind === 'stock-movement') {
 			setStockMovementDocumentFile(null)
+		}
+		if (kind === 'fixed-expense') {
+			setFixedExpenseForm(blankFixedExpenseForm(selectedDay))
 		}
 		setFormModal({ kind })
 	}
@@ -6473,6 +6516,66 @@ export default function Home() {
 			},
 			{
 				successTitle: (created) => `Empleado ${created.username} creado`,
+			},
+		)
+	}
+
+	function deselectEmployee() {
+		setSelectedEmployee(null)
+		setEmployeeAuditLogs([])
+		setEmployeeAuditLogsError(null)
+		setEmployeeAuditLogsLoading(false)
+	}
+
+	async function selectEmployee(employee: AnyRecord) {
+		setSelectedEmployee(employee)
+		setEmployeeAuditLogs([])
+		setEmployeeAuditLogsError(null)
+		setEmployeeAuditLogsLoading(true)
+		try {
+			const logs = await apiFetch<AnyRecord[]>(
+				`/audit-log/?entity_type=User&entity_id=${employee.id}`,
+			)
+			setEmployeeAuditLogs(Array.isArray(logs) ? logs : [])
+		} catch {
+			setEmployeeAuditLogsError('No se pudo cargar el historial')
+		} finally {
+			setEmployeeAuditLogsLoading(false)
+		}
+	}
+
+	async function changeEmployeePassword(pk: number | string, newPassword: string) {
+		await runAction(
+			async () => {
+				const updated = await apiFetch<AnyRecord>(`/auth/employees/${pk}/`, {
+					method: 'PATCH',
+					body: JSON.stringify({ password: newPassword }),
+				})
+				setSelectedEmployee(updated)
+				setEmployees((prev) =>
+					prev.map((e) => (String(e.id) === String(pk) ? updated : e)),
+				)
+				return updated
+			},
+			{ successTitle: 'Contraseña actualizada' },
+		)
+	}
+
+	async function toggleEmployeeActive(pk: number | string, isActive: boolean) {
+		await runAction(
+			async () => {
+				const updated = await apiFetch<AnyRecord>(`/auth/employees/${pk}/`, {
+					method: 'PATCH',
+					body: JSON.stringify({ is_active: !isActive }),
+				})
+				setSelectedEmployee(updated)
+				setEmployees((prev) =>
+					prev.map((e) => (String(e.id) === String(pk) ? updated : e)),
+				)
+				return updated
+			},
+			{
+				successTitle: isActive ? 'Empleado desactivado' : 'Empleado activado',
 			},
 		)
 	}
@@ -7442,6 +7545,7 @@ export default function Home() {
 			'cash-movement': `/cash-movements/${id}/`,
 			debt: `/debts/${id}/`,
 			'debt-payment': `/debt-payments/${id}/`,
+			'fixed-expense': `/fixed-expenses/${id}/`,
 		}
 		return paths[kind]
 	}
@@ -9520,36 +9624,7 @@ export default function Home() {
 
 	async function saveDebt(event: FormEvent) {
 		event.preventDefault()
-		const isRecurring = Boolean(debtForm.is_recurring)
 		await runAction(async () => {
-			if (isRecurring) {
-				const recurringPayload: AnyRecord = {
-					concept: debtForm.concept,
-					creditor: debtForm.creditor,
-					supplier: debtForm.supplier || null,
-					principal_amount: debtForm.principal_amount,
-					expense_category: debtForm.expense_category,
-					expense_subcategory: debtForm.expense_subcategory,
-					notes: debtForm.notes,
-					interval_unit: debtForm.interval_unit || 'months',
-					interval_count: Number(debtForm.interval_count || 1),
-					start_date: debtForm.origin_date,
-					due_offset_days: Number(debtForm.due_offset_days || 0),
-					end_date: debtForm.end_date || null,
-					max_cycles: debtForm.max_cycles
-						? Number(debtForm.max_cycles)
-						: null,
-					auto_settle: Boolean(debtForm.auto_settle),
-					auto_settle_method: debtForm.auto_settle_method || 'transfer',
-				}
-				const created = await apiFetch<AnyRecord>('/recurring-debts/', {
-					method: 'POST',
-					body: JSON.stringify(recurringPayload),
-				})
-				setDebtForm(blankDebtForm(today))
-				formModalExit.close()
-				return created
-			}
 			const created = await apiFetch<AnyRecord>('/debts/', {
 				method: 'POST',
 				body: JSON.stringify({
@@ -9570,60 +9645,89 @@ export default function Home() {
 		}, {
 			key: 'save:debt',
 			flashTarget: (created: AnyRecord) =>
-				recordFlashKey(isRecurring ? 'recurring-debt' : 'debt', created?.id),
-			successTitle: entityFeedbackTitle(
-				isRecurring ? 'recurring-debt' : 'debt',
-				'created',
-			),
-			undo: isRecurring ? undefined : undoCreatedRecord('debt'),
+				recordFlashKey('debt', created?.id),
+			successTitle: entityFeedbackTitle('debt', 'created'),
+			undo: undoCreatedRecord('debt'),
 		})
 	}
 
-	async function pauseRecurringDebt(planId: string | number) {
-		await runAction(async () =>
-			apiFetch<AnyRecord>(`/recurring-debts/${planId}/pause/`, {
+	async function saveFixedExpense(event: FormEvent) {
+		event.preventDefault()
+		await runAction(async () => {
+			const created = await apiFetch<AnyRecord>('/fixed-expenses/', {
 				method: 'POST',
-			}),
-		{
-			successTitle: 'Plantilla pausada',
+				body: JSON.stringify({
+					concept: fixedExpenseForm.concept,
+					supplier: fixedExpenseForm.supplier || null,
+					amount: fixedExpenseForm.amount,
+					expense_category: fixedExpenseForm.expense_category,
+					expense_subcategory: fixedExpenseForm.expense_subcategory,
+					notes: fixedExpenseForm.notes,
+					interval_unit: fixedExpenseForm.interval_unit || 'months',
+					interval_count: Number(fixedExpenseForm.interval_count || 1),
+					start_date: fixedExpenseForm.start_date,
+					due_offset_days: Number(fixedExpenseForm.due_offset_days || 0),
+					end_date: fixedExpenseForm.end_date || null,
+					max_cycles: fixedExpenseForm.max_cycles
+						? Number(fixedExpenseForm.max_cycles)
+						: null,
+					auto_pay: Boolean(fixedExpenseForm.auto_pay),
+					payment_method: fixedExpenseForm.payment_method || 'transfer',
+				}),
+			})
+			setFixedExpenseForm(blankFixedExpenseForm(today))
+			formModalExit.close()
+			return created
+		}, {
+			key: 'save:fixed-expense',
+			flashTarget: (created: AnyRecord) =>
+				recordFlashKey('fixed-expense', created?.id),
+			successTitle: entityFeedbackTitle('fixed-expense', 'created'),
+			undo: undoCreatedRecord('fixed-expense'),
 		})
 	}
 
-	async function resumeRecurringDebt(planId: string | number) {
-		await runAction(async () =>
-			apiFetch<AnyRecord>(`/recurring-debts/${planId}/resume/`, {
-				method: 'POST',
-			}),
-		{
-			successTitle: 'Plantilla reanudada',
-		})
+	async function payFixedExpenseOccurrence(id: string | number) {
+		await runAction(
+			async () =>
+				apiFetch<AnyRecord>(`/fixed-expense-occurrences/${id}/pay/`, {
+					method: 'POST',
+				}),
+			{
+				successTitle: entityFeedbackTitle('fixed-expense-occurrence', 'updated'),
+			},
+		)
 	}
 
-	async function applyRecurringToCurrent(planId: string | number) {
-		await runAction(async () =>
-			apiFetch<AnyRecord>(`/recurring-debts/${planId}/apply-to-current/`, {
-				method: 'POST',
-			}),
-		{
-			successTitle: 'Cambios aplicados al ciclo actual',
-		})
+	async function pauseFixedExpense(id: string | number) {
+		await runAction(
+			async () =>
+				apiFetch<AnyRecord>(`/fixed-expenses/${id}/pause/`, { method: 'POST' }),
+			{ successTitle: 'Gasto fijo pausado' },
+		)
 	}
 
-	async function deleteRecurringDebt(planId: string | number) {
+	async function resumeFixedExpense(id: string | number) {
+		await runAction(
+			async () =>
+				apiFetch<AnyRecord>(`/fixed-expenses/${id}/resume/`, { method: 'POST' }),
+			{ successTitle: 'Gasto fijo reanudado' },
+		)
+	}
+
+	async function deleteFixedExpense(id: string | number) {
 		const confirmed =
 			typeof window === 'undefined'
 				? true
 				: window.confirm(
-						'Eliminar la plantilla. Las deudas ya generadas se conservan. Continuar?',
+						'Eliminar el gasto fijo. Los periodos ya generados se conservan. Continuar?',
 					)
 		if (!confirmed) return
-		await runAction(async () =>
-			apiFetch<AnyRecord>(`/recurring-debts/${planId}/`, {
-				method: 'DELETE',
-			}),
-		{
-			successTitle: entityFeedbackTitle('recurring-debt', 'deleted'),
-		})
+		await runAction(
+			async () =>
+				apiFetch<AnyRecord>(`/fixed-expenses/${id}/`, { method: 'DELETE' }),
+			{ successTitle: entityFeedbackTitle('fixed-expense', 'deleted') },
+		)
 	}
 
 	async function saveDebtPayment(event: FormEvent) {
@@ -10953,6 +11057,29 @@ export default function Home() {
 					/>
 					</Modal>
 				) : null}
+				{canViewEconomy && formModal?.kind === 'fixed-expense' ? (
+					<Modal
+						key="form-fixed-expense"
+						title="Nuevo gasto fijo"
+						onClose={formModalExit.close}
+					>
+						<FixedExpenseForm
+							submitLabel="Guardar gasto fijo"
+							onSubmit={saveFixedExpense}
+							fixedExpenseForm={fixedExpenseForm}
+							setFixedExpenseForm={setFixedExpenseForm}
+							supplierOptions={supplierOptions}
+							suppliers={suppliers}
+							categorySelectOptions={fixedExpenseCategorySelectOptions}
+							subcategorySelectOptions={fixedExpenseSubcategorySelectOptions}
+							updateCategory={updateFixedExpenseCategory}
+							registerSubcategory={registerFixedExpenseSubcategory}
+							focusField={focusField}
+							focusNextOnEnter={focusNextOnEnter}
+							submitting={isActionPending('save:fixed-expense')}
+						/>
+					</Modal>
+				) : null}
 				{canViewEconomy && formModal?.kind === 'debt-payment' ? (
 					<Modal
 						key="form-debt-payment"
@@ -11714,22 +11841,39 @@ export default function Home() {
 						mobileOpen={sidebarMobileOpen}
 						header={
 							businessProfile && sidebarBusinessLogoSrc ? (
-								<button
-									type="button"
-									className="ghost sidebar-business-button"
-									onClick={() => {
-										handleSectionChange('settings')
-										setSettingsSection('business')
-									}}
-									aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
-									title="Configuracion del negocio"
-								>
-									<img
-										src={sidebarBusinessLogoSrc}
-										alt={String(businessProfile.name ?? '')}
-										className="sidebar-business-logo"
-									/>
-								</button>
+								currentUser?.business?.slug ? (
+									<a
+										className="ghost sidebar-business-button"
+										href={`/publica/${String(currentUser.business.slug)}`}
+										rel="noreferrer"
+										target="_blank"
+										aria-label={`Abrir turnera de ${String(businessProfile.name ?? 'negocio')}`}
+										title="Abrir turnera"
+									>
+										<img
+											src={sidebarBusinessLogoSrc}
+											alt={String(businessProfile.name ?? '')}
+											className="sidebar-business-logo"
+										/>
+									</a>
+								) : (
+									<button
+										type="button"
+										className="ghost sidebar-business-button"
+										onClick={() => {
+											handleSectionChange('settings')
+											setSettingsSection('business')
+										}}
+										aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
+										title="Configuracion del negocio"
+									>
+										<img
+											src={sidebarBusinessLogoSrc}
+											alt={String(businessProfile.name ?? '')}
+											className="sidebar-business-logo"
+										/>
+									</button>
+								)
 							) : null
 						}
 						items={navItems}
@@ -12774,11 +12918,6 @@ export default function Home() {
 						loading={loading}
 						loadBlocked={debtLoadBlocked}
 						loadErrorNotice={loadErrorNotice}
-						recurringDebts={recurringDebts}
-						skippedRecurringPeriods={skippedRecurringPeriods}
-						onDismissSkippedRecurring={() =>
-							setSkippedRecurringPeriods([])
-						}
 						recordClass={recordClass}
 						renderQuickActionsTrigger={renderQuickActionsTrigger}
 						search={search}
@@ -12791,13 +12930,33 @@ export default function Home() {
 							openDetailModal('Pago de deuda', item)
 						}
 						onOpenDebtPaymentForDebt={openDebtPaymentForDebt}
-						onPauseRecurringDebt={pauseRecurringDebt}
-						onResumeRecurringDebt={resumeRecurringDebt}
-						onApplyRecurringToCurrent={applyRecurringToCurrent}
-						onDeleteRecurringDebt={deleteRecurringDebt}
 						onQuickActionsContext={openQuickActionsFromContext}
 						onRefresh={() => loadData({ force: true })}
 						onSearchChange={setSearch}
+					/>
+				) : null}
+				{displayedActive === 'fixed-expenses' ? (
+					<FixedExpensePanel
+						fixedExpenses={fixedExpenses}
+						occurrences={fixedExpenseOccurrences}
+						loading={loading}
+						loadBlocked={fixedExpenseLoadBlocked}
+						loadErrorNotice={loadErrorNotice}
+						recordClass={recordClass}
+						search={search}
+						onSearchChange={setSearch}
+						onCreateFixedExpense={() => openFormModal('fixed-expense')}
+						onOpenFixedExpenseDetail={(item) =>
+							openDetailModal('Gasto fijo', item)
+						}
+						onOpenOccurrenceDetail={(item) =>
+							openDetailModal('Pago de gasto fijo', item)
+						}
+						onPayOccurrence={payFixedExpenseOccurrence}
+						onPauseFixedExpense={pauseFixedExpense}
+						onResumeFixedExpense={resumeFixedExpense}
+						onDeleteFixedExpense={deleteFixedExpense}
+						onRefresh={() => loadData({ force: true })}
 					/>
 				) : null}
 				{displayedActive === 'inventory' && isDataSetLoading('materials') && !materials.length ? (
@@ -12933,6 +13092,10 @@ export default function Home() {
 						cashClassificationPairs={cashClassificationPairs}
 						currentUserId={currentUser?.id ?? null}
 						employees={employees}
+						selectedEmployee={selectedEmployee}
+						employeeAuditLogs={employeeAuditLogs}
+						employeeAuditLogsLoading={employeeAuditLogsLoading}
+						employeeAuditLogsError={employeeAuditLogsError}
 						expandedAuditLogId={expandedAuditLogId}
 						expenseClassificationPairs={expenseClassificationPairs}
 						inactiveEmployeeCount={inactiveEmployeeCount}
@@ -12959,6 +13122,10 @@ export default function Home() {
 						onDeleteExpenseClassification={deleteExpenseClassification}
 						onEditExpenseClassification={openExpenseClassificationEditor}
 						onOpenBusinessLogoPicker={openBusinessLogoPicker}
+						onSelectEmployee={selectEmployee}
+						onDeselectEmployee={deselectEmployee}
+						onChangeEmployeePassword={changeEmployeePassword}
+						onToggleEmployeeActive={toggleEmployeeActive}
 						onOpenEmployeeForm={() => openFormModal('employee')}
 						onOpenExpenseClassificationForm={() =>
 							openFormModal('expense-classification')
@@ -12983,7 +13150,10 @@ export default function Home() {
 						onRefreshAuditLogs={() => refreshAuditLogs()}
 						onRefreshData={() => loadData({ force: true })}
 						onSaveBusinessProfile={saveBusinessProfile}
-						onSettingsSectionChange={setSettingsSection}
+						onSettingsSectionChange={(section) => {
+								setSettingsSection(section)
+								if (section !== 'users') deselectEmployee()
+							}}
 						onToggleAuditLog={setExpandedAuditLogId}
 						onUpdateAuditFilter={updateAuditFilter}
 					/>

@@ -340,6 +340,60 @@ def cashflow_totals_for_period(business, date_from, date_to):
     }
 
 
+def cash_by_category_for_period(business, date_from, date_to):
+    """Income and expense of the period broken down by cash category.
+
+    Uses the exact same rows/filters as ``cashflow_totals_for_period`` (effect
+    movements + debt payments), so each side sums to its cashflow total.
+    """
+    movements = CashMovement.objects.select_related(
+        "payment",
+        "material_purchase",
+        "stock_movement",
+        "debt",
+    ).filter(
+        business=business,
+        occurred_at__date__gte=date_from,
+        occurred_at__date__lte=date_to,
+    )
+    income = defaultdict(lambda: ZERO)
+    expense = defaultdict(lambda: ZERO)
+    for movement in movements:
+        if not cash_movement_cashflow_effect(movement):
+            continue
+        category = str(movement.category or "").strip() or "Sin categoria"
+        if movement.movement_type == CashMovement.MovementType.INCOME:
+            income[category] += movement.amount
+        elif movement.movement_type == CashMovement.MovementType.EXPENSE:
+            expense[category] += movement.amount
+
+    debt_payments_total = decimal_sum(
+        DebtPayment.objects.filter(
+            business=business,
+            paid_at__gte=date_from,
+            paid_at__lte=date_to,
+        ),
+        "amount",
+    )
+    if debt_payments_total > ZERO:
+        expense["Pago de deudas"] += debt_payments_total
+
+    def to_rows(bucket):
+        return [
+            {"category": category, "total": total}
+            for category, total in sorted(
+                bucket.items(),
+                key=lambda item: item[1],
+                reverse=True,
+            )
+        ]
+
+    return {
+        "income_by_category": to_rows(income),
+        "expense_by_category": to_rows(expense),
+    }
+
+
 def material_cost_total_for_period(business, date_from, date_to):
     legacy_consumptions = MaterialConsumption.objects.filter(
         business=business,
@@ -974,6 +1028,7 @@ class DashboardSummaryView(APIView):
                 "comparison": comparison_for(summary, previous_summary, previous_has_activity),
                 "rankings": summary["rankings"],
                 "series": dashboard_period_series(business, date_from, date_to),
+                "cash_by_category": cash_by_category_for_period(business, date_from, date_to),
                 "data_quality": data_quality_for(current_has_activity, previous_has_activity),
                 **debt_summary,
                 "previous_period": {

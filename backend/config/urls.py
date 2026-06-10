@@ -8,8 +8,9 @@ from catalog.views import SectorViewSet, ServiceViewSet
 from core.views import AuditLogView
 from customers.views import CustomerViewSet, VehicleViewSet
 from dashboard.views import DashboardSummaryView
-from debts.views import DebtPaymentViewSet, DebtViewSet, RecurringDebtViewSet
+from debts.views import DebtPaymentViewSet, DebtViewSet
 from finance.views import CashCloseView, CashDailyView, CashMovementViewSet, CashReopenView, PaymentViewSet
+from fixed_expenses.views import FixedExpenseOccurrenceViewSet, FixedExpenseViewSet
 from inventory.views import (
     MaterialConsumptionViewSet,
     MaterialOpenUnitViewSet,
@@ -32,6 +33,7 @@ from notifications.views import (
 
 from .views import (
     BusinessProfileView,
+    EmployeeUserDetailView,
     EmployeeUsersView,
     HealthCheckView,
     LoginView,
@@ -53,7 +55,8 @@ router.register("payments", PaymentViewSet, basename="payment")
 router.register("cash-movements", CashMovementViewSet, basename="cashmovement")
 router.register("debts", DebtViewSet, basename="debt")
 router.register("debt-payments", DebtPaymentViewSet, basename="debtpayment")
-router.register("recurring-debts", RecurringDebtViewSet, basename="recurringdebt")
+router.register("fixed-expenses", FixedExpenseViewSet, basename="fixedexpense")
+router.register("fixed-expense-occurrences", FixedExpenseOccurrenceViewSet, basename="fixedexpenseoccurrence")
 router.register("materials", MaterialViewSet, basename="material")
 router.register("suppliers", SupplierViewSet, basename="supplier")
 router.register("stock-movements", StockMovementViewSet, basename="stockmovement")
@@ -72,6 +75,7 @@ urlpatterns = [
     path("api/auth/logout/", LogoutView.as_view(), name="auth-logout"),
     path("api/auth/me/", MeView.as_view(), name="auth-me"),
     path("api/auth/employees/", EmployeeUsersView.as_view(), name="auth-employees"),
+    path("api/auth/employees/<int:pk>/", EmployeeUserDetailView.as_view(), name="auth-employee-detail"),
     path("api/auth/password-reset/", PasswordResetRequestView.as_view(), name="auth-password-reset"),
     path("api/auth/password-reset/confirm/", PasswordResetConfirmView.as_view(), name="auth-password-reset-confirm"),
     path("api/audit-log/", AuditLogView.as_view(), name="audit-log"),

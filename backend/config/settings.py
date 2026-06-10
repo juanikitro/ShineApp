@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "workorders",
     "finance",
     "debts",
+    "fixed_expenses",
     "inventory",
     "quotes",
     "dashboard",

@@ -19,4 +19,5 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Regla: toda feature nueva debe tener su ModelAdmin registrado](2026-06-02-regla-feature-nueva-admin-registrado.md)
 - [Estados de reserva configurables por negocio](2026-06-05-estados-reserva-configurables.md)
 - [Soft delete homogeneo con `SoftDeleteMixin` y convivencia con `is_active`](2026-06-08-soft-delete-mixin-global.md)
+- [Gastos fijos: egresos reales con auto-pago](2026-06-10-gastos-fijos-egresos-reales.md)
 - [Sectores configurables por negocio](2026-06-10-sectores-configurables-por-negocio.md)

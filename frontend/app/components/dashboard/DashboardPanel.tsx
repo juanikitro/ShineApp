@@ -8,7 +8,11 @@ import { CalendarDays, CreditCard, Info } from 'lucide-react'
 
 import { Stagger, StaggerItem } from '@/app/components/motion/Stagger'
 import { Empty } from '@/app/components/ui/Empty'
+import { CajaSparkline } from '@/app/components/ui/CajaSparkline'
 import { MetricCard } from '@/app/components/ui/MetricCard'
+import { RiskMeter } from '@/app/components/ui/RiskMeter'
+import { DashboardCashByCategory } from './DashboardCashByCategory'
+import { DashboardCrossReadings } from './DashboardCrossReadings'
 import { Panel } from '@/app/components/ui/Panel'
 import { RecordCard } from '@/app/components/ui/RecordCard'
 import { SkeletonMetric } from '@/app/components/ui/Skeleton'
@@ -57,6 +61,28 @@ function dashboardShareBar(value: unknown, maxValue: unknown) {
 		<span
 			className="dashboard-sharebar"
 			style={{ ['--share']: `${pct}%` } as CSSProperties}
+			aria-hidden="true"
+		/>
+	)
+}
+
+const DASHBOARD_AGING_RISK: Record<string, string> = {
+	'0_7': 'var(--risk-fresh)',
+	'8_15': 'var(--risk-mid)',
+	'16_30': 'var(--risk-mid)',
+	'31_plus': 'var(--risk-high)',
+}
+
+// Barra de antiguedad coloreada por riesgo: fresco neutro, vencido en rojo.
+function dashboardAgingBar(bucket: AnyRecord, maxValue: unknown) {
+	const pct = dashboardSharePct(bucket.amount, maxValue)
+	const fill = DASHBOARD_AGING_RISK[String(bucket.id ?? '')] ?? 'var(--risk-mid)'
+	return (
+		<span
+			className="dashboard-sharebar"
+			style={
+				{ ['--share']: `${pct}%`, ['--bar-fill']: fill } as CSSProperties
+			}
 			aria-hidden="true"
 		/>
 	)
@@ -350,7 +376,7 @@ export function DashboardPanel({
 							maximumFractionDigits: 1,
 						})
 						const prefix = delta > 0 ? '+' : delta < 0 ? '-' : ''
-						content = `${prefix}${percent}% ${label}`
+						content = `${prefix}${percent}% ${label} (${money(previousValue)})`
 					}
 				}
 			}
@@ -427,7 +453,6 @@ export function DashboardPanel({
 									<MetricCard
 										className="dashboard-executive-metric"
 										label="Facturado"
-										sparkline={dashboardSeriesValues('billed_total')}
 										value={money(dashboardBilledTotal)}
 										numericValue={dashboardBilledTotal}
 										format={money}
@@ -442,7 +467,6 @@ export function DashboardPanel({
 									<MetricCard
 										className="dashboard-executive-metric"
 										label="Margen estimado"
-										sparkline={dashboardSeriesValues('estimated_margin_total')}
 										value={money(dashboardEstimatedMarginTotal)}
 										numericValue={dashboardEstimatedMarginTotal}
 										format={money}
@@ -457,7 +481,11 @@ export function DashboardPanel({
 									<MetricCard
 										className="dashboard-executive-metric"
 										label="Caja real"
-										sparkline={dashboardSeriesValues('cashflow_balance')}
+										footer={
+											<CajaSparkline
+												values={dashboardSeriesValues('cashflow_balance')}
+											/>
+										}
 										value={money(dashboardCashflowBalance)}
 										numericValue={dashboardCashflowBalance}
 										format={money}
@@ -475,6 +503,7 @@ export function DashboardPanel({
 											dashboardBalanceDueTotal > 0 && 'metric--attention',
 										)}
 										label="Por cobrar"
+										footer={<RiskMeter buckets={dashboardReceivablesAging} />}
 										value={money(dashboardBalanceDueTotal)}
 										numericValue={dashboardBalanceDueTotal}
 										format={money}
@@ -516,7 +545,9 @@ export function DashboardPanel({
 									</button>
 								</RecordCard>
 							</Panel>
-							<div className="dashboard-insight-grid">
+							<DashboardCrossReadings dashboard={dashboard} />
+								<DashboardCashByCategory dashboard={dashboard} />
+								<div className="dashboard-insight-grid">
 								<Panel
 									title="Composicion economica"
 									subtitle="Separacion entre facturado, cobrado, costos y obligaciones."
@@ -525,7 +556,6 @@ export function DashboardPanel({
 										<StaggerItem>
 											<MetricCard
 												label="Cobrado"
-											sparkline={dashboardSeriesValues('collected_total')}
 												value={money(dashboardCollectedTotal)}
 												numericValue={dashboardCollectedTotal}
 												format={money}
@@ -592,7 +622,7 @@ export function DashboardPanel({
 																key={bucket.id ?? bucket.label}
 															>
 																<span>{bucket.label}</span>
-																<strong>{money(bucket.amount)}</strong>{dashboardShareBar(bucket.amount, dashboardReceivablesAgingMax)}
+																<strong>{money(bucket.amount)}</strong>{dashboardAgingBar(bucket, dashboardReceivablesAgingMax)}
 																<small>
 																	{dashboardCountText(
 																		numberValue(bucket.count),
