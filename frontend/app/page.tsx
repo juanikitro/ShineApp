@@ -778,6 +778,11 @@ export default function Home() {
 	const [fixedExpenseForm, setFixedExpenseForm] = useState<AnyRecord>(
 		blankFixedExpenseForm(today),
 	)
+	const [payOccurrenceForm, setPayOccurrenceForm] = useState<{
+		id: string | number
+		method: string
+		paid_at: string
+	}>({ id: '', method: 'transfer', paid_at: today })
 	const [debtPaymentForm, setDebtPaymentForm] = useState<AnyRecord>(
 		blankDebtPaymentForm(today),
 	)
@@ -1470,6 +1475,7 @@ export default function Home() {
 			debt: 'debt.concept',
 			'debt-payment': 'debt-payment.debt',
 			'fixed-expense': 'fixed-expense.concept',
+			'fixed-expense-pay': 'fixed-expense-pay.method',
 			material: 'material.name',
 			supplier: 'supplier.name',
 			'stock-movement': 'stock-movement.type',
@@ -9690,12 +9696,28 @@ export default function Home() {
 		})
 	}
 
-	async function payFixedExpenseOccurrence(id: string | number) {
+	function payFixedExpenseOccurrence(id: string | number) {
+		setPayOccurrenceForm({ id, method: 'transfer', paid_at: today })
+		setFormModal({ kind: 'fixed-expense-pay' })
+	}
+
+	async function confirmFixedExpenseOccurrencePayment(event: FormEvent) {
+		event.preventDefault()
 		await runAction(
-			async () =>
-				apiFetch<AnyRecord>(`/fixed-expense-occurrences/${id}/pay/`, {
-					method: 'POST',
-				}),
+			async () => {
+				const result = await apiFetch<AnyRecord>(
+					`/fixed-expense-occurrences/${payOccurrenceForm.id}/pay/`,
+					{
+						method: 'POST',
+						body: JSON.stringify({
+							method: payOccurrenceForm.method,
+							paid_at: payOccurrenceForm.paid_at,
+						}),
+					},
+				)
+				formModalExit.close()
+				return result
+			},
 			{
 				successTitle: entityFeedbackTitle('fixed-expense-occurrence', 'updated'),
 			},
@@ -11118,6 +11140,58 @@ export default function Home() {
 							focusNextOnEnter={focusNextOnEnter}
 							submitting={isActionPending('save:fixed-expense')}
 						/>
+					</Modal>
+				) : null}
+				{canViewEconomy && formModal?.kind === 'fixed-expense-pay' ? (
+					<Modal
+						key="form-fixed-expense-pay"
+						title="Registrar pago de gasto fijo"
+						onClose={formModalExit.close}
+					>
+						<form
+							onSubmit={confirmFixedExpenseOccurrencePayment}
+							className="form-body"
+						>
+							<Field label="Metodo de pago">
+								<select
+									id="fixed-expense-pay.method"
+									value={payOccurrenceForm.method}
+									onChange={(e) =>
+										setPayOccurrenceForm({
+											...payOccurrenceForm,
+											method: e.target.value,
+										})
+									}
+								>
+									{Object.entries(debtPaymentMethodLabels).map(
+										([value, label]) => (
+											<option key={value} value={value}>
+												{label}
+											</option>
+										),
+									)}
+								</select>
+							</Field>
+							<Field label="Fecha de pago">
+								<input
+									id="fixed-expense-pay.paid_at"
+									type="date"
+									value={payOccurrenceForm.paid_at}
+									onChange={(e) =>
+										setPayOccurrenceForm({
+											...payOccurrenceForm,
+											paid_at: e.target.value,
+										})
+									}
+								/>
+							</Field>
+							<div className="form-actions">
+								<button type="submit" className="primary">
+									<CreditCard size={16} />
+									Confirmar pago
+								</button>
+							</div>
+						</form>
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'debt-payment' ? (

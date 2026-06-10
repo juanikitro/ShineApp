@@ -452,3 +452,24 @@ def test_delete_removes_pending_keeps_paid(api_client, default_business):
     remaining = FixedExpenseOccurrence.objects.filter(fixed_expense_id=plan.id)
     assert remaining.count() == 1
     assert remaining.get().status == FixedExpenseOccurrence.Status.PAID
+
+
+@pytest.mark.django_db
+def test_dashboard_pending_fixed_expenses_projection(api_client, default_business):
+    make_plan(
+        default_business,
+        start_date=date(2025, 2, 1),
+        max_cycles=1,
+        auto_pay=False,
+        amount=Decimal("8000.00"),
+    )
+    materialize_due(business=default_business, today=date(2025, 2, 1))
+
+    summary = api_client.get(
+        reverse("dashboard-summary"), {"from": "2025-02-01", "to": "2025-02-28"}
+    )
+    assert summary.status_code == 200
+    assert Decimal(summary.data["fixed_expenses_pending_total"]) == Decimal("8000.00")
+    assert summary.data["fixed_expenses_pending_count"] == 1
+    # Pending must NOT affect cashflow (caja real = pagado)
+    assert Decimal(summary.data["cashflow_expense_total"]) == Decimal("0.00")
