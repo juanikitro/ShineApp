@@ -2,11 +2,11 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
 import {
-	agendaServiceBucketForReservation,
+	agendaSectorForReservation,
 	buildAgendaOperationalRows,
 	buildAgendaCalendarSegments,
 	buildWorkOrderByReservation,
-	filterAgendaReservationsByBucket,
+	filterAgendaReservationsBySector,
 } from './agenda'
 
 test('builds one visual segment for a reservation spanning three visible days', () => {
@@ -86,54 +86,31 @@ test('places overlapping visual segments on separate rows', () => {
 	)
 })
 
-test('assigns agenda reservations to wash or detailing by primary service type', () => {
-	const serviceTypes = {
-		1: 'wash',
-		2: 'detailing',
-		3: 'combo',
-	}
+test('filters reservations by sector id using reservation.sector field', () => {
 	const reservations = [
-		{ id: 10, service: 1, items: [{ service: 2 }] },
-		{ id: 11, service: 2, items: [{ service: 2 }] },
-		{ id: 12, service: 3, items: [{ service: 3 }] },
-		{ id: 13, items: [{ service: 2 }] },
-		{ id: 14, service: 999 },
+		{ id: 10, sector: 1 },
+		{ id: 11, sector: 2 },
+		{ id: 12, sector: 1 },
+		{ id: 13, sector: null },
+		{ id: 14 },
 	]
 
-	assert.equal(
-		agendaServiceBucketForReservation(reservations[0], serviceTypes),
-		'wash',
-	)
-	assert.equal(
-		agendaServiceBucketForReservation(reservations[1], serviceTypes),
-		'detailing',
-	)
-	assert.equal(
-		agendaServiceBucketForReservation(reservations[2], serviceTypes),
-		'wash',
-	)
-	assert.equal(
-		agendaServiceBucketForReservation(reservations[3], serviceTypes),
-		'detailing',
-	)
-	assert.equal(
-		agendaServiceBucketForReservation(reservations[4], serviceTypes),
-		'wash',
-	)
+	assert.equal(agendaSectorForReservation(reservations[0]), 1)
+	assert.equal(agendaSectorForReservation(reservations[1]), 2)
+	assert.equal(agendaSectorForReservation(reservations[3]), null)
+	assert.equal(agendaSectorForReservation(reservations[4]), null)
 
 	assert.deepEqual(
-		filterAgendaReservationsByBucket(reservations, serviceTypes, 'wash').map(
-			(item) => item.id,
-		),
-		[10, 12, 14],
+		filterAgendaReservationsBySector(reservations, 1).map((r) => r.id),
+		[10, 12],
 	)
 	assert.deepEqual(
-		filterAgendaReservationsByBucket(
-			reservations,
-			serviceTypes,
-			'detailing',
-		).map((item) => item.id),
-		[11, 13],
+		filterAgendaReservationsBySector(reservations, 2).map((r) => r.id),
+		[11],
+	)
+	assert.deepEqual(
+		filterAgendaReservationsBySector(reservations, null).map((r) => r.id),
+		[10, 11, 12, 13, 14],
 	)
 })
 

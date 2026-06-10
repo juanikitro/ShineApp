@@ -8,12 +8,7 @@ from catalog.models import Service
 from customers.models import Customer, Vehicle
 from quotes.models import Quote, QuoteItem
 from quotes.serializers import QuoteSerializer
-from scheduling.models import (
-    DETAILING_BUCKET,
-    WASH_BUCKET,
-    Reservation,
-    bucket_for_service_type,
-)
+from scheduling.models import Reservation
 from scheduling.serializers import ReservationSerializer
 
 from .models import PublicRequest, PublicRequestItem
@@ -132,7 +127,7 @@ class PublicLandingServiceSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "icon",
-            "service_type",
+            "sector",
             "estimated_duration_minutes",
             "notes",
             "base_price",
@@ -334,20 +329,24 @@ class PublicLandingRequestSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def _validate_capacity(business, day, services):
-        used_per_bucket = {}
+        used_per_sector = {}
+        sector_objects = {}
         for service in services:
-            bucket = bucket_for_service_type(getattr(service, "service_type", None))
-            used_per_bucket.setdefault(bucket, 0)
-            used_per_bucket[bucket] += 1
-        for bucket, requested in used_per_bucket.items():
-            capacity = Reservation.capacity_for_day(day, business=business, bucket=bucket)
-            used_slots = Reservation.used_slots_for_day(day, business=business, bucket=bucket)
+            sector = getattr(service, "sector", None)
+            if sector is None:
+                continue
+            used_per_sector.setdefault(sector.id, 0)
+            used_per_sector[sector.id] += 1
+            sector_objects[sector.id] = sector
+        for sector_id, requested in used_per_sector.items():
+            sector = sector_objects[sector_id]
+            capacity = Reservation.capacity_for_day(day, business=business, sector=sector)
+            used_slots = Reservation.used_slots_for_day(day, business=business, sector=sector)
             if used_slots + requested > capacity:
-                bucket_label = "detailing" if bucket == DETAILING_BUCKET else "lavado"
                 raise serializers.ValidationError(
                     {
                         "preferred_day": (
-                            f"La capacidad de turnos de {bucket_label} para este dia ya esta completa."
+                            f"La capacidad de turnos de {sector.name} para este dia ya esta completa."
                         )
                     }
                 )

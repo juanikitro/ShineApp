@@ -17,6 +17,7 @@ from customers.serializers import CustomerSerializer
 from debts.models import Debt, DebtPayment
 from finance.cash import cash_movement_cashflow_effect
 from finance.models import CashMovement, Payment
+from fixed_expenses.models import FixedExpenseOccurrence
 from inventory.models import MaterialConsumption, MaterialPurchase, StockMovement, StockMovementLine
 from workorders.metrics import build_work_order_financial_metrics
 from workorders.models import WorkOrder
@@ -130,6 +131,18 @@ def work_order_rankings(work_orders, metrics):
             "work_orders_count": 0,
         }
     )
+    sectors = defaultdict(
+        lambda: {
+            "sector_id": None,
+            "sector_name": "",
+            "sector_color": "",
+            "billed_total": ZERO,
+            "collected_total": ZERO,
+            "balance_due_total": ZERO,
+            "estimated_margin_total": ZERO,
+            "work_orders_count": 0,
+        }
+    )
     order_margins = []
 
     for order in work_orders:
@@ -160,6 +173,20 @@ def work_order_rankings(work_orders, metrics):
             group["balance_due_total"] += balance_due
             group["estimated_margin_total"] += estimated_margin
             group["work_orders_count"] += 1
+        if order.sector_id:
+            sector_group = sectors[order.sector_id]
+            sector_group.update(
+                {
+                    "sector_id": order.sector_id,
+                    "sector_name": order.sector.name if order.sector else "",
+                    "sector_color": order.sector.color if order.sector else "",
+                }
+            )
+            sector_group["billed_total"] += billed
+            sector_group["collected_total"] += collected
+            sector_group["balance_due_total"] += balance_due
+            sector_group["estimated_margin_total"] += estimated_margin
+            sector_group["work_orders_count"] += 1
         order_margins.append(
             {
                 "id": order.id,
@@ -195,13 +222,21 @@ def work_order_rankings(work_orders, metrics):
             key=lambda item: item["estimated_margin"],
             reverse=True,
         )[:5],
+        "by_sector": [
+            ranking_entry_for_group(group)
+            for group in sorted(
+                sectors.values(),
+                key=lambda item: item["billed_total"],
+                reverse=True,
+            )
+        ],
     }
 
 
 def work_order_financials(queryset, today=None):
     today = today or date.today()
     work_orders = list(
-        queryset.select_related("customer", "vehicle", "service", "reservation")
+        queryset.select_related("customer", "vehicle", "service", "sector", "reservation")
     )
     metrics = build_work_order_financial_metrics(work_orders)
     billed_total = sum((order.total_amount or ZERO for order in work_orders), ZERO)
@@ -393,6 +428,19 @@ def material_purchases_total_for_period(business, date_from, date_to):
     return decimal_sum(purchases, "total_cost") + decimal_sum(stock_purchases, "total_amount")
 
 
+def fixed_expenses_pending_for_period(business, date_from, date_to):
+    qs = FixedExpenseOccurrence.objects.filter(
+        business=business,
+        status=FixedExpenseOccurrence.Status.PENDING,
+        period_date__gte=date_from,
+        period_date__lte=date_to,
+    )
+    return {
+        "fixed_expenses_pending_total": qs.aggregate(total=Sum("amount"))["total"] or ZERO,
+        "fixed_expenses_pending_count": qs.count(),
+    }
+
+
 def material_cost_rankings_for_period(business, date_from, date_to):
     materials = defaultdict(
         lambda: {
@@ -469,6 +517,7 @@ def dashboard_period_summary(business, date_from, date_to):
     financials = work_order_financials(work_orders)
     material_cost_total = material_cost_total_for_period(business, date_from, date_to)
     cashflow_totals = cashflow_totals_for_period(business, date_from, date_to)
+    fixed_pending = fixed_expenses_pending_for_period(business, date_from, date_to)
     rankings = {
         **financials["rankings"],
         "top_materials_by_cost": material_cost_rankings_for_period(business, date_from, date_to),
@@ -481,6 +530,7 @@ def dashboard_period_summary(business, date_from, date_to):
         "material_purchases_total": material_purchases_total_for_period(business, date_from, date_to),
         "rankings": rankings,
         **cashflow_totals,
+        **fixed_pending,
     }
 
 
@@ -989,6 +1039,8 @@ class DashboardSummaryView(APIView):
                 "cashflow_income_total": summary["cashflow_income_total"],
                 "cashflow_expense_total": summary["cashflow_expense_total"],
                 "cashflow_balance": summary["cashflow_balance"],
+                "fixed_expenses_pending_total": summary["fixed_expenses_pending_total"],
+                "fixed_expenses_pending_count": summary["fixed_expenses_pending_count"],
                 "margin_basis": margin_basis(),
                 "cost_breakdown": cost_breakdown_for(summary),
                 "comparison": comparison_for(summary, previous_summary, previous_has_activity),

@@ -25,6 +25,11 @@ class WorkOrder(SoftDeleteMixin):
     customer = models.ForeignKey("customers.Customer", related_name="work_orders", on_delete=models.PROTECT)
     vehicle = models.ForeignKey("customers.Vehicle", related_name="work_orders", on_delete=models.PROTECT)
     service = models.ForeignKey("catalog.Service", related_name="work_orders", on_delete=models.PROTECT)
+    sector = models.ForeignKey(
+        "catalog.Sector",
+        related_name="work_orders",
+        on_delete=models.PROTECT,
+    )
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     internal_notes = models.TextField(blank=True)
     received_at = models.DateTimeField(default=timezone.now)

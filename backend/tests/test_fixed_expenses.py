@@ -9,6 +9,7 @@ from fixed_expenses.materialization import (
     advance_date,
     materialize_due,
     next_occurrence,
+    register_occurrence_payment,
 )
 from fixed_expenses.models import FixedExpense, FixedExpenseOccurrence
 from fixed_expenses.serializers import FixedExpenseSerializer
@@ -123,7 +124,7 @@ def test_manual_plan_materializes_pending_without_movement(default_business):
 
 
 @pytest.mark.django_db
-def test_closed_day_auto_pay_registers_adjustment(default_business):
+def test_closed_day_auto_pay_posts_adjustment_to_open_day(default_business):
     CashClosure.objects.create(
         business=default_business,
         day=date(2025, 3, 1),
@@ -133,11 +134,15 @@ def test_closed_day_auto_pay_registers_adjustment(default_business):
     )
     plan = make_plan(default_business, start_date=date(2025, 3, 1), max_cycles=1, auto_pay=True)
 
-    materialize_due(business=default_business, today=date(2025, 3, 1))
+    # materializamos "hoy" un dia posterior abierto: el ajuste se postea ahi
+    materialize_due(business=default_business, today=date(2025, 4, 15))
 
     occurrence = plan.occurrences.get()
     assert occurrence.status == FixedExpenseOccurrence.Status.PAID
-    assert occurrence.cash_movement.adjusts_closed_day == date(2025, 3, 1)
+    movement = occurrence.cash_movement
+    assert movement.occurred_at.date() == date(2025, 4, 15)  # posteado a dia abierto
+    assert movement.adjusts_closed_day == date(2025, 3, 1)  # tag al periodo cerrado
+    assert occurrence.paid_at == date(2025, 4, 15)
 
 
 @pytest.mark.django_db
@@ -259,8 +264,8 @@ def test_create_validations_reject_bad_payloads(api_client, default_business):
 
 
 @pytest.mark.django_db
-def test_delete_plan_soft_deletes_and_keeps_occurrences(api_client, default_business):
-    plan = make_plan(default_business, start_date=date(2025, 1, 1), max_cycles=2, auto_pay=False)
+def test_delete_plan_soft_deletes_and_keeps_paid_occurrences(api_client, default_business):
+    plan = make_plan(default_business, start_date=date(2025, 1, 1), max_cycles=2, auto_pay=True)
     materialize_due(business=default_business, today=date(2025, 12, 1))
     assert plan.occurrences.count() == 2
 
@@ -311,3 +316,160 @@ def test_occurrence_delete_soft_deletes_linked_movement(default_business):
 
     assert not FixedExpenseOccurrence.objects.filter(pk=occurrence.id).exists()
     assert not CashMovement.objects.filter(pk=movement_id).exists()
+
+
+@pytest.mark.django_db
+def test_closed_day_adjustment_counts_in_settlement_period(api_client, default_business):
+    CashClosure.objects.create(
+        business=default_business,
+        day=date(2025, 3, 1),
+        total_income=0,
+        total_expense=0,
+        balance=0,
+    )
+    make_plan(
+        default_business,
+        start_date=date(2025, 3, 1),
+        max_cycles=1,
+        auto_pay=True,
+        amount=Decimal("5000.00"),
+    )
+    materialize_due(business=default_business, today=date(2025, 4, 15))
+
+    april = api_client.get(
+        reverse("dashboard-summary"), {"from": "2025-04-01", "to": "2025-04-30"}
+    )
+    assert Decimal(april.data["cashflow_expense_total"]) >= Decimal("5000.00")
+
+    # el dia cerrado de marzo no se altera: el ajuste cuenta en abril, no en marzo
+    march = api_client.get(
+        reverse("dashboard-summary"), {"from": "2025-03-01", "to": "2025-03-31"}
+    )
+    assert Decimal(march.data["cashflow_expense_total"]) == Decimal("0.00")
+
+
+@pytest.mark.django_db
+def test_unpay_reverts_occurrence_and_deletes_movement(api_client, default_business):
+    plan = make_plan(default_business, start_date=date(2025, 1, 1), max_cycles=1, auto_pay=True)
+    materialize_due(business=default_business, today=date(2025, 1, 1))
+    occurrence = plan.occurrences.get()
+    movement_id = occurrence.cash_movement_id
+    assert movement_id is not None
+
+    response = api_client.post(reverse("fixedexpenseoccurrence-unpay", args=[occurrence.id]))
+    assert response.status_code == 200, response.data
+    assert response.data["status"] == FixedExpenseOccurrence.Status.PENDING
+
+    occurrence.refresh_from_db()
+    assert occurrence.cash_movement is None
+    assert occurrence.paid_at is None
+    assert not CashMovement.objects.filter(pk=movement_id).exists()
+
+
+@pytest.mark.django_db
+def test_unpay_blocked_when_cash_day_closed(api_client, default_business):
+    plan = make_plan(default_business, start_date=date(2025, 1, 10), max_cycles=1, auto_pay=True)
+    materialize_due(business=default_business, today=date(2025, 1, 10))
+    occurrence = plan.occurrences.get()
+    CashClosure.objects.create(
+        business=default_business,
+        day=occurrence.cash_movement.occurred_at.date(),
+        total_income=0,
+        total_expense=0,
+        balance=0,
+    )
+
+    response = api_client.post(reverse("fixedexpenseoccurrence-unpay", args=[occurrence.id]))
+    assert response.status_code == 400
+
+    occurrence.refresh_from_db()
+    assert occurrence.status == FixedExpenseOccurrence.Status.PAID
+
+
+@pytest.mark.django_db
+def test_edit_propagates_amount_to_pending_occurrence(api_client, default_business):
+    plan = make_plan(
+        default_business,
+        start_date=date(2025, 1, 1),
+        max_cycles=1,
+        auto_pay=False,
+        amount=Decimal("10000.00"),
+    )
+    materialize_due(business=default_business, today=date(2025, 1, 1))
+    occurrence = plan.occurrences.get()
+    assert occurrence.amount == Decimal("10000.00")
+
+    response = api_client.patch(
+        reverse("fixedexpense-detail", args=[plan.id]),
+        {"amount": "12500.00", "expense_subcategory": "Internet"},
+        format="json",
+    )
+    assert response.status_code == 200, response.data
+
+    occurrence.refresh_from_db()
+    assert occurrence.amount == Decimal("12500.00")
+    assert occurrence.expense_subcategory == "Internet"
+
+
+@pytest.mark.django_db
+def test_edit_does_not_touch_paid_occurrence(api_client, default_business):
+    plan = make_plan(
+        default_business,
+        start_date=date(2025, 1, 1),
+        max_cycles=1,
+        auto_pay=True,
+        amount=Decimal("10000.00"),
+    )
+    materialize_due(business=default_business, today=date(2025, 1, 1))
+    occurrence = plan.occurrences.get()
+    assert occurrence.status == FixedExpenseOccurrence.Status.PAID
+
+    api_client.patch(
+        reverse("fixedexpense-detail", args=[plan.id]),
+        {"amount": "99999.00"},
+        format="json",
+    )
+    occurrence.refresh_from_db()
+    assert occurrence.amount == Decimal("10000.00")  # pagada: no se toca
+
+
+@pytest.mark.django_db
+def test_delete_removes_pending_keeps_paid(api_client, default_business):
+    plan = make_plan(
+        default_business, start_date=date(2025, 1, 1), max_cycles=2, auto_pay=False
+    )
+    materialize_due(business=default_business, today=date(2025, 12, 1))
+    occurrences = list(plan.occurrences.all())
+    assert len(occurrences) == 2
+
+    register_occurrence_payment(occurrences[0])
+    occurrences[0].refresh_from_db()
+    assert occurrences[0].status == FixedExpenseOccurrence.Status.PAID
+
+    deleted = api_client.delete(reverse("fixedexpense-detail", args=[plan.id]))
+    assert deleted.status_code == 204
+
+    remaining = FixedExpenseOccurrence.objects.filter(fixed_expense_id=plan.id)
+    assert remaining.count() == 1
+    assert remaining.get().status == FixedExpenseOccurrence.Status.PAID
+
+
+@pytest.mark.django_db
+def test_dashboard_pending_fixed_expenses_projection(api_client, default_business):
+    make_plan(
+        default_business,
+        start_date=date(2025, 2, 1),
+        max_cycles=1,
+        auto_pay=False,
+        amount=Decimal("8000.00"),
+    )
+    materialize_due(business=default_business, today=date(2025, 2, 1))
+
+    summary = api_client.get(
+        reverse("dashboard-summary"), {"from": "2025-02-01", "to": "2025-02-28"}
+    )
+    assert summary.status_code == 200
+    assert Decimal(summary.data["fixed_expenses_pending_total"]) == Decimal("8000.00")
+    assert summary.data["fixed_expenses_pending_count"] == 1
+    # Pending must NOT affect cashflow (caja real = pagado)
+    assert Decimal(summary.data["cashflow_expense_total"]) == Decimal("0.00")

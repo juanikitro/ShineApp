@@ -50,11 +50,13 @@ def make_order(customer, vehicle, service, *, total_amount, created_at):
 
 
 def base_catalog():
+    from catalog.sector_defaults import ensure_default_sectors
+    lavadero = ensure_default_sectors(BusinessAccount.get_default())["lavadero"]
     customer = Customer.objects.create(name="Serie Cliente")
     vehicle = Vehicle.objects.create(customer=customer, brand="Ford", model="Focus")
     service = Service.objects.create(
         name="Lavado",
-        service_type=Service.ServiceType.WASH,
+        sector=lavadero,
         base_price=Decimal("10000.00"),
         estimated_duration_minutes=60,
     )

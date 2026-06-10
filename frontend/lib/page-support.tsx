@@ -63,6 +63,7 @@ type FormModalKind =
 	| 'debt'
 	| 'debt-payment'
 	| 'fixed-expense'
+	| 'fixed-expense-pay'
 	| 'material'
 	| 'supplier'
 	| 'stock-movement'
@@ -576,6 +577,7 @@ function blankDebtPaymentForm(paidAt: string) {
 
 function blankFixedExpenseForm(startDate: string) {
 	return {
+		id: '',
 		concept: '',
 		supplier: '',
 		amount: '',

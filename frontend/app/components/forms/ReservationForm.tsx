@@ -46,8 +46,7 @@ type ReservationFormProps = {
 	openingTime?: string | null
 	closingTime?: string | null
 	enforceCapacity: boolean
-	defaultCapacityWash: number
-	defaultCapacityDetailing: number
+	sectors: AnyRecord[]
 	services: AnyRecord[]
 	reservations: AnyRecord[]
 	openQuickCreate: (kind: string, target: string) => void
@@ -82,8 +81,7 @@ export function ReservationForm({
 	openingTime,
 	closingTime,
 	enforceCapacity,
-	defaultCapacityWash,
-	defaultCapacityDetailing,
+	sectors,
 	services,
 	reservations,
 	openQuickCreate,
@@ -109,17 +107,15 @@ export function ReservationForm({
 			day: selectedDay,
 			allowOverlap,
 			enforceCapacity,
-			defaultCapacityWash,
-			defaultCapacityDetailing,
+			sectors,
 			reservations,
 			services,
 		})
 	}, [
 		allowOverlap,
-		defaultCapacityDetailing,
-		defaultCapacityWash,
 		enforceCapacity,
 		reservations,
+		sectors,
 		selectedDay,
 		services,
 	])
@@ -152,53 +148,56 @@ export function ReservationForm({
 			}),
 		[closingTime, openingTime, reservationForm.start_time, startTimeMinutes],
 	)
-	const selectedBuckets = useMemo(() => {
-		const result = { wash: 0, detailing: 0 }
-		const typeById = new Map<number, string>()
+	const selectedSectors = useMemo(() => {
+		const sectorById = new Map<number, number>()
 		for (const service of services) {
 			const id = Number(service.id)
-			if (Number.isFinite(id) && id > 0) {
-				typeById.set(id, String(service.service_type ?? '').toLowerCase())
+			if (!Number.isFinite(id) || id <= 0) continue
+			const sectorId = Number(service.sector)
+			if (Number.isFinite(sectorId) && sectorId > 0) {
+				sectorById.set(id, sectorId)
 			}
 		}
+		const result: Record<number, number> = {}
 		for (const item of items) {
 			const serviceId = Number(item.service)
 			if (!Number.isFinite(serviceId) || serviceId <= 0) continue
-			const type = typeById.get(serviceId) ?? ''
-			if (type === 'detailing') result.detailing += 1
-			else result.wash += 1
+			const sectorId = sectorById.get(serviceId)
+			if (sectorId != null) {
+				result[sectorId] = (result[sectorId] ?? 0) + 1
+			}
 		}
 		return result
 	}, [items, services])
 	const capacityWarning = useMemo(() => {
 		if (!availability || !availability.enforceCapacity) return null
+		const sectorById = new Map<number, AnyRecord>()
+		for (const sector of sectors) {
+			const id = Number(sector.id)
+			if (Number.isFinite(id) && id > 0) sectorById.set(id, sector)
+		}
 		const issues: string[] = []
-		if (
-			selectedBuckets.wash > 0 &&
-			availability.wash.available_slots < selectedBuckets.wash
-		) {
-			issues.push(
-				`No hay cupo de lavado disponible (${availability.wash.used_slots}/${availability.wash.max_slots}).`,
-			)
+		for (const [sectorIdStr, needed] of Object.entries(selectedSectors)) {
+			const sectorId = Number(sectorIdStr)
+			const bucket = availability.sectors[sectorId]
+			if (!bucket) continue
+			if (bucket.available_slots < needed) {
+				const sectorName = sectorById.get(sectorId)?.name ?? `Sector ${sectorId}`
+				issues.push(
+					`No hay cupo de ${sectorName} disponible (${bucket.used_slots}/${bucket.max_slots}).`,
+				)
+			}
 		}
-		if (
-			selectedBuckets.detailing > 0 &&
-			availability.detailing.available_slots < selectedBuckets.detailing
-		) {
-			issues.push(
-				`No hay cupo de detailing disponible (${availability.detailing.used_slots}/${availability.detailing.max_slots}).`,
-			)
-		}
-		if (selectedBuckets.wash === 0 && selectedBuckets.detailing === 0) {
-			if (
-				availability.wash.available_slots === 0 &&
-				availability.detailing.available_slots === 0
-			) {
-				issues.push('Este dia ya no tiene cupo de lavado ni de detailing.')
+		if (Object.keys(selectedSectors).length === 0) {
+			const allFull =
+				Object.values(availability.sectors).length > 0 &&
+				Object.values(availability.sectors).every((b) => b.available_slots === 0)
+			if (allFull) {
+				issues.push('Este dia ya no tiene cupo disponible.')
 			}
 		}
 		return issues.length ? issues.join(' ') : null
-	}, [availability, selectedBuckets])
+	}, [availability, sectors, selectedSectors])
 	const isPastDay = Boolean(selectedDay && selectedDay < today)
 	const blockSubmit = Boolean(capacityWarning) || isPastDay
 	return (
@@ -391,8 +390,23 @@ export function ReservationForm({
 					{capacityWarning ??
 						(availability.enforceCapacity ? (
 							<>
-								{formatCapacityLabel(availability.wash, 'Lavado')} ·{' '}
-								{formatCapacityLabel(availability.detailing, 'Detailing')}
+								{Object.entries(availability.sectors).map(
+									([sectorIdStr, bucket], i) => {
+										const sectorName =
+											sectors.find(
+												(s) => String(s.id) === sectorIdStr,
+											)?.name ?? `Sector ${sectorIdStr}`
+										return (
+											<span key={sectorIdStr}>
+												{i > 0 && ' · '}
+												{formatCapacityLabel(
+													bucket,
+													String(sectorName),
+												)}
+											</span>
+										)
+									},
+								)}
 							</>
 						) : (
 							'Sin límite de cupos'

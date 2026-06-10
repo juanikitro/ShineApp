@@ -39,9 +39,12 @@ def customer(db):
 
 @pytest.fixture
 def priced_service(db):
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    lavadero = ensure_default_sectors(BusinessAccount.get_default())["lavadero"]
     return Service.objects.create(
         name="Lavado premium",
-        service_type=Service.ServiceType.WASH,
+        sector=lavadero,
         base_price=Decimal("15000.00"),
         price_moto=Decimal("8000.00"),
         price_auto=Decimal("15000.00"),
@@ -75,9 +78,12 @@ def test_price_for_resolves_each_vehicle_type(priced_service):
 
 @pytest.mark.django_db
 def test_price_for_falls_back_to_base_when_type_missing_or_unset(db):
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    lavadero = ensure_default_sectors(BusinessAccount.get_default())["lavadero"]
     service = Service.objects.create(
         name="Solo base",
-        service_type=Service.ServiceType.WASH,
+        sector=lavadero,
         base_price=Decimal("12000.00"),
         price_moto=Decimal("5000.00"),
     )
@@ -90,9 +96,12 @@ def test_price_for_falls_back_to_base_when_type_missing_or_unset(db):
 
 @pytest.mark.django_db
 def test_price_for_respects_zero_typed_price(db):
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    lavadero = ensure_default_sectors(BusinessAccount.get_default())["lavadero"]
     service = Service.objects.create(
         name="Promo moto",
-        service_type=Service.ServiceType.WASH,
+        sector=lavadero,
         base_price=Decimal("10000.00"),
         price_moto=Decimal("0.00"),
     )
@@ -145,9 +154,12 @@ def test_reservation_items_priced_by_vehicle_type(api_client, customer, priced_s
 
 @pytest.mark.django_db
 def test_reservation_without_type_price_falls_back_to_base(api_client, customer):
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    lavadero = ensure_default_sectors(BusinessAccount.get_default())["lavadero"]
     service = Service.objects.create(
         name="Solo base",
-        service_type=Service.ServiceType.WASH,
+        sector=lavadero,
         base_price=Decimal("13000.00"),
         estimated_duration_minutes=60,
     )
@@ -288,11 +300,14 @@ def test_employer_sees_vehicle_type_prices(api_client, priced_service):
 
 @pytest.mark.django_db
 def test_service_create_persists_vehicle_type_prices(api_client):
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    lavadero = ensure_default_sectors(BusinessAccount.get_default())["lavadero"]
     response = api_client.post(
         reverse("service-list"),
         {
             "name": "Lavado full",
-            "service_type": Service.ServiceType.WASH,
+            "sector": lavadero.id,
             "base_price": "10000.00",
             "price_moto": "6000.00",
             "price_auto": "10000.00",
@@ -313,11 +328,14 @@ def test_service_create_persists_vehicle_type_prices(api_client):
 
 @pytest.mark.django_db
 def test_service_create_without_vehicle_type_prices_keeps_null_and_falls_back(api_client):
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    lavadero = ensure_default_sectors(BusinessAccount.get_default())["lavadero"]
     response = api_client.post(
         reverse("service-list"),
         {
             "name": "Solo base",
-            "service_type": Service.ServiceType.WASH,
+            "sector": lavadero.id,
             "base_price": "10000.00",
             "estimated_duration_minutes": 60,
         },
@@ -332,11 +350,14 @@ def test_service_create_without_vehicle_type_prices_keeps_null_and_falls_back(ap
 
 @pytest.mark.django_db
 def test_service_rejects_negative_vehicle_type_price(api_client):
+    from catalog.sector_defaults import ensure_default_sectors
+    from core.models import BusinessAccount
+    lavadero = ensure_default_sectors(BusinessAccount.get_default())["lavadero"]
     response = api_client.post(
         reverse("service-list"),
         {
             "name": "Negativo",
-            "service_type": Service.ServiceType.WASH,
+            "sector": lavadero.id,
             "base_price": "10000.00",
             "price_moto": "-5000.00",
             "estimated_duration_minutes": 60,
