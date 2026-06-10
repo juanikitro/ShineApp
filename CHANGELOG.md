@@ -10,6 +10,10 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-06-10
+- [Revert de deudas recurrentes (2026-06-10)](docs/registro/cambios/2026-06-10-revert-deudas-recurrentes.md)
+- [Modulo Gastos fijos (2026-06-10)](docs/registro/cambios/2026-06-10-gastos-fijos.md)
+
 ## 2026-06-09
 - [Turnera: servicios desplegables, descripciones truncadas y contacto accionable](docs/registro/cambios/2026-06-09-turnera-desplegables-contacto-maps.md)
 - [Sidebar: la flechita despliega sin navegar; el item navega y despliega](docs/registro/cambios/2026-06-09-sidebar-chevron-toggle-independiente.md)
