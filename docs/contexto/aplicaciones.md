@@ -3,7 +3,7 @@
 ## Backend Django
 
 - `customers`: clientes y vehiculos.
-- `catalog`: servicios y catalogo base.
+- `catalog`: servicios, sectores configurables y catalogo base.
 - `scheduling`: agenda diaria, reservas y capacidad.
 - `workorders`: ordenes de trabajo y cambios de estado.
 - `finance`: pagos, caja diaria y cierres.

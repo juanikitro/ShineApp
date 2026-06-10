@@ -9,6 +9,10 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Sectores fase 4 - Limpieza legacy: service_type y campos por tipo eliminados (2026-06-10)](2026-06-10-sectores-fase-4-limpieza-legacy.md)
+- [Sectores fase 3 - Dashboard segmentado y landing pública por sector (2026-06-10)](2026-06-10-sectores-fase-3-dashboard-landing.md)
+- [Sectores fase 2 - Frontend: gestión de sectores, agenda dinámica y settings (2026-06-10)](2026-06-10-sectores-fase-2-frontend.md)
+- [Sectores fase 1 - Modelo Sector, FKs denormalizados y API backend (2026-06-10)](2026-06-10-sectores-fase-1-modelo-y-backend.md)
 - [Turnera: servicios desplegables, descripciones truncadas y contacto accionable](2026-06-09-turnera-desplegables-contacto-maps.md)
 - [Sidebar: la flechita despliega sin navegar; el item navega y despliega](2026-06-09-sidebar-chevron-toggle-independiente.md)
 - [Numeros principales del CRM a 32px (fix del cascade que los achicaba)](2026-06-09-fix-tamano-numeros-kpi.md)

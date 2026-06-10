@@ -10,6 +10,12 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-06-10
+- [Sectores fase 4 - Limpieza legacy: service_type y campos por tipo eliminados (2026-06-10)](docs/registro/cambios/2026-06-10-sectores-fase-4-limpieza-legacy.md)
+- [Sectores fase 3 - Dashboard segmentado y landing pública por sector (2026-06-10)](docs/registro/cambios/2026-06-10-sectores-fase-3-dashboard-landing.md)
+- [Sectores fase 2 - Frontend: gestión de sectores, agenda dinámica y settings (2026-06-10)](docs/registro/cambios/2026-06-10-sectores-fase-2-frontend.md)
+- [Sectores fase 1 - Modelo Sector, FKs denormalizados y API backend (2026-06-10)](docs/registro/cambios/2026-06-10-sectores-fase-1-modelo-y-backend.md)
+
 ## 2026-06-09
 - [Turnera: servicios desplegables, descripciones truncadas y contacto accionable](docs/registro/cambios/2026-06-09-turnera-desplegables-contacto-maps.md)
 - [Sidebar: la flechita despliega sin navegar; el item navega y despliega](docs/registro/cambios/2026-06-09-sidebar-chevron-toggle-independiente.md)
