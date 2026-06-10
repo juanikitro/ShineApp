@@ -92,6 +92,7 @@ Reglas vivas:
 - `docs/ia/UI_CONTEXT.md`: primera lectura para UI.
 - `docs/design-brief.md`: norte de producto, tono y direccion visual.
 - `docs/design-system.md`: tokens, layout, accesibilidad y primitives.
+- `docs/design-dashboard-pattern.md`: patron reutilizable para mejorar dashboards (senales de riesgo, lecturas cruzadas, categorias).
 - `docs/inspiration.md`: referencias visuales.
 - `docs/ui-review-checklist.md`: checklist para cambios UI grandes o sensibles.
 - `assets/design-inspo/README.md`: reglas para referencias visuales.
