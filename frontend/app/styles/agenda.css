@@ -5,7 +5,7 @@
 
 .agenda-panel {
   display: grid;
-  gap: 16px;
+  gap: var(--space-4);
   min-width: 0;
   overflow: visible;
 }
@@ -24,13 +24,13 @@
 .agenda-toolbar {
   align-items: flex-start;
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   justify-content: space-between;
 }
 
 .agenda-toolbar-copy {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   min-width: 0;
 }
 
@@ -45,7 +45,7 @@
 .agenda-toolbar-tools {
   align-items: flex-end;
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   justify-items: end;
 }
 
@@ -56,13 +56,13 @@
 .agenda-toolbar p {
   color: var(--shop-ink-soft);
   font-size: var(--text-base);
-  margin: 4px 0 0;
+  margin: var(--space-1) 0 0;
 }
 
 .work-view-strip {
   align-items: flex-end;
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   justify-content: flex-start;
   margin-bottom: 10px;
   min-width: 0;
@@ -124,7 +124,7 @@
 .agenda-quick-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
   justify-content: flex-end;
 }
 
@@ -150,7 +150,7 @@
 
 .work-group-panel {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -182,7 +182,7 @@
 
 .day-strip {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
@@ -207,10 +207,10 @@
   align-items: flex-start;
   background: var(--shop-surface-raised);
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   justify-content: stretch;
   min-height: 72px;
-  padding: 12px;
+  padding: var(--space-3);
   text-align: left;
 }
 
@@ -239,7 +239,7 @@
   border-radius: var(--radius-sm);
   display: grid;
   gap: 2px;
-  padding: 12px;
+  padding: var(--space-3);
 }
 
 .week-board {
@@ -247,7 +247,7 @@
   --agenda-instance-card-height: 284px;
   display: grid;
   align-items: start;
-  gap: 0 12px;
+  gap: 0 var(--space-3);
   grid-template-columns: repeat(var(--agenda-board-days), minmax(0, 1fr));
   min-height: 520px;
   overflow: visible;
@@ -377,7 +377,7 @@
 .agenda-day-head-row {
   align-items: center;
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   justify-content: space-between;
   min-width: 0;
   width: 100%;
@@ -400,7 +400,7 @@
   color: var(--shop-ink);
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
   max-width: 100%;
   padding: 7px 12px;
   transition:
@@ -506,7 +506,7 @@
   height: calc(var(--agenda-instance-card-height, 268px) + 12px);
   min-width: 0;
   overflow: hidden;
-  padding: 12px 4px 0;
+  padding: var(--space-3) var(--space-1) 0;
   position: relative;
 }
 
@@ -669,8 +669,8 @@
 .agenda-service-stack {
   border-left: 3px solid var(--shop-action);
   display: grid;
-  gap: 4px;
-  padding-left: 8px;
+  gap: var(--space-1);
+  padding-left: var(--space-2);
 }
 
 .agenda-service-name {
@@ -785,7 +785,7 @@
   color: var(--shop-ink-soft);
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 12px;
+  gap: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
 }
 
@@ -974,7 +974,7 @@
   font-size: var(--text-sm);
   font-weight: 700;
   min-height: 28px;
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-2);
 }
 
 .agenda-workorder-summary {
@@ -983,7 +983,7 @@
   border-radius: var(--radius-sm);
   display: grid;
   gap: 10px;
-  padding: 12px;
+  padding: var(--space-3);
 }
 
 .agenda-work-debt {
@@ -1001,7 +1001,7 @@
   align-items: baseline;
   display: flex;
   flex: 1 1 auto;
-  gap: 8px;
+  gap: var(--space-2);
   justify-content: space-between;
   min-width: 0;
 }
@@ -1056,7 +1056,7 @@
 
 .agenda-workorder-metrics div {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .agenda-workorder-metrics span {
@@ -1113,7 +1113,7 @@
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-x: contain;
-    padding-bottom: 8px;
+    padding-bottom: var(--space-2);
     padding-top: 34px;
     position: relative;
     scrollbar-width: thin;
@@ -1153,7 +1153,7 @@
 
 @media (max-width: 620px) {
   .agenda-panel {
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .work-view-copy {

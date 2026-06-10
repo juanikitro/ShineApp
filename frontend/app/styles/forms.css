@@ -3,7 +3,7 @@
   border: 1px solid var(--shop-border);
   border-radius: var(--radius-md);
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 14px;
 }
 
@@ -24,8 +24,8 @@
   border: 1px solid var(--shop-border);
   border-radius: var(--radius-sm);
   display: grid;
-  gap: 12px;
-  padding: 12px;
+  gap: var(--space-3);
+  padding: var(--space-3);
   transition: border-color var(--motion-duration-base) var(--motion-ease-standard),
     transform var(--motion-duration-base) var(--motion-ease-standard);
 }
@@ -58,7 +58,7 @@
 .quote-item-summary {
   display: grid;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 
 .quote-item-summary-row {
@@ -76,7 +76,7 @@
   border: 1px solid var(--shop-border);
   border-radius: var(--radius-md);
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 14px;
 }
 
@@ -101,12 +101,12 @@
   display: flex;
   flex-wrap: wrap;
   font-size: var(--text-sm);
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .quote-line-grid {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 120px;
 }
 
@@ -122,7 +122,7 @@
 
 .stock-line > .ghost {
   min-height: 42px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
 }
 
 .line-total,
@@ -156,8 +156,8 @@
   border: 1px solid var(--shop-border);
   border-radius: var(--radius-md);
   display: grid;
-  gap: 12px;
-  padding: 12px;
+  gap: var(--space-3);
+  padding: var(--space-3);
 }
 
 .quote-advanced summary {
@@ -210,7 +210,7 @@
   align-items: flex-start;
   border-bottom: 1px solid var(--color-workspace-border);
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   justify-content: space-between;
   padding: 12px 14px;
 }
@@ -244,7 +244,7 @@
   border-radius: var(--radius-sm);
   box-shadow: none;
   gap: 6px;
-  padding: 8px;
+  padding: var(--space-2);
 }
 
 .quote-card-head {
@@ -254,7 +254,7 @@
 
 .quote-card-copy {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   min-width: 0;
 }
 
@@ -315,7 +315,7 @@
   align-items: center;
   color: var(--shop-ink);
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   justify-content: space-between;
   min-width: 0;
   width: 100%;
@@ -324,7 +324,7 @@
 .emoji-picker-trigger-main {
   align-items: center;
   display: inline-flex;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -370,7 +370,7 @@
 .emoji-picker-loading {
   color: var(--shop-ink-soft);
   min-height: 220px;
-  padding: 16px;
+  padding: var(--space-4);
 }
 
 .service-emoji-picker .EmojiPickerReact {
@@ -599,7 +599,7 @@ button.primary.quote-action-button--filled {
 
 @media (max-width: 620px) {
   .workspace {
-    padding: 16px;
+    padding: var(--space-4);
   }
 
   .page-title-row {
@@ -719,7 +719,7 @@ button.primary.quote-action-button--filled {
   }
 
   .login-screen {
-    padding: 12px;
+    padding: var(--space-3);
   }
 
   .toast-viewport {
