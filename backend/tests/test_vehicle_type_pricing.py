@@ -271,20 +271,17 @@ def test_quote_without_vehicle_falls_back_to_base_price(api_client, customer, pr
 
 
 @pytest.mark.django_db
-def test_employee_cannot_see_vehicle_type_prices(employee_client, priced_service):
+def test_employee_can_see_vehicle_type_prices(employee_client, priced_service):
     response = employee_client.get(reverse("service-list"))
 
     assert response.status_code == 200
     service_payload = payload_list(response)[0]
-    for field in [
-        "base_price",
-        "price_moto",
-        "price_auto",
-        "price_camioneta",
-        "price_combi",
-        "price_camion",
-    ]:
-        assert field not in service_payload
+    assert Decimal(service_payload["base_price"]) == Decimal("15000.00")
+    assert Decimal(service_payload["price_moto"]) == Decimal("8000.00")
+    assert Decimal(service_payload["price_auto"]) == Decimal("15000.00")
+    assert Decimal(service_payload["price_camioneta"]) == Decimal("20000.00")
+    assert Decimal(service_payload["price_combi"]) == Decimal("25000.00")
+    assert Decimal(service_payload["price_camion"]) == Decimal("30000.00")
 
 
 @pytest.mark.django_db

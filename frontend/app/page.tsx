@@ -4257,7 +4257,7 @@ export default function Home() {
 			...buildNavItem('customers'),
 			children: [
 				buildNavItem('vehicles'),
-				...(canViewEconomy ? [buildNavItem('services')] : []),
+				buildNavItem('services'),
 			],
 		},
 		...(canViewEconomy
@@ -6860,7 +6860,7 @@ export default function Home() {
 			icon: <Trash2 size={15} />,
 			tone: 'danger',
 			requiresConfirm: true,
-			hidden: !path,
+			hidden: !path || !canViewEconomy,
 			onSelect: () =>
 				runAction(
 					() =>
@@ -6957,12 +6957,14 @@ export default function Home() {
 				id: `service:dashboard:${service.id}`,
 				label: 'Dashboard servicio',
 				icon: <Eye size={15} />,
+				hidden: !canViewEconomy,
 				onSelect: () => openServiceDashboard(service),
 			},
 			{
 				id: `service:edit:${service.id}`,
 				label: 'Editar servicio',
 				icon: <Pencil size={15} />,
+				hidden: !canViewEconomy,
 				onSelect: () => openDetailModal('Servicio', service),
 			},
 			deleteRecordQuickAction('service', service, 'Inactivar servicio'),
