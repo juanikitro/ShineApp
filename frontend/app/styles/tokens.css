@@ -74,8 +74,8 @@
 
   --dashboard-bar-track: var(--color-surface-soft);
   --dashboard-bar-fill: rgba(2, 132, 199, 0.22);
-  --dashboard-bar-income: rgba(2, 132, 199, 0.32);
-  --dashboard-bar-expense: rgba(154, 167, 184, 0.55);
+  --dashboard-bar-income: rgba(2, 132, 199, 0.38);
+  --dashboard-bar-expense: rgba(234, 88, 12, 0.28);
   --risk-fresh: #9aa7b8;
   --risk-mid: #d97706;
   --risk-high: #e00000;
@@ -224,9 +224,9 @@
   --color-ready: #86aeda;
   --color-ready-bg: rgba(134, 174, 218, 0.18);
   --color-info: #38BDF8;
-  --color-info-bg: rgba(56, 189, 248, 0.15);
+  --color-info-bg: rgba(56, 189, 248, 0.22);
   --color-violet: #A78BFA;
-  --color-violet-bg: rgba(167, 139, 250, 0.15);
+  --color-violet-bg: rgba(167, 139, 250, 0.22);
   --status-pending-bg: var(--color-warning-bg);
   --status-pending-border: rgba(224, 162, 47, 0.28);
   --status-pending-text: #f1c15f;
@@ -245,8 +245,8 @@
 
   --dashboard-bar-track: rgba(255, 255, 255, 0.08);
   --dashboard-bar-fill: rgba(165, 215, 232, 0.3);
-  --dashboard-bar-income: rgba(165, 215, 232, 0.42);
-  --dashboard-bar-expense: rgba(171, 192, 216, 0.32);
+  --dashboard-bar-income: rgba(56, 189, 248, 0.72);
+  --dashboard-bar-expense: rgba(251, 146, 60, 0.60);
   --risk-fresh: #7c93ad;
   --risk-mid: #e0a22f;
   --risk-high: #e16a5a;

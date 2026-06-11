@@ -459,7 +459,7 @@ export function DashboardPanel({
 									<MetricCard
 										className="dashboard-executive-metric dashboard-executive-metric--billing"
 										label="Facturado"
-										icon={<TrendingUp size={18} />}
+										icon={<TrendingUp size={20} />}
 										value={money(dashboardBilledTotal)}
 										numericValue={dashboardBilledTotal}
 										format={money}
@@ -474,7 +474,7 @@ export function DashboardPanel({
 									<MetricCard
 										className="dashboard-executive-metric dashboard-executive-metric--margin"
 										label="Margen estimado"
-										icon={<PieChart size={18} />}
+										icon={<PieChart size={20} />}
 										value={money(dashboardEstimatedMarginTotal)}
 										numericValue={dashboardEstimatedMarginTotal}
 										format={money}
@@ -489,7 +489,7 @@ export function DashboardPanel({
 									<MetricCard
 										className="dashboard-executive-metric dashboard-executive-metric--cash"
 										label="Caja real"
-										icon={<Banknote size={18} />}
+										icon={<Banknote size={20} />}
 										footer={
 											<CajaSparkline
 												values={dashboardSeriesValues('cashflow_balance')}
@@ -513,7 +513,7 @@ export function DashboardPanel({
 											dashboardBalanceDueTotal > 0 && 'metric--attention',
 										)}
 										label="Por cobrar"
-										icon={<CreditCard size={18} />}
+										icon={<CreditCard size={20} />}
 										footer={<RiskMeter buckets={dashboardReceivablesAging} />}
 										value={money(dashboardBalanceDueTotal)}
 										numericValue={dashboardBalanceDueTotal}

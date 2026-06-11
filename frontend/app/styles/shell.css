@@ -2035,7 +2035,7 @@
 
 /* Solo el label (hijo directo): el <strong> puede envolver el <span> de
    AnimatedNumber, que debe conservar el tamano grande del numero, no el del label. */
-.metric > span {
+.metric > span:not(.metric-icon) {
   color: var(--shop-ink-soft);
   font-size: var(--text-sm);
   font-weight: 650;
@@ -2068,15 +2068,15 @@
   color: var(--metric-icon-color, var(--color-info));
   display: inline-flex;
   flex: 0 0 auto;
-  height: 38px;
+  height: 42px;
   justify-content: center;
   position: absolute;
   right: var(--space-4);
   top: var(--space-4);
-  width: 38px;
+  width: 42px;
 }
 
-.metric:has(.metric-icon) > span:first-of-type {
+.metric:has(.metric-icon) > span:not(.metric-icon) {
   padding-right: 50px;
 }
 
@@ -2435,7 +2435,7 @@
   background: var(--color-ready-bg);
   border: 1px solid var(--shop-border);
   border-radius: var(--radius-sm);
-  color: var(--shop-action);
+  color: var(--color-ready);
   display: inline-flex;
   flex: 0 0 auto;
   height: 34px;

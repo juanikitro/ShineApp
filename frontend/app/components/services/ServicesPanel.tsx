@@ -477,10 +477,18 @@ export function ServicesPanel({
 		<div className="grid">
 			<section className="panel">
 				<div className="panel-head">
-					<button type="button" className="primary" onClick={onCreateService}>
-						<Plus size={16} />
-						Nuevo servicio
-					</button>
+					<div>
+						<h2>Servicios</h2>
+						<p>
+							Servicios disponibles para reservas y cotizaciones.
+						</p>
+					</div>
+					{canViewEconomy ? (
+						<button type="button" className="primary" onClick={onCreateService}>
+							<Plus size={16} />
+							Nuevo servicio
+						</button>
+					) : null}
 				</div>
 				<div className="records">
 					{services.length ? (
@@ -512,22 +520,24 @@ export function ServicesPanel({
 											onClick: () => onOpenServiceDashboard(item),
 										}}
 										actions={
-											<>
-												<button
-													type="button"
-													className="ghost"
-													onClick={() => onOpenServiceDetail(item)}
-												>
-													Editar
-												</button>
-												<button
-													type="button"
-													className="danger"
-													onClick={() => onDeleteService(item)}
-												>
-													Inactivar
-												</button>
-											</>
+											canViewEconomy ? (
+												<>
+													<button
+														type="button"
+														className="ghost"
+														onClick={() => onOpenServiceDetail(item)}
+													>
+														Editar
+													</button>
+													<button
+														type="button"
+														className="danger"
+														onClick={() => onDeleteService(item)}
+													>
+														Inactivar
+													</button>
+												</>
+											) : undefined
 										}
 									/>
 								</MotionFlashSurface>

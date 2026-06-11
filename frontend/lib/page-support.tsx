@@ -937,7 +937,6 @@ const economySections: Section[] = [
 	'suppliers',
 	'tools',
 	'quotes',
-	'services',
 ]
 
 function sectionRequiresEconomy(section: Section) {
