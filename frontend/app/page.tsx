@@ -61,6 +61,7 @@ import {
 } from 'react'
 
 import { AnimatedLabelSwap } from '@/app/components/motion/AnimatedLabelSwap'
+import { GlobalSearchInput } from '@/app/components/search/GlobalSearchInput'
 import {
 	SupplierDashboardPanel,
 	supplierProfileSubtitle,
@@ -12033,41 +12034,44 @@ export default function Home() {
 						collapsed={sidebarCollapsed}
 						mobileOpen={sidebarMobileOpen}
 						header={
-							businessProfile && sidebarBusinessLogoSrc ? (
-								currentUser?.business?.slug ? (
-									<a
-										className="ghost sidebar-business-button"
-										href={`/publica/${String(currentUser.business.slug)}`}
-										rel="noreferrer"
-										target="_blank"
-										aria-label={`Abrir turnera de ${String(businessProfile.name ?? 'negocio')}`}
-										title="Abrir turnera"
-									>
-										<img
-											src={sidebarBusinessLogoSrc}
-											alt={String(businessProfile.name ?? '')}
-											className="sidebar-business-logo"
-										/>
-									</a>
-								) : (
-									<button
-										type="button"
-										className="ghost sidebar-business-button"
-										onClick={() => {
-											handleSectionChange('settings')
-											setSettingsSection('business')
-										}}
-										aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
-										title="Configuracion del negocio"
-									>
-										<img
-											src={sidebarBusinessLogoSrc}
-											alt={String(businessProfile.name ?? '')}
-											className="sidebar-business-logo"
-										/>
-									</button>
-								)
-							) : null
+							<>
+								{businessProfile && sidebarBusinessLogoSrc ? (
+									currentUser?.business?.slug ? (
+										<a
+											className="ghost sidebar-business-button"
+											href={`/publica/${String(currentUser.business.slug)}`}
+											rel="noreferrer"
+											target="_blank"
+											aria-label={`Abrir turnera de ${String(businessProfile.name ?? 'negocio')}`}
+											title="Abrir turnera"
+										>
+											<img
+												src={sidebarBusinessLogoSrc}
+												alt={String(businessProfile.name ?? '')}
+												className="sidebar-business-logo"
+											/>
+										</a>
+									) : (
+										<button
+											type="button"
+											className="ghost sidebar-business-button"
+											onClick={() => {
+												handleSectionChange('settings')
+												setSettingsSection('business')
+											}}
+											aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
+											title="Configuracion del negocio"
+										>
+											<img
+												src={sidebarBusinessLogoSrc}
+												alt={String(businessProfile.name ?? '')}
+												className="sidebar-business-logo"
+											/>
+										</button>
+									)
+								) : null}
+								<GlobalSearchInput collapsed={sidebarCollapsed} />
+							</>
 						}
 						items={navItems}
 						active={active}
