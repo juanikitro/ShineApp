@@ -5,6 +5,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from catalog.models import Service
+from catalog.serializers import PRICE_BY_TYPE_FIELDS
 from customers.models import Customer, Vehicle
 from quotes.models import Quote, QuoteItem
 from quotes.serializers import QuoteSerializer
@@ -131,6 +132,7 @@ class PublicLandingServiceSerializer(serializers.ModelSerializer):
             "estimated_duration_minutes",
             "notes",
             "base_price",
+            *PRICE_BY_TYPE_FIELDS,
         ]
         read_only_fields = fields
 
@@ -139,7 +141,8 @@ class PublicLandingServiceSerializer(serializers.ModelSerializer):
         if not self.context.get("show_description", True):
             data.pop("notes", None)
         if not self.context.get("show_price", False):
-            data.pop("base_price", None)
+            for field in ("base_price", *PRICE_BY_TYPE_FIELDS):
+                data.pop(field, None)
         return data
 
 
