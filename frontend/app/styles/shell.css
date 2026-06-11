@@ -5220,6 +5220,118 @@
   color: var(--color-primary-foreground);
 }
 
+/* ─── Detail Page ───────────────────────────────────────────────────── */
+
+.detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.detail-page-nav {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.detail-page-back {
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  display: flex;
+  font-size: 0.875rem;
+  font-weight: 500;
+  gap: 4px;
+  padding: 0;
+  text-decoration: none;
+}
+
+.detail-page-back:hover {
+  text-decoration: underline;
+}
+
+.detail-page-entity-label {
+  background: var(--color-surface-soft);
+  border-radius: var(--radius-sm);
+  color: var(--shop-ink-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  text-transform: uppercase;
+}
+
+.detail-page-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.detail-page-fields {
+  background: var(--color-surface);
+  border: 1px solid var(--shop-border);
+  border-radius: var(--radius-lg);
+  display: grid;
+  gap: 0;
+  grid-template-columns: 1fr;
+  margin: 0;
+  overflow: hidden;
+}
+
+.detail-field {
+  border-bottom: 1px solid var(--shop-border);
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 160px 1fr;
+  padding: 12px 16px;
+}
+
+.detail-field:last-child {
+  border-bottom: none;
+}
+
+.detail-field-label {
+  color: var(--shop-ink-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.detail-field-value {
+  color: var(--shop-ink);
+  font-size: 0.875rem;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.detail-page-loading {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.detail-page-not-found {
+  align-items: center;
+  color: var(--shop-ink-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 48px 0;
+  text-align: center;
+}
+
+.detail-page-not-found p {
+  margin: 0;
+}
+
+.detail-page-back-link {
+  color: var(--color-primary);
+  font-size: 0.875rem;
+}
+
 @media (max-width: 639px) {
   .standalone-page {
     padding: 20px 16px;
