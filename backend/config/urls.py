@@ -4,7 +4,9 @@ from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from catalog.views import SectorViewSet, ServiceViewSet
+from catalog.views import SectorViewSet, ServiceMaterialViewSet, ServiceViewSet
+from search.views import GlobalSearchView
+
 from core.views import AuditLogView
 from customers.views import CustomerViewSet, VehicleViewSet
 from dashboard.views import DashboardSummaryView
@@ -48,6 +50,7 @@ router = DefaultRouter()
 router.register("customers", CustomerViewSet, basename="customer")
 router.register("vehicles", VehicleViewSet, basename="vehicle")
 router.register("services", ServiceViewSet, basename="service")
+router.register("service-materials", ServiceMaterialViewSet, basename="servicematerial")
 router.register("sectors", SectorViewSet, basename="sector")
 router.register("reservations", ReservationViewSet, basename="reservation")
 router.register("work-orders", WorkOrderViewSet, basename="workorder")
@@ -89,6 +92,7 @@ urlpatterns = [
     path("api/cash/close/", CashCloseView.as_view(), name="cash-close"),
     path("api/cash/reopen/", CashReopenView.as_view(), name="cash-reopen"),
     path("api/dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
+    path("api/search/", GlobalSearchView.as_view(), name="global-search"),
     path("api/public/landing/<slug:slug>/", PublicLandingView.as_view(), name="public-landing"),
     path(
         "api/public/landing/<slug:slug>/requests/",

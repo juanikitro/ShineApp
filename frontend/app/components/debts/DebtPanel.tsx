@@ -121,14 +121,9 @@ export function DebtPanel({
 		<div className="grid">
 			<section
 				className="panel finance-panel debt-panel"
-				aria-labelledby="debt-panel-title"
+				aria-label="Deudas"
 			>
 				<div className="panel-head finance-panel-head">
-					<div>
-						<span className="panel-kicker">Cobranzas y pagos</span>
-						<h2 id="debt-panel-title">Deudas</h2>
-						<p>Saldos pendientes, pagos parciales y detalle listo para accion.</p>
-					</div>
 					<div className="finance-action-rail">
 						<div className="finance-primary-actions">
 							<button

@@ -61,6 +61,7 @@ import {
 } from 'react'
 
 import { AnimatedLabelSwap } from '@/app/components/motion/AnimatedLabelSwap'
+import { GlobalSearchInput } from '@/app/components/search/GlobalSearchInput'
 import {
 	SupplierDashboardPanel,
 	supplierProfileSubtitle,
@@ -682,6 +683,7 @@ export default function Home() {
 	const [customers, setCustomers] = useState<AnyRecord[]>([])
 	const [vehicles, setVehicles] = useState<AnyRecord[]>([])
 	const [services, setServices] = useState<AnyRecord[]>([])
+	const [serviceMaterials, setServiceMaterials] = useState<AnyRecord[]>([])
 	const [sectors, setSectors] = useState<AnyRecord[]>([])
 	const [reservations, setReservations] = useState<AnyRecord[]>([])
 	const [workOrders, setWorkOrders] = useState<AnyRecord[]>([])
@@ -756,6 +758,7 @@ export default function Home() {
 		estimated_duration_minutes: '60',
 		notes: '',
 	})
+	const [serviceMaterialLines, setServiceMaterialLines] = useState<AnyRecord[]>([])
 	const [reservationForm, setReservationForm] = useState<AnyRecord>(
 		blankReservationForm(),
 	)
@@ -1864,17 +1867,6 @@ export default function Home() {
 		agendaSectorId === null
 			? 'Todos'
 			: (sectors.find((s) => s.id === agendaSectorId)?.name ?? 'Sector')
-	const agendaRangeSummary = `${agendaSectorLabel}: ${
-		visibleAgendaReservations.length
-	} ${
-		visibleAgendaReservations.length === 1
-			? 'reserva visible'
-			: 'reservas visibles'
-	}, ${agendaBoardModel.segments.length} ${
-		agendaBoardModel.segments.length === 1
-			? 'movimiento en rango'
-			: 'movimientos en rango'
-	}.`
 	const weekDays = agendaBoardModel.days
 	const activeAgendaRow = useMemo(() => {
 		if (!activeAgendaReservationId) return null
@@ -2105,6 +2097,7 @@ export default function Home() {
 		customers: setCustomers,
 		vehicles: setVehicles,
 		services: setServices,
+		serviceMaterials: setServiceMaterials,
 		sectors: setSectors,
 		reservations: setReservations,
 		workOrders: setWorkOrders,
@@ -6058,6 +6051,7 @@ export default function Home() {
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
+			setServiceMaterialLines([])
 		}
 		if (kind === 'payment') {
 			setPaymentForm(blankPaymentForm())
@@ -6165,6 +6159,7 @@ export default function Home() {
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
+			setServiceMaterialLines([])
 		}
 		if (kind === 'material') {
 			setMaterialForm({
@@ -6662,6 +6657,18 @@ export default function Home() {
 	function openDetailModal(title: string, data: AnyRecord) {
 		const kind = detailKindFromTitle(title)
 		if (!canViewEconomy && detailRequiresEconomy(kind)) return
+		if (kind === 'service') {
+			const lines = serviceMaterials
+				.filter((m) => String(m.service) === String(data.id))
+				.map((m) => ({
+					id: String(m.id),
+					material: String(m.material),
+					quantity: String(m.quantity),
+					material_name: m.material_name,
+					material_unit: m.material_unit,
+				}))
+			setServiceMaterialLines(lines)
+		}
 		setDetailModal({
 			title,
 			kind,
@@ -7595,17 +7602,24 @@ export default function Home() {
 		event.preventDefault()
 		if (!detailModal) return
 		if (!canViewEconomy && detailRequiresEconomy(detailModal.kind)) return
-		if (!isDetailDirty()) return
+		const isService = detailModal.kind === 'service'
+		if (!isDetailDirty() && !isService) return
 		const path = detailEndpoint(detailModal.kind, detailModal.data.id)
 		if (!path) return
 		const currentDetail = detailModal
 		await runAction(async () => {
-			await apiFetch(path, {
-				method: 'PATCH',
-				body: JSON.stringify(
-					cleanDetailPayload(detailModal.kind, detailModal.editData),
-				),
-			})
+			if (isDetailDirty()) {
+				await apiFetch(path, {
+					method: 'PATCH',
+					body: JSON.stringify(
+						cleanDetailPayload(detailModal.kind, detailModal.editData),
+					),
+				})
+			}
+			if (isService) {
+				await syncServiceMaterialLines(String(detailModal.data.id))
+				setServiceMaterialLines([])
+			}
 			detailExit.close()
 		}, {
 			flashTarget: recordFlashKey(
@@ -7922,6 +7936,58 @@ export default function Home() {
 							}
 						/>
 					</Field>
+					<div className="form-section-label">Materiales por servicio</div>
+					<div className="info-note">
+						Al cerrar un trabajo con este servicio, los materiales se descuentan
+						automáticamente del stock.
+					</div>
+					<div className="stock-lines">
+						{serviceMaterialLines.map((line: AnyRecord, index: number) => {
+							const mat = materials.find(
+								(m) => String(m.id) === String(line.material),
+							)
+							return (
+								<div className="quote-line stock-line" key={index}>
+									<SearchSelect
+										label="Material"
+										value={line.material}
+										options={materialOptions}
+										onChange={(value) =>
+											updateServiceMaterialLine(index, { material: value })
+										}
+									/>
+									<Field label={`Cantidad${mat?.unit ? ` (${mat.unit})` : ''}`}>
+										<input
+											type="number"
+											min="0.001"
+											step="0.001"
+											value={line.quantity}
+											onChange={(event) =>
+												updateServiceMaterialLine(index, {
+													quantity: event.target.value,
+												})
+											}
+										/>
+									</Field>
+									<button
+										type="button"
+										className="ghost"
+										onClick={() => removeServiceMaterialLine(index)}
+									>
+										<Trash2 size={16} />
+									</button>
+								</div>
+							)
+						})}
+					</div>
+					<button
+						type="button"
+						className="ghost"
+						onClick={addServiceMaterialLine}
+					>
+						<Plus size={16} />
+						Agregar material
+					</button>
 					{renderDetailEditActions()}
 				</form>
 			)
@@ -9410,6 +9476,63 @@ export default function Home() {
 		})
 	}
 
+	function addServiceMaterialLine() {
+		setServiceMaterialLines([
+			...serviceMaterialLines,
+			{ id: '', material: '', quantity: '' },
+		])
+	}
+
+	function removeServiceMaterialLine(index: number) {
+		setServiceMaterialLines(serviceMaterialLines.filter((_, i) => i !== index))
+	}
+
+	function updateServiceMaterialLine(index: number, changes: AnyRecord) {
+		setServiceMaterialLines(
+			serviceMaterialLines.map((line, i) =>
+				i === index ? { ...line, ...changes } : line,
+			),
+		)
+	}
+
+	async function syncServiceMaterialLines(serviceId: string) {
+		const existingIds = new Set(
+			serviceMaterials
+				.filter((m) => String(m.service) === String(serviceId))
+				.map((m) => String(m.id)),
+		)
+		const currentIds = new Set(
+			serviceMaterialLines
+				.filter((l) => l.id)
+				.map((l) => String(l.id)),
+		)
+		const toDelete = [...existingIds].filter((id) => !currentIds.has(id))
+		await Promise.all(
+			toDelete.map((id) => apiFetch(`/service-materials/${id}/`, { method: 'DELETE' })),
+		)
+		const validLines = serviceMaterialLines.filter(
+			(l) => l.material && Number(l.quantity) > 0,
+		)
+		await Promise.all(
+			validLines.map((line) => {
+				if (line.id) {
+					return apiFetch(`/service-materials/${line.id}/`, {
+						method: 'PATCH',
+						body: JSON.stringify({ quantity: line.quantity }),
+					})
+				}
+				return apiFetch('/service-materials/', {
+					method: 'POST',
+					body: JSON.stringify({
+						service: serviceId,
+						material: line.material,
+						quantity: line.quantity,
+					}),
+				})
+			}),
+		)
+	}
+
 	async function saveService(event: FormEvent) {
 		event.preventDefault()
 		const currentId = serviceForm.id
@@ -9425,6 +9548,7 @@ export default function Home() {
 				method,
 				body: JSON.stringify(asPayload(serviceForm)),
 			})
+			await syncServiceMaterialLines(String(saved.id))
 			setServiceForm({
 				id: '',
 				name: '',
@@ -9440,6 +9564,7 @@ export default function Home() {
 				estimated_duration_minutes: '60',
 				notes: '',
 			})
+			setServiceMaterialLines([])
 			formModalExit.close()
 			return saved
 		}, {
@@ -11066,6 +11191,12 @@ export default function Home() {
 						serviceForm={serviceForm}
 						setServiceForm={setServiceForm}
 						sectors={sectors}
+						materialOptions={materialOptions}
+						materials={materials}
+						serviceMaterialLines={serviceMaterialLines}
+						addServiceMaterialLine={addServiceMaterialLine}
+						removeServiceMaterialLine={removeServiceMaterialLine}
+						updateServiceMaterialLine={updateServiceMaterialLine}
 						focusNextOnEnter={focusNextOnEnter}
 						focusField={focusField}
 					/>
@@ -12035,41 +12166,44 @@ export default function Home() {
 						collapsed={sidebarCollapsed}
 						mobileOpen={sidebarMobileOpen}
 						header={
-							businessProfile && sidebarBusinessLogoSrc ? (
-								currentUser?.business?.slug ? (
-									<a
-										className="ghost sidebar-business-button"
-										href={`/publica/${String(currentUser.business.slug)}`}
-										rel="noreferrer"
-										target="_blank"
-										aria-label={`Abrir turnera de ${String(businessProfile.name ?? 'negocio')}`}
-										title="Abrir turnera"
-									>
-										<img
-											src={sidebarBusinessLogoSrc}
-											alt={String(businessProfile.name ?? '')}
-											className="sidebar-business-logo"
-										/>
-									</a>
-								) : (
-									<button
-										type="button"
-										className="ghost sidebar-business-button"
-										onClick={() => {
-											handleSectionChange('settings')
-											setSettingsSection('business')
-										}}
-										aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
-										title="Configuracion del negocio"
-									>
-										<img
-											src={sidebarBusinessLogoSrc}
-											alt={String(businessProfile.name ?? '')}
-											className="sidebar-business-logo"
-										/>
-									</button>
-								)
-							) : null
+							<>
+								{businessProfile && sidebarBusinessLogoSrc ? (
+									currentUser?.business?.slug ? (
+										<a
+											className="ghost sidebar-business-button"
+											href={`/publica/${String(currentUser.business.slug)}`}
+											rel="noreferrer"
+											target="_blank"
+											aria-label={`Abrir turnera de ${String(businessProfile.name ?? 'negocio')}`}
+											title="Abrir turnera"
+										>
+											<img
+												src={sidebarBusinessLogoSrc}
+												alt={String(businessProfile.name ?? '')}
+												className="sidebar-business-logo"
+											/>
+										</a>
+									) : (
+										<button
+											type="button"
+											className="ghost sidebar-business-button"
+											onClick={() => {
+												handleSectionChange('settings')
+												setSettingsSection('business')
+											}}
+											aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
+											title="Configuracion del negocio"
+										>
+											<img
+												src={sidebarBusinessLogoSrc}
+												alt={String(businessProfile.name ?? '')}
+												className="sidebar-business-logo"
+											/>
+										</button>
+									)
+								) : null}
+								<GlobalSearchInput collapsed={sidebarCollapsed} />
+							</>
 						}
 						items={navItems}
 						active={active}
@@ -12233,7 +12367,6 @@ export default function Home() {
 				<AnimatedWorkspaceView viewKey={displayedActive}>
 					<PageHeader
 						title={title.label}
-						subtitle={title.subtitle}
 						titleAddon={
 							displayedActive === 'agenda' && sectorSelectOptions.length > 0 ? (
 								<SegmentedControl
@@ -12820,7 +12953,6 @@ export default function Home() {
 				{displayedActive === 'agenda' ? (
 					<div className="work-view-strip">
 						<div className="work-view-copy">
-							<span className="agenda-toolbar-kicker">Agenda / Trabajos</span>
 							<strong>{agendaSectorLabel}</strong>
 							<small>
 								{visibleAgendaReservations.length}{' '}
@@ -12847,7 +12979,6 @@ export default function Home() {
 						<section className="panel agenda-panel">
 							<AgendaBoardToolbar
 								endLabel={formatDayLabel(weekEndDay)}
-								rangeSummary={agendaRangeSummary}
 								startLabel={formatDayLabel(agendaStartDay)}
 								visibleDays={AGENDA_VISIBLE_DAYS}
 								onMove={moveAgenda}

@@ -25,6 +25,9 @@ class Material(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["business", "name"], name="material_biz_name_idx"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["business", "sku"],
@@ -300,6 +303,7 @@ class MaterialConsumption(models.Model):
     estimated_unit_cost = models.DecimalField(max_digits=12, decimal_places=2)
     estimated_total_cost = models.DecimalField(max_digits=12, decimal_places=2)
     observations = models.TextField(blank=True)
+    is_from_service_recipe = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

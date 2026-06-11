@@ -10,7 +10,6 @@ import {
 type AgendaBoardToolbarProps = {
 	startLabel: string
 	endLabel: string
-	rangeSummary: string
 	visibleDays: number
 	onMove: (offset: number) => void
 	onToday: () => void
@@ -19,7 +18,6 @@ type AgendaBoardToolbarProps = {
 export function AgendaBoardToolbar({
 	startLabel,
 	endLabel,
-	rangeSummary,
 	visibleDays,
 	onMove,
 	onToday,
@@ -27,11 +25,9 @@ export function AgendaBoardToolbar({
 	return (
 		<div className="agenda-toolbar">
 			<div className="agenda-toolbar-copy">
-				<span className="agenda-toolbar-kicker">Planificacion operativa</span>
 				<h2 className="week-title">
 					Agenda del {startLabel} al {endLabel}
 				</h2>
-				<p>{rangeSummary}</p>
 			</div>
 			<div className="agenda-toolbar-tools">
 				<div className="agenda-nav" aria-label="Navegar agenda">

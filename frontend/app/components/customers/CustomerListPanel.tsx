@@ -211,8 +211,6 @@ export function CustomerListPanel({
 		<section className="panel customer-list-panel">
 			<div className="panel-head customer-list-head">
 				<div>
-					<span className="panel-kicker">Cartera de clientes</span>
-					<h2>Clientes</h2>
 					<p>
 						{customers.length} de {totalCustomers}{' '}
 						{totalCustomers === 1 ? 'cliente visible' : 'clientes visibles'} ·{' '}
