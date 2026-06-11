@@ -90,7 +90,7 @@ export function DashboardCrossReadings({ dashboard }: { dashboard: AnyRecord }) 
 		{
 			label: 'Cobranza del periodo',
 			value: percent(collectionRate),
-			icon: <Activity size={16} />,
+			icon: <Activity size={18} />,
 			iconBg: 'var(--color-info-bg)',
 			iconColor: 'var(--color-info)',
 			hint: `${money(collected)} de ${money(billed)} facturado`,
@@ -98,7 +98,7 @@ export function DashboardCrossReadings({ dashboard }: { dashboard: AnyRecord }) 
 		{
 			label: 'Ticket promedio',
 			value: money(averageTicket),
-			icon: <Receipt size={16} />,
+			icon: <Receipt size={18} />,
 			iconBg: 'var(--color-warning-bg)',
 			iconColor: 'var(--color-warning)',
 			hint: plural(workOrders, 'trabajo', 'trabajos'),
@@ -106,7 +106,7 @@ export function DashboardCrossReadings({ dashboard }: { dashboard: AnyRecord }) 
 		{
 			label: 'Margen sobre facturado',
 			value: percent(marginRate),
-			icon: <Percent size={16} />,
+			icon: <Percent size={18} />,
 			iconBg: 'var(--color-success-bg)',
 			iconColor: 'var(--color-success)',
 			hint: 'solo materiales imputados',
@@ -114,14 +114,14 @@ export function DashboardCrossReadings({ dashboard }: { dashboard: AnyRecord }) 
 		{
 			label: 'Dias promedio de cobranza',
 			value: `~${Math.round(avgCollectionDays)} dias`,
-			icon: <CalendarDays size={16} />,
+			icon: <CalendarDays size={18} />,
 			iconBg: 'var(--color-warning-bg)',
 			iconColor: 'var(--color-warning)',
 			hint: 'antiguedad promedio del saldo',
 		},
 		{
 			label: 'Posicion neta',
-			icon: <ArrowUpDown size={16} />,
+			icon: <ArrowUpDown size={18} />,
 			iconBg: 'var(--color-danger-bg)',
 			iconColor: 'var(--color-danger)',
 			value: (
@@ -138,7 +138,7 @@ export function DashboardCrossReadings({ dashboard }: { dashboard: AnyRecord }) 
 		{
 			label: 'Mayor egreso',
 			value: topExpense ? String(topExpense.category) : 'Sin egresos',
-			icon: <TrendingDown size={16} />,
+			icon: <TrendingDown size={18} />,
 			iconBg: 'var(--color-warning-bg)',
 			iconColor: 'var(--color-warning)',
 			hint: topExpense
@@ -151,7 +151,7 @@ export function DashboardCrossReadings({ dashboard }: { dashboard: AnyRecord }) 
 		{
 			label: 'Ingreso top categoria',
 			value: topIncome ? String(topIncome.category) : 'Sin ingresos',
-			icon: <TrendingUp size={16} />,
+			icon: <TrendingUp size={18} />,
 			iconBg: 'var(--color-success-bg)',
 			iconColor: 'var(--color-success)',
 			hint: topIncome
@@ -164,7 +164,7 @@ export function DashboardCrossReadings({ dashboard }: { dashboard: AnyRecord }) 
 		{
 			label: 'Carga de egresos',
 			value: percent(expenseLoad),
-			icon: <Clock size={16} />,
+			icon: <Clock size={18} />,
 			iconBg: 'var(--color-violet-bg)',
 			iconColor: 'var(--color-violet)',
 			hint: `queda ${percent(Math.max(0, 100 - expenseLoad))} de la caja`,
