@@ -769,9 +769,13 @@ export default function Home() {
 	)
 	const [payOccurrenceForm, setPayOccurrenceForm] = useState<{
 		id: string | number
+		fixed_expense: string | number
 		method: string
 		paid_at: string
-	}>({ id: '', method: 'transfer', paid_at: today })
+		amount: string
+		original_amount: string
+		update_template: boolean
+	}>({ id: '', fixed_expense: '', method: 'transfer', paid_at: today, amount: '', original_amount: '', update_template: false })
 	const [debtPaymentForm, setDebtPaymentForm] = useState<AnyRecord>(
 		blankDebtPaymentForm(today),
 	)
@@ -9700,8 +9704,17 @@ export default function Home() {
 		})
 	}
 
-	function payFixedExpenseOccurrence(id: string | number) {
-		setPayOccurrenceForm({ id, method: 'transfer', paid_at: today })
+	function payFixedExpenseOccurrence(item: AnyRecord) {
+		const amount = String(item.amount ?? '')
+		setPayOccurrenceForm({
+			id: item.id,
+			fixed_expense: item.fixed_expense,
+			method: 'transfer',
+			paid_at: today,
+			amount,
+			original_amount: amount,
+			update_template: false,
+		})
 		setFormModal({ kind: 'fixed-expense-pay' })
 	}
 
@@ -9709,16 +9722,30 @@ export default function Home() {
 		event.preventDefault()
 		await runAction(
 			async () => {
+				const body: AnyRecord = {
+					method: payOccurrenceForm.method,
+					paid_at: payOccurrenceForm.paid_at,
+				}
+				if (payOccurrenceForm.amount !== '') {
+					body.amount = payOccurrenceForm.amount
+				}
 				const result = await apiFetch<AnyRecord>(
 					`/fixed-expense-occurrences/${payOccurrenceForm.id}/pay/`,
 					{
 						method: 'POST',
-						body: JSON.stringify({
-							method: payOccurrenceForm.method,
-							paid_at: payOccurrenceForm.paid_at,
-						}),
+						body: JSON.stringify(body),
 					},
 				)
+				const shouldUpdateTemplate =
+					payOccurrenceForm.update_template &&
+					payOccurrenceForm.amount !== '' &&
+					Number(payOccurrenceForm.amount) !== Number(payOccurrenceForm.original_amount)
+				if (shouldUpdateTemplate) {
+					await apiFetch(`/fixed-expenses/${payOccurrenceForm.fixed_expense}/`, {
+						method: 'PATCH',
+						body: JSON.stringify({ amount: payOccurrenceForm.amount }),
+					})
+				}
 				formModalExit.close()
 				return result
 			},
@@ -11157,6 +11184,53 @@ export default function Home() {
 							onSubmit={confirmFixedExpenseOccurrencePayment}
 							className="form-body"
 						>
+							<Field label="Monto">
+								<input
+									id="fixed-expense-pay.amount"
+									type="number"
+									min="0.01"
+									step="any"
+									placeholder="Ej: 94300 o 94300.50"
+									value={payOccurrenceForm.amount}
+									onChange={(e) => {
+										const newAmount = e.target.value
+										const isOriginal =
+											newAmount === '' ||
+											Number(newAmount) ===
+												Number(payOccurrenceForm.original_amount)
+										setPayOccurrenceForm({
+											...payOccurrenceForm,
+											amount: newAmount,
+											update_template: isOriginal
+												? false
+												: payOccurrenceForm.update_template,
+										})
+									}}
+								/>
+								<small>
+									Usá punto como decimal. Si lo dejás vacío, se usa el monto
+									estimado de la ocurrencia.
+								</small>
+							</Field>
+							{payOccurrenceForm.amount !== '' &&
+							Number(payOccurrenceForm.amount) !==
+								Number(payOccurrenceForm.original_amount) ? (
+								<label>
+									<input
+										type="checkbox"
+										checked={payOccurrenceForm.update_template}
+										onChange={(e) =>
+											setPayOccurrenceForm({
+												...payOccurrenceForm,
+												update_template: e.target.checked,
+											})
+										}
+									/>
+									{' '}Actualizar el monto estimado de la plantilla (
+									{money(Number(payOccurrenceForm.original_amount))} →{' '}
+									{money(Number(payOccurrenceForm.amount))})
+								</label>
+							) : null}
 							<Field label="Metodo de pago">
 								<select
 									id="fixed-expense-pay.method"

@@ -29,7 +29,7 @@ type FixedExpensePanelProps = {
 	onCreateFixedExpense: () => void
 	onEditFixedExpense: (item: AnyRecord) => void
 	onOpenOccurrenceDetail: (item: AnyRecord) => void
-	onPayOccurrence: (id: string | number) => void
+	onPayOccurrence: (item: AnyRecord) => void
 	onUnpayOccurrence: (id: string | number) => void
 	onPauseFixedExpense: (id: string | number) => void
 	onResumeFixedExpense: (id: string | number) => void
@@ -183,7 +183,7 @@ export function FixedExpensePanel({
 												primaryAction={{
 													label: 'Registrar pago',
 													icon: <CreditCard size={15} />,
-													onClick: () => onPayOccurrence(item.id),
+													onClick: () => onPayOccurrence(item),
 													variant: 'primary',
 												}}
 												secondaryActions={[

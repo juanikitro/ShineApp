@@ -473,3 +473,77 @@ def test_dashboard_pending_fixed_expenses_projection(api_client, default_busines
     assert summary.data["fixed_expenses_pending_count"] == 1
     # Pending must NOT affect cashflow (caja real = pagado)
     assert Decimal(summary.data["cashflow_expense_total"]) == Decimal("0.00")
+
+
+@pytest.mark.django_db
+def test_pay_endpoint_overrides_amount_when_provided(api_client, default_business):
+    plan = make_plan(
+        default_business,
+        start_date=date(2025, 1, 1),
+        max_cycles=1,
+        auto_pay=False,
+        amount=Decimal("15000.00"),
+    )
+    materialize_due(business=default_business, today=date(2025, 1, 1))
+    occurrence = plan.occurrences.get()
+
+    response = api_client.post(
+        reverse("fixedexpenseoccurrence-pay", args=[occurrence.id]),
+        {"method": "cash", "paid_at": "2025-01-05", "amount": "18500.00"},
+        format="json",
+    )
+    assert response.status_code == 200, response.data
+    assert Decimal(response.data["amount"]) == Decimal("18500.00")  # serializer refleja nuevo monto
+
+    occurrence.refresh_from_db()
+    assert occurrence.amount == Decimal("18500.00")
+    assert occurrence.cash_movement is not None
+    assert occurrence.cash_movement.amount == Decimal("18500.00")
+
+    plan.refresh_from_db()
+    assert plan.amount == Decimal("15000.00")  # plantilla no cambia
+
+
+@pytest.mark.django_db
+def test_pay_without_amount_preserves_occurrence_amount(api_client, default_business):
+    plan = make_plan(
+        default_business,
+        start_date=date(2025, 1, 1),
+        max_cycles=1,
+        auto_pay=False,
+        amount=Decimal("12000.00"),
+    )
+    materialize_due(business=default_business, today=date(2025, 1, 1))
+    occurrence = plan.occurrences.get()
+
+    response = api_client.post(
+        reverse("fixedexpenseoccurrence-pay", args=[occurrence.id]),
+        {"method": "cash", "paid_at": "2025-01-05"},
+        format="json",
+    )
+    assert response.status_code == 200, response.data
+
+    occurrence.refresh_from_db()
+    assert occurrence.amount == Decimal("12000.00")
+    assert occurrence.cash_movement.amount == Decimal("12000.00")
+    assert Decimal(response.data["amount"]) == Decimal("12000.00")
+
+
+@pytest.mark.django_db
+def test_pay_endpoint_rejects_invalid_amount(api_client, default_business):
+    plan = make_plan(default_business, start_date=date(2025, 1, 1), max_cycles=3, auto_pay=False)
+    materialize_due(business=default_business, today=date(2025, 3, 1))
+    occurrences = list(plan.occurrences.order_by("period_date"))
+
+    for idx, bad_amount in enumerate(["0", "-100", "abc"]):
+        response = api_client.post(
+            reverse("fixedexpenseoccurrence-pay", args=[occurrences[idx].id]),
+            {"amount": bad_amount},
+            format="json",
+        )
+        assert response.status_code == 400, f"Expected 400 for amount={bad_amount!r}, got {response.status_code}"
+        assert "amount" in response.data
+
+        occurrences[idx].refresh_from_db()
+        assert occurrences[idx].status == FixedExpenseOccurrence.Status.PENDING
+        assert occurrences[idx].cash_movement_id is None
