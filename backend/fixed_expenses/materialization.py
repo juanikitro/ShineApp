@@ -90,7 +90,8 @@ def _resolve_settlement(target_day, today, business):
     return occurrence_datetime(target_day), None, target_day
 
 
-def _settle_occurrence(occurrence, *, target_day, today, method, user=None) -> CashMovement:
+def _settle_occurrence(occurrence, *, target_day, today, method, user=None, amount=None) -> CashMovement:
+    effective_amount = amount if amount is not None else occurrence.amount
     occurred_at, adjusts_closed_day, settlement_date = _resolve_settlement(
         target_day, today, occurrence.business
     )
@@ -101,7 +102,7 @@ def _settle_occurrence(occurrence, *, target_day, today, method, user=None) -> C
         "movement_type": CashMovement.MovementType.EXPENSE,
         "category": category,
         "subcategory": subcategory,
-        "amount": occurrence.amount,
+        "amount": effective_amount,
         "occurred_at": occurred_at,
         "description": f"Gasto fijo: {occurrence.fixed_expense.concept}",
     }
@@ -113,13 +114,15 @@ def _settle_occurrence(occurrence, *, target_day, today, method, user=None) -> C
     occurrence.status = FixedExpenseOccurrence.Status.PAID
     occurrence.method = method
     occurrence.paid_at = settlement_date
-    occurrence.save(
-        update_fields=["cash_movement", "status", "method", "paid_at", "updated_at"]
-    )
+    save_fields = ["cash_movement", "status", "method", "paid_at", "updated_at"]
+    if amount is not None:
+        occurrence.amount = effective_amount
+        save_fields.append("amount")
+    occurrence.save(update_fields=save_fields)
     return movement
 
 
-def register_occurrence_payment(occurrence, *, user=None, method=None, paid_at=None):
+def register_occurrence_payment(occurrence, *, user=None, method=None, paid_at=None, amount=None):
     """Registra el pago manual de una ocurrencia pendiente (idempotente, con lock)."""
     today = timezone.localdate()
     with transaction.atomic():
@@ -135,7 +138,7 @@ def register_occurrence_payment(occurrence, *, user=None, method=None, paid_at=N
         method = method or locked.method or PaymentMethod.TRANSFER
         target_day = paid_at or today
         return _settle_occurrence(
-            locked, target_day=target_day, today=today, method=method, user=user
+            locked, target_day=target_day, today=today, method=method, user=user, amount=amount
         )
 
 
@@ -174,7 +177,13 @@ def register_occurrence_unpay(occurrence):
 
 def sync_pending_occurrences(plan):
     """Propaga cambios de la plantilla a sus ocurrencias pendientes (no pagadas).
-    Las pagadas son egresos saldados y no se tocan."""
+    Las pagadas son egresos saldados y no se tocan.
+
+    Nota: si el usuario sobreescribio el monto de una ocurrencia pendiente via el
+    flujo de pago y luego la desregistro (unpay), ese monto queda en la ocurrencia
+    hasta que se llame a esta funcion, momento en que se sobreescribe con el monto
+    actual de la plantilla. Este es el comportamiento esperado: editar la plantilla
+    es una accion explicita que sincroniza todos los pendientes."""
     pending = plan.occurrences.filter(status=FixedExpenseOccurrence.Status.PENDING)
     for occurrence in pending:
         occurrence.amount = plan.amount

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import transaction
 from rest_framework import serializers
 
@@ -97,6 +99,27 @@ class FixedExpenseSerializer(BusinessScopedSerializerMixin, serializers.ModelSer
         instance = super().update(instance, validated_data)
         sync_pending_occurrences(instance)
         return instance
+
+
+class PayOccurrenceInputSerializer(serializers.Serializer):
+    """Input del action pay: todos los campos son opcionales.
+
+    ``method`` usa CharField para mantener el comportamiento existente de
+    fallback silencioso a ``occurrence.method`` cuando el valor es invalido o
+    ausente (en lugar de rechazar con 400).
+    ``amount`` usa DecimalField para normalizar a 2 decimales y rechazar
+    valores no positivos antes de llegar a la capa de negocio.
+    """
+
+    method = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    paid_at = serializers.DateField(required=False, allow_null=True)
+    amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        required=False,
+        allow_null=True,
+    )
 
 
 class FixedExpenseOccurrenceSerializer(serializers.ModelSerializer):
