@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Turnera: precios mostrados segun el tipo de vehiculo seleccionado](2026-06-11-turnera-precio-por-tipo-de-vehiculo.md)
 - [Servicios y precios visibles para empleados; sin acciones de escritura](2026-06-11-servicios-visibles-para-empleados.md)
 - [Buscador global integrado al SPA: seccion propia, dropdown lateral y apertura en modales](2026-06-11-buscador-global-integrado-al-spa.md)
 - [Turnera: atajos para abrir la landing publica desde la app](2026-06-10-turnera-atajos-de-acceso.md)
