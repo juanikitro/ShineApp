@@ -1,3 +1,7 @@
+from decimal import Decimal
+
+from django.db import transaction
+from django.utils import timezone
 from rest_framework import decorators, response, status, viewsets
 
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
@@ -9,6 +13,37 @@ from scheduling.services import ensure_reservation_work_order
 from .models import WorkOrder
 from .metrics import build_work_order_financial_metrics
 from .serializers import WorkOrderSerializer
+
+
+def _apply_service_materials(order):
+    """Crea consumos de materiales a partir de la receta del servicio (idempotente)."""
+    from inventory.models import Material, MaterialConsumption
+
+    service_materials = list(order.service.materials.select_related("material").all())
+    if not service_materials:
+        return
+    if MaterialConsumption.objects.filter(work_order=order, is_from_service_recipe=True).exists():
+        return
+
+    today = timezone.now().date()
+    with transaction.atomic():
+        for sm in service_materials:
+            material = Material.objects.select_for_update().get(pk=sm.material_id)
+            if material.stock_quantity < sm.quantity:
+                continue
+            unit_cost = material.estimated_unit_cost or Decimal("0.00")
+            MaterialConsumption.objects.create(
+                business=order.business,
+                work_order=order,
+                material=material,
+                consumed_at=today,
+                quantity=sm.quantity,
+                estimated_unit_cost=unit_cost,
+                estimated_total_cost=unit_cost * sm.quantity,
+                is_from_service_recipe=True,
+            )
+            material.stock_quantity -= sm.quantity
+            material.save(update_fields=["stock_quantity", "updated_at"])
 
 
 class WorkOrderViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
@@ -54,6 +89,8 @@ class WorkOrderViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         order.refresh_from_db()
         if new_status == Reservation.Status.READY:
             send_work_order_ready(order)
+        if new_status == Reservation.Status.DELIVERED:
+            _apply_service_materials(order)
         record_audit_event(
             request=request,
             action="status",

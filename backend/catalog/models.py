@@ -118,3 +118,19 @@ class Service(SoftDeleteMixin):
         self.is_active = False
         self.deleted_at = timezone.now()
         self.save(update_fields=["is_active", "deleted_at", "updated_at"])
+
+
+class ServiceMaterial(models.Model):
+    """Receta de materiales por servicio: define cuánto de cada material se consume."""
+
+    service = models.ForeignKey(Service, related_name="materials", on_delete=models.CASCADE)
+    material = models.ForeignKey("inventory.Material", related_name="service_recipes", on_delete=models.CASCADE)
+    quantity = models.DecimalField(max_digits=10, decimal_places=3)
+    notes = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["id"]
+        unique_together = [("service", "material")]
+
+    def __str__(self):
+        return f"{self.service.name} — {self.material.name} x{self.quantity}"

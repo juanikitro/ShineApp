@@ -4,9 +4,9 @@ from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from catalog.views import SectorViewSet, ServiceMaterialViewSet, ServiceViewSet
 from search.views import GlobalSearchView
 
-from catalog.views import SectorViewSet, ServiceViewSet
 from core.views import AuditLogView
 from customers.views import CustomerViewSet, VehicleViewSet
 from dashboard.views import DashboardSummaryView
@@ -50,6 +50,7 @@ router = DefaultRouter()
 router.register("customers", CustomerViewSet, basename="customer")
 router.register("vehicles", VehicleViewSet, basename="vehicle")
 router.register("services", ServiceViewSet, basename="service")
+router.register("service-materials", ServiceMaterialViewSet, basename="servicematerial")
 router.register("sectors", SectorViewSet, basename="sector")
 router.register("reservations", ReservationViewSet, basename="reservation")
 router.register("work-orders", WorkOrderViewSet, basename="workorder")
