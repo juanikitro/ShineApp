@@ -12,6 +12,7 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-11
 - [Turnera: precios mostrados segun el tipo de vehiculo seleccionado](docs/registro/cambios/2026-06-11-turnera-precio-por-tipo-de-vehiculo.md)
+- [Turnera: logo del negocio en el header](docs/registro/cambios/2026-06-11-turnera-logo-en-header.md)
 - [Servicios y precios visibles para empleados; sin acciones de escritura](docs/registro/cambios/2026-06-11-servicios-visibles-para-empleados.md)
 - [Buscador global integrado al SPA: seccion propia, dropdown lateral y apertura en modales](docs/registro/cambios/2026-06-11-buscador-global-integrado-al-spa.md)
 
