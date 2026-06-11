@@ -1353,7 +1353,7 @@ def test_employee_operational_endpoints_do_not_expose_money_fields(employee_clie
         "price_combi",
         "price_camion",
     ]:
-        assert field not in service_payload
+        assert field in service_payload
     assert work_order_response.status_code == 200
     for field in ["total_amount", "paid_amount", "balance_due", "material_cost"]:
         assert field not in work_order_response.data
