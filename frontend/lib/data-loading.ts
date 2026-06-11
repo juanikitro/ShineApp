@@ -13,6 +13,7 @@ export const loadDataSections = [
 	'services',
 	'notifications',
 	'settings',
+	'search',
 ] as const
 
 export type LoadDataSection = (typeof loadDataSections)[number]
@@ -112,6 +113,9 @@ const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 	services: ['services', 'serviceMaterials', 'sectors', 'customers', 'vehicles'],
 	notifications: ['publicRequests', 'customers', 'vehicles', 'services', 'sectors'],
 	settings: ['businessProfile', 'employees', 'services', 'sectors'],
+	// El buscador global consulta /search/ por su cuenta; solo necesita los
+	// datasets de shell (sidebar) que se agregan siempre.
+	search: [],
 }
 
 const shellDataSets: readonly DataSetKey[] = ['businessProfile', 'publicRequests']
