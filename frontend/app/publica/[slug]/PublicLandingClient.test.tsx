@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, test, vi } from 'vitest'
 
@@ -166,12 +166,60 @@ test('sin enlace de Maps, la direccion queda como texto plano', async () => {
 	assert.ok(screen.getByText(/Av\. Siempre Viva 742/))
 })
 
-test('muestra la inicial del negocio sin duplicar la imagen en la marca', async () => {
+test('muestra el logo del negocio en la marca del header', async () => {
 	publicApiFetchMock.mockImplementationOnce(async () => landingPayload)
+	const { container } = render(<PublicLandingClient slug="test" />)
+
+	await screen.findByRole('button', { name: /Lavadero/ })
+	const brandMark = container.querySelector('.public-brand-mark')
+	const logo = brandMark?.querySelector('img')
+	assert.equal(logo?.getAttribute('src'), 'https://cdn.example.com/logo.png')
+	assert.equal(brandMark?.textContent, '')
+})
+
+test('sin logo cargado, la marca usa la inicial del negocio', async () => {
+	const payload = {
+		...landingPayload,
+		business: { ...landingPayload.business, logo_url: null },
+	}
+	publicApiFetchMock.mockImplementationOnce(async () => payload)
 	const { container } = render(<PublicLandingClient slug="test" />)
 
 	await screen.findByRole('button', { name: /Lavadero/ })
 	const brandMark = container.querySelector('.public-brand-mark')
 	assert.equal(brandMark?.textContent, 'L')
 	assert.equal(brandMark?.querySelector('img'), null)
+})
+
+test('un logo PDF no se renderiza como imagen en la marca', async () => {
+	const payload = {
+		...landingPayload,
+		business: {
+			...landingPayload.business,
+			logo_url: 'https://cdn.example.com/logo.pdf',
+		},
+	}
+	publicApiFetchMock.mockImplementationOnce(async () => payload)
+	const { container } = render(<PublicLandingClient slug="test" />)
+
+	await screen.findByRole('button', { name: /Lavadero/ })
+	const brandMark = container.querySelector('.public-brand-mark')
+	assert.equal(brandMark?.textContent, 'L')
+	assert.equal(brandMark?.querySelector('img'), null)
+})
+
+test('si la imagen del logo falla, la marca vuelve a la inicial', async () => {
+	publicApiFetchMock.mockImplementationOnce(async () => landingPayload)
+	const { container } = render(<PublicLandingClient slug="test" />)
+
+	await screen.findByRole('button', { name: /Lavadero/ })
+	const logo = container.querySelector('.public-brand-mark img')
+	assert.ok(logo)
+	fireEvent.error(logo)
+
+	await waitFor(() => {
+		const brandMark = container.querySelector('.public-brand-mark')
+		assert.equal(brandMark?.querySelector('img'), null)
+		assert.equal(brandMark?.textContent, 'L')
+	})
 })

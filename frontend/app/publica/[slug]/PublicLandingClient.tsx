@@ -28,6 +28,7 @@ import {
 	createValidationNotice,
 	formatApiError,
 } from '@/lib/api-errors'
+import { isPdfAssetSource, safeImageAssetSource } from '@/lib/pdf-preview'
 import {
 	type AvailabilityOccupied,
 	buildTimeSlots,
@@ -259,6 +260,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	const [submitting, setSubmitting] = useState(false)
 	const [errorNotice, setErrorNotice] = useState<ApiErrorNotice | null>(null)
 	const [success, setSuccess] = useState(false)
+	const [logoFailed, setLogoFailed] = useState(false)
 	const [openGroups, setOpenGroups] = useState<Record<number, boolean>>({})
 	const [expandedDescriptions, setExpandedDescriptions] = useState<Set<number>>(
 		new Set(),
@@ -289,6 +291,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 				)
 				if (!mounted) return
 				setLanding(payload)
+				setLogoFailed(false)
 			} catch (err) {
 				if (!mounted) return
 				setErrorNotice(errorNoticeFrom(err))
@@ -699,6 +702,11 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	}
 
 	const business = landing.business
+	// El logo puede ser un PDF (el backend lo permite); en ese caso se cae a la inicial.
+	const brandLogoSrc =
+		logoFailed || isPdfAssetSource(business.logo_url)
+			? null
+			: safeImageAssetSource(business.logo_url)
 	const isOvernightHours = Boolean(
 		business.opening_time &&
 			business.closing_time &&
@@ -752,7 +760,15 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 				<div className="public-header-inner">
 					<div className="public-header-brand">
 						<div className="public-brand-mark">
-							<span>{business.name.slice(0, 1).toUpperCase()}</span>
+							{brandLogoSrc ? (
+								<img
+									src={brandLogoSrc}
+									alt=""
+									onError={() => setLogoFailed(true)}
+								/>
+							) : (
+								<span>{business.name.slice(0, 1).toUpperCase()}</span>
+							)}
 						</div>
 						<span className="public-header-name">{business.name}</span>
 					</div>
