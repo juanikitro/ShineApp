@@ -9,6 +9,7 @@ type MetricCardProps = ComponentPropsWithoutRef<'div'> & {
 	value: ReactNode
 	hint?: ReactNode
 	footer?: ReactNode
+	icon?: ReactNode
 	numericValue?: number
 	format?: (value: number) => string
 	animateValue?: boolean
@@ -19,6 +20,7 @@ export function MetricCard({
 	value,
 	hint,
 	footer,
+	icon,
 	numericValue,
 	format,
 	animateValue = true,
@@ -31,6 +33,7 @@ export function MetricCard({
 			: value
 	return (
 		<div className={cx('metric', className)} {...props}>
+			{icon ? <span className="metric-icon" aria-hidden="true">{icon}</span> : null}
 			<span>{label}</span>
 			<strong>{renderedValue}</strong>
 			{hint ? <small>{hint}</small> : null}

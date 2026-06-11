@@ -2056,6 +2056,30 @@
   line-height: 1.4;
 }
 
+/* Chip de icono opcional en la esquina superior derecha de una metric card. */
+.metric {
+  position: relative;
+}
+
+.metric-icon {
+  align-items: center;
+  background: var(--metric-icon-bg, var(--color-info-bg));
+  border-radius: var(--radius-md);
+  color: var(--metric-icon-color, var(--color-info));
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 38px;
+  justify-content: center;
+  position: absolute;
+  right: var(--space-4);
+  top: var(--space-4);
+  width: 38px;
+}
+
+.metric:has(.metric-icon) > span:first-of-type {
+  padding-right: 50px;
+}
+
 /* Caja real: sparkline cero-aware (positivo acento, negativo rojo, base punteada). */
 .caja-spark {
   display: block;
@@ -2225,6 +2249,28 @@
 
 .dashboard-executive-metric {
   min-height: 138px;
+}
+
+/* Color del chip de icono por metrica ejecutiva. */
+.dashboard-executive-metric--billing {
+  --metric-icon-bg: var(--color-info-bg);
+  --metric-icon-color: var(--color-info);
+}
+.dashboard-executive-metric--margin {
+  --metric-icon-bg: var(--color-violet-bg);
+  --metric-icon-color: var(--color-violet);
+}
+.dashboard-executive-metric--cash {
+  --metric-icon-bg: var(--color-success-bg);
+  --metric-icon-color: var(--color-success);
+}
+.dashboard-executive-metric--due {
+  --metric-icon-bg: var(--color-warning-bg);
+  --metric-icon-color: var(--color-warning);
+}
+.dashboard-executive-metric--due.metric--attention {
+  --metric-icon-bg: rgba(249, 115, 22, 0.12);
+  --metric-icon-color: #ea580c;
 }
 
 .dashboard-insight-grid {
