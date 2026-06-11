@@ -1,6 +1,5 @@
 from rest_framework import serializers
 
-from core.permissions import EconomyFieldsMixin
 from core.serializers import BusinessScopedSerializerMixin
 
 from .models import Sector, Service, ServiceMaterial
@@ -72,8 +71,7 @@ class ServiceMaterialSerializer(serializers.ModelSerializer):
         return value
 
 
-class ServiceSerializer(BusinessScopedSerializerMixin, EconomyFieldsMixin, serializers.ModelSerializer):
-    economy_fields = ["base_price", *PRICE_BY_TYPE_FIELDS]
+class ServiceSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     materials = ServiceMaterialSerializer(many=True, read_only=True)
 
     class Meta:
