@@ -477,12 +477,6 @@ export function ServicesPanel({
 		<div className="grid">
 			<section className="panel">
 				<div className="panel-head">
-					<div>
-						<h2>Servicios</h2>
-						<p>
-							Servicios disponibles para reservas y cotizaciones.
-						</p>
-					</div>
 					<button type="button" className="primary" onClick={onCreateService}>
 						<Plus size={16} />
 						Nuevo servicio

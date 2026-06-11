@@ -53,6 +53,8 @@
   --color-info: #0284C7;
   --color-info-bg: #EFF6FF;
   --color-info-border: rgba(2, 132, 199, 0.2);
+  --color-violet: #7C3AED;
+  --color-violet-bg: #EDE9FE;
   --shadow-color: rgba(15, 23, 42, 0.08);
   --status-pending-bg: #fff7ed;
   --status-pending-border: #fed7aa;
@@ -221,6 +223,10 @@
   --color-danger-bg: rgba(225, 106, 90, 0.16);
   --color-ready: #86aeda;
   --color-ready-bg: rgba(134, 174, 218, 0.18);
+  --color-info: #38BDF8;
+  --color-info-bg: rgba(56, 189, 248, 0.15);
+  --color-violet: #A78BFA;
+  --color-violet-bg: rgba(167, 139, 250, 0.15);
   --status-pending-bg: var(--color-warning-bg);
   --status-pending-border: rgba(224, 162, 47, 0.28);
   --status-pending-text: #f1c15f;

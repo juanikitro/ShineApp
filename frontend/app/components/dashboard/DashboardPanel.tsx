@@ -4,7 +4,7 @@ import { type CSSProperties, type ReactNode } from 'react'
 
 import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
-import { CalendarDays, CreditCard, Info } from 'lucide-react'
+import { Banknote, CalendarDays, CreditCard, Info, PieChart, TrendingUp } from 'lucide-react'
 
 import { Stagger, StaggerItem } from '@/app/components/motion/Stagger'
 import { Empty } from '@/app/components/ui/Empty'
@@ -136,6 +136,12 @@ export function DashboardPanel({
 	const dashboardOverdueDebtsCount = numberValue(dashboard.overdue_debts_count)
 	const dashboardMaterialPurchasesTotal = numberValue(
 		dashboard.material_purchases_total,
+	)
+	const dashboardFixedExpensesPendingTotal = numberValue(
+		dashboard.fixed_expenses_pending_total,
+	)
+	const dashboardFixedExpensesPendingCount = numberValue(
+		dashboard.fixed_expenses_pending_count,
 	)
 	const dashboardEconomicAlerts = Array.isArray(dashboard.economic_alerts)
 		? dashboard.economic_alerts
@@ -451,8 +457,9 @@ export function DashboardPanel({
 							<Stagger className="dashboard-executive-grid">
 								<StaggerItem>
 									<MetricCard
-										className="dashboard-executive-metric"
+										className="dashboard-executive-metric dashboard-executive-metric--billing"
 										label="Facturado"
+										icon={<TrendingUp size={18} />}
 										value={money(dashboardBilledTotal)}
 										numericValue={dashboardBilledTotal}
 										format={money}
@@ -465,8 +472,9 @@ export function DashboardPanel({
 								</StaggerItem>
 								<StaggerItem>
 									<MetricCard
-										className="dashboard-executive-metric"
+										className="dashboard-executive-metric dashboard-executive-metric--margin"
 										label="Margen estimado"
+										icon={<PieChart size={18} />}
 										value={money(dashboardEstimatedMarginTotal)}
 										numericValue={dashboardEstimatedMarginTotal}
 										format={money}
@@ -479,8 +487,9 @@ export function DashboardPanel({
 								</StaggerItem>
 								<StaggerItem>
 									<MetricCard
-										className="dashboard-executive-metric"
+										className="dashboard-executive-metric dashboard-executive-metric--cash"
 										label="Caja real"
+										icon={<Banknote size={18} />}
 										footer={
 											<CajaSparkline
 												values={dashboardSeriesValues('cashflow_balance')}
@@ -500,9 +509,11 @@ export function DashboardPanel({
 									<MetricCard
 										className={cx(
 											'dashboard-executive-metric',
+											'dashboard-executive-metric--due',
 											dashboardBalanceDueTotal > 0 && 'metric--attention',
 										)}
 										label="Por cobrar"
+										icon={<CreditCard size={18} />}
 										footer={<RiskMeter buckets={dashboardReceivablesAging} />}
 										value={money(dashboardBalanceDueTotal)}
 										numericValue={dashboardBalanceDueTotal}
@@ -592,6 +603,20 @@ export function DashboardPanel({
 												numericValue={dashboardOverdueDebtsTotal}
 												format={money}
 												hint={`${dashboardOverdueDebtsCount} pendientes`}
+											/>
+										</StaggerItem>
+										<StaggerItem>
+											<MetricCard
+												className={
+													dashboardFixedExpensesPendingTotal > 0
+														? 'metric--attention'
+														: ''
+												}
+												label="Gastos fijos por pagar"
+												value={money(dashboardFixedExpensesPendingTotal)}
+												numericValue={dashboardFixedExpensesPendingTotal}
+												format={money}
+												hint={`${dashboardFixedExpensesPendingCount} pendientes en el periodo`}
 											/>
 										</StaggerItem>
 									</Stagger>

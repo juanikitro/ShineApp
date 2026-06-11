@@ -767,6 +767,15 @@ export default function Home() {
 	const [fixedExpenseForm, setFixedExpenseForm] = useState<AnyRecord>(
 		blankFixedExpenseForm(today),
 	)
+	const [payOccurrenceForm, setPayOccurrenceForm] = useState<{
+		id: string | number
+		fixed_expense: string | number
+		method: string
+		paid_at: string
+		amount: string
+		original_amount: string
+		update_template: boolean
+	}>({ id: '', fixed_expense: '', method: 'transfer', paid_at: today, amount: '', original_amount: '', update_template: false })
 	const [debtPaymentForm, setDebtPaymentForm] = useState<AnyRecord>(
 		blankDebtPaymentForm(today),
 	)
@@ -1459,6 +1468,7 @@ export default function Home() {
 			debt: 'debt.concept',
 			'debt-payment': 'debt-payment.debt',
 			'fixed-expense': 'fixed-expense.concept',
+			'fixed-expense-pay': 'fixed-expense-pay.method',
 			material: 'material.name',
 			supplier: 'supplier.name',
 			'stock-movement': 'stock-movement.type',
@@ -1854,17 +1864,6 @@ export default function Home() {
 		agendaSectorId === null
 			? 'Todos'
 			: (sectors.find((s) => s.id === agendaSectorId)?.name ?? 'Sector')
-	const agendaRangeSummary = `${agendaSectorLabel}: ${
-		visibleAgendaReservations.length
-	} ${
-		visibleAgendaReservations.length === 1
-			? 'reserva visible'
-			: 'reservas visibles'
-	}, ${agendaBoardModel.segments.length} ${
-		agendaBoardModel.segments.length === 1
-			? 'movimiento en rango'
-			: 'movimientos en rango'
-	}.`
 	const weekDays = agendaBoardModel.days
 	const activeAgendaRow = useMemo(() => {
 		if (!activeAgendaReservationId) return null
@@ -9653,28 +9652,32 @@ export default function Home() {
 
 	async function saveFixedExpense(event: FormEvent) {
 		event.preventDefault()
+		const editingId = fixedExpenseForm.id
 		await runAction(async () => {
-			const created = await apiFetch<AnyRecord>('/fixed-expenses/', {
-				method: 'POST',
-				body: JSON.stringify({
-					concept: fixedExpenseForm.concept,
-					supplier: fixedExpenseForm.supplier || null,
-					amount: fixedExpenseForm.amount,
-					expense_category: fixedExpenseForm.expense_category,
-					expense_subcategory: fixedExpenseForm.expense_subcategory,
-					notes: fixedExpenseForm.notes,
-					interval_unit: fixedExpenseForm.interval_unit || 'months',
-					interval_count: Number(fixedExpenseForm.interval_count || 1),
-					start_date: fixedExpenseForm.start_date,
-					due_offset_days: Number(fixedExpenseForm.due_offset_days || 0),
-					end_date: fixedExpenseForm.end_date || null,
-					max_cycles: fixedExpenseForm.max_cycles
-						? Number(fixedExpenseForm.max_cycles)
-						: null,
-					auto_pay: Boolean(fixedExpenseForm.auto_pay),
-					payment_method: fixedExpenseForm.payment_method || 'transfer',
-				}),
-			})
+			const created = await apiFetch<AnyRecord>(
+				editingId ? `/fixed-expenses/${editingId}/` : '/fixed-expenses/',
+				{
+					method: editingId ? 'PATCH' : 'POST',
+					body: JSON.stringify({
+						concept: fixedExpenseForm.concept,
+						supplier: fixedExpenseForm.supplier || null,
+						amount: fixedExpenseForm.amount,
+						expense_category: fixedExpenseForm.expense_category,
+						expense_subcategory: fixedExpenseForm.expense_subcategory,
+						notes: fixedExpenseForm.notes,
+						interval_unit: fixedExpenseForm.interval_unit || 'months',
+						interval_count: Number(fixedExpenseForm.interval_count || 1),
+						start_date: fixedExpenseForm.start_date,
+						due_offset_days: Number(fixedExpenseForm.due_offset_days || 0),
+						end_date: fixedExpenseForm.end_date || null,
+						max_cycles: fixedExpenseForm.max_cycles
+							? Number(fixedExpenseForm.max_cycles)
+							: null,
+						auto_pay: Boolean(fixedExpenseForm.auto_pay),
+						payment_method: fixedExpenseForm.payment_method || 'transfer',
+					}),
+				},
+			)
 			setFixedExpenseForm(blankFixedExpenseForm(today))
 			formModalExit.close()
 			return created
@@ -9682,17 +9685,59 @@ export default function Home() {
 			key: 'save:fixed-expense',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('fixed-expense', created?.id),
-			successTitle: entityFeedbackTitle('fixed-expense', 'created'),
-			undo: undoCreatedRecord('fixed-expense'),
+			successTitle: entityFeedbackTitle(
+				'fixed-expense',
+				editingId ? 'updated' : 'created',
+			),
+			undo: editingId ? undefined : undoCreatedRecord('fixed-expense'),
 		})
 	}
 
-	async function payFixedExpenseOccurrence(id: string | number) {
+	function payFixedExpenseOccurrence(item: AnyRecord) {
+		const amount = String(item.amount ?? '')
+		setPayOccurrenceForm({
+			id: item.id,
+			fixed_expense: item.fixed_expense,
+			method: 'transfer',
+			paid_at: today,
+			amount,
+			original_amount: amount,
+			update_template: false,
+		})
+		setFormModal({ kind: 'fixed-expense-pay' })
+	}
+
+	async function confirmFixedExpenseOccurrencePayment(event: FormEvent) {
+		event.preventDefault()
 		await runAction(
-			async () =>
-				apiFetch<AnyRecord>(`/fixed-expense-occurrences/${id}/pay/`, {
-					method: 'POST',
-				}),
+			async () => {
+				const body: AnyRecord = {
+					method: payOccurrenceForm.method,
+					paid_at: payOccurrenceForm.paid_at,
+				}
+				if (payOccurrenceForm.amount !== '') {
+					body.amount = payOccurrenceForm.amount
+				}
+				const result = await apiFetch<AnyRecord>(
+					`/fixed-expense-occurrences/${payOccurrenceForm.id}/pay/`,
+					{
+						method: 'POST',
+						body: JSON.stringify(body),
+					},
+				)
+				const shouldUpdateTemplate =
+					payOccurrenceForm.update_template &&
+					payOccurrenceForm.amount !== '' &&
+					Number(payOccurrenceForm.amount) !== Number(payOccurrenceForm.original_amount)
+				if (shouldUpdateTemplate) {
+					await apiFetch(`/fixed-expenses/${payOccurrenceForm.fixed_expense}/`, {
+						method: 'PATCH',
+						body: JSON.stringify({ amount: payOccurrenceForm.amount }),
+					})
+				}
+				formModalExit.close()
+				return result
+			},
 			{
 				successTitle: entityFeedbackTitle('fixed-expense-occurrence', 'updated'),
 			},
@@ -9728,6 +9773,44 @@ export default function Home() {
 				apiFetch<AnyRecord>(`/fixed-expenses/${id}/`, { method: 'DELETE' }),
 			{ successTitle: entityFeedbackTitle('fixed-expense', 'deleted') },
 		)
+	}
+
+	async function unpayFixedExpenseOccurrence(id: string | number) {
+		const confirmed =
+			typeof window === 'undefined'
+				? true
+				: window.confirm(
+						'Revertir el pago elimina el egreso de la caja. Continuar?',
+					)
+		if (!confirmed) return
+		await runAction(
+			async () =>
+				apiFetch<AnyRecord>(`/fixed-expense-occurrences/${id}/unpay/`, {
+					method: 'POST',
+				}),
+			{ successTitle: 'Pago revertido' },
+		)
+	}
+
+	function openFixedExpenseForEdit(plan: AnyRecord) {
+		setFixedExpenseForm({
+			id: plan.id,
+			concept: plan.concept ?? '',
+			supplier: plan.supplier ? String(plan.supplier) : '',
+			amount: String(plan.amount ?? ''),
+			expense_category: plan.expense_category ?? 'Servicios',
+			expense_subcategory: plan.expense_subcategory ?? 'Otros',
+			notes: plan.notes ?? '',
+			interval_unit: plan.interval_unit ?? 'months',
+			interval_count: String(plan.interval_count ?? '1'),
+			start_date: plan.start_date ?? today,
+			due_offset_days: String(plan.due_offset_days ?? '0'),
+			end_date: plan.end_date ?? '',
+			max_cycles: plan.max_cycles != null ? String(plan.max_cycles) : '',
+			auto_pay: Boolean(plan.auto_pay),
+			payment_method: plan.payment_method ?? 'transfer',
+		})
+		setFormModal({ kind: 'fixed-expense' })
 	}
 
 	async function saveDebtPayment(event: FormEvent) {
@@ -11060,7 +11143,7 @@ export default function Home() {
 				{canViewEconomy && formModal?.kind === 'fixed-expense' ? (
 					<Modal
 						key="form-fixed-expense"
-						title="Nuevo gasto fijo"
+						title={fixedExpenseForm.id ? 'Editar gasto fijo' : 'Nuevo gasto fijo'}
 						onClose={formModalExit.close}
 					>
 						<FixedExpenseForm
@@ -11078,6 +11161,105 @@ export default function Home() {
 							focusNextOnEnter={focusNextOnEnter}
 							submitting={isActionPending('save:fixed-expense')}
 						/>
+					</Modal>
+				) : null}
+				{canViewEconomy && formModal?.kind === 'fixed-expense-pay' ? (
+					<Modal
+						key="form-fixed-expense-pay"
+						title="Registrar pago de gasto fijo"
+						onClose={formModalExit.close}
+					>
+						<form
+							onSubmit={confirmFixedExpenseOccurrencePayment}
+							className="form-body"
+						>
+							<Field label="Monto">
+								<input
+									id="fixed-expense-pay.amount"
+									type="number"
+									min="0.01"
+									step="any"
+									placeholder="Ej: 94300 o 94300.50"
+									value={payOccurrenceForm.amount}
+									onChange={(e) => {
+										const newAmount = e.target.value
+										const isOriginal =
+											newAmount === '' ||
+											Number(newAmount) ===
+												Number(payOccurrenceForm.original_amount)
+										setPayOccurrenceForm({
+											...payOccurrenceForm,
+											amount: newAmount,
+											update_template: isOriginal
+												? false
+												: payOccurrenceForm.update_template,
+										})
+									}}
+								/>
+								<small>
+									Usá punto como decimal. Si lo dejás vacío, se usa el monto
+									estimado de la ocurrencia.
+								</small>
+							</Field>
+							{payOccurrenceForm.amount !== '' &&
+							Number(payOccurrenceForm.amount) !==
+								Number(payOccurrenceForm.original_amount) ? (
+								<label>
+									<input
+										type="checkbox"
+										checked={payOccurrenceForm.update_template}
+										onChange={(e) =>
+											setPayOccurrenceForm({
+												...payOccurrenceForm,
+												update_template: e.target.checked,
+											})
+										}
+									/>
+									{' '}Actualizar el monto estimado de la plantilla (
+									{money(Number(payOccurrenceForm.original_amount))} →{' '}
+									{money(Number(payOccurrenceForm.amount))})
+								</label>
+							) : null}
+							<Field label="Metodo de pago">
+								<select
+									id="fixed-expense-pay.method"
+									value={payOccurrenceForm.method}
+									onChange={(e) =>
+										setPayOccurrenceForm({
+											...payOccurrenceForm,
+											method: e.target.value,
+										})
+									}
+								>
+									{Object.entries(debtPaymentMethodLabels).map(
+										([value, label]) => (
+											<option key={value} value={value}>
+												{label}
+											</option>
+										),
+									)}
+								</select>
+							</Field>
+							<Field label="Fecha de pago">
+								<input
+									id="fixed-expense-pay.paid_at"
+									type="date"
+									value={payOccurrenceForm.paid_at}
+									onChange={(e) =>
+										setPayOccurrenceForm({
+											...payOccurrenceForm,
+											paid_at: e.target.value,
+										})
+									}
+								/>
+							</Field>
+							<div className="form-actions">
+								<button type="submit" className="primary">
+									<CreditCard size={16} />
+									Confirmar pago
+								</button>
+							</div>
+						</form>
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'debt-payment' ? (
@@ -12038,7 +12220,6 @@ export default function Home() {
 				<AnimatedWorkspaceView viewKey={displayedActive}>
 					<PageHeader
 						title={title.label}
-						subtitle={title.subtitle}
 						titleAddon={
 							displayedActive === 'agenda' && sectorSelectOptions.length > 0 ? (
 								<SegmentedControl
@@ -12625,7 +12806,6 @@ export default function Home() {
 				{displayedActive === 'agenda' ? (
 					<div className="work-view-strip">
 						<div className="work-view-copy">
-							<span className="agenda-toolbar-kicker">Agenda / Trabajos</span>
 							<strong>{agendaSectorLabel}</strong>
 							<small>
 								{visibleAgendaReservations.length}{' '}
@@ -12652,7 +12832,6 @@ export default function Home() {
 						<section className="panel agenda-panel">
 							<AgendaBoardToolbar
 								endLabel={formatDayLabel(weekEndDay)}
-								rangeSummary={agendaRangeSummary}
 								startLabel={formatDayLabel(agendaStartDay)}
 								visibleDays={AGENDA_VISIBLE_DAYS}
 								onMove={moveAgenda}
@@ -12946,13 +13125,12 @@ export default function Home() {
 						search={search}
 						onSearchChange={setSearch}
 						onCreateFixedExpense={() => openFormModal('fixed-expense')}
-						onOpenFixedExpenseDetail={(item) =>
-							openDetailModal('Gasto fijo', item)
-						}
+						onEditFixedExpense={openFixedExpenseForEdit}
 						onOpenOccurrenceDetail={(item) =>
 							openDetailModal('Pago de gasto fijo', item)
 						}
 						onPayOccurrence={payFixedExpenseOccurrence}
+						onUnpayOccurrence={unpayFixedExpenseOccurrence}
 						onPauseFixedExpense={pauseFixedExpense}
 						onResumeFixedExpense={resumeFixedExpense}
 						onDeleteFixedExpense={deleteFixedExpense}

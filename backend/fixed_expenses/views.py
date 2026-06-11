@@ -1,5 +1,3 @@
-from datetime import date
-
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -7,9 +5,17 @@ from rest_framework.response import Response
 from core.audit import AuditedModelViewSetMixin
 from core.permissions import CanViewEconomy
 
-from .materialization import materialize_due, register_occurrence_payment
+from .materialization import (
+    materialize_due,
+    register_occurrence_payment,
+    register_occurrence_unpay,
+)
 from .models import FixedExpense, FixedExpenseOccurrence, PaymentMethod
-from .serializers import FixedExpenseOccurrenceSerializer, FixedExpenseSerializer
+from .serializers import (
+    FixedExpenseOccurrenceSerializer,
+    FixedExpenseSerializer,
+    PayOccurrenceInputSerializer,
+)
 
 
 VALID_METHODS = set(PaymentMethod.values)
@@ -73,21 +79,27 @@ class FixedExpenseOccurrenceViewSet(AuditedModelViewSetMixin, viewsets.ReadOnlyM
     @action(detail=True, methods=["post"], url_path="pay")
     def pay(self, request, pk=None):
         occurrence = self.get_object()
-        method = request.data.get("method")
+        serializer = PayOccurrenceInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        method = data.get("method")
         if method not in VALID_METHODS:
             method = occurrence.method
-        paid_at_raw = request.data.get("paid_at")
-        paid_at = None
-        if paid_at_raw:
-            try:
-                paid_at = date.fromisoformat(str(paid_at_raw))
-            except ValueError:
-                return Response({"paid_at": "Fecha invalida."}, status=400)
+
         register_occurrence_payment(
             occurrence,
             user=request.user if request.user.is_authenticated else None,
             method=method,
-            paid_at=paid_at,
+            paid_at=data.get("paid_at"),
+            amount=data.get("amount"),
         )
+        occurrence.refresh_from_db()
+        return Response(self.get_serializer(occurrence).data)
+
+    @action(detail=True, methods=["post"], url_path="unpay")
+    def unpay(self, request, pk=None):
+        occurrence = self.get_object()
+        register_occurrence_unpay(occurrence)
         occurrence.refresh_from_db()
         return Response(self.get_serializer(occurrence).data)
