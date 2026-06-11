@@ -4,6 +4,17 @@ import { Empty } from '@/app/components/ui/Empty'
 import { Panel } from '@/app/components/ui/Panel'
 import { type AnyRecord, money, numberValue } from '@/lib/page-support'
 
+const EXPENSE_PALETTE = [
+	'rgba(251, 113, 133, 0.65)',
+	'rgba(251, 146, 60,  0.65)',
+	'rgba(96,  165, 250, 0.65)',
+	'rgba(52,  211, 153, 0.65)',
+	'rgba(196, 181, 253, 0.65)',
+	'rgba(251, 207, 232, 0.65)',
+	'rgba(253, 224, 71,  0.65)',
+	'rgba(165, 243, 252, 0.65)',
+]
+
 function CategoryList({
 	rows,
 	total,
@@ -17,10 +28,6 @@ function CategoryList({
 		(highest: number, row: AnyRecord) => Math.max(highest, numberValue(row.total)),
 		0,
 	)
-	const fill =
-		tone === 'income'
-			? 'var(--dashboard-bar-income)'
-			: 'var(--dashboard-bar-expense)'
 	if (rows.length === 0) {
 		return <Empty text="Sin movimientos en el periodo." />
 	}
@@ -30,6 +37,10 @@ function CategoryList({
 				const value = numberValue(row.total)
 				const width = max > 0 ? Math.min(100, (value / max) * 100) : 0
 				const share = total > 0 ? Math.round((value / total) * 100) : 0
+				const fill =
+					tone === 'income'
+						? 'var(--dashboard-bar-income)'
+						: EXPENSE_PALETTE[index % EXPENSE_PALETTE.length]
 				return (
 					<div className="dashboard-catrow" key={row.category ?? index}>
 						<div className="dashboard-catrow-top">
