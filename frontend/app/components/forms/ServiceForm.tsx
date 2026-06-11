@@ -1,15 +1,18 @@
-﻿'use client'
+'use client'
 
 import { type FormEvent, type KeyboardEvent } from 'react'
 
-import { Wrench } from 'lucide-react'
+import { Plus, Trash2, Wrench } from 'lucide-react'
 
 import { DurationInput } from '@/app/components/ui/DurationInput'
 import { Field } from '@/app/components/ui/Field'
 import { NumericInput } from '@/app/components/ui/NumericInput'
-import { SearchSelect } from '@/app/components/ui/SearchSelect'
+import {
+	SearchSelect,
+	type SelectOption,
+} from '@/app/components/ui/SearchSelect'
 import { ServiceIconPicker } from '@/app/components/ui/ServiceIconPicker'
-import { type AnyRecord } from '@/lib/page-support'
+import { type AnyRecord, quantity } from '@/lib/page-support'
 import { applyBasePriceToTypes, VEHICLE_TYPES } from '@/lib/service-pricing'
 
 type ServiceFormProps = {
@@ -18,6 +21,12 @@ type ServiceFormProps = {
 	setServiceForm: (form: AnyRecord) => void
 	onSubmit: (e: FormEvent<HTMLFormElement>) => void
 	sectors: AnyRecord[]
+	materialOptions: SelectOption[]
+	materials: AnyRecord[]
+	serviceMaterialLines: AnyRecord[]
+	addServiceMaterialLine: () => void
+	removeServiceMaterialLine: (index: number) => void
+	updateServiceMaterialLine: (index: number, changes: AnyRecord) => void
 	focusNextOnEnter: (
 		key: string,
 	) => (event: KeyboardEvent<HTMLElement>) => void
@@ -30,6 +39,12 @@ export function ServiceForm({
 	setServiceForm,
 	onSubmit,
 	sectors,
+	materialOptions,
+	materials,
+	serviceMaterialLines,
+	addServiceMaterialLine,
+	removeServiceMaterialLine,
+	updateServiceMaterialLine,
 	focusNextOnEnter,
 	focusField,
 }: ServiceFormProps) {
@@ -134,6 +149,59 @@ export function ServiceForm({
 					}
 				/>
 			</Field>
+			<div className="form-section-label">Materiales por servicio</div>
+			<div className="info-note">
+				Al cerrar un trabajo con este servicio, los materiales se descuentan
+				automáticamente del stock.
+			</div>
+			<div className="stock-lines">
+				{serviceMaterialLines.map((line: AnyRecord, index: number) => {
+					const mat = materials.find(
+						(m) => String(m.id) === String(line.material),
+					)
+					return (
+						<div className="quote-line stock-line" key={index}>
+							<SearchSelect
+								label="Material"
+								value={line.material}
+								options={materialOptions}
+								onChange={(value) =>
+									updateServiceMaterialLine(index, { material: value })
+								}
+							/>
+							<Field label={`Cantidad${mat?.unit ? ` (${mat.unit})` : ''}`}>
+								<input
+									required={!!line.material}
+									type="number"
+									min="0.001"
+									step="0.001"
+									value={line.quantity}
+									onChange={(event) =>
+										updateServiceMaterialLine(index, {
+											quantity: event.target.value,
+										})
+									}
+								/>
+							</Field>
+							<button
+								type="button"
+								className="ghost"
+								onClick={() => removeServiceMaterialLine(index)}
+							>
+								<Trash2 size={16} />
+							</button>
+						</div>
+					)
+				})}
+			</div>
+			<button
+				type="button"
+				className="ghost"
+				onClick={addServiceMaterialLine}
+			>
+				<Plus size={16} />
+				Agregar material
+			</button>
 			<button className="primary" data-focus-key="service.submit">
 				<Wrench size={16} />
 				{submitLabel}

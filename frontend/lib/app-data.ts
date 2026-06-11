@@ -47,6 +47,8 @@ export async function loadAppDataSet(
 			return loaders.apiList<AnyRecord>('/vehicles/')
 		case 'services':
 			return loaders.apiList<AnyRecord>('/services/')
+		case 'serviceMaterials':
+			return loaders.apiList<AnyRecord>('/service-materials/')
 		case 'sectors':
 			return loaders.apiList<AnyRecord>('/sectors/')
 		case 'reservations':

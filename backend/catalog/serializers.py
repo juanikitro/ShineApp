@@ -3,7 +3,7 @@ from rest_framework import serializers
 from core.permissions import EconomyFieldsMixin
 from core.serializers import BusinessScopedSerializerMixin
 
-from .models import Sector, Service
+from .models import Sector, Service, ServiceMaterial
 
 
 PRICE_BY_TYPE_FIELDS = ["price_moto", "price_auto", "price_camioneta", "price_combi", "price_camion"]
@@ -57,8 +57,24 @@ class SectorSerializer(BusinessScopedSerializerMixin, serializers.ModelSerialize
         return attrs
 
 
+class ServiceMaterialSerializer(serializers.ModelSerializer):
+    material_name = serializers.CharField(source="material.name", read_only=True)
+    material_unit = serializers.CharField(source="material.unit", read_only=True)
+
+    class Meta:
+        model = ServiceMaterial
+        fields = ["id", "service", "material", "material_name", "material_unit", "quantity", "notes"]
+        read_only_fields = ["id", "material_name", "material_unit"]
+
+    def validate_quantity(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("La cantidad debe ser mayor a cero.")
+        return value
+
+
 class ServiceSerializer(BusinessScopedSerializerMixin, EconomyFieldsMixin, serializers.ModelSerializer):
     economy_fields = ["base_price", *PRICE_BY_TYPE_FIELDS]
+    materials = ServiceMaterialSerializer(many=True, read_only=True)
 
     class Meta:
         model = Service
@@ -72,10 +88,11 @@ class ServiceSerializer(BusinessScopedSerializerMixin, EconomyFieldsMixin, seria
             "estimated_duration_minutes",
             "is_active",
             "notes",
+            "materials",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "materials", "created_at", "updated_at"]
 
     def validate_base_price(self, value):
         if value < 0:

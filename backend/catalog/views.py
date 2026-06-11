@@ -7,12 +7,12 @@ from rest_framework import decorators, permissions, response, viewsets
 from rest_framework.exceptions import ValidationError
 
 from core.audit import AuditedModelViewSetMixin
-from core.permissions import CanViewEconomy, EmployerRequiredForUnsafe
+from core.permissions import CanViewEconomy, EmployerRequiredForUnsafe, business_from_request
 from quotes.models import Quote, QuoteItem
 from scheduling.models import Reservation, ReservationItem
 from workorders.models import WorkOrder
-from .models import Sector, Service
-from .serializers import SectorSerializer, ServiceSerializer
+from .models import Sector, Service, ServiceMaterial
+from .serializers import SectorSerializer, ServiceMaterialSerializer, ServiceSerializer
 
 
 class SectorViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
@@ -310,3 +310,16 @@ class ServiceViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
                 "recent_quotes": [service_history_quote_row(quote) for quote in recent_quotes],
             }
         )
+
+
+class ServiceMaterialViewSet(viewsets.ModelViewSet):
+    serializer_class = ServiceMaterialSerializer
+    permission_classes = [permissions.IsAuthenticated, EmployerRequiredForUnsafe]
+
+    def get_queryset(self):
+        business = business_from_request(self.request)
+        qs = ServiceMaterial.objects.select_related("material").filter(service__business=business)
+        service_id = self.request.query_params.get("service")
+        if service_id:
+            qs = qs.filter(service_id=service_id)
+        return qs

@@ -23,6 +23,7 @@ export type DataSetKey =
 	| 'customers'
 	| 'vehicles'
 	| 'services'
+	| 'serviceMaterials'
 	| 'sectors'
 	| 'reservations'
 	| 'workOrders'
@@ -108,7 +109,7 @@ const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 		'reservations',
 		'businessProfile',
 	],
-	services: ['services', 'sectors', 'customers', 'vehicles'],
+	services: ['services', 'serviceMaterials', 'sectors', 'customers', 'vehicles'],
 	notifications: ['publicRequests', 'customers', 'vehicles', 'services', 'sectors'],
 	settings: ['businessProfile', 'employees', 'services', 'sectors'],
 }
@@ -133,6 +134,7 @@ const economyOnlyDataSets = new Set<DataSetKey>([
 	'publicRequests',
 	'businessProfile',
 	'employees',
+	'serviceMaterials',
 ])
 
 function isLoadDataSection(section: string): section is LoadDataSection {
