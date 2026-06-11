@@ -140,6 +140,55 @@ test('las descripciones cortas no muestran el boton "Ver mas"', async () => {
 	assert.equal(screen.queryByRole('button', { name: /Ver mas/i }), null)
 })
 
+test('los precios de servicios y el total siguen al tipo de vehiculo seleccionado', async () => {
+	const formatPrice = (value: number) =>
+		value.toLocaleString('es-AR', {
+			style: 'currency',
+			currency: 'ARS',
+			maximumFractionDigits: 0,
+		})
+	const payload = {
+		...landingPayload,
+		display: { show_service_description: true, show_service_price: true },
+		services: [
+			{
+				...landingPayload.services[0],
+				base_price: '15000.00',
+				price_camioneta: '20000.00',
+			},
+			landingPayload.services[1],
+		],
+	}
+	publicApiFetchMock.mockImplementationOnce(async () => payload)
+
+	const user = userEvent.setup()
+	const { container } = render(<PublicLandingClient slug="test" />)
+
+	const priceTag = () =>
+		container.querySelector('.public-svc-price')?.textContent
+	const totalTag = () =>
+		container.querySelector('.public-summary-total')?.textContent
+
+	await user.click(await screen.findByRole('button', { name: /Lavadero/ }))
+	await user.click(screen.getByRole('button', { name: /Agregar Lavado Premium/ }))
+
+	// tipo default "auto" sin precio propio -> base_price
+	assert.equal(priceTag(), formatPrice(15000))
+	assert.equal(totalTag(), formatPrice(15000))
+
+	await user.selectOptions(
+		screen.getByLabelText('Tipo de vehículo'),
+		'camioneta',
+	)
+	assert.equal(priceTag(), formatPrice(20000))
+	assert.equal(totalTag(), formatPrice(20000))
+
+	// tipo sin precio propio vuelve al base
+	await user.selectOptions(screen.getByLabelText('Tipo de vehículo'), 'moto')
+	assert.equal(priceTag(), formatPrice(15000))
+	assert.equal(totalTag(), formatPrice(15000))
+})
+
 test('el telefono abre WhatsApp y la direccion abre Google Maps', async () => {
 	publicApiFetchMock.mockImplementationOnce(async () => landingPayload)
 	render(<PublicLandingClient slug="test" />)

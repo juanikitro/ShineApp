@@ -101,6 +101,8 @@ def test_public_landing_is_available_without_auth_and_hides_prices():
     assert response.data["services"][0]["id"] == service.id
     assert response.data["services"][0]["name"] == service.name
     assert "base_price" not in response.data["services"][0]
+    assert "price_moto" not in response.data["services"][0]
+    assert "price_camioneta" not in response.data["services"][0]
     cache_control = response.headers.get("Cache-Control", "")
     assert "public" in cache_control
     assert "s-maxage" in cache_control
@@ -1214,6 +1216,9 @@ def test_public_landing_defaults_hide_price_and_show_description():
 def test_public_landing_exposes_price_when_flag_enabled():
     business = create_business()
     service = create_service(business)
+    service.price_moto = Decimal("8000.00")
+    service.price_camioneta = Decimal("20000.00")
+    service.save(update_fields=["price_moto", "price_camioneta", "updated_at"])
     profile = BusinessProfile.objects.get(business=business)
     profile.public_show_service_price = True
     profile.save(update_fields=["public_show_service_price", "updated_at"])
@@ -1226,6 +1231,9 @@ def test_public_landing_exposes_price_when_flag_enabled():
     service_payload = response.data["services"][0]
     assert service_payload["id"] == service.id
     assert Decimal(service_payload["base_price"]) == Decimal("15000.00")
+    assert Decimal(service_payload["price_moto"]) == Decimal("8000.00")
+    assert Decimal(service_payload["price_camioneta"]) == Decimal("20000.00")
+    assert service_payload["price_combi"] is None
 
 
 @pytest.mark.django_db

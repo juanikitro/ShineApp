@@ -34,7 +34,10 @@ import {
 	todayIsoDate,
 } from '@/lib/scheduling-availability'
 import { formatDurationLabel } from '@/lib/service-duration'
-import { VEHICLE_TYPE_OPTIONS } from '@/lib/service-pricing'
+import {
+	VEHICLE_TYPE_OPTIONS,
+	servicePriceForVehicleType,
+} from '@/lib/service-pricing'
 
 type PublicAvailabilityPayload = {
 	date: string
@@ -68,6 +71,11 @@ type PublicService = {
 	estimated_duration_minutes?: number | null
 	notes?: string
 	base_price?: string | number | null
+	price_moto?: string | number | null
+	price_auto?: string | number | null
+	price_camioneta?: string | number | null
+	price_combi?: string | number | null
+	price_camion?: string | number | null
 }
 
 // A partir de cuantos caracteres una descripcion se trunca con "Ver mas".
@@ -394,11 +402,13 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 			if (!Number.isFinite(id)) continue
 			const service = byId.get(id)
 			if (!service) continue
-			const price = Number(service.base_price ?? 0)
+			const price = Number(
+				servicePriceForVehicleType(service, form.vehicle_type) || 0,
+			)
 			if (Number.isFinite(price)) total += price
 		}
 		return total
-	}, [form.service_ids, landing])
+	}, [form.service_ids, form.vehicle_type, landing])
 
 	const timeSlots = useMemo(() => {
 		if (!form.preferred_day || form.preferred_day < today) return []
@@ -1129,7 +1139,12 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 													const showPrice =
 														landing.display?.show_service_price === true
 													const priceLabel = showPrice
-														? formatPublicPrice(service.base_price)
+														? formatPublicPrice(
+																servicePriceForVehicleType(
+																	service,
+																	form.vehicle_type,
+																),
+															)
 														: ''
 													const description =
 														showDescription && service.notes
