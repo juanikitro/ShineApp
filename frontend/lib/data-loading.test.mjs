@@ -69,7 +69,7 @@ test('customer and service dashboards keep editable linked records hydrated', ()
 			section: 'services',
 			canViewEconomy: true,
 		}),
-		['services', 'sectors', 'customers', 'vehicles', 'businessProfile', 'publicRequests'],
+		['services', 'serviceMaterials', 'sectors', 'customers', 'vehicles', 'businessProfile', 'publicRequests'],
 	)
 })
 
