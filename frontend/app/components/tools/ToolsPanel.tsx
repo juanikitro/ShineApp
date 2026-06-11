@@ -53,10 +53,6 @@ export function ToolsPanel({
 		<div className="grid">
 			<section className="panel">
 				<div className="panel-head">
-					<div>
-						<h2>Herramientas</h2>
-						<p>Estado, cantidades y valor estimado del equipamiento.</p>
-					</div>
 					<button type="button" className="primary" onClick={onOpenToolForm}>
 						<Hammer size={16} />
 						Nueva herramienta

@@ -61,6 +61,7 @@ import {
 } from 'react'
 
 import { AnimatedLabelSwap } from '@/app/components/motion/AnimatedLabelSwap'
+import { GlobalSearchInput } from '@/app/components/search/GlobalSearchInput'
 import {
 	SupplierDashboardPanel,
 	supplierProfileSubtitle,
@@ -1866,17 +1867,6 @@ export default function Home() {
 		agendaSectorId === null
 			? 'Todos'
 			: (sectors.find((s) => s.id === agendaSectorId)?.name ?? 'Sector')
-	const agendaRangeSummary = `${agendaSectorLabel}: ${
-		visibleAgendaReservations.length
-	} ${
-		visibleAgendaReservations.length === 1
-			? 'reserva visible'
-			: 'reservas visibles'
-	}, ${agendaBoardModel.segments.length} ${
-		agendaBoardModel.segments.length === 1
-			? 'movimiento en rango'
-			: 'movimientos en rango'
-	}.`
 	const weekDays = agendaBoardModel.days
 	const activeAgendaRow = useMemo(() => {
 		if (!activeAgendaReservationId) return null
@@ -12174,41 +12164,44 @@ export default function Home() {
 						collapsed={sidebarCollapsed}
 						mobileOpen={sidebarMobileOpen}
 						header={
-							businessProfile && sidebarBusinessLogoSrc ? (
-								currentUser?.business?.slug ? (
-									<a
-										className="ghost sidebar-business-button"
-										href={`/publica/${String(currentUser.business.slug)}`}
-										rel="noreferrer"
-										target="_blank"
-										aria-label={`Abrir turnera de ${String(businessProfile.name ?? 'negocio')}`}
-										title="Abrir turnera"
-									>
-										<img
-											src={sidebarBusinessLogoSrc}
-											alt={String(businessProfile.name ?? '')}
-											className="sidebar-business-logo"
-										/>
-									</a>
-								) : (
-									<button
-										type="button"
-										className="ghost sidebar-business-button"
-										onClick={() => {
-											handleSectionChange('settings')
-											setSettingsSection('business')
-										}}
-										aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
-										title="Configuracion del negocio"
-									>
-										<img
-											src={sidebarBusinessLogoSrc}
-											alt={String(businessProfile.name ?? '')}
-											className="sidebar-business-logo"
-										/>
-									</button>
-								)
-							) : null
+							<>
+								{businessProfile && sidebarBusinessLogoSrc ? (
+									currentUser?.business?.slug ? (
+										<a
+											className="ghost sidebar-business-button"
+											href={`/publica/${String(currentUser.business.slug)}`}
+											rel="noreferrer"
+											target="_blank"
+											aria-label={`Abrir turnera de ${String(businessProfile.name ?? 'negocio')}`}
+											title="Abrir turnera"
+										>
+											<img
+												src={sidebarBusinessLogoSrc}
+												alt={String(businessProfile.name ?? '')}
+												className="sidebar-business-logo"
+											/>
+										</a>
+									) : (
+										<button
+											type="button"
+											className="ghost sidebar-business-button"
+											onClick={() => {
+												handleSectionChange('settings')
+												setSettingsSection('business')
+											}}
+											aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
+											title="Configuracion del negocio"
+										>
+											<img
+												src={sidebarBusinessLogoSrc}
+												alt={String(businessProfile.name ?? '')}
+												className="sidebar-business-logo"
+											/>
+										</button>
+									)
+								) : null}
+								<GlobalSearchInput collapsed={sidebarCollapsed} />
+							</>
 						}
 						items={navItems}
 						active={active}
@@ -12372,7 +12365,6 @@ export default function Home() {
 				<AnimatedWorkspaceView viewKey={displayedActive}>
 					<PageHeader
 						title={title.label}
-						subtitle={title.subtitle}
 						titleAddon={
 							displayedActive === 'agenda' && sectorSelectOptions.length > 0 ? (
 								<SegmentedControl
@@ -12959,7 +12951,6 @@ export default function Home() {
 				{displayedActive === 'agenda' ? (
 					<div className="work-view-strip">
 						<div className="work-view-copy">
-							<span className="agenda-toolbar-kicker">Agenda / Trabajos</span>
 							<strong>{agendaSectorLabel}</strong>
 							<small>
 								{visibleAgendaReservations.length}{' '}
@@ -12986,7 +12977,6 @@ export default function Home() {
 						<section className="panel agenda-panel">
 							<AgendaBoardToolbar
 								endLabel={formatDayLabel(weekEndDay)}
-								rangeSummary={agendaRangeSummary}
 								startLabel={formatDayLabel(agendaStartDay)}
 								visibleDays={AGENDA_VISIBLE_DAYS}
 								onMove={moveAgenda}

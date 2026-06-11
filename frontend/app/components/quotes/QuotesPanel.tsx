@@ -294,10 +294,6 @@ export function QuotesPanel({
 		<div className="grid">
 			<section className="panel">
 				<div className="panel-head">
-					<div>
-						<h2>Cotizaciones</h2>
-						<p>Presupuestos y descargas PDF.</p>
-					</div>
 					<button type="button" className="primary" onClick={onCreateQuote}>
 						<Plus size={16} />
 						Nueva cotizacion

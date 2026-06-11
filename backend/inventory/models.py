@@ -25,6 +25,9 @@ class Material(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["business", "name"], name="material_biz_name_idx"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["business", "sku"],

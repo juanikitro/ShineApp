@@ -292,9 +292,6 @@ export function CashPanel({
 				className="panel finance-panel cash-panel"
 				aria-label="Caja diaria"
 			>
-				<div className="panel-head finance-panel-head">
-					<p>Cobros, egresos y cierre del dia con lectura operativa.</p>
-				</div>
 				<div className="toolbar toolbar-spaced cash-toolbar">
 					<Field label="Dia">
 						<div className="date-stepper">
