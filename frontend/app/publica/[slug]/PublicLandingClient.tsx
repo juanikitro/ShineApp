@@ -2,10 +2,11 @@
 
 import {
 	Armchair,
+	CalendarDays,
+	Car,
 	CheckCircle2,
 	ChevronDown,
 	Clock,
-	FileText,
 	Layers,
 	Mail,
 	MapPin,
@@ -27,7 +28,6 @@ import {
 	createValidationNotice,
 	formatApiError,
 } from '@/lib/api-errors'
-import { isPdfAssetSource, renderPdfPreviewDataUrl, safeImageAssetSource } from '@/lib/pdf-preview'
 import {
 	type AvailabilityOccupied,
 	buildTimeSlots,
@@ -246,50 +246,10 @@ const publicServiceIconMap: Record<string, ServiceIconComponent> = {
 function PublicServiceIcon({ service }: { service: PublicService }) {
 	const Icon = publicServiceIconMap[service.icon?.trim().toLowerCase() ?? '']
 	if (Icon) {
-		return <Icon aria-hidden="true" size={22} strokeWidth={1.9} />
+		return <Icon aria-hidden="true" size={20} strokeWidth={1.9} />
 	}
 	const fallback = service.name.trim().charAt(0).toUpperCase() || 'S'
 	return <span aria-hidden="true">{fallback}</span>
-}
-
-function usePdfPreview(source: string | null, enabled: boolean, maxWidth: number) {
-	const [thumbnail, setThumbnail] = useState<string | null>(null)
-	const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(
-		'idle',
-	)
-
-	useEffect(() => {
-		if (!enabled || !source) {
-			setThumbnail(null)
-			setStatus('idle')
-			return
-		}
-
-		const abortController = new AbortController()
-		setThumbnail(null)
-		setStatus('loading')
-
-		renderPdfPreviewDataUrl(source, {
-			maxWidth,
-			signal: abortController.signal,
-		})
-			.then((nextThumbnail) => {
-				if (abortController.signal.aborted) return
-				setThumbnail(nextThumbnail)
-				setStatus('ready')
-			})
-			.catch(() => {
-				if (abortController.signal.aborted) return
-				setThumbnail(null)
-				setStatus('error')
-			})
-
-		return () => {
-			abortController.abort()
-		}
-	}, [enabled, maxWidth, source])
-
-	return { thumbnail, status }
 }
 
 export function PublicLandingClient({ slug }: { slug: string }) {
@@ -299,7 +259,6 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	const [submitting, setSubmitting] = useState(false)
 	const [errorNotice, setErrorNotice] = useState<ApiErrorNotice | null>(null)
 	const [success, setSuccess] = useState(false)
-	const [logoLoadFailed, setLogoLoadFailed] = useState(false)
 	const [openGroups, setOpenGroups] = useState<Record<number, boolean>>({})
 	const [expandedDescriptions, setExpandedDescriptions] = useState<Set<number>>(
 		new Set(),
@@ -382,20 +341,6 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		}
 	}, [form.preferred_day, slug, today])
 
-	const logoSource = landing?.business.logo_url ?? null
-	const logoIsPdf = isPdfAssetSource(logoSource)
-	const { thumbnail: logoPdfThumbnail, status: logoPdfStatus } = usePdfPreview(
-		logoSource,
-		logoIsPdf,
-		960,
-	)
-	const businessImageSource = logoIsPdf ? logoPdfThumbnail : safeImageAssetSource(logoSource)
-	const canShowBusinessImage = Boolean(businessImageSource && !logoLoadFailed)
-
-	useEffect(() => {
-		setLogoLoadFailed(false)
-	}, [logoPdfThumbnail, logoSource])
-
 	const servicesBySector = useMemo(() => {
 		const groups: Record<number, PublicService[]> = {}
 		if (!landing) return groups
@@ -437,6 +382,22 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 			result[service.sector] = (result[service.sector] ?? 0) + 1
 		}
 		return result
+	}, [form.service_ids, landing])
+
+	const selectedTotal = useMemo(() => {
+		if (!landing || landing.display?.show_service_price !== true) return 0
+		const byId = new Map<number, PublicService>()
+		for (const service of landing.services) byId.set(service.id, service)
+		let total = 0
+		for (const idString of form.service_ids) {
+			const id = Number(idString)
+			if (!Number.isFinite(id)) continue
+			const service = byId.get(id)
+			if (!service) continue
+			const price = Number(service.base_price ?? 0)
+			if (Number.isFinite(price)) total += price
+		}
+		return total
 	}, [form.service_ids, landing])
 
 	const timeSlots = useMemo(() => {
@@ -785,443 +746,514 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 	}>
 
 	return (
-		<main className="public-landing">
-			<section className="public-landing-shell">
-				<div className="public-business">
-					{business.logo_url ? (
-						<div
-							className="public-business-media"
-							data-empty={canShowBusinessImage ? 'false' : 'true'}
-						>
-							{canShowBusinessImage ? (
-								<img
-									src={businessImageSource ?? ''}
-									alt={`Imagen de ${business.name}`}
-									onError={() => setLogoLoadFailed(true)}
-								/>
-							) : (
-								<div className="public-business-media-placeholder">
-									<FileText size={34} />
-									<span>
-										{logoIsPdf && logoPdfStatus === 'loading'
-											? 'Preparando imagen...'
-											: 'No se pudo mostrar la imagen del negocio.'}
-									</span>
-								</div>
-							)}
-						</div>
-					) : null}
-					<div className="public-brand">
+		<div className="public-root">
+			{/* ── Header ─────────────────────────────────────────────── */}
+			<header className="public-header">
+				<div className="public-header-inner">
+					<div className="public-header-brand">
 						<div className="public-brand-mark">
 							<span>{business.name.slice(0, 1).toUpperCase()}</span>
 						</div>
-						<div>
-							<span className="public-kicker">ShineApp</span>
-							<h1>{business.name}</h1>
-						</div>
+						<span className="public-header-name">{business.name}</span>
 					</div>
-					{business.intro ? (
-						<p className="public-intro">{business.intro}</p>
-					) : null}
-					{contact.length ? (
-						<div className="public-contact">
-							{contact.map((item) => {
-								const Icon = item.icon
-								return item.href ? (
-									<a
-										key={item.label}
-										className="public-contact-link"
-										href={item.href}
-										target="_blank"
-										rel="noopener noreferrer"
+					<div className="public-header-actions">
+						{savedData && !success ? (
+							<button
+								type="button"
+								className="public-btn-ghost"
+								onClick={applySavedData}
+							>
+								<RotateCcw size={15} aria-hidden="true" />
+								Reusar datos del último turno
+							</button>
+						) : null}
+						{!recallOpen ? (
+							<button
+								type="button"
+								className="public-btn-primary"
+								onClick={() => {
+									setRecallOpen(true)
+									setRecallFeedback(null)
+								}}
+							>
+								Ya soy cliente
+							</button>
+						) : null}
+					</div>
+				</div>
+			</header>
+
+			{/* ── Main ───────────────────────────────────────────────── */}
+			<main className="public-main">
+				<div className="public-hero">
+					<h1>Reserva tu Turno</h1>
+					<p>
+						{business.intro ||
+							`Mantenemos tu vehículo como nuevo con la precisión de ${business.name}.`}
+					</p>
+				</div>
+
+				<div className="public-body">
+					{/* LEFT – form */}
+					<form className="public-form-col" onSubmit={submitRequest}>
+						<input
+							className="public-honeypot"
+							tabIndex={-1}
+							autoComplete="off"
+							value={form.website}
+							onChange={(e) => patchForm({ website: e.target.value })}
+						/>
+
+						{/* recall inline */}
+						{recallOpen ? (
+							<div className="public-card">
+								<div className="public-card-head">
+									<RotateCcw size={18} aria-hidden="true" />
+									<h2>Ya soy cliente</h2>
+								</div>
+								<div className="public-recall-lookup">
+									<label>
+										Teléfono o email para buscar
+										<div className="public-recall-lookup-row">
+											<input
+												autoFocus
+												value={recallIdentifier}
+												placeholder="1164321234 o usuario@email.com"
+												onChange={(e) => setRecallIdentifier(e.target.value)}
+												onKeyDown={(e) => {
+													if (e.key === 'Enter') {
+														e.preventDefault()
+														recallCustomer()
+													}
+												}}
+											/>
+											<button
+												type="button"
+												disabled={recalling}
+												onClick={recallCustomer}
+											>
+												{recalling ? 'Buscando...' : 'Buscar'}
+											</button>
+										</div>
+									</label>
+									{recallFeedback ? (
+										recallFeedback.tone === 'ok' ? (
+											<div className="public-form-success">
+												<CheckCircle2 size={16} aria-hidden="true" />
+												{recallFeedback.text}
+											</div>
+										) : (
+											<PublicFormErrorNotice notice={recallFeedback.notice} />
+										)
+									) : null}
+									<button
+										type="button"
+										className="public-recall-trigger"
+										onClick={() => {
+											setRecallOpen(false)
+											setRecallIdentifier('')
+											setRecallFeedback(null)
+										}}
 									>
-										<Icon size={16} />
-										{item.label}
-									</a>
-								) : (
-									<span key={item.label}>
-										<Icon size={16} />
-										{item.label}
-									</span>
+										Cancelar
+									</button>
+								</div>
+							</div>
+						) : null}
+
+						{recallFeedback && !recallOpen ? (
+							recallFeedback.tone === 'ok' ? (
+								<div className="public-form-success">
+									<CheckCircle2 size={16} aria-hidden="true" />
+									{recallFeedback.text}
+								</div>
+							) : (
+								<PublicFormErrorNotice notice={recallFeedback.notice} />
+							)
+						) : null}
+
+						{/* Datos del Turno */}
+						<div className="public-card">
+							<div className="public-card-head">
+								<CalendarDays size={18} aria-hidden="true" />
+								<h2>Datos del Turno</h2>
+							</div>
+							<label>
+								Nombre
+								<input
+									required
+									autoComplete="name"
+									value={form.customer_name}
+									onChange={(e) => patchForm({ customer_name: e.target.value })}
+								/>
+							</label>
+							<div className="public-form-row">
+								<label>
+									Celular
+									<input
+										inputMode="tel"
+										autoComplete="tel"
+										value={form.customer_phone}
+										onChange={(e) => patchForm({ customer_phone: e.target.value })}
+									/>
+								</label>
+								<label>
+									Email
+									<input
+										type="email"
+										autoComplete="email"
+										value={form.customer_email}
+										onChange={(e) => patchForm({ customer_email: e.target.value })}
+									/>
+								</label>
+							</div>
+							<div className="public-form-row">
+								<label>
+									Fecha preferida
+									<input
+										type="date"
+										min={today}
+										value={form.preferred_day}
+										onChange={(e) =>
+											patchForm({
+												preferred_day: e.target.value,
+												preferred_time: e.target.value ? form.preferred_time : '',
+											})
+										}
+									/>
+								</label>
+								<label>
+									Hora preferida
+									<select
+										disabled={!form.preferred_day || isPastPreferredDay}
+										value={form.preferred_time}
+										onChange={(e) => patchForm({ preferred_time: e.target.value })}
+									>
+										<option value="">--</option>
+										{timeSlots.map((slot) => (
+											<option
+												key={slot.value}
+												value={slot.value}
+												disabled={slot.disabled}
+											>
+												{slot.label}
+												{slot.disabled && slot.disabledReason
+													? ` (${slot.disabledReason})`
+													: ''}
+											</option>
+										))}
+									</select>
+								</label>
+							</div>
+							{isPastPreferredDay ? (
+								<div className="public-form-error">
+									La fecha elegida ya paso. Selecciona una fecha igual o posterior a
+									hoy.
+								</div>
+							) : null}
+							{availabilityLoading && !isPastPreferredDay ? (
+								<div className="public-availability-note">
+									Verificando disponibilidad...
+								</div>
+							) : null}
+							{!availabilityLoading && availability && !isPastPreferredDay ? (
+								<div
+									className={
+										capacityWarning
+											? 'public-form-error'
+											: 'public-availability-note'
+									}
+								>
+									{capacityWarning ??
+										(availability.capacity_enforced ? (
+											<>
+												{availability.sectors.map((s, i) => (
+													<span key={s.id}>
+														{i > 0 ? ' · ' : ''}
+														{s.name}: {s.used_slots}/{s.max_slots}
+													</span>
+												))}
+											</>
+										) : (
+											'Sin límite de cupos'
+										))}
+								</div>
+							) : null}
+						</div>
+
+						{/* Datos del Vehículo */}
+						<div className="public-card">
+							<div className="public-card-head">
+								<Car size={18} aria-hidden="true" />
+								<h2>Datos del Vehículo</h2>
+							</div>
+							<div className="public-form-row">
+								<label>
+									Patente
+									<input
+										value={form.vehicle_license_plate}
+										onChange={(e) =>
+											patchForm({ vehicle_license_plate: e.target.value })
+										}
+									/>
+								</label>
+								<label>
+									Tipo de vehículo
+									<select
+										value={form.vehicle_type}
+										onChange={(e) => patchForm({ vehicle_type: e.target.value })}
+									>
+										{VEHICLE_TYPE_OPTIONS.map((opt) => (
+											<option key={opt.value} value={opt.value}>
+												{opt.label}
+											</option>
+										))}
+									</select>
+								</label>
+							</div>
+							<div className="public-form-row">
+								<label>
+									Marca
+									<input
+										value={form.vehicle_brand}
+										placeholder="Ej: Toyota"
+										onChange={(e) => patchForm({ vehicle_brand: e.target.value })}
+									/>
+								</label>
+								<label>
+									Modelo
+									<input
+										value={form.vehicle_model}
+										placeholder="Ej: Corolla"
+										onChange={(e) => patchForm({ vehicle_model: e.target.value })}
+									/>
+								</label>
+							</div>
+							<label>
+								Mensaje o aclaraciones
+								<textarea
+									rows={3}
+									value={form.message}
+									placeholder="Alguna especificación sobre el estado del vehículo..."
+									onChange={(e) => patchForm({ message: e.target.value })}
+								/>
+							</label>
+						</div>
+
+						{/* Resumen + enviar */}
+						<div className="public-card public-summary">
+							<div className="public-summary-header">Resumen de solicitud</div>
+							<div className="public-summary-row">
+								<span>
+									Turno para:{' '}
+									<strong>{form.customer_name || 'Pendiente'}</strong>
+								</span>
+								<span className="public-summary-total">
+									{selectedTotal > 0 ? formatPublicPrice(selectedTotal) : '$0'}
+								</span>
+							</div>
+							{errorNotice ? (
+								<PublicFormErrorNotice notice={errorNotice} />
+							) : null}
+							{success ? (
+								<div className="public-form-success">
+									<CheckCircle2 size={18} aria-hidden="true" />
+									Solicitud enviada.
+								</div>
+							) : null}
+							<button
+								type="submit"
+								className="public-btn-submit"
+								disabled={submitting || blockSubmit}
+							>
+								<Send size={16} aria-hidden="true" />
+								{submitting ? 'Enviando...' : 'Enviar solicitud'}
+							</button>
+							<p className="public-summary-note">
+								* Al enviar, estás solicitando una cotización/reserva sujeta a
+								disponibilidad.
+							</p>
+						</div>
+					</form>
+
+					{/* RIGHT – services */}
+					<div className="public-services-col">
+						<div className="public-card public-services">
+							<div className="public-card-head">
+								<Layers size={18} aria-hidden="true" />
+								<h2>Selección de Servicios</h2>
+							</div>
+
+							{(landing.sectors ?? []).map((sector) => {
+								const items = servicesBySector[sector.id] ?? []
+								if (!items.length) return null
+								const open = openGroups[sector.id] ?? false
+								const selectedCount = items.reduce(
+									(c, s) =>
+										form.service_ids.includes(String(s.id)) ? c + 1 : c,
+									0,
+								)
+								return (
+									<div className="public-service-group" key={sector.id}>
+										<button
+											type="button"
+											className="public-service-group-toggle"
+											aria-expanded={open}
+											onClick={() => toggleGroup(sector.id)}
+										>
+											<span className="public-service-group-title">
+												{sector.name}
+											</span>
+											{!open && selectedCount > 0 ? (
+												<span className="public-service-group-count">
+													{selectedCount}
+												</span>
+											) : null}
+											<ChevronDown
+												size={18}
+												aria-hidden="true"
+												className={cx(
+													'public-service-group-chevron',
+													open && 'public-service-group-chevron--open',
+												)}
+											/>
+										</button>
+										{open ? (
+											<div className="public-service-grid">
+												{items.map((service) => {
+													const selected = form.service_ids.includes(
+														String(service.id),
+													)
+													const showDescription =
+														landing.display?.show_service_description !== false
+													const showPrice =
+														landing.display?.show_service_price === true
+													const priceLabel = showPrice
+														? formatPublicPrice(service.base_price)
+														: ''
+													const description =
+														showDescription && service.notes
+															? service.notes
+															: ''
+													const expandable =
+														description.length > DESCRIPTION_TRUNCATE_THRESHOLD
+													const expanded = expandedDescriptions.has(service.id)
+													return (
+														<div
+															key={service.id}
+															className="public-svc-card"
+															data-selected={selected ? 'true' : 'false'}
+														>
+															{priceLabel ? (
+																<span className="public-svc-price">
+																	{priceLabel}
+																</span>
+															) : null}
+															<span className="public-svc-icon">
+																<PublicServiceIcon service={service} />
+															</span>
+															<strong className="public-svc-name">
+																{service.name}
+															</strong>
+															{serviceDurationLabel(service) ? (
+																<em className="public-svc-duration">
+																	<Clock size={13} aria-hidden="true" />
+																	{serviceDurationLabel(service)}
+																</em>
+															) : null}
+															{description ? (
+																<div className="public-service-desc">
+																	<small
+																		data-clamped={
+																			expandable && !expanded ? 'true' : 'false'
+																		}
+																	>
+																		{description}
+																	</small>
+																	{expandable ? (
+																		<button
+																			type="button"
+																			className="public-service-desc-toggle"
+																			aria-expanded={expanded}
+																			onClick={() =>
+																				toggleDescription(service.id)
+																			}
+																		>
+																			{expanded ? 'Ver menos' : 'Ver mas'}
+																		</button>
+																	) : null}
+																</div>
+															) : null}
+															<button
+																type="button"
+																className={
+																	selected
+																		? 'public-btn-svc-remove'
+																		: 'public-btn-svc-add'
+																}
+																aria-pressed={selected}
+																aria-label={`${selected ? 'Quitar' : 'Agregar'} ${service.name}`}
+																onClick={() => toggleService(service.id)}
+															>
+																{selected ? (
+																	<CheckCircle2
+																		size={15}
+																		aria-hidden="true"
+																	/>
+																) : null}
+																{selected ? 'Quitar' : 'Agregar'}
+															</button>
+														</div>
+													)
+												})}
+											</div>
+										) : null}
+									</div>
 								)
 							})}
 						</div>
-					) : null}
-					<div className="public-services">
-						<div className="public-section-head">
-							<Wrench size={18} />
-							<h2>Servicios</h2>
-						</div>
-						{(landing.sectors ?? []).map((sector) => {
-							const items = servicesBySector[sector.id] ?? []
-							if (!items.length) return null
-							const open = openGroups[sector.id] ?? false
-							const selectedCount = items.reduce(
-								(count, service) =>
-									form.service_ids.includes(String(service.id))
-										? count + 1
-										: count,
-								0,
-							)
-							return (
-								<div className="public-service-group" key={sector.id}>
-									<button
-										type="button"
-										className="public-service-group-toggle"
-										aria-expanded={open}
-										onClick={() => toggleGroup(sector.id)}
-									>
-										<span className="public-service-group-title">
-											{sector.name}
-										</span>
-										{!open && selectedCount > 0 ? (
-											<span className="public-service-group-count">
-												{selectedCount}
-											</span>
-										) : null}
-										<ChevronDown
-											size={18}
-											aria-hidden="true"
-											className={cx(
-												'public-service-group-chevron',
-												open && 'public-service-group-chevron--open',
-											)}
-										/>
-									</button>
-									{open ? (
-										<div className="public-service-list">
-											{items.map((service) => {
-												const selected = form.service_ids.includes(
-													String(service.id),
-												)
-												const showDescription =
-													landing.display?.show_service_description !== false
-												const showPrice =
-													landing.display?.show_service_price === true
-												const priceLabel = showPrice
-													? formatPublicPrice(service.base_price)
-													: ''
-												const description =
-													showDescription && service.notes ? service.notes : ''
-												const expandable =
-													description.length > DESCRIPTION_TRUNCATE_THRESHOLD
-												const expanded = expandedDescriptions.has(service.id)
-												return (
-													<div
-														key={service.id}
-														className="public-service-card"
-														data-selected={selected ? 'true' : 'false'}
-													>
-														<button
-															type="button"
-															className="public-service-card-select"
-															aria-pressed={selected}
-															onClick={() => toggleService(service.id)}
-														>
-															<span className="public-service-icon">
-																<PublicServiceIcon service={service} />
-															</span>
-															<span className="public-service-card-body">
-																<strong>{service.name}</strong>
-																{serviceDurationLabel(service) ? (
-																	<em>
-																		<Clock size={13} />
-																		{serviceDurationLabel(service)}
-																	</em>
-																) : null}
-																{priceLabel ? (
-																	<span className="public-service-price">
-																		{priceLabel}
-																	</span>
-																) : null}
-															</span>
-															{selected ? <CheckCircle2 size={18} /> : null}
-														</button>
-														{description ? (
-															<div className="public-service-desc">
-																<small
-																	data-clamped={
-																		expandable && !expanded ? 'true' : 'false'
-																	}
-																>
-																	{description}
-																</small>
-																{expandable ? (
-																	<button
-																		type="button"
-																		className="public-service-desc-toggle"
-																		aria-expanded={expanded}
-																		onClick={() => toggleDescription(service.id)}
-																	>
-																		{expanded ? 'Ver menos' : 'Ver mas'}
-																	</button>
-																) : null}
-															</div>
-														) : null}
-													</div>
-												)
-											})}
-										</div>
-									) : null}
-								</div>
-							)
-						})}
 					</div>
 				</div>
+			</main>
 
-				<form className="public-request-form" onSubmit={submitRequest}>
-					<div>
-						<div className="public-section-head">
-							<Send size={18} />
-							<h2>Solicitud</h2>
-						</div>
-						<p className="public-form-note">
-							Nombre, un servicio y al menos un celular o email. Sin fecha se
-							solicita una cotizacion; con fecha se solicita una reserva.
-						</p>
+			{/* ── Footer ─────────────────────────────────────────────── */}
+			<footer className="public-footer">
+				<div className="public-footer-inner">
+					<div className="public-footer-brand">
+						<strong>{business.name}</strong>
+						<small>
+							© {new Date().getFullYear()} {business.name}. Todos los derechos
+							reservados.
+						</small>
 					</div>
-					{savedData && !success && (
-						<div className="public-recall-banner">
-							<RotateCcw size={15} />
-							<span>Tenemos tus datos del turno anterior guardados.</span>
-							<div className="public-recall-banner-actions">
-								<button type="button" onClick={applySavedData}>
-									Usar mis datos
-								</button>
-								<button type="button" onClick={dismissSavedData}>
-									Descartar
-								</button>
+					{contact.length > 0 ? (
+						<div className="public-footer-sections">
+							<div className="public-footer-section">
+								<span className="public-footer-section-title">Contacto</span>
+								{contact.map((item) => {
+									const Icon = item.icon
+									return item.href ? (
+										<a
+											key={item.label}
+											href={item.href}
+											target="_blank"
+											rel="noopener noreferrer"
+										>
+											<Icon size={14} aria-hidden="true" />
+											{item.label}
+										</a>
+									) : (
+										<span key={item.label}>
+											<Icon size={14} aria-hidden="true" />
+											{item.label}
+										</span>
+									)
+								})}
 							</div>
 						</div>
-					)}
-					<input
-						className="public-honeypot"
-						tabIndex={-1}
-						autoComplete="off"
-						value={form.website}
-						onChange={(event) => patchForm({ website: event.target.value })}
-					/>
-					<label>
-						Nombre
-						<input
-							required
-							autoComplete="name"
-							value={form.customer_name}
-							onChange={(event) => patchForm({ customer_name: event.target.value })}
-						/>
-					</label>
-					<div className="public-form-row">
-						<label>
-							Celular
-							<input
-								inputMode="tel"
-								autoComplete="tel"
-								value={form.customer_phone}
-								onChange={(event) => patchForm({ customer_phone: event.target.value })}
-							/>
-						</label>
-						<label>
-							Email
-							<input
-								type="email"
-								autoComplete="email"
-								value={form.customer_email}
-								onChange={(event) => patchForm({ customer_email: event.target.value })}
-							/>
-						</label>
-					</div>
-					{recallFeedback && !recallOpen ? (
-						recallFeedback.tone === 'ok' ? (
-							<div className="public-form-success">
-								<CheckCircle2 size={16} />
-								{recallFeedback.text}
-							</div>
-						) : (
-							<PublicFormErrorNotice notice={recallFeedback.notice} />
-						)
 					) : null}
-					{!recallOpen ? (
-						<button
-							type="button"
-							className="public-recall-trigger"
-							onClick={() => { setRecallOpen(true); setRecallFeedback(null) }}
-						>
-							¿Ya sos cliente? Recuperar mis datos
-						</button>
-					) : (
-						<div className="public-recall-lookup">
-							<label>
-								Telefono o email para buscar
-								<div className="public-recall-lookup-row">
-									<input
-										autoFocus
-										value={recallIdentifier}
-										placeholder="1164321234 o usuario@email.com"
-										onChange={(e) => setRecallIdentifier(e.target.value)}
-										onKeyDown={(e) => {
-											if (e.key === 'Enter') { e.preventDefault(); recallCustomer() }
-										}}
-									/>
-									<button type="button" disabled={recalling} onClick={recallCustomer}>
-										{recalling ? 'Buscando...' : 'Buscar'}
-									</button>
-								</div>
-							</label>
-							{recallFeedback ? (
-								recallFeedback.tone === 'ok' ? (
-									<div className="public-form-success">
-										<CheckCircle2 size={16} />
-										{recallFeedback.text}
-									</div>
-								) : (
-									<PublicFormErrorNotice notice={recallFeedback.notice} />
-								)
-							) : null}
-							<button
-								type="button"
-								className="public-recall-trigger"
-								onClick={() => { setRecallOpen(false); setRecallIdentifier(''); setRecallFeedback(null) }}
-							>
-								Cancelar
-							</button>
-						</div>
-					)}
-					<div className="public-form-row">
-						<label>
-							Patente
-							<input
-								value={form.vehicle_license_plate}
-								onChange={(event) =>
-									patchForm({ vehicle_license_plate: event.target.value })
-								}
-							/>
-						</label>
-						<label>
-							Vehiculo
-							<input
-								value={form.vehicle_brand}
-								onChange={(event) => patchForm({ vehicle_brand: event.target.value })}
-								placeholder="Marca"
-							/>
-						</label>
-					</div>
-					<div className="public-form-row">
-						<label>
-							Modelo
-							<input
-								value={form.vehicle_model}
-								onChange={(event) => patchForm({ vehicle_model: event.target.value })}
-							/>
-						</label>
-						<label>
-							Tipo de vehiculo
-							<select
-								value={form.vehicle_type}
-								onChange={(event) => patchForm({ vehicle_type: event.target.value })}
-							>
-								{VEHICLE_TYPE_OPTIONS.map((option) => (
-									<option key={option.value} value={option.value}>
-										{option.label}
-									</option>
-								))}
-							</select>
-						</label>
-					</div>
-					<div className="public-form-row">
-						<label>
-							Fecha preferida
-							<input
-								type="date"
-								min={today}
-								value={form.preferred_day}
-								onChange={(event) =>
-									patchForm({
-										preferred_day: event.target.value,
-										preferred_time: event.target.value ? form.preferred_time : '',
-									})
-								}
-							/>
-						</label>
-						<label>
-							Hora preferida
-							<select
-								disabled={!form.preferred_day || isPastPreferredDay}
-								value={form.preferred_time}
-								onChange={(event) => patchForm({ preferred_time: event.target.value })}
-							>
-								<option value="">--</option>
-								{timeSlots.map((slot) => (
-									<option
-										key={slot.value}
-										value={slot.value}
-										disabled={slot.disabled}
-									>
-										{slot.label}
-										{slot.disabled && slot.disabledReason
-											? ` (${slot.disabledReason})`
-											: ''}
-									</option>
-								))}
-							</select>
-						</label>
-					</div>
-					{isPastPreferredDay ? (
-						<div className="public-form-error">
-							La fecha elegida ya paso. Selecciona una fecha igual o posterior
-							a hoy.
-						</div>
-					) : null}
-					{availabilityLoading && !isPastPreferredDay ? (
-						<div className="public-form-note">Verificando disponibilidad...</div>
-					) : null}
-					{!availabilityLoading && availability && !isPastPreferredDay ? (
-						<div
-							className={
-								capacityWarning ? 'public-form-error' : 'public-form-note'
-							}
-						>
-							{capacityWarning ??
-								(availability.capacity_enforced ? (
-									<>
-										{availability.sectors.map((s, i) => (
-											<span key={s.id}>
-												{i > 0 ? ' · ' : ''}
-												{s.name}: {s.used_slots}/{s.max_slots}
-											</span>
-										))}
-									</>
-								) : (
-									'Sin límite de cupos'
-								))}
-						</div>
-					) : null}
-					<label>
-						Mensaje
-						<textarea
-							rows={4}
-							value={form.message}
-							onChange={(event) => patchForm({ message: event.target.value })}
-						/>
-					</label>
-					{errorNotice ? (
-						<PublicFormErrorNotice notice={errorNotice} />
-					) : null}
-					{success ? (
-						<div className="public-form-success">
-							<CheckCircle2 size={18} />
-							Solicitud enviada.
-						</div>
-					) : null}
-					<button
-						type="submit"
-						className="primary"
-						disabled={submitting || blockSubmit}
-					>
-						<Send size={16} />
-						{submitting ? 'Enviando...' : 'Enviar solicitud'}
-					</button>
-				</form>
-			</section>
-		</main>
+				</div>
+			</footer>
+		</div>
 	)
 }
