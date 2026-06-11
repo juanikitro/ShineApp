@@ -224,6 +224,7 @@ test('muestra el logo del negocio en la marca del header', async () => {
 	const logo = brandMark?.querySelector('img')
 	assert.equal(logo?.getAttribute('src'), 'https://cdn.example.com/logo.png')
 	assert.equal(brandMark?.textContent, '')
+	assert.ok(brandMark?.classList.contains('public-brand-mark--logo'))
 })
 
 test('sin logo cargado, la marca usa la inicial del negocio', async () => {
@@ -238,6 +239,7 @@ test('sin logo cargado, la marca usa la inicial del negocio', async () => {
 	const brandMark = container.querySelector('.public-brand-mark')
 	assert.equal(brandMark?.textContent, 'L')
 	assert.equal(brandMark?.querySelector('img'), null)
+	assert.ok(!brandMark?.classList.contains('public-brand-mark--logo'))
 })
 
 test('un logo PDF no se renderiza como imagen en la marca', async () => {
@@ -270,5 +272,6 @@ test('si la imagen del logo falla, la marca vuelve a la inicial', async () => {
 		const brandMark = container.querySelector('.public-brand-mark')
 		assert.equal(brandMark?.querySelector('img'), null)
 		assert.equal(brandMark?.textContent, 'L')
+		assert.ok(!brandMark?.classList.contains('public-brand-mark--logo'))
 	})
 })

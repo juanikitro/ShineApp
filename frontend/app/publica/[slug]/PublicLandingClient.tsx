@@ -769,7 +769,12 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 			<header className="public-header">
 				<div className="public-header-inner">
 					<div className="public-header-brand">
-						<div className="public-brand-mark">
+						<div
+							className={cx(
+								'public-brand-mark',
+								brandLogoSrc && 'public-brand-mark--logo',
+							)}
+						>
 							{brandLogoSrc ? (
 								<img
 									src={brandLogoSrc}
