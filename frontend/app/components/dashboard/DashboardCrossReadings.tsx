@@ -1,4 +1,6 @@
-import { type ReactNode } from 'react'
+import { type CSSProperties, type ReactNode } from 'react'
+
+import { Activity, ArrowUpDown, CalendarDays, Clock, Percent, Receipt, TrendingDown, TrendingUp } from 'lucide-react'
 
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { Panel } from '@/app/components/ui/Panel'
@@ -81,29 +83,47 @@ export function DashboardCrossReadings({ dashboard }: { dashboard: AnyRecord }) 
 		value: ReactNode
 		hint: ReactNode
 		text?: boolean
+		icon?: ReactNode
+		iconBg?: string
+		iconColor?: string
 	}> = [
 		{
 			label: 'Cobranza del periodo',
 			value: percent(collectionRate),
+			icon: <Activity size={16} />,
+			iconBg: 'var(--color-info-bg)',
+			iconColor: 'var(--color-info)',
 			hint: `${money(collected)} de ${money(billed)} facturado`,
 		},
 		{
 			label: 'Ticket promedio',
 			value: money(averageTicket),
+			icon: <Receipt size={16} />,
+			iconBg: 'var(--color-warning-bg)',
+			iconColor: 'var(--color-warning)',
 			hint: plural(workOrders, 'trabajo', 'trabajos'),
 		},
 		{
 			label: 'Margen sobre facturado',
 			value: percent(marginRate),
+			icon: <Percent size={16} />,
+			iconBg: 'var(--color-success-bg)',
+			iconColor: 'var(--color-success)',
 			hint: 'solo materiales imputados',
 		},
 		{
 			label: 'Dias promedio de cobranza',
 			value: `~${Math.round(avgCollectionDays)} dias`,
+			icon: <CalendarDays size={16} />,
+			iconBg: 'var(--color-warning-bg)',
+			iconColor: 'var(--color-warning)',
 			hint: 'antiguedad promedio del saldo',
 		},
 		{
 			label: 'Posicion neta',
+			icon: <ArrowUpDown size={16} />,
+			iconBg: 'var(--color-danger-bg)',
+			iconColor: 'var(--color-danger)',
 			value: (
 				<span
 					className={
@@ -118,6 +138,9 @@ export function DashboardCrossReadings({ dashboard }: { dashboard: AnyRecord }) 
 		{
 			label: 'Mayor egreso',
 			value: topExpense ? String(topExpense.category) : 'Sin egresos',
+			icon: <TrendingDown size={16} />,
+			iconBg: 'var(--color-warning-bg)',
+			iconColor: 'var(--color-warning)',
 			hint: topExpense
 				? `${money(topExpense.total)} · ${percent(
 						(numberValue(topExpense.total) / (expenseTotal || 1)) * 100,
@@ -128,6 +151,9 @@ export function DashboardCrossReadings({ dashboard }: { dashboard: AnyRecord }) 
 		{
 			label: 'Ingreso top categoria',
 			value: topIncome ? String(topIncome.category) : 'Sin ingresos',
+			icon: <TrendingUp size={16} />,
+			iconBg: 'var(--color-success-bg)',
+			iconColor: 'var(--color-success)',
 			hint: topIncome
 				? `${money(topIncome.total)} · ${percent(
 						(numberValue(topIncome.total) / (incomeTotal || 1)) * 100,
@@ -138,6 +164,9 @@ export function DashboardCrossReadings({ dashboard }: { dashboard: AnyRecord }) 
 		{
 			label: 'Carga de egresos',
 			value: percent(expenseLoad),
+			icon: <Clock size={16} />,
+			iconBg: 'var(--color-violet-bg)',
+			iconColor: 'var(--color-violet)',
 			hint: `queda ${percent(Math.max(0, 100 - expenseLoad))} de la caja`,
 		},
 	]
@@ -156,6 +185,8 @@ export function DashboardCrossReadings({ dashboard }: { dashboard: AnyRecord }) 
 						value={card.value}
 						hint={card.hint}
 						animateValue={false}
+						icon={card.icon}
+						style={card.iconBg ? ({ ['--metric-icon-bg']: card.iconBg, ['--metric-icon-color']: card.iconColor } as CSSProperties) : undefined}
 					/>
 				))}
 			</div>
