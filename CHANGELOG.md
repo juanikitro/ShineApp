@@ -12,6 +12,7 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-11
 - [Servicios y precios visibles para empleados; sin acciones de escritura](docs/registro/cambios/2026-06-11-servicios-visibles-para-empleados.md)
+- [Buscador global integrado al SPA: seccion propia, dropdown lateral y apertura en modales](docs/registro/cambios/2026-06-11-buscador-global-integrado-al-spa.md)
 
 ## 2026-06-10
 - [Turnera: atajos para abrir la landing publica desde la app](docs/registro/cambios/2026-06-10-turnera-atajos-de-acceso.md)

@@ -13,6 +13,7 @@ import {
 	Hammer,
 	Package,
 	ReceiptText,
+	Search,
 	Settings,
 	Undo2,
 	Users,
@@ -88,6 +89,7 @@ type Section =
 	| 'services'
 	| 'notifications'
 	| 'settings'
+	| 'search'
 
 type ThemeMode = 'light' | 'dark'
 
@@ -926,6 +928,11 @@ const sectionMeta: Record<
 		label: 'Configuracion',
 		icon: Settings,
 		subtitle: 'Preferencias operativas del negocio',
+	},
+	search: {
+		label: 'Buscador',
+		icon: Search,
+		subtitle: 'Resultados en todos los modulos',
 	},
 }
 

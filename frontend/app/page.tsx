@@ -61,7 +61,11 @@ import {
 } from 'react'
 
 import { AnimatedLabelSwap } from '@/app/components/motion/AnimatedLabelSwap'
-import { GlobalSearchInput } from '@/app/components/search/GlobalSearchInput'
+import {
+	GlobalSearchInput,
+	type GlobalSearchItem,
+} from '@/app/components/search/GlobalSearchInput'
+import { SearchResultsPanel } from '@/app/components/search/SearchResultsPanel'
 import {
 	SupplierDashboardPanel,
 	supplierProfileSubtitle,
@@ -496,6 +500,80 @@ function initialNavigationState(): NavigationState {
 	}
 	return readNavigationStateFromUrl(window.location.href, navigationConfig)
 }
+
+function searchQueryFromUrl(): string {
+	if (typeof window === 'undefined') return ''
+	return new URLSearchParams(window.location.search).get('q') ?? ''
+}
+
+// Mapea cada tipo de resultado del buscador global a su seccion del SPA y al
+// modal de detalle/edicion correspondiente. `fixed_expense` no tiene detail
+// modal: abre el form modal de gastos fijos.
+const searchResultTargets: Record<
+	string,
+	{ section: Section; detailTitle: string; apiPath: (id: number) => string }
+> = {
+	customer: {
+		section: 'customers',
+		detailTitle: 'Cliente',
+		apiPath: (id) => `/customers/${id}/`,
+	},
+	vehicle: {
+		section: 'vehicles',
+		detailTitle: 'Vehiculo',
+		apiPath: (id) => `/vehicles/${id}/`,
+	},
+	reservation: {
+		section: 'agenda',
+		detailTitle: 'Reserva',
+		apiPath: (id) => `/reservations/${id}/`,
+	},
+	work_order: {
+		section: 'agenda',
+		detailTitle: 'Orden de trabajo',
+		apiPath: (id) => `/work-orders/${id}/`,
+	},
+	service: {
+		section: 'services',
+		detailTitle: 'Servicio',
+		apiPath: (id) => `/services/${id}/`,
+	},
+	cash_movement: {
+		section: 'cash',
+		detailTitle: 'Movimiento de caja',
+		apiPath: (id) => `/cash-movements/${id}/`,
+	},
+	material: {
+		section: 'inventory',
+		detailTitle: 'Material',
+		apiPath: (id) => `/materials/${id}/`,
+	},
+	supplier: {
+		section: 'suppliers',
+		detailTitle: 'Proveedor',
+		apiPath: (id) => `/suppliers/${id}/`,
+	},
+	tool: {
+		section: 'tools',
+		detailTitle: 'Herramienta',
+		apiPath: (id) => `/tools/${id}/`,
+	},
+	quote: {
+		section: 'quotes',
+		detailTitle: 'Cotizacion',
+		apiPath: (id) => `/quotes/${id}/`,
+	},
+	debt: {
+		section: 'debts',
+		detailTitle: 'Deuda',
+		apiPath: (id) => `/debts/${id}/`,
+	},
+	fixed_expense: {
+		section: 'fixed-expenses',
+		detailTitle: '',
+		apiPath: (id) => `/fixed-expenses/${id}/`,
+	},
+}
 const auditActionLabels: Record<string, string> = {
 	create: 'Creacion',
 	update: 'Edicion',
@@ -621,6 +699,7 @@ export default function Home() {
 		useState<SettingsSection>(
 			() => initialNavigationState().settingsSection as SettingsSection,
 		)
+	const [searchPageQuery, setSearchPageQuery] = useState(searchQueryFromUrl)
 	const navigationHistoryModeRef = useRef<'pushState' | 'replaceState'>(
 		'replaceState',
 	)
@@ -1016,6 +1095,7 @@ export default function Home() {
 			navigationHistoryModeRef.current = 'replaceState'
 			setActive(nextNavigation.section as Section)
 			setSettingsSection(nextNavigation.settingsSection as SettingsSection)
+			setSearchPageQuery(searchQueryFromUrl())
 			setSidebarMobileOpen(false)
 		}
 		window.addEventListener('popstate', handlePopState)
@@ -1025,17 +1105,27 @@ export default function Home() {
 	}, [])
 
 	useEffect(() => {
-		const nextUrl = navigationUrlForState(
+		const baseUrl = navigationUrlForState(
 			window.location.href,
 			{ section: active, settingsSection },
 			navigationConfig,
 		)
+		// El termino buscado solo viaja en la URL dentro de la seccion buscador,
+		// para que sobreviva refresh/back sin ensuciar el resto de secciones.
+		const url = new URL(baseUrl, window.location.origin)
+		const trimmedQuery = searchPageQuery.trim()
+		if (active === 'search' && trimmedQuery) {
+			url.searchParams.set('q', trimmedQuery)
+		} else {
+			url.searchParams.delete('q')
+		}
+		const nextUrl = `${url.pathname}${url.search}${url.hash}`
 		const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`
 		if (nextUrl !== currentUrl) {
 			window.history[navigationHistoryModeRef.current](null, '', nextUrl)
 		}
 		navigationHistoryModeRef.current = 'pushState'
-	}, [active, settingsSection])
+	}, [active, settingsSection, searchPageQuery])
 
 	useEffect(() => {
 		if (!canViewEconomy && customerCardFilter === 'with_balance') {
@@ -4217,6 +4307,44 @@ export default function Home() {
 		setSidebarMobileOpen(false)
 	}
 
+	function submitGlobalSearch(query: string) {
+		setSearchPageQuery(query.trim())
+		handleSectionChange('search')
+	}
+
+	async function openSearchResult(groupType: string, item: GlobalSearchItem) {
+		const target = searchResultTargets[groupType]
+		if (!target) return
+		if (!canViewEconomy && sectionRequiresEmployer(target.section)) return
+		handleSectionChange(target.section)
+		try {
+			const data = await apiFetch<AnyRecord>(target.apiPath(item.id))
+			if (groupType === 'fixed_expense') {
+				openFixedExpenseForEdit(data)
+				return
+			}
+			if (groupType === 'service') {
+				// El modal de servicio edita tambien su receta de materiales: se
+				// trae fresca porque el dataset puede no estar cargado todavia.
+				const materials = await apiList<AnyRecord>('/service-materials/')
+				setServiceMaterials(materials)
+				openDetailModal(target.detailTitle, data, {
+					serviceMaterialsSource: materials,
+				})
+				return
+			}
+			openDetailModal(target.detailTitle, data)
+		} catch (err: any) {
+			setError(
+				formatApiError(err, {
+					fallbackTitle: 'No se pudo abrir el resultado',
+					fallbackDescription:
+						'El registro ya no existe o no se pudo cargar. Actualiza e intenta nuevamente.',
+				}),
+			)
+		}
+	}
+
 	const pendingPublicRequests = publicRequests.filter(
 		(item) => item.status === 'pending',
 	)
@@ -6654,11 +6782,16 @@ export default function Home() {
 		)
 	}
 
-	function openDetailModal(title: string, data: AnyRecord) {
+	function openDetailModal(
+		title: string,
+		data: AnyRecord,
+		options: { serviceMaterialsSource?: AnyRecord[] } = {},
+	) {
 		const kind = detailKindFromTitle(title)
 		if (!canViewEconomy && detailRequiresEconomy(kind)) return
 		if (kind === 'service') {
-			const lines = serviceMaterials
+			const source = options.serviceMaterialsSource ?? serviceMaterials
+			const lines = source
 				.filter((m) => String(m.service) === String(data.id))
 				.map((m) => ({
 					id: String(m.id),
@@ -12202,7 +12335,11 @@ export default function Home() {
 										</button>
 									)
 								) : null}
-								<GlobalSearchInput collapsed={sidebarCollapsed} />
+								<GlobalSearchInput
+									collapsed={sidebarCollapsed}
+									onSubmitQuery={submitGlobalSearch}
+									onOpenResult={openSearchResult}
+								/>
 							</>
 						}
 						items={navItems}
@@ -12505,6 +12642,14 @@ export default function Home() {
 						loading={loading}
 						onOpenPaymentForOrder={openPaymentForOrder}
 						onOpenSection={setActive}
+					/>
+				) : null}
+
+				{displayedActive === 'search' ? (
+					<SearchResultsPanel
+						query={searchPageQuery.trim()}
+						onSubmitQuery={submitGlobalSearch}
+						onOpenResult={openSearchResult}
 					/>
 				) : null}
 

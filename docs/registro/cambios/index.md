@@ -10,6 +10,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 - [Servicios y precios visibles para empleados; sin acciones de escritura](2026-06-11-servicios-visibles-para-empleados.md)
+- [Buscador global integrado al SPA: seccion propia, dropdown lateral y apertura en modales](2026-06-11-buscador-global-integrado-al-spa.md)
 - [Turnera: atajos para abrir la landing publica desde la app](2026-06-10-turnera-atajos-de-acceso.md)
 - [Sectores fase 4 - Limpieza legacy: service_type y campos por tipo eliminados (2026-06-10)](2026-06-10-sectores-fase-4-limpieza-legacy.md)
 - [Sectores fase 3 - Dashboard segmentado y landing pública por sector (2026-06-10)](2026-06-10-sectores-fase-3-dashboard-landing.md)
