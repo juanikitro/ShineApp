@@ -102,10 +102,6 @@ export function InventoryPanel({
 		<div className="grid">
 			<section className="panel">
 				<div className="panel-head">
-					<div>
-						<h2>Materiales</h2>
-						<p>Productos, proveedores y movimientos de stock.</p>
-					</div>
 					<div className="record-actions">
 						<button
 							type="button"

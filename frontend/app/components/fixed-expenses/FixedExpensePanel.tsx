@@ -87,14 +87,9 @@ export function FixedExpensePanel({
 		<div className="grid">
 			<section
 				className="panel finance-panel fixed-expense-panel"
-				aria-labelledby="fixed-expense-panel-title"
+				aria-label="Gastos fijos"
 			>
 				<div className="panel-head finance-panel-head">
-					<div>
-						<span className="panel-kicker">Costos recurrentes</span>
-						<h2 id="fixed-expense-panel-title">Gastos fijos</h2>
-						<p>Servicios, alquiler y abonos que se reflejan mes a mes en la caja.</p>
-					</div>
 					<div className="finance-action-rail">
 						<div className="finance-primary-actions">
 							<button

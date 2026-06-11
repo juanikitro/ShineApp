@@ -1864,17 +1864,6 @@ export default function Home() {
 		agendaSectorId === null
 			? 'Todos'
 			: (sectors.find((s) => s.id === agendaSectorId)?.name ?? 'Sector')
-	const agendaRangeSummary = `${agendaSectorLabel}: ${
-		visibleAgendaReservations.length
-	} ${
-		visibleAgendaReservations.length === 1
-			? 'reserva visible'
-			: 'reservas visibles'
-	}, ${agendaBoardModel.segments.length} ${
-		agendaBoardModel.segments.length === 1
-			? 'movimiento en rango'
-			: 'movimientos en rango'
-	}.`
 	const weekDays = agendaBoardModel.days
 	const activeAgendaRow = useMemo(() => {
 		if (!activeAgendaReservationId) return null
@@ -12231,7 +12220,6 @@ export default function Home() {
 				<AnimatedWorkspaceView viewKey={displayedActive}>
 					<PageHeader
 						title={title.label}
-						subtitle={title.subtitle}
 						titleAddon={
 							displayedActive === 'agenda' && sectorSelectOptions.length > 0 ? (
 								<SegmentedControl
@@ -12818,7 +12806,6 @@ export default function Home() {
 				{displayedActive === 'agenda' ? (
 					<div className="work-view-strip">
 						<div className="work-view-copy">
-							<span className="agenda-toolbar-kicker">Agenda / Trabajos</span>
 							<strong>{agendaSectorLabel}</strong>
 							<small>
 								{visibleAgendaReservations.length}{' '}
@@ -12845,7 +12832,6 @@ export default function Home() {
 						<section className="panel agenda-panel">
 							<AgendaBoardToolbar
 								endLabel={formatDayLabel(weekEndDay)}
-								rangeSummary={agendaRangeSummary}
 								startLabel={formatDayLabel(agendaStartDay)}
 								visibleDays={AGENDA_VISIBLE_DAYS}
 								onMove={moveAgenda}
