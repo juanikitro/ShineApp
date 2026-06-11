@@ -38,6 +38,9 @@ class Customer(SoftDeleteMixin, TimeStampedModel):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["business", "name"], name="customer_biz_name_idx"),
+        ]
 
     def __str__(self):
         return self.name
@@ -113,6 +116,9 @@ class Vehicle(SoftDeleteMixin, TimeStampedModel):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["license_plate"]
+        indexes = [
+            models.Index(fields=["business", "license_plate"], name="vehicle_biz_lp_idx"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["business", "license_plate"],
