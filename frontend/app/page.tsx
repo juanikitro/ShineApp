@@ -1304,6 +1304,7 @@ export default function Home() {
 		pending.busy = true
 		setError(null)
 		try {
+			await pending.execute()
 			await loadData({ force: true })
 			const successTitle = pending.successTitle
 			const successDescription = pending.successDescription
@@ -13814,8 +13815,26 @@ export default function Home() {
 					sectionFallback('tasks', false, 'Cargando tareas')
 				) : displayedActive === 'tasks' ? (
 					<TasksPanel
-						tasks={tasks}
-						employees={employees}
+						tasks={tasks as any}
+						employees={employees as any}
+						customers={customers.map((item) => ({
+							id: Number(item.id),
+							name: String(item.name ?? `Cliente ${item.id}`),
+						}))}
+						vehicles={vehicles.map((item) => {
+							const plate = String(item.license_plate ?? '').trim()
+							const detail = [item.brand, item.model]
+								.map((part) => String(part ?? '').trim())
+								.filter(Boolean)
+								.join(' ')
+							const label = [plate, detail].filter(Boolean).join(' - ') ||
+								`Vehiculo ${item.id}`
+							return {
+								id: Number(item.id),
+								label,
+								customerId: item.customer != null ? Number(item.customer) : null,
+							}
+						})}
 						currentUser={currentUser}
 						canViewEconomy={canViewEconomy}
 						onCreate={async (payload) => {
@@ -13841,22 +13860,79 @@ export default function Home() {
 						onDelete={async (id) => {
 							await runAction(
 								() => apiFetch(`/tasks/${id}/`, { method: 'DELETE' }),
-								{ successTitle: 'Tarea eliminada' },
+								{
+									successTitle: 'Tarea eliminada',
+									undo: {
+										execute: async () => {
+											await apiFetch(`/tasks/${id}/restore/`, {
+												method: 'POST',
+											})
+										},
+										successTitle: 'Tarea restaurada',
+									},
+								},
 							)
 						}}
 						onComplete={async (id) => {
-							await runAction(
-								() =>
-									apiFetch(`/tasks/${id}/complete/`, { method: 'POST' }),
-								{ successTitle: 'Tarea completada' },
+							const original = tasks.find(
+								(item) => Number(item.id) === id,
 							)
+							if (!original) return
+							const optimistic = {
+								...original,
+								status: 'done',
+								completed_at: new Date().toISOString(),
+								is_overdue: false,
+							}
+							await runOptimistic({
+								key: `task-complete-${id}`,
+								optimistic: () =>
+									setTasks((current) =>
+										current.map((item) =>
+											Number(item.id) === id ? optimistic : item,
+										),
+									),
+								rollback: () =>
+									setTasks((current) =>
+										current.map((item) =>
+											Number(item.id) === id ? original : item,
+										),
+									),
+								action: () =>
+									apiFetch(`/tasks/${id}/complete/`, { method: 'POST' }),
+								successTitle: 'Tarea completada',
+							})
 						}}
 						onReopen={async (id) => {
-							await runAction(
-								() =>
-									apiFetch(`/tasks/${id}/reopen/`, { method: 'POST' }),
-								{ successTitle: 'Tarea reabierta' },
+							const original = tasks.find(
+								(item) => Number(item.id) === id,
 							)
+							if (!original) return
+							const optimistic = {
+								...original,
+								status: 'pending',
+								completed_at: null,
+								completed_by: null,
+								completed_by_username: null,
+							}
+							await runOptimistic({
+								key: `task-reopen-${id}`,
+								optimistic: () =>
+									setTasks((current) =>
+										current.map((item) =>
+											Number(item.id) === id ? optimistic : item,
+										),
+									),
+								rollback: () =>
+									setTasks((current) =>
+										current.map((item) =>
+											Number(item.id) === id ? original : item,
+										),
+									),
+								action: () =>
+									apiFetch(`/tasks/${id}/reopen/`, { method: 'POST' }),
+								successTitle: 'Tarea reabierta',
+							})
 						}}
 					/>
 				) : null}

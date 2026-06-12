@@ -1,8 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-
-import { useConfirmDialog } from '@/lib/use-confirm-dialog'
+import { type ChangeEvent, useEffect, useMemo, useState } from 'react'
 
 import {
 	CalendarClock,
@@ -10,8 +8,12 @@ import {
 	ListTodo,
 	Pencil,
 	Plus,
+	Repeat,
 	RotateCcw,
+	Search,
 	Trash2,
+	User as UserIcon,
+	Car as CarIcon,
 } from 'lucide-react'
 
 import { Button } from '@/app/components/ui/Button'
@@ -19,44 +21,123 @@ import { Empty } from '@/app/components/ui/Empty'
 
 import { TaskForm, type TaskRecord } from './TaskForm'
 
-type AnyRecord = Record<string, any>
+export type TaskPriority = 'high' | 'medium' | 'low'
+export type TaskStatus = 'pending' | 'done'
+export type TaskRecurrence = 'none' | 'daily' | 'weekly' | 'monthly'
+
+export type Task = {
+	id: number
+	title: string
+	description?: string | null
+	due_date?: string | null
+	priority: TaskPriority
+	status: TaskStatus
+	assignee?: number | null
+	assignee_username?: string | null
+	assignee_label?: string | null
+	created_by?: number | null
+	created_by_username?: string | null
+	created_by_label?: string | null
+	completed_at?: string | null
+	completed_by_username?: string | null
+	is_overdue?: boolean
+	created_at?: string | null
+	customer?: number | null
+	customer_label?: string | null
+	vehicle?: number | null
+	vehicle_label?: string | null
+	recurrence?: TaskRecurrence
+	recurrence_label?: string | null
+}
+
+type EmployeeOption = {
+	id: number
+	username: string
+}
+
+type CustomerOption = {
+	id: number
+	name: string
+}
+
+type VehicleOption = {
+	id: number
+	label: string
+	customerId: number | null
+}
+
+export type TaskFormPayload = {
+	title: string
+	description: string
+	due_date: string | null
+	priority: TaskPriority
+	assignee: number | null
+	customer?: number | null
+	vehicle?: number | null
+	recurrence?: TaskRecurrence
+}
 
 type TasksPanelProps = {
-	tasks: AnyRecord[]
-	employees: AnyRecord[]
-	currentUser: AnyRecord | null
+	tasks: Task[]
+	employees: EmployeeOption[]
+	customers?: CustomerOption[]
+	vehicles?: VehicleOption[]
+	currentUser: Record<string, any> | null
 	canViewEconomy: boolean
 	onCreate: (payload: TaskFormPayload) => Promise<void>
-	onUpdate: (id: number, payload: TaskFormPayload) => Promise<void>
+	onUpdate: (id: number, payload: Partial<TaskFormPayload>) => Promise<void>
 	onDelete: (id: number) => Promise<void>
 	onComplete: (id: number) => Promise<void>
 	onReopen: (id: number) => Promise<void>
 }
 
-type TaskFormPayload = {
-	title: string
-	description: string
-	due_date: string | null
-	priority: 'high' | 'medium' | 'low'
-	assignee: number | null
-}
-
 type EmployerScope = 'assigned' | 'unassigned' | 'all'
 type EmployeeView = 'pending' | 'done'
+type DueFilter = 'all' | 'overdue' | 'today' | 'week'
+type DateBucket = 'overdue' | 'today' | 'week' | 'later' | 'none'
 
-const PRIORITY_LABEL: Record<string, string> = {
+const PRIORITY_LABEL: Record<TaskPriority, string> = {
 	high: 'Alta',
 	medium: 'Media',
 	low: 'Baja',
 }
 
-const PRIORITY_RANK: Record<string, number> = {
+const PRIORITY_RANK: Record<TaskPriority, number> = {
 	high: 0,
 	medium: 1,
 	low: 2,
 }
 
-function formatDateLabel(value: string | null | undefined) {
+const RECURRENCE_LABEL: Record<TaskRecurrence, string> = {
+	none: 'Sin repeticion',
+	daily: 'Diaria',
+	weekly: 'Semanal',
+	monthly: 'Mensual',
+}
+
+const BUCKET_ORDER: DateBucket[] = ['overdue', 'today', 'week', 'later', 'none']
+
+const BUCKET_LABEL: Record<DateBucket, string> = {
+	overdue: 'Vencidas',
+	today: 'Hoy',
+	week: 'Esta semana',
+	later: 'Mas adelante',
+	none: 'Sin vencimiento',
+}
+
+function startOfToday(): number {
+	const today = new Date()
+	today.setHours(0, 0, 0, 0)
+	return today.getTime()
+}
+
+function parseDueDate(value: string | null | undefined): number | null {
+	if (!value) return null
+	const parsed = new Date(`${value}T00:00:00`).getTime()
+	return Number.isNaN(parsed) ? null : parsed
+}
+
+function formatDateLabel(value: string | null | undefined): string {
 	if (!value) return 'Sin vencimiento'
 	const date = new Date(`${value}T00:00:00`)
 	if (Number.isNaN(date.getTime())) return value
@@ -67,30 +148,67 @@ function formatDateLabel(value: string | null | undefined) {
 	})
 }
 
-function isOverdue(task: AnyRecord) {
-	if (task.status === 'done') return false
-	if (!task.due_date) return false
-	const today = new Date()
-	today.setHours(0, 0, 0, 0)
-	const due = new Date(`${task.due_date}T00:00:00`)
-	return due.getTime() < today.getTime()
+function bucketForDue(dueTs: number | null, todayTs: number): DateBucket {
+	if (dueTs == null) return 'none'
+	if (dueTs < todayTs) return 'overdue'
+	const dayMs = 86400000
+	if (dueTs < todayTs + dayMs) return 'today'
+	if (dueTs < todayTs + 7 * dayMs) return 'week'
+	return 'later'
 }
 
-function compareTasks(a: AnyRecord, b: AnyRecord) {
+function friendlyLabel(raw: string | null | undefined): string {
+	const value = (raw ?? '').trim()
+	if (!value) return ''
+	if (value.includes('@')) return value.split('@', 1)[0]
+	return value
+}
+
+function initialsFor(label: string): string {
+	const clean = (label || '').trim()
+	if (!clean) return '?'
+	const parts = clean.split(/[\s._-]+/).filter(Boolean)
+	if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+	return (parts[0][0] + parts[1][0]).toUpperCase()
+}
+
+type EnrichedTask = Task & {
+	__dueTs: number | null
+	__createdTs: number
+	__bucket: DateBucket
+	__assigneeLabel: string
+	__creatorLabel: string
+}
+
+function enrich(task: Task, todayTs: number): EnrichedTask {
+	const dueTs = parseDueDate(task.due_date)
+	const assigneeLabel = friendlyLabel(task.assignee_label || task.assignee_username || '')
+	const creatorLabel = friendlyLabel(task.created_by_label || task.created_by_username || '')
+	return {
+		...task,
+		__dueTs: dueTs,
+		__createdTs: task.created_at ? new Date(task.created_at).getTime() : 0,
+		__bucket: bucketForDue(dueTs, todayTs),
+		__assigneeLabel: assigneeLabel,
+		__creatorLabel: creatorLabel,
+	}
+}
+
+function compareEnriched(a: EnrichedTask, b: EnrichedTask): number {
 	const priorityDiff =
 		(PRIORITY_RANK[a.priority] ?? 99) - (PRIORITY_RANK[b.priority] ?? 99)
 	if (priorityDiff !== 0) return priorityDiff
-	const aDate = a.due_date ? new Date(`${a.due_date}T00:00:00`).getTime() : Infinity
-	const bDate = b.due_date ? new Date(`${b.due_date}T00:00:00`).getTime() : Infinity
+	const aDate = a.__dueTs ?? Infinity
+	const bDate = b.__dueTs ?? Infinity
 	if (aDate !== bDate) return aDate - bDate
-	const aCreated = new Date(a.created_at ?? 0).getTime()
-	const bCreated = new Date(b.created_at ?? 0).getTime()
-	return bCreated - aCreated
+	return b.__createdTs - a.__createdTs
 }
 
 export function TasksPanel({
 	tasks,
 	employees,
+	customers,
+	vehicles,
 	currentUser,
 	canViewEconomy,
 	onCreate,
@@ -99,30 +217,64 @@ export function TasksPanel({
 	onComplete,
 	onReopen,
 }: TasksPanelProps) {
-	const [scope, setScope] = useState<EmployerScope>('assigned')
+	const [scope, setScope] = useState<EmployerScope>('all')
 	const [employeeView, setEmployeeView] = useState<EmployeeView>('pending')
 	const [priorityFilter, setPriorityFilter] = useState<string>('')
 	const [employeeFilter, setEmployeeFilter] = useState<string>('')
-	const [editing, setEditing] = useState<AnyRecord | null>(null)
+	const [dueFilter, setDueFilter] = useState<DueFilter>('all')
+	const [search, setSearch] = useState<string>('')
+	const [editing, setEditing] = useState<Task | null>(null)
 	const [creating, setCreating] = useState(false)
 	const [showDone, setShowDone] = useState(false)
-	const { requestConfirm, ConfirmDialog } = useConfirmDialog()
+	const [busyTaskId, setBusyTaskId] = useState<number | null>(null)
+	const [openMenu, setOpenMenu] = useState<{ id: number; field: 'priority' | 'assignee' | 'due' } | null>(null)
 
 	const currentUserId = currentUser?.id != null ? Number(currentUser.id) : null
+	const todayTs = useMemo(() => startOfToday(), [])
 
-	const employeeOptions = useMemo(
+	useEffect(() => {
+		if (openMenu == null) return
+		function handlePointer(event: globalThis.MouseEvent) {
+			const target = event.target as HTMLElement | null
+			if (target?.closest('.task-inline-control')) return
+			setOpenMenu(null)
+		}
+		function handleKey(event: globalThis.KeyboardEvent) {
+			if (event.key === 'Escape') setOpenMenu(null)
+		}
+		window.addEventListener('mousedown', handlePointer)
+		window.addEventListener('keydown', handleKey)
+		return () => {
+			window.removeEventListener('mousedown', handlePointer)
+			window.removeEventListener('keydown', handleKey)
+		}
+	}, [openMenu])
+
+	const employeeOptions = useMemo<EmployeeOption[]>(
 		() =>
 			employees
-				.filter((employee) => employee.is_active !== false)
+				.filter((employee) => (employee as any).is_active !== false)
 				.map((employee) => ({
 					id: Number(employee.id),
-					username: String(employee.username ?? employee.email ?? `Usuario ${employee.id}`),
+					username: String(
+						(employee as any).username ?? (employee as any).email ?? `Usuario ${employee.id}`,
+					),
 				})),
 		[employees],
 	)
 
+	const customerOptions = useMemo<CustomerOption[]>(() => customers ?? [], [customers])
+	const vehicleOptions = useMemo<VehicleOption[]>(() => vehicles ?? [], [vehicles])
+
+	const enriched = useMemo(
+		() => tasks.map((task) => enrich(task, todayTs)),
+		[tasks, todayTs],
+	)
+
+	const searchTerm = search.trim().toLowerCase()
+
 	const visibleTasks = useMemo(() => {
-		let next = [...tasks]
+		let next = enriched
 		if (canViewEconomy) {
 			if (scope === 'assigned') {
 				next = next.filter((task) => task.assignee != null)
@@ -137,8 +289,28 @@ export function TasksPanel({
 		if (priorityFilter) {
 			next = next.filter((task) => task.priority === priorityFilter)
 		}
-		return next.sort(compareTasks)
-	}, [tasks, scope, employeeFilter, priorityFilter, canViewEconomy])
+		if (dueFilter !== 'all') {
+			next = next.filter((task) => {
+				if (task.status === 'done') return false
+				if (dueFilter === 'overdue') return task.__bucket === 'overdue'
+				if (dueFilter === 'today') return task.__bucket === 'today'
+				if (dueFilter === 'week')
+					return (
+						task.__bucket === 'today' ||
+						task.__bucket === 'week' ||
+						task.__bucket === 'overdue'
+					)
+				return true
+			})
+		}
+		if (searchTerm) {
+			next = next.filter((task) => {
+				const hay = `${task.title}\n${task.description ?? ''}\n${task.__assigneeLabel}\n${task.customer_label ?? ''}\n${task.vehicle_label ?? ''}`.toLowerCase()
+				return hay.includes(searchTerm)
+			})
+		}
+		return [...next].sort(compareEnriched)
+	}, [enriched, scope, employeeFilter, priorityFilter, dueFilter, searchTerm, canViewEconomy])
 
 	const pendingTasks = useMemo(
 		() => visibleTasks.filter((task) => task.status !== 'done'),
@@ -149,10 +321,24 @@ export function TasksPanel({
 		[visibleTasks],
 	)
 
+	const buckets = useMemo(() => {
+		const grouped: Record<DateBucket, EnrichedTask[]> = {
+			overdue: [],
+			today: [],
+			week: [],
+			later: [],
+			none: [],
+		}
+		for (const task of pendingTasks) {
+			grouped[task.__bucket].push(task)
+		}
+		return grouped
+	}, [pendingTasks])
+
 	const employeeFacingTasks =
 		employeeView === 'pending' ? pendingTasks : doneTasks
 
-	function canModify(task: AnyRecord) {
+	function canModify(task: Task) {
 		if (canViewEconomy) return true
 		return currentUserId != null && Number(task.created_by) === currentUserId
 	}
@@ -168,51 +354,252 @@ export function TasksPanel({
 		setEditing(null)
 	}
 
-	function renderTaskRow(task: AnyRecord) {
+	async function handleInlineUpdate(task: EnrichedTask, patch: Partial<TaskFormPayload>) {
+		setBusyTaskId(task.id)
+		setOpenMenu(null)
+		try {
+			await onUpdate(task.id, patch)
+		} finally {
+			setBusyTaskId(null)
+		}
+	}
+
+	async function handleToggleStatus(task: EnrichedTask) {
+		setBusyTaskId(task.id)
+		try {
+			if (task.status === 'done') {
+				await onReopen(task.id)
+			} else {
+				await onComplete(task.id)
+			}
+		} finally {
+			setBusyTaskId(null)
+		}
+	}
+
+	function renderTaskRow(task: EnrichedTask) {
 		const done = task.status === 'done'
-		const overdue = isOverdue(task)
+		const overdue = task.__bucket === 'overdue'
 		const allowedToModify = canModify(task)
+		const busy = busyTaskId === task.id
+		const recurrence = task.recurrence && task.recurrence !== 'none' ? task.recurrence : null
+		const recurrenceLabel =
+			task.recurrence_label ?? (recurrence ? RECURRENCE_LABEL[recurrence] : null)
 		return (
 			<li
 				key={task.id}
-				className={`task-row${done ? ' task-row--done' : ''}${overdue ? ' task-row--overdue' : ''}`}
+				className={`task-row${done ? ' task-row--done' : ''}${overdue ? ' task-row--overdue' : ''}${busy ? ' task-row--busy' : ''}`}
 			>
 				<button
 					type="button"
 					className={`task-check${done ? ' task-check--done' : ''}`}
-					onClick={() =>
-						done ? onReopen(Number(task.id)) : onComplete(Number(task.id))
-					}
+					onClick={() => void handleToggleStatus(task)}
 					aria-label={done ? 'Reabrir tarea' : 'Marcar como completada'}
+					disabled={busy}
 				>
 					{done ? <RotateCcw size={14} /> : <CheckCircle2 size={14} />}
 				</button>
 				<div className="task-main">
 					<div className="task-title-row">
+						<span
+							className={`task-priority-dot task-priority-dot--${task.priority}`}
+							aria-hidden
+						/>
 						<span className="task-title">{task.title}</span>
-						<span className={`task-priority task-priority--${task.priority}`}>
-							{PRIORITY_LABEL[task.priority] ?? task.priority}
-						</span>
+						{allowedToModify ? (
+							<div className="task-inline-control">
+								<button
+									type="button"
+									className={`task-priority task-priority--${task.priority}`}
+									onClick={() =>
+										setOpenMenu((current) =>
+											current?.id === task.id && current.field === 'priority'
+												? null
+												: { id: task.id, field: 'priority' },
+										)
+									}
+									aria-haspopup="listbox"
+									aria-expanded={openMenu?.id === task.id && openMenu.field === 'priority'}
+									title="Cambiar prioridad"
+								>
+									{PRIORITY_LABEL[task.priority]}
+								</button>
+								{openMenu?.id === task.id && openMenu.field === 'priority' ? (
+									<div className="task-popover" role="listbox">
+										{(Object.keys(PRIORITY_LABEL) as TaskPriority[]).map((value) => (
+											<button
+												key={value}
+												type="button"
+												role="option"
+												aria-selected={task.priority === value}
+												className={`task-popover-option${task.priority === value ? ' task-popover-option--active' : ''}`}
+												onClick={() =>
+													void handleInlineUpdate(task, { priority: value })
+												}
+											>
+												<span
+													className={`task-priority-dot task-priority-dot--${value}`}
+													aria-hidden
+												/>
+												{PRIORITY_LABEL[value]}
+											</button>
+										))}
+									</div>
+								) : null}
+							</div>
+						) : (
+							<span className={`task-priority task-priority--${task.priority}`}>
+								{PRIORITY_LABEL[task.priority]}
+							</span>
+						)}
+						{recurrence ? (
+							<span className="task-meta-chip task-meta-chip--info" title={recurrenceLabel ?? ''}>
+								<Repeat size={12} />
+								{recurrenceLabel}
+							</span>
+						) : null}
 					</div>
 					<div className="task-meta">
-						<span
-							className={`task-meta-chip${overdue ? ' task-meta-chip--danger' : ''}`}
-						>
-							<CalendarClock size={12} />
-							{formatDateLabel(task.due_date)}
-						</span>
-						{task.assignee_username ? (
+						{allowedToModify ? (
+							<div className="task-inline-control">
+								<button
+									type="button"
+									className={`task-meta-chip${overdue ? ' task-meta-chip--danger' : ''}`}
+									onClick={() =>
+										setOpenMenu((current) =>
+											current?.id === task.id && current.field === 'due'
+												? null
+												: { id: task.id, field: 'due' },
+										)
+									}
+									title="Cambiar vencimiento"
+								>
+									<CalendarClock size={12} />
+									{formatDateLabel(task.due_date)}
+								</button>
+								{openMenu?.id === task.id && openMenu.field === 'due' ? (
+									<div className="task-popover task-popover--wide">
+										<input
+											type="date"
+											defaultValue={task.due_date ?? ''}
+											onChange={(event: ChangeEvent<HTMLInputElement>) =>
+												void handleInlineUpdate(task, {
+													due_date: event.target.value || null,
+												})
+											}
+											autoFocus
+										/>
+										<button
+											type="button"
+											className="ghost task-popover-clear"
+											onClick={() =>
+												void handleInlineUpdate(task, { due_date: null })
+											}
+										>
+											Quitar fecha
+										</button>
+									</div>
+								) : null}
+							</div>
+						) : (
+							<span
+								className={`task-meta-chip${overdue ? ' task-meta-chip--danger' : ''}`}
+							>
+								<CalendarClock size={12} />
+								{formatDateLabel(task.due_date)}
+							</span>
+						)}
+						{canViewEconomy && allowedToModify ? (
+							<div className="task-inline-control">
+								<button
+									type="button"
+									className={`task-meta-chip${task.assignee ? ' task-meta-chip--user' : ' task-meta-chip--muted'}`}
+									onClick={() =>
+										setOpenMenu((current) =>
+											current?.id === task.id && current.field === 'assignee'
+												? null
+												: { id: task.id, field: 'assignee' },
+										)
+									}
+									title="Reasignar tarea"
+								>
+									{task.__assigneeLabel ? (
+										<>
+											<span className="task-avatar" aria-hidden>
+												{initialsFor(task.__assigneeLabel)}
+											</span>
+											{task.__assigneeLabel}
+										</>
+									) : (
+										<>
+											<UserIcon size={12} />
+											Sin asignar
+										</>
+									)}
+								</button>
+								{openMenu?.id === task.id && openMenu.field === 'assignee' ? (
+									<div className="task-popover task-popover--wide" role="listbox">
+										<button
+											type="button"
+											role="option"
+											aria-selected={task.assignee == null}
+											className={`task-popover-option${task.assignee == null ? ' task-popover-option--active' : ''}`}
+											onClick={() =>
+												void handleInlineUpdate(task, { assignee: null })
+											}
+										>
+											Sin asignar
+										</button>
+										{employeeOptions.map((employee) => (
+											<button
+												key={employee.id}
+												type="button"
+												role="option"
+												aria-selected={Number(task.assignee) === employee.id}
+												className={`task-popover-option${Number(task.assignee) === employee.id ? ' task-popover-option--active' : ''}`}
+												onClick={() =>
+													void handleInlineUpdate(task, { assignee: employee.id })
+												}
+											>
+												<span className="task-avatar" aria-hidden>
+													{initialsFor(friendlyLabel(employee.username))}
+												</span>
+												{friendlyLabel(employee.username)}
+											</button>
+										))}
+									</div>
+								) : null}
+							</div>
+						) : task.__assigneeLabel ? (
 							<span className="task-meta-chip task-meta-chip--user">
-								{task.assignee_username}
+								<span className="task-avatar" aria-hidden>
+									{initialsFor(task.__assigneeLabel)}
+								</span>
+								{task.__assigneeLabel}
 							</span>
 						) : (
 							<span className="task-meta-chip task-meta-chip--muted">
 								Sin asignar
 							</span>
 						)}
-						{task.created_by_username ? (
-							<span className="task-meta-chip task-meta-chip--ghost">
-								Creada por {task.created_by_username}
+						{task.customer_label ? (
+							<span className="task-meta-chip task-meta-chip--customer" title="Cliente vinculado">
+								<UserIcon size={12} />
+								{task.customer_label}
+							</span>
+						) : null}
+						{task.vehicle_label ? (
+							<span className="task-meta-chip task-meta-chip--vehicle" title="Vehiculo vinculado">
+								<CarIcon size={12} />
+								{task.vehicle_label}
+							</span>
+						) : null}
+						{task.__creatorLabel ? (
+							<span className="task-meta-chip task-meta-chip--ghost" title="Creada por">
+								<span className="task-avatar task-avatar--xs" aria-hidden>
+									{initialsFor(task.__creatorLabel)}
+								</span>
+								{task.__creatorLabel}
 							</span>
 						) : null}
 					</div>
@@ -240,10 +627,7 @@ export function TasksPanel({
 								type="button"
 								variant="ghost"
 								className="icon-button task-delete"
-								onClick={async () => {
-									const ok = await requestConfirm({ title: 'Eliminar tarea', message: '¿Eliminar la tarea?', confirmLabel: 'Eliminar', tone: 'danger' })
-									if (ok) void onDelete(Number(task.id))
-								}}
+								onClick={() => void onDelete(task.id)}
 								aria-label="Eliminar tarea"
 								title="Eliminar"
 							>
@@ -253,6 +637,34 @@ export function TasksPanel({
 					) : null}
 				</div>
 			</li>
+		)
+	}
+
+	function renderBuckets() {
+		const visibleBuckets = BUCKET_ORDER.filter((bucket) => buckets[bucket].length > 0)
+		if (visibleBuckets.length === 0) {
+			return <Empty text="Sin tareas pendientes en esta vista." />
+		}
+		return (
+			<div className="tasks-buckets">
+				{visibleBuckets.map((bucket) => (
+					<section
+						key={bucket}
+						className={`tasks-bucket tasks-bucket--${bucket}`}
+						aria-label={BUCKET_LABEL[bucket]}
+					>
+						<header className="tasks-bucket-head">
+							<h3>
+								{BUCKET_LABEL[bucket]}
+								<span className="tasks-bucket-count">{buckets[bucket].length}</span>
+							</h3>
+						</header>
+						<ul className="tasks-list">
+							{buckets[bucket].map(renderTaskRow)}
+						</ul>
+					</section>
+				))}
+			</div>
 		)
 	}
 
@@ -280,13 +692,15 @@ export function TasksPanel({
 				<div className="tasks-filters">
 					{canViewEconomy ? (
 						<div className="tasks-tabs" role="tablist" aria-label="Tipo de tareas">
-							{(['assigned', 'unassigned', 'all'] as EmployerScope[]).map(
+							{(['all', 'assigned', 'unassigned'] as EmployerScope[]).map(
 								(value) => (
 									<button
 										key={value}
 										type="button"
 										role="tab"
 										aria-selected={scope === value}
+										aria-controls="tasks-panel-content"
+										id={`tasks-tab-${value}`}
 										className={`tasks-tab${scope === value ? ' tasks-tab--active' : ''}`}
 										onClick={() => setScope(value)}
 									>
@@ -311,6 +725,8 @@ export function TasksPanel({
 									type="button"
 									role="tab"
 									aria-selected={employeeView === value}
+									aria-controls="tasks-panel-content"
+									id={`tasks-tab-${value}`}
 									className={`tasks-tab${employeeView === value ? ' tasks-tab--active' : ''}`}
 									onClick={() => setEmployeeView(value)}
 								>
@@ -321,6 +737,16 @@ export function TasksPanel({
 							))}
 						</div>
 					)}
+					<div className="tasks-search">
+						<Search size={14} aria-hidden />
+						<input
+							type="search"
+							value={search}
+							onChange={(event) => setSearch(event.target.value)}
+							placeholder="Buscar por titulo, descripcion, cliente, vehiculo..."
+							aria-label="Buscar tareas"
+						/>
+					</div>
 					<div className="tasks-filter-row">
 						<label className="tasks-filter-label">
 							Prioridad
@@ -334,6 +760,18 @@ export function TasksPanel({
 								<option value="low">Baja</option>
 							</select>
 						</label>
+						<label className="tasks-filter-label">
+							Vencimiento
+							<select
+								value={dueFilter}
+								onChange={(event) => setDueFilter(event.target.value as DueFilter)}
+							>
+								<option value="all">Todas</option>
+								<option value="overdue">Vencidas</option>
+								<option value="today">Hoy</option>
+								<option value="week">Esta semana</option>
+							</select>
+						</label>
 						{canViewEconomy && scope === 'assigned' ? (
 							<label className="tasks-filter-label">
 								Empleado
@@ -344,7 +782,7 @@ export function TasksPanel({
 									<option value="">Cualquiera</option>
 									{employeeOptions.map((employee) => (
 										<option key={employee.id} value={String(employee.id)}>
-											{employee.username}
+											{friendlyLabel(employee.username)}
 										</option>
 									))}
 								</select>
@@ -353,54 +791,52 @@ export function TasksPanel({
 					</div>
 				</div>
 
-				{canViewEconomy ? (
-					<>
-						<div className="tasks-section-head">
-							<h3>
-								<ListTodo size={14} /> Pendientes ({pendingTasks.length})
-							</h3>
-						</div>
-						{pendingTasks.length ? (
-							<ul className="tasks-list">{pendingTasks.map(renderTaskRow)}</ul>
-						) : (
-							<Empty text="Sin tareas pendientes en esta vista." />
-						)}
-						<div className="tasks-section-head">
-							<Button
-								type="button"
-								variant="ghost"
-								onClick={() => setShowDone((prev) => !prev)}
-								aria-expanded={showDone}
-							>
-								{showDone ? 'Ocultar completadas' : 'Mostrar completadas'} (
-								{doneTasks.length})
-							</Button>
-						</div>
-						{showDone ? (
-							doneTasks.length ? (
-								<ul className="tasks-list">{doneTasks.map(renderTaskRow)}</ul>
-							) : (
-								<Empty text="Sin tareas completadas en esta vista." />
-							)
-						) : null}
-					</>
-				) : employeeFacingTasks.length ? (
-					<ul className="tasks-list">{employeeFacingTasks.map(renderTaskRow)}</ul>
-				) : (
-					<Empty
-						text={
-							employeeView === 'pending'
-								? 'No tenes tareas pendientes.'
-								: 'Sin tareas completadas todavia.'
-						}
-					/>
-				)}
+				<div
+					id="tasks-panel-content"
+					role="tabpanel"
+					aria-labelledby={
+						canViewEconomy ? `tasks-tab-${scope}` : `tasks-tab-${employeeView}`
+					}
+				>
+					{canViewEconomy ? (
+						<>
+							{renderBuckets()}
+							<div className="tasks-section-head">
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => setShowDone((prev) => !prev)}
+									aria-expanded={showDone}
+								>
+									<ListTodo size={14} />
+									{showDone ? 'Ocultar completadas' : 'Mostrar completadas'} (
+									{doneTasks.length})
+								</Button>
+							</div>
+							{showDone ? (
+								doneTasks.length ? (
+									<ul className="tasks-list">{doneTasks.map(renderTaskRow)}</ul>
+								) : (
+									<Empty text="Sin tareas completadas en esta vista." />
+								)
+							) : null}
+						</>
+					) : employeeView === 'pending' ? (
+						renderBuckets()
+					) : employeeFacingTasks.length ? (
+						<ul className="tasks-list">{employeeFacingTasks.map(renderTaskRow)}</ul>
+					) : (
+						<Empty text="Sin tareas completadas todavia." />
+					)}
+				</div>
 			</section>
 
 			{creating ? (
 				<TaskForm
 					canAssign={canViewEconomy}
 					employees={employeeOptions}
+					customers={customerOptions}
+					vehicles={vehicleOptions}
 					onSubmit={handleSubmitCreate}
 					onClose={() => setCreating(false)}
 				/>
@@ -410,11 +846,12 @@ export function TasksPanel({
 					initial={editing as Partial<TaskRecord>}
 					canAssign={canViewEconomy}
 					employees={employeeOptions}
+					customers={customerOptions}
+					vehicles={vehicleOptions}
 					onSubmit={handleSubmitEdit}
 					onClose={() => setEditing(null)}
 				/>
 			) : null}
-			<ConfirmDialog />
 		</div>
 	)
 }

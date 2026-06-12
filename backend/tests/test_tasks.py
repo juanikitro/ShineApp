@@ -2,10 +2,12 @@ from datetime import date, timedelta
 
 import pytest
 from django.contrib.auth.models import Group
+from django.core import mail
 from rest_framework.test import APIClient
 
 from core.models import BusinessAccount, UserProfile
-from tasks.models import Task, TaskPriority, TaskStatus
+from customers.models import Customer, Vehicle
+from tasks.models import Task, TaskPriority, TaskRecurrence, TaskStatus
 
 
 def _ensure_groups():
@@ -280,3 +282,219 @@ def test_listing_orders_by_priority_then_due_date(employer_client, employee):
 def test_title_is_required(employer_client):
     response = employer_client.post("/api/tasks/", {"description": "Sin titulo"}, format="json")
     assert response.status_code == 400
+
+
+@pytest.fixture
+def business_customer(db):
+    return Customer.objects.create(
+        business=BusinessAccount.get_default(),
+        name="Juan Cliente",
+    )
+
+
+@pytest.fixture
+def business_vehicle(business_customer):
+    return Vehicle.objects.create(
+        business=business_customer.business,
+        customer=business_customer,
+        license_plate="ABC123",
+        brand="Toyota",
+        model="Corolla",
+    )
+
+
+def test_employer_can_link_customer_and_vehicle(
+    employer_client, business_customer, business_vehicle
+):
+    response = employer_client.post(
+        "/api/tasks/",
+        {
+            "title": "Llamar al cliente",
+            "priority": "medium",
+            "customer": business_customer.id,
+            "vehicle": business_vehicle.id,
+        },
+        format="json",
+    )
+    assert response.status_code == 201, response.data
+    body = response.json()
+    assert body["customer"] == business_customer.id
+    assert body["customer_label"] == "Juan Cliente"
+    assert body["vehicle"] == business_vehicle.id
+    assert "ABC123" in body["vehicle_label"]
+    assert "Corolla" in body["vehicle_label"]
+
+
+def test_vehicle_must_belong_to_customer(employer_client, business_customer, business_vehicle):
+    other_customer = Customer.objects.create(
+        business=business_customer.business, name="Otro"
+    )
+    response = employer_client.post(
+        "/api/tasks/",
+        {
+            "title": "Mismatch",
+            "customer": other_customer.id,
+            "vehicle": business_vehicle.id,
+        },
+        format="json",
+    )
+    assert response.status_code == 400, response.data
+    assert "vehicle" in response.data
+
+
+def test_cross_business_customer_rejected(db, django_user_model, business_customer):
+    other_business = BusinessAccount.objects.create(name="Otra", slug="otra")
+    employer_b = _make_user(django_user_model, "boss-b", "empleador", business=other_business)
+    client_b = _auth_client(employer_b)
+    response = client_b.post(
+        "/api/tasks/",
+        {"title": "Cross", "customer": business_customer.id},
+        format="json",
+    )
+    assert response.status_code == 400, response.data
+    assert "customer" in response.data
+
+
+def test_recurring_task_spawns_next_occurrence_on_complete(employer_client, employee):
+    due = date.today() + timedelta(days=1)
+    create = employer_client.post(
+        "/api/tasks/",
+        {
+            "title": "Revisar stock",
+            "assignee": employee.id,
+            "due_date": due.isoformat(),
+            "recurrence": "weekly",
+        },
+        format="json",
+    )
+    assert create.status_code == 201, create.data
+    task_id = create.json()["id"]
+
+    complete = employer_client.post(f"/api/tasks/{task_id}/complete/")
+    assert complete.status_code == 200
+
+    pending = Task.objects.filter(title="Revisar stock", status=TaskStatus.PENDING)
+    assert pending.count() == 1
+    next_task = pending.first()
+    assert next_task.id != task_id
+    assert next_task.due_date == due + timedelta(weeks=1)
+    assert next_task.recurrence == TaskRecurrence.WEEKLY
+    assert next_task.assignee_id == employee.id
+
+
+def test_recurrence_requires_due_date(employer_client):
+    response = employer_client.post(
+        "/api/tasks/",
+        {"title": "Sin fecha", "recurrence": "daily"},
+        format="json",
+    )
+    assert response.status_code == 400, response.data
+    assert "recurrence" in response.data
+
+
+def test_restore_endpoint_undeletes_task(employer_client):
+    create = employer_client.post(
+        "/api/tasks/",
+        {"title": "Restaurar"},
+        format="json",
+    )
+    task_id = create.json()["id"]
+    employer_client.delete(f"/api/tasks/{task_id}/")
+    assert not Task.objects.filter(pk=task_id).exists()
+
+    response = employer_client.post(f"/api/tasks/{task_id}/restore/")
+    assert response.status_code == 200, response.data
+    assert Task.objects.filter(pk=task_id).exists()
+
+
+def test_assignment_sends_email_to_new_assignee(
+    employer_client, employee, django_user_model
+):
+    employee.email = "ana@test.com"
+    employee.save(update_fields=["email"])
+    mail.outbox.clear()
+
+    response = employer_client.post(
+        "/api/tasks/",
+        {"title": "Pulir auto", "assignee": employee.id},
+        format="json",
+    )
+    assert response.status_code == 201
+    assert len(mail.outbox) == 1
+    sent = mail.outbox[0]
+    assert sent.to == ["ana@test.com"]
+    assert "Pulir auto" in sent.subject
+
+
+def test_assignment_skips_email_when_no_email(employer_client, employee):
+    employee.email = ""
+    employee.save(update_fields=["email"])
+    mail.outbox.clear()
+
+    employer_client.post(
+        "/api/tasks/",
+        {"title": "Sin email", "assignee": employee.id},
+        format="json",
+    )
+    assert mail.outbox == []
+
+
+def test_assignment_skips_email_when_self_assigned(employer_client, employer):
+    employer.email = "boss@test.com"
+    employer.save(update_fields=["email"])
+    mail.outbox.clear()
+
+    employer_client.post(
+        "/api/tasks/",
+        {"title": "Para mi", "assignee": employer.id},
+        format="json",
+    )
+    assert mail.outbox == []
+
+
+def test_reassignment_sends_email(employer_client, employee, other_employee):
+    employee.email = "ana@test.com"
+    employee.save(update_fields=["email"])
+    other_employee.email = "luis@test.com"
+    other_employee.save(update_fields=["email"])
+
+    create = employer_client.post(
+        "/api/tasks/",
+        {"title": "Reasignar", "assignee": employee.id},
+        format="json",
+    )
+    task_id = create.json()["id"]
+    mail.outbox.clear()
+
+    employer_client.patch(
+        f"/api/tasks/{task_id}/",
+        {"assignee": other_employee.id},
+        format="json",
+    )
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == ["luis@test.com"]
+
+
+def test_assignee_label_uses_full_name_or_strips_email(
+    employer_client, employee, django_user_model
+):
+    employee.first_name = "Ana"
+    employee.last_name = "Lopez"
+    employee.save(update_fields=["first_name", "last_name"])
+    response = employer_client.post(
+        "/api/tasks/",
+        {"title": "Con nombre", "assignee": employee.id},
+        format="json",
+    )
+    assert response.json()["assignee_label"] == "Ana Lopez"
+
+    employee.first_name = ""
+    employee.last_name = ""
+    employee.username = "ana@empresa.com"
+    employee.save(update_fields=["first_name", "last_name", "username"])
+    response = employer_client.post(
+        "/api/tasks/",
+        {"title": "Sin nombre", "assignee": employee.id},
+        format="json",
+    )
+    assert response.json()["assignee_label"] == "ana"
