@@ -7,7 +7,7 @@ from rest_framework.routers import DefaultRouter
 from catalog.views import SectorViewSet, ServiceMaterialViewSet, ServiceViewSet
 from search.views import GlobalSearchView
 
-from core.views import AuditLogView
+from core.views import AuditLogView, TrashPurgeView, TrashRestoreView, TrashView
 from customers.views import CustomerViewSet, VehicleViewSet
 from dashboard.views import DashboardSummaryView
 from debts.views import DebtPaymentViewSet, DebtViewSet
@@ -82,6 +82,17 @@ urlpatterns = [
     path("api/auth/password-reset/", PasswordResetRequestView.as_view(), name="auth-password-reset"),
     path("api/auth/password-reset/confirm/", PasswordResetConfirmView.as_view(), name="auth-password-reset-confirm"),
     path("api/audit-log/", AuditLogView.as_view(), name="audit-log"),
+    path("api/trash/", TrashView.as_view(), name="trash-list"),
+    path(
+        "api/trash/<slug:entry_key>/<int:pk>/restore/",
+        TrashRestoreView.as_view(),
+        name="trash-restore",
+    ),
+    path(
+        "api/trash/<slug:entry_key>/<int:pk>/",
+        TrashPurgeView.as_view(),
+        name="trash-purge",
+    ),
     path(
         "api/settings/business-profile/",
         BusinessProfileView.as_view(),

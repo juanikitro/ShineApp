@@ -1047,6 +1047,34 @@
   min-height: 44px;
 }
 
+.trash-feedback {
+  background: color-mix(in srgb, var(--shop-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--shop-accent) 30%, transparent);
+  border-radius: var(--radius-2);
+  color: var(--shop-ink);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
+.trash-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.trash-group-head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.trash-group-head h3 {
+  font-size: var(--text-lg);
+  margin: 0;
+}
+
 .audit-log-list {
   margin-top: var(--space-1);
 }

@@ -73,6 +73,19 @@ class Debt(SoftDeleteMixin):
             self.deleted_at = timezone.now()
             self.save(update_fields=["deleted_at", "updated_at"])
 
+    def restore(self):
+        # No se reactiva el `cash_movement` original: la cascada de delete corta
+        # el link `Debt.cash_movement` para evitar conflictos en re-creacion. Si
+        # el usuario necesita el movimiento de caja vinculado, debe restaurarlo
+        # desde la papelera por separado.
+        with transaction.atomic():
+            now = timezone.now()
+            Debt.all_objects.filter(pk=self.pk).update(deleted_at=None, updated_at=now)
+            self.deleted_at = None
+            self.updated_at = now
+            for payment in self.payments(manager="all_objects").filter(deleted_at__isnull=False):
+                payment.restore()
+
     @property
     def total_paid(self):
         return self.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")

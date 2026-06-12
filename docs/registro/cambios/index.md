@@ -10,6 +10,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 - [regen-docs: PR en lugar de push directo a main](2026-06-12-regen-docs-via-pr.md)
+- [Papelera: ver, restaurar y purgar registros borrados](2026-06-12-papelera-restore-borrado-logico.md)
 - [Turnera: precios mostrados segun el tipo de vehiculo seleccionado](2026-06-11-turnera-precio-por-tipo-de-vehiculo.md)
 - [Turnera: el logo del header entra completo, sin recorte cuadrado](2026-06-11-turnera-logo-sin-recorte.md)
 - [Turnera: logo del negocio en el header](2026-06-11-turnera-logo-en-header.md)
