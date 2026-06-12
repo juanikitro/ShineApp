@@ -17,6 +17,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Modulo de tareas para empleadores y empleados](docs/registro/cambios/2026-06-12-modulo-tareas.md)
 - [Caja: rediseno de KPIs y metricas consolidadas en dos columnas](docs/registro/cambios/2026-06-12-caja-rediseno-kpis-y-metricas-consolidadas.md)
 - [Caja: boton unico "Cargar movimiento" con toggle por tipo](docs/registro/cambios/2026-06-12-caja-cargar-movimiento-unificado.md)
+- [Agenda: toolbar de navegacion horizontal y altura de cards ajustada](docs/registro/cambios/2026-06-12-agenda-toolbar-y-altura-card.md)
 - [Agenda: cards de reservas más compactas](docs/registro/cambios/2026-06-12-agenda-cards-compactas.md)
 
 ## 2026-06-11
