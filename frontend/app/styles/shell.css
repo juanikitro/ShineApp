@@ -1510,6 +1510,11 @@
   font-size: var(--text-base);
 }
 
+.record-prices {
+  color: var(--shop-ink-soft);
+  font-size: var(--text-sm);
+}
+
 .birthday-badge {
   align-items: center;
   background: var(--color-secondary);
@@ -2763,6 +2768,14 @@
   justify-items: end;
   max-width: 100%;
   min-width: 0;
+}
+
+.cash-action-rail {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .finance-primary-actions,
@@ -4348,6 +4361,7 @@
   }
 
   .finance-action-rail,
+  .cash-action-rail,
   .settings-action-rail,
   .finance-primary-actions,
   .finance-secondary-actions,
@@ -4360,6 +4374,7 @@
   }
 
   .finance-action-rail,
+  .cash-action-rail,
   .settings-action-rail {
     width: 100%;
   }
@@ -4652,6 +4667,7 @@
 
   .finance-primary-actions,
   .finance-secondary-actions,
+  .cash-action-rail,
   .finance-record-actions,
   .finance-record-secondary-actions,
   .settings-primary-actions,
@@ -4662,6 +4678,7 @@
 
   .finance-primary-actions button,
   .finance-secondary-actions button,
+  .cash-action-rail button,
   .finance-record-actions > button,
   .finance-record-secondary-actions button,
   .settings-primary-actions button,
