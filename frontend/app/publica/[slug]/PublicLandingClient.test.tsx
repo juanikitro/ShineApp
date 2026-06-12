@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, test, vi } from 'vitest'
 
@@ -140,6 +140,55 @@ test('las descripciones cortas no muestran el boton "Ver mas"', async () => {
 	assert.equal(screen.queryByRole('button', { name: /Ver mas/i }), null)
 })
 
+test('los precios de servicios y el total siguen al tipo de vehiculo seleccionado', async () => {
+	const formatPrice = (value: number) =>
+		value.toLocaleString('es-AR', {
+			style: 'currency',
+			currency: 'ARS',
+			maximumFractionDigits: 0,
+		})
+	const payload = {
+		...landingPayload,
+		display: { show_service_description: true, show_service_price: true },
+		services: [
+			{
+				...landingPayload.services[0],
+				base_price: '15000.00',
+				price_camioneta: '20000.00',
+			},
+			landingPayload.services[1],
+		],
+	}
+	publicApiFetchMock.mockImplementationOnce(async () => payload)
+
+	const user = userEvent.setup()
+	const { container } = render(<PublicLandingClient slug="test" />)
+
+	const priceTag = () =>
+		container.querySelector('.public-svc-price')?.textContent
+	const totalTag = () =>
+		container.querySelector('.public-summary-total')?.textContent
+
+	await user.click(await screen.findByRole('button', { name: /Lavadero/ }))
+	await user.click(screen.getByRole('button', { name: /Agregar Lavado Premium/ }))
+
+	// tipo default "auto" sin precio propio -> base_price
+	assert.equal(priceTag(), formatPrice(15000))
+	assert.equal(totalTag(), formatPrice(15000))
+
+	await user.selectOptions(
+		screen.getByLabelText('Tipo de vehículo'),
+		'camioneta',
+	)
+	assert.equal(priceTag(), formatPrice(20000))
+	assert.equal(totalTag(), formatPrice(20000))
+
+	// tipo sin precio propio vuelve al base
+	await user.selectOptions(screen.getByLabelText('Tipo de vehículo'), 'moto')
+	assert.equal(priceTag(), formatPrice(15000))
+	assert.equal(totalTag(), formatPrice(15000))
+})
+
 test('el telefono abre WhatsApp y la direccion abre Google Maps', async () => {
 	publicApiFetchMock.mockImplementationOnce(async () => landingPayload)
 	render(<PublicLandingClient slug="test" />)
@@ -166,12 +215,63 @@ test('sin enlace de Maps, la direccion queda como texto plano', async () => {
 	assert.ok(screen.getByText(/Av\. Siempre Viva 742/))
 })
 
-test('muestra la inicial del negocio sin duplicar la imagen en la marca', async () => {
+test('muestra el logo del negocio en la marca del header', async () => {
 	publicApiFetchMock.mockImplementationOnce(async () => landingPayload)
+	const { container } = render(<PublicLandingClient slug="test" />)
+
+	await screen.findByRole('button', { name: /Lavadero/ })
+	const brandMark = container.querySelector('.public-brand-mark')
+	const logo = brandMark?.querySelector('img')
+	assert.equal(logo?.getAttribute('src'), 'https://cdn.example.com/logo.png')
+	assert.equal(brandMark?.textContent, '')
+	assert.ok(brandMark?.classList.contains('public-brand-mark--logo'))
+})
+
+test('sin logo cargado, la marca usa la inicial del negocio', async () => {
+	const payload = {
+		...landingPayload,
+		business: { ...landingPayload.business, logo_url: null },
+	}
+	publicApiFetchMock.mockImplementationOnce(async () => payload)
 	const { container } = render(<PublicLandingClient slug="test" />)
 
 	await screen.findByRole('button', { name: /Lavadero/ })
 	const brandMark = container.querySelector('.public-brand-mark')
 	assert.equal(brandMark?.textContent, 'L')
 	assert.equal(brandMark?.querySelector('img'), null)
+	assert.ok(!brandMark?.classList.contains('public-brand-mark--logo'))
+})
+
+test('un logo PDF no se renderiza como imagen en la marca', async () => {
+	const payload = {
+		...landingPayload,
+		business: {
+			...landingPayload.business,
+			logo_url: 'https://cdn.example.com/logo.pdf',
+		},
+	}
+	publicApiFetchMock.mockImplementationOnce(async () => payload)
+	const { container } = render(<PublicLandingClient slug="test" />)
+
+	await screen.findByRole('button', { name: /Lavadero/ })
+	const brandMark = container.querySelector('.public-brand-mark')
+	assert.equal(brandMark?.textContent, 'L')
+	assert.equal(brandMark?.querySelector('img'), null)
+})
+
+test('si la imagen del logo falla, la marca vuelve a la inicial', async () => {
+	publicApiFetchMock.mockImplementationOnce(async () => landingPayload)
+	const { container } = render(<PublicLandingClient slug="test" />)
+
+	await screen.findByRole('button', { name: /Lavadero/ })
+	const logo = container.querySelector('.public-brand-mark img')
+	assert.ok(logo)
+	fireEvent.error(logo)
+
+	await waitFor(() => {
+		const brandMark = container.querySelector('.public-brand-mark')
+		assert.equal(brandMark?.querySelector('img'), null)
+		assert.equal(brandMark?.textContent, 'L')
+		assert.ok(!brandMark?.classList.contains('public-brand-mark--logo'))
+	})
 })

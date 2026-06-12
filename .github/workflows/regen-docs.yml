@@ -4,6 +4,11 @@ name: Regen docs
 # Los archivos generados no se commitean en feature branches (para evitar
 # conflictos entre PRs concurrentes), por lo que este job los mantiene al
 # dia en main luego de cada merge.
+#
+# Como el ruleset de main bloquea pushes directos (incluido github-actions[bot]),
+# los cambios se abren como un PR desde chore/regen-docs con auto-merge activado.
+# El CI sobre ese PR corre backend/frontend/dependency-audit; el job docs queda
+# skipped en PRs (ci-required acepta skipped como valido).
 
 on:
   push:
@@ -12,6 +17,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   regen:
@@ -21,12 +27,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -40,14 +46,31 @@ jobs:
       - name: Regenerar archivos generados
         run: python scripts/check_docs.py --write --skip-build
 
-      - name: Commitear si hay cambios
+      - name: Abrir PR a main con los cambios generados
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git diff --quiet && exit 0
+
+          BRANCH="chore/regen-docs"
+          git checkout -b "$BRANCH"
           git add CHANGELOG.md \
             docs/registro/cambios/index.md \
             docs/registro/decisiones/index.md \
             docs/plans/index.md
-          git commit -m "chore: regenerar changelog e indice tras merge [skip ci]"
-          git push
+          git commit -m "chore: regenerar changelog e indice tras merge"
+          git push --force origin "$BRANCH"
+
+          # Crear PR si no hay uno abierto; si ya existe, el push --force actualizo el head
+          gh pr create \
+            --title "chore: regenerar changelog e indice" \
+            --body "Actualizacion automatica de docs generada por el workflow [regen-docs](/.github/workflows/regen-docs.yml)." \
+            --base main \
+            --head "$BRANCH" \
+            2>/dev/null || true
+
+          # Activar auto-merge (requiere Allow auto-merge en Settings > General > Pull Requests)
+          gh pr merge "$BRANCH" --auto --squash || \
+            echo "::warning::Auto-merge no disponible. Habilitar en Settings > General > Pull Requests."

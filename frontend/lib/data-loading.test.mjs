@@ -73,6 +73,23 @@ test('customer and service dashboards keep editable linked records hydrated', ()
 	)
 })
 
+test('search section only loads shell datasets', () => {
+	assert.deepEqual(
+		dataSetKeysForSection({
+			section: 'search',
+			canViewEconomy: true,
+		}),
+		['businessProfile', 'publicRequests'],
+	)
+	assert.deepEqual(
+		dataSetKeysForSection({
+			section: 'search',
+			canViewEconomy: false,
+		}),
+		[],
+	)
+})
+
 test('stock movement sections include customer and reservation selectors', () => {
 	for (const section of ['inventory', 'suppliers']) {
 		const keys = dataSetKeysForSection({
