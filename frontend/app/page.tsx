@@ -12983,13 +12983,6 @@ export default function Home() {
 									customerQuickActions(item),
 								)
 							}
-							onOpenQuickActionsFromTrigger={(event, item) =>
-								openQuickActionsFromTrigger(
-									event,
-									'Acciones de cliente',
-									customerQuickActions(item),
-								)
-							}
 						/>
 					</div>
 						)}
