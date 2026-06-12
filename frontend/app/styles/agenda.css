@@ -176,6 +176,29 @@
   width: var(--button-height-icon);
 }
 
+.agenda-date-picker {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-soft);
+  cursor: pointer;
+  font-size: var(--text-base);
+  font-weight: 500;
+  height: var(--button-height);
+  padding: 0 8px;
+}
+
+.agenda-date-picker:hover {
+  background: var(--color-surface-raised);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.agenda-date-picker:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
 .week-title {
   margin: 0;
 }
