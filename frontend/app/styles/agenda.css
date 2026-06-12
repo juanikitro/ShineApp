@@ -838,12 +838,7 @@
 }
 
 .agenda-primary-actions .agenda-action-button {
-  flex: 1 1 auto;
   justify-content: center;
-}
-
-.agenda-primary-actions .agenda-action-button--icon-danger {
-  flex: 0 0 auto;
 }
 
 .agenda-secondary-actions .agenda-action-button--icon-danger {
