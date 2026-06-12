@@ -1700,8 +1700,10 @@ function trialSignupInitialForm() {
 
 function LoginScreen({
 	onLogin,
+	sessionExpired = false,
 }: {
 	onLogin: (token: string, user: AnyRecord) => void
+	sessionExpired?: boolean
 }) {
 	const [mode, setMode] = useState<'login' | 'trial' | 'forgot-password' | 'forgot-password-sent'>('login')
 	const [form, setForm] = useState(loginInitialCredentials)
@@ -1861,6 +1863,11 @@ function LoginScreen({
 						subtitle={signupMode ? 'Prueba gratuita por 30 dias' : 'Acceso operativo'}
 						titleAs="h1"
 					/>
+					{sessionExpired && !signupMode ? (
+						<div className="alert-notice" role="alert">
+							<p>Tu sesion expiro. Volve a iniciar sesion para continuar.</p>
+						</div>
+					) : null}
 					{signupMode ? (
 						<div className="form-grid login-trial-grid">
 							<p className="login-trial-note">
