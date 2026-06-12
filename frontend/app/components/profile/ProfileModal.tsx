@@ -4,6 +4,7 @@ import { type ChangeEvent, type FormEvent, type RefObject } from 'react'
 
 import { Camera, FileText, LogOut } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { type AnyRecord } from '@/lib/page-support'
 
 const profilePhoneCountryOptions = [
@@ -44,6 +45,7 @@ type ProfileModalProps = {
 	hasStoredAvatar: boolean
 	onAvatarChange: (event: ChangeEvent<HTMLInputElement>) => void
 	onOpenAvatarPicker: () => void
+	submitting?: boolean
 }
 
 export function ProfileModal({
@@ -67,6 +69,7 @@ export function ProfileModal({
 	hasStoredAvatar,
 	onAvatarChange,
 	onOpenAvatarPicker,
+	submitting = false,
 }: ProfileModalProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -234,13 +237,13 @@ export function ProfileModal({
 				</div>
 			)}
 			<div className="modal-actions split">
-				<button type="button" className="danger" onClick={onLogout}>
+				<Button type="button" variant="danger" onClick={onLogout}>
 					<LogOut size={16} />
 					Salir
-				</button>
-				<button type="submit" className="primary">
+				</Button>
+				<Button type="submit" variant="primary" loading={submitting}>
 					Guardar perfil
-				</button>
+				</Button>
 			</div>
 		</form>
 	)

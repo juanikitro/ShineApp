@@ -5,6 +5,7 @@ import { type MouseEvent } from 'react'
 import { Eye, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
+import { Button } from '@/app/components/ui/Button'
 import { Empty } from '@/app/components/ui/Empty'
 import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
 import { cx } from '@/app/components/utils'
@@ -216,10 +217,10 @@ export function CustomerListPanel({
 						{filterLabel}
 					</p>
 				</div>
-				<button type="button" className="primary" onClick={onCreate}>
+				<Button type="button" variant="primary" onClick={onCreate}>
 					<Plus size={16} />
 					Nuevo cliente
-				</button>
+				</Button>
 			</div>
 			<div className="customer-list-toolbar">
 				<input
@@ -246,10 +247,10 @@ export function CustomerListPanel({
 							priorice seguimiento, reservas y saldo.
 						</span>
 					</div>
-					<button type="button" className="ghost" onClick={onCreate}>
+					<Button type="button" variant="ghost" onClick={onCreate}>
 						<Plus size={16} />
 						Sumar cliente
-					</button>
+					</Button>
 				</div>
 			) : null}
 			<div className="records customer-records">
@@ -359,38 +360,39 @@ export function CustomerListPanel({
 									</div>
 								</div>
 								<div className="customer-record-actions">
-									<button
+									<Button
 										type="button"
-										className="primary"
+										variant="primary"
 										aria-label={`Abrir ${primaryActionLabel.toLowerCase()} de ${customerName}`}
 										onClick={() => onOpenDashboard(customer)}
 									>
 										<Eye size={15} />
 										{primaryActionLabel}
-									</button>
+									</Button>
 									<div className="customer-secondary-actions">
-										<button
-											className="ghost"
+										<Button
+											variant="ghost"
 											type="button"
 											aria-label={`Editar cliente ${customerName}`}
 											onClick={() => onEdit(customer)}
 										>
 											<Pencil size={15} />
 											Editar
-										</button>
-										<button
-											className="danger"
+										</Button>
+										<Button
+											variant="danger"
 											type="button"
 											aria-label={`Dar de baja cliente ${customerName}`}
 											onClick={() => onDelete(customer)}
 										>
 											<Trash2 size={15} />
 											Baja
-										</button>
+										</Button>
 										{onOpenQuickActionsFromTrigger ? (
-											<button
-												className="ghost icon-button quick-actions-trigger"
+											<Button
+												variant="ghost"
 												type="button"
+												className="quick-actions-trigger"
 												aria-label={`Acciones rapidas de ${customerName}`}
 												title={`Acciones rapidas de ${customerName}`}
 												onClick={(event) =>
@@ -398,7 +400,7 @@ export function CustomerListPanel({
 												}
 											>
 												<MoreHorizontal size={15} />
-											</button>
+											</Button>
 										) : null}
 									</div>
 								</div>
@@ -419,21 +421,21 @@ export function CustomerListPanel({
 						}
 						action={
 							hasActiveFilter ? (
-								<button
+								<Button
 									type="button"
-									className="ghost"
+									variant="ghost"
 									onClick={() => {
 										onSearchChange('')
 										onFilterChange('all')
 									}}
 								>
 									Limpiar filtros
-								</button>
+								</Button>
 							) : (
-								<button type="button" className="primary" onClick={onCreate}>
+								<Button type="button" variant="primary" onClick={onCreate}>
 									<Plus size={16} />
 									Nuevo cliente
-								</button>
+								</Button>
 							)
 						}
 					/>

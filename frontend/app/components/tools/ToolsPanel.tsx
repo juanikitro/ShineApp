@@ -5,6 +5,7 @@ import { type ReactNode } from 'react'
 import { Hammer } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
+import { Button } from '@/app/components/ui/Button'
 import { Empty } from '@/app/components/ui/Empty'
 import { type QuickAction } from '@/app/components/ui/QuickActionsMenu'
 import {
@@ -53,10 +54,10 @@ export function ToolsPanel({
 		<div className="grid">
 			<section className="panel">
 				<div className="panel-head">
-					<button type="button" className="primary" onClick={onOpenToolForm}>
+					<Button type="button" variant="primary" onClick={onOpenToolForm}>
 						<Hammer size={16} />
 						Nueva herramienta
-					</button>
+					</Button>
 				</div>
 				<div className="inventory-metrics">
 					<div className="material-kpi">
@@ -109,20 +110,20 @@ export function ToolsPanel({
 											</div>
 										</div>
 										<div className="record-actions">
-											<button
+											<Button
 												type="button"
-												className="ghost"
+												variant="ghost"
 												onClick={() => onOpenToolDetail(item)}
 											>
 												Editar
-											</button>
-											<button
-												className="danger"
+											</Button>
+											<Button
+												variant="danger"
 												type="button"
 												onClick={() => onDeleteTool(item)}
 											>
 												Inactivar
-											</button>
+											</Button>
 											{renderQuickActionsTrigger(
 												'Acciones de herramienta',
 												quickActions,

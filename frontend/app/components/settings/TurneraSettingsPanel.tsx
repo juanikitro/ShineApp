@@ -4,6 +4,7 @@ import { type FormEvent, useMemo } from 'react'
 
 import { ExternalLink, Eye, EyeOff, Globe } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { type AnyRecord } from '@/lib/page-support'
 
@@ -117,14 +118,14 @@ export function TurneraSettingsPanel({
 				</div>
 				<div className="settings-action-rail">
 					<div className="settings-primary-actions">
-						<button
+						<Button
 							type="submit"
-							className="primary"
+							variant="primary"
 							form="settings-turnera-form"
 						>
 							<Globe size={16} />
 							Guardar turnera
-						</button>
+						</Button>
 					</div>
 				</div>
 			</div>
@@ -308,9 +309,8 @@ export function TurneraSettingsPanel({
 							<div className="turnera-services-group" key={sectorId}>
 								<div className="turnera-services-group-head">
 									<h4>{String(sector.name ?? '')}</h4>
-									<button
-										type="button"
-										className="ghost"
+									<Button
+										variant="ghost"
 										onClick={() => setGroupVisibility(sectorId, allHidden)}
 									>
 										{allHidden ? (
@@ -324,7 +324,7 @@ export function TurneraSettingsPanel({
 												Ocultar todos
 											</>
 										)}
-									</button>
+									</Button>
 								</div>
 								<ul className="turnera-services-list">
 									{items.map((service) => {

@@ -4,6 +4,7 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { CreditCard } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { NumericInput } from '@/app/components/ui/NumericInput'
 import {
@@ -32,6 +33,7 @@ type DebtPaymentFormProps = {
 		openCombo?: boolean,
 	) => (event: KeyboardEvent<HTMLElement>) => void
 	fieldErrors?: Record<string, string>
+	submitting?: boolean
 }
 
 export function DebtPaymentForm({
@@ -44,6 +46,7 @@ export function DebtPaymentForm({
 	focusField,
 	focusNextOnEnter,
 	fieldErrors,
+	submitting = false,
 }: DebtPaymentFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -142,10 +145,10 @@ export function DebtPaymentForm({
 			<div className="info-note">
 				Este pago queda como trazabilidad de deuda y no genera otro egreso en los reportes economicos.
 			</div>
-			<button className="primary">
+			<Button type="submit" variant="primary" loading={submitting}>
 				<CreditCard size={16} />
 				{submitLabel}
-			</button>
+			</Button>
 		</form>
 	)
 }

@@ -12,6 +12,7 @@ import {
 	Trash2,
 } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Empty } from '@/app/components/ui/Empty'
 
 import { TaskForm, type TaskRecord } from './TaskForm'
@@ -222,18 +223,20 @@ export function TasksPanel({
 				<div className="task-actions">
 					{allowedToModify ? (
 						<>
-							<button
+							<Button
 								type="button"
-								className="ghost icon-button"
+								variant="ghost"
+								className="icon-button"
 								onClick={() => setEditing(task)}
 								aria-label="Editar tarea"
 								title="Editar"
 							>
 								<Pencil size={14} />
-							</button>
-							<button
+							</Button>
+							<Button
 								type="button"
-								className="ghost icon-button task-delete"
+								variant="ghost"
+								className="icon-button task-delete"
 								onClick={() => {
 									if (window.confirm('¿Eliminar la tarea?')) {
 										void onDelete(Number(task.id))
@@ -243,7 +246,7 @@ export function TasksPanel({
 								title="Eliminar"
 							>
 								<Trash2 size={14} />
-							</button>
+							</Button>
 						</>
 					) : null}
 				</div>
@@ -263,14 +266,14 @@ export function TasksPanel({
 								: 'Tus tareas pendientes y completadas.'}
 						</p>
 					</div>
-					<button
+					<Button
 						type="button"
-						className="primary"
+						variant="primary"
 						onClick={() => setCreating(true)}
 					>
 						<Plus size={16} />
 						Nueva tarea
-					</button>
+					</Button>
 				</div>
 				<div className="tasks-filters">
 					{canViewEconomy ? (
@@ -361,15 +364,15 @@ export function TasksPanel({
 							<Empty text="Sin tareas pendientes en esta vista." />
 						)}
 						<div className="tasks-section-head">
-							<button
+							<Button
 								type="button"
-								className="ghost"
+								variant="ghost"
 								onClick={() => setShowDone((prev) => !prev)}
 								aria-expanded={showDone}
 							>
 								{showDone ? 'Ocultar completadas' : 'Mostrar completadas'} (
 								{doneTasks.length})
-							</button>
+							</Button>
 						</div>
 						{showDone ? (
 							doneTasks.length ? (

@@ -6873,6 +6873,7 @@ export default function Home() {
 				String(profileForm.subscription_type ?? 'trial'),
 			)
 		}
+		pendingActions.begin('save:profile')
 		try {
 			const saved = await apiFetch<AnyRecord>('/auth/me/', {
 				method: 'PATCH',
@@ -6893,6 +6894,8 @@ export default function Home() {
 						'Revisa los datos e intenta nuevamente.',
 				}),
 			)
+		} finally {
+			pendingActions.end('save:profile')
 		}
 	}
 
@@ -9838,6 +9841,7 @@ export default function Home() {
 			formModalExit.close()
 			return saved
 		}, {
+			key: 'save:service',
 			flashTarget: (saved: AnyRecord) =>
 				recordFlashKey('service', saved?.id ?? currentId),
 			successTitle: entityFeedbackTitle(
@@ -10235,6 +10239,7 @@ export default function Home() {
 			formModalExit.close()
 			return created
 		}, {
+			key: 'save:debt-payment',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('debt-payment', created?.id),
 			successTitle: entityFeedbackTitle('debt-payment', 'created'),
@@ -11373,7 +11378,7 @@ export default function Home() {
 						onClose={profileExit.close}
 					>
 						{currentUser ? (
-						<ProfileModal
+						<ProfileModal submitting={isActionPending('save:profile')}
 							onSubmit={saveProfile}
 							currentUser={currentUser}
 							profileForm={profileForm}
@@ -11478,7 +11483,7 @@ export default function Home() {
 						title="Nuevo servicio"
 						onClose={formModalExit.close}
 					>
-						<ServiceForm fieldErrors={formFieldErrors}
+						<ServiceForm fieldErrors={formFieldErrors} submitting={isActionPending('save:service')}
 						submitLabel="Guardar servicio"
 						onSubmit={saveService}
 						serviceForm={serviceForm}
@@ -11599,7 +11604,7 @@ export default function Home() {
 								/>
 							) : null}
 							{cashLoadTab === 'debt-payment' ? (
-								<DebtPaymentForm fieldErrors={formFieldErrors}
+								<DebtPaymentForm fieldErrors={formFieldErrors} submitting={isActionPending('save:debt-payment')}
 									submitLabel="Guardar pago de deuda"
 									onSubmit={saveDebtPayment}
 									debtPaymentForm={debtPaymentForm}
@@ -11780,7 +11785,7 @@ export default function Home() {
 						title="Registrar pago de deuda"
 						onClose={formModalExit.close}
 					>
-						<DebtPaymentForm fieldErrors={formFieldErrors}
+						<DebtPaymentForm fieldErrors={formFieldErrors} submitting={isActionPending('save:debt-payment')}
 						onSubmit={saveDebtPayment}
 						debtPaymentForm={debtPaymentForm}
 						setDebtPaymentForm={setDebtPaymentForm}

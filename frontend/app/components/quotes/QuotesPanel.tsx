@@ -14,6 +14,7 @@ import { type ReactNode } from 'react'
 import { CalendarDays, FileText, Plus } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
+import { Button } from '@/app/components/ui/Button'
 import { Empty } from '@/app/components/ui/Empty'
 import { type QuickAction } from '@/app/components/ui/QuickActionsMenu'
 import { cx } from '@/app/components/utils'
@@ -294,10 +295,10 @@ export function QuotesPanel({
 		<div className="grid">
 			<section className="panel">
 				<div className="panel-head">
-					<button type="button" className="primary" onClick={onCreateQuote}>
+					<Button type="button" variant="primary" onClick={onCreateQuote}>
 						<Plus size={16} />
 						Nueva cotizacion
-					</button>
+					</Button>
 				</div>
 				<DndContext
 					sensors={agendaSensors}

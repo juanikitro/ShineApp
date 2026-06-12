@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RefreshCw, RotateCcw, Search, Trash2 } from 'lucide-react'
 
 import { apiFetch } from '@/lib/api'
+import { Button } from '@/app/components/ui/Button'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
 import { Field } from '@/app/components/ui/Field'
 import { MetricCard } from '@/app/components/ui/MetricCard'
@@ -181,10 +182,10 @@ export function TrashSettingsPanel() {
 				</div>
 				<div className="settings-action-rail">
 					<div className="settings-secondary-actions">
-						<button type="button" className="ghost" onClick={fetchTrash}>
+						<Button variant="ghost" onClick={fetchTrash}>
 							<RefreshCw size={16} />
 							Actualizar
-						</button>
+						</Button>
 					</div>
 				</div>
 			</div>
@@ -217,15 +218,14 @@ export function TrashSettingsPanel() {
 					/>
 				</Field>
 				<div className="record-actions audit-filter-actions">
-					<button
-						type="button"
-						className="ghost"
+					<Button
+						variant="ghost"
 						disabled={!searchTerm}
 						onClick={() => setSearchTerm('')}
 					>
 						<Search size={16} />
 						Limpiar
-					</button>
+					</Button>
 				</div>
 			</form>
 
@@ -245,10 +245,10 @@ export function TrashSettingsPanel() {
 					text="No se pudo cargar la papelera."
 					hint={error}
 					action={
-						<button type="button" className="ghost" onClick={fetchTrash}>
+						<Button variant="ghost" onClick={fetchTrash}>
 							<RefreshCw size={16} />
 							Reintentar
-						</button>
+						</Button>
 					}
 				/>
 			) : total === 0 ? (
@@ -300,24 +300,24 @@ export function TrashSettingsPanel() {
 													}
 													actions={
 														<>
-															<button
-																type="button"
-																className="ghost"
+															<Button
+																variant="ghost"
 																disabled={isBusy}
+																loading={isRestoring}
 																onClick={() => handleRestore(group, item)}
 															>
 																<RotateCcw size={16} />
 																{isRestoring ? 'Restaurando...' : 'Restaurar'}
-															</button>
-															<button
-																type="button"
-																className="danger"
+															</Button>
+															<Button
+																variant="danger"
 																disabled={isBusy}
+																loading={isPurging}
 																onClick={() => handlePurge(group, item)}
 															>
 																<Trash2 size={16} />
 																{isPurging ? 'Eliminando...' : 'Eliminar'}
-															</button>
+															</Button>
 														</>
 													}
 												/>
