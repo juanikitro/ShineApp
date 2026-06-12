@@ -16,6 +16,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Papelera: ver, restaurar y purgar registros borrados](2026-06-12-papelera-restore-borrado-logico.md)
 - [Modulo de tareas para empleadores y empleados](2026-06-12-modulo-tareas.md)
 - [Clientes: badge único de reserva y columnas alineadas](2026-06-12-clientes-listado-badge-y-columnas.md)
+- [UI: card de cliente accesible, sesion expirada y refactor de tokens (2026-06-12)](2026-06-12-card-cliente-accesibilidad-y-tokens.md)
 - [Caja: rediseno de KPIs y metricas consolidadas en dos columnas](2026-06-12-caja-rediseno-kpis-y-metricas-consolidadas.md)
 - [Caja: boton unico "Cargar movimiento" con toggle por tipo](2026-06-12-caja-cargar-movimiento-unificado.md)
 - [Buscador global ahora cubre tareas y se documenta la regla para modulos nuevos](2026-06-12-buscador-global-cubre-tareas.md)

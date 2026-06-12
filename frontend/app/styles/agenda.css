@@ -357,7 +357,7 @@
   background: var(--shop-surface);
   border: 0;
   border-radius: var(--radius-md);
-  box-shadow: 0 10px 24px var(--color-shadow-soft);
+  box-shadow: var(--shadow-raise);
   color: var(--shop-ink);
   cursor: pointer;
   display: grid;
@@ -398,7 +398,7 @@
 
 .agenda-day-head[aria-disabled='true']:hover {
   background: var(--shop-surface);
-  box-shadow: 0 10px 24px var(--color-shadow-soft);
+  box-shadow: var(--shadow-raise);
   color: var(--shop-ink);
 }
 
@@ -996,8 +996,8 @@
 
 .agenda-manual-badge {
   align-items: center;
-  background: #eaf6ff;
-  border: 1px solid #bae6fd;
+  background: var(--status-confirmed-bg);
+  border: 1px solid var(--status-confirmed-border);
   color: var(--shop-ink-soft);
   display: inline-flex;
   font-size: var(--text-sm);
@@ -1043,8 +1043,8 @@
 }
 
 .agenda-work-materials {
-  background: #eaf6ff;
-  border: 1px solid #bae6fd;
+  background: var(--status-confirmed-bg);
+  border: 1px solid var(--status-confirmed-border);
   border-radius: var(--radius-sm);
   color: var(--shop-ink-soft);
   flex: 0 0 auto;
