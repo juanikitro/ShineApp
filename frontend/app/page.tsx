@@ -432,6 +432,14 @@ const workViewModes: Array<{
 	{ value: 'status', label: 'Estado' },
 	{ value: 'entry-date', label: 'Fecha de ingreso' },
 ]
+const cashLoadTabOptions: Array<{
+	value: 'cash-movement' | 'payment' | 'debt-payment'
+	label: string
+}> = [
+	{ value: 'cash-movement', label: 'Movimiento normal' },
+	{ value: 'debt-payment', label: 'Pagar deuda' },
+	{ value: 'payment', label: 'Cobrar trabajo' },
+]
 const quoteStatusLabels: Record<string, string> = {
 	draft: 'Sin enviar',
 	sent: 'Enviado',
@@ -865,6 +873,9 @@ export default function Home() {
 	const [debtPaymentForm, setDebtPaymentForm] = useState<AnyRecord>(
 		blankDebtPaymentForm(today),
 	)
+	const [cashLoadTab, setCashLoadTab] = useState<
+		'cash-movement' | 'payment' | 'debt-payment'
+	>('cash-movement')
 	const [materialForm, setMaterialForm] = useState<AnyRecord>({
 		id: '',
 		name: '',
@@ -1561,6 +1572,7 @@ export default function Home() {
 			service: 'service.name',
 			payment: 'payment.work_order',
 			'cash-movement': 'cash-movement.type',
+			'cash-load': 'cash-movement.type',
 			'expense-classification': 'expense-classification.type',
 			debt: 'debt.concept',
 			'debt-payment': 'debt-payment.debt',
@@ -6246,6 +6258,12 @@ export default function Home() {
 		}
 		if (kind === 'cash-movement') {
 			setMovementForm(blankMovementForm(selectedDay))
+		}
+		if (kind === 'cash-load') {
+			setMovementForm(blankMovementForm(selectedDay))
+			setPaymentForm(blankPaymentForm())
+			setDebtPaymentForm(blankDebtPaymentForm(today))
+			setCashLoadTab('cash-movement')
 		}
 		if (kind === 'expense-classification') {
 			resetExpenseClassificationForm()
@@ -11461,6 +11479,81 @@ export default function Home() {
 					/>
 					</Modal>
 				) : null}
+				{canViewEconomy && formModal?.kind === 'cash-load' ? (
+					<Modal
+						key="form-cash-load"
+						title="Cargar movimiento"
+						onClose={formModalExit.close}
+					>
+						<div className="cash-load-modal">
+							<SegmentedControl
+								ariaLabel="Tipo de movimiento"
+								className="cash-load-toggle"
+								selectionMode="tabs"
+								options={cashLoadTabOptions}
+								value={cashLoadTab}
+								onChange={(nextValue) => {
+									const tab = nextValue as typeof cashLoadTab
+									setCashLoadTab(tab)
+									if (tab === 'cash-movement') {
+										focusField('cash-movement.type')
+									} else if (tab === 'payment') {
+										focusField('payment.work_order', true)
+									} else {
+										focusField('debt-payment.debt', true)
+									}
+								}}
+							/>
+							{cashLoadTab === 'cash-movement' ? (
+								<CashMovementForm
+									submitLabel="Guardar movimiento"
+									onSubmit={saveCashMovement}
+									movementForm={movementForm}
+									setMovementForm={setMovementForm}
+									incomeCategorySelectOptions={incomeCategorySelectOptions}
+									expenseCategorySelectOptions={expenseCategorySelectOptions}
+									movementSubcategorySelectOptions={
+										movementSubcategorySelectOptions
+									}
+									updateMovementCashCategory={updateMovementCashCategory}
+									registerMovementSubcategory={registerMovementSubcategory}
+									validCashSubcategoryForCategory={
+										validCashSubcategoryForCategory
+									}
+									focusField={focusField}
+									focusNextOnEnter={focusNextOnEnter}
+									submitting={isActionPending('save:cash')}
+								/>
+							) : null}
+							{cashLoadTab === 'payment' ? (
+								<PaymentForm
+									submitLabel="Guardar pago"
+									onSubmit={savePayment}
+									paymentForm={paymentForm}
+									setPaymentForm={setPaymentForm}
+									workOrders={workOrders}
+									workOrderOptions={workOrderOptions}
+									selectedWorkOrderForPayment={selectedWorkOrderForPayment}
+									focusField={focusField}
+									focusNextOnEnter={focusNextOnEnter}
+									submitting={isActionPending('save:payment')}
+								/>
+							) : null}
+							{cashLoadTab === 'debt-payment' ? (
+								<DebtPaymentForm
+									submitLabel="Guardar pago de deuda"
+									onSubmit={saveDebtPayment}
+									debtPaymentForm={debtPaymentForm}
+									setDebtPaymentForm={setDebtPaymentForm}
+									debtOptions={debtOptions}
+									selectedDebtForPayment={selectedDebtForPayment}
+									focusField={focusField}
+									focusNextOnEnter={focusNextOnEnter}
+								/>
+							) : null}
+						</div>
+					</Modal>
+				) : null}
 				{canViewEconomy && formModal?.kind === 'expense-classification' ? (
 					<Modal
 						key="form-expense-classification"
@@ -13476,11 +13569,9 @@ export default function Home() {
 						}}
 						onCloseDay={closeCashDay}
 						onReopenDay={reopenCashDay}
-						onCollectWork={() => openFormModal('payment')}
-						onCreateMovement={() => openFormModal('cash-movement')}
+						onCreateMovement={() => openFormModal('cash-load')}
 						onMoveSelectedDay={moveSelectedCashDay}
 						onOpenCashEntryDetail={openCashEntryDetail}
-						onPayDebt={() => openFormModal('debt-payment')}
 						onQuickActionsContext={openQuickActionsFromContext}
 						onRefresh={() => loadData({ force: true })}
 						onRegisterAdjustment={() =>

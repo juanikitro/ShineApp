@@ -3144,6 +3144,21 @@
   flex: 0 0 min(320px, 100%);
 }
 
+.cash-load-modal {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.cash-load-toggle {
+  width: 100%;
+}
+
+.cash-load-toggle button {
+  min-height: var(--button-height);
+  padding: var(--button-padding-block) var(--button-padding-inline);
+  white-space: nowrap;
+}
+
 .cash-summary-body {
   display: grid;
   gap: var(--space-3);

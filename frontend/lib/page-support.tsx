@@ -60,6 +60,7 @@ type FormModalKind =
 	| 'service'
 	| 'payment'
 	| 'cash-movement'
+	| 'cash-load'
 	| 'expense-classification'
 	| 'debt'
 	| 'debt-payment'
