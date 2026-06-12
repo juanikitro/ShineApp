@@ -30,8 +30,34 @@ from catalog.sector_defaults import ensure_default_sectors
 from notifications.service import send_password_reset_email, send_trial_welcome_email
 
 
-ALLOWED_PROFILE_ASSET_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg", "pdf"}
+ALLOWED_PROFILE_ASSET_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "pdf"}
 ALLOWED_PROFILE_ASSET_CONTENT_TYPES = {"application/pdf"}
+ALLOWED_PROFILE_IMAGE_CONTENT_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
+MAX_PROFILE_ASSET_BYTES = 5 * 1024 * 1024  # 5 MB
+# Markup activo que NO debe aceptarse como imagen: un SVG/HTML puede contener
+# JavaScript y, servido desde el storage, deriva en XSS almacenado.
+_ACTIVE_MARKUP_MARKERS = (b"<svg", b"<?xml", b"<!doctype html", b"<html", b"<script")
+
+
+def _read_upload_head(value, size=1024):
+    try:
+        value.seek(0)
+        head = value.read(size) or b""
+    except (AttributeError, OSError, ValueError):
+        head = b""
+    finally:
+        try:
+            value.seek(0)
+        except (AttributeError, OSError, ValueError):
+            pass
+    if isinstance(head, str):
+        head = head.encode("utf-8", "ignore")
+    return head
+
+
+def _looks_like_active_markup(value):
+    head = _read_upload_head(value).lstrip().lower()
+    return any(marker in head for marker in _ACTIVE_MARKUP_MARKERS)
 
 
 def user_account_audit_snapshot(user):
@@ -50,16 +76,32 @@ def user_account_audit_snapshot(user):
 
 
 def validate_profile_asset_upload(value):
+    size = getattr(value, "size", None)
+    if size is not None and size > MAX_PROFILE_ASSET_BYTES:
+        raise serializers.ValidationError(
+            "El archivo supera el tamano maximo permitido (5 MB).",
+        )
+
     content_type = (getattr(value, "content_type", "") or "").lower()
     extension = Path(getattr(value, "name", "")).suffix.lower().lstrip(".")
-    if content_type.startswith("image/"):
+
+    # Rechazo explicito de SVG y cualquier markup activo, sin confiar solo en el
+    # content_type (lo controla el cliente): tambien inspeccionamos el contenido.
+    if extension == "svg" or content_type == "image/svg+xml" or _looks_like_active_markup(value):
+        raise serializers.ValidationError(
+            "No se permiten archivos SVG ni HTML.",
+        )
+
+    is_pdf = extension == "pdf" or content_type in ALLOWED_PROFILE_ASSET_CONTENT_TYPES
+    is_image = (
+        extension in {"png", "jpg", "jpeg", "webp"}
+        or content_type in ALLOWED_PROFILE_IMAGE_CONTENT_TYPES
+    )
+    if is_pdf or is_image:
         return value
-    if content_type in ALLOWED_PROFILE_ASSET_CONTENT_TYPES:
-        return value
-    if extension in ALLOWED_PROFILE_ASSET_EXTENSIONS:
-        return value
+
     raise serializers.ValidationError(
-        "El archivo debe ser una imagen o PDF valido.",
+        "El archivo debe ser una imagen (PNG/JPG/WEBP) o PDF valido.",
     )
 
 

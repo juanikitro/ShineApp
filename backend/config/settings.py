@@ -10,6 +10,24 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-shineapp-secret")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,backend").split(",")
 
+# Fail-secure: nunca arrancar en una plataforma gestionada (Vercel) con la
+# SECRET_KEY publica de desarrollo. Convierte una mala config (correr los
+# settings de dev en produccion) en un fallo ruidoso en vez de un servidor
+# inseguro silencioso. No afecta tests ni dev local (sin VERCEL en el entorno).
+if os.getenv("VERCEL") and SECRET_KEY == "dev-only-shineapp-secret":
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured(
+        "Negandose a arrancar en Vercel con la SECRET_KEY publica de desarrollo. "
+        "Configura DJANGO_SETTINGS_MODULE=config.settings_production y un "
+        "DJANGO_SECRET_KEY real."
+    )
+
+# Cantidad de proxies de confianza por delante (Vercel = 1). Lo usa el helper
+# core.request_ip.get_client_ip y el throttling de DRF (NUM_PROXIES) para tomar
+# la IP real del cliente y no un X-Forwarded-For falsificado.
+TRUSTED_PROXY_COUNT = int(os.getenv("DJANGO_NUM_PROXIES", "1"))
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -135,6 +153,9 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["core.permissions.ActiveBusinessUser"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 100,
+    # DRF usa NUM_PROXIES para resolver la IP del cliente en el throttling,
+    # contando proxies desde la derecha del X-Forwarded-For (Vercel = 1).
+    "NUM_PROXIES": TRUSTED_PROXY_COUNT,
 }
 
 DEFAULT_DAILY_CAPACITY = int(os.getenv("DEFAULT_DAILY_CAPACITY", "8"))
