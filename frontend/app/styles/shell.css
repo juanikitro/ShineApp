@@ -1733,10 +1733,12 @@
 
 .customer-record-stat {
   border-left: 1px solid var(--shop-border);
+  box-sizing: border-box;
   display: grid;
+  flex: 0 0 168px;
   gap: 2px;
-  min-width: 110px;
   padding: 0 16px;
+  width: 168px;
 }
 
 .customer-record-stat span {

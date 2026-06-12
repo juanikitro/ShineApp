@@ -2,7 +2,7 @@
 
 import { type MouseEvent } from 'react'
 
-import { Eye, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
 import { Empty } from '@/app/components/ui/Empty'
@@ -47,10 +47,6 @@ type CustomerListPanelProps = {
 	onDelete: (customer: AnyRecord) => void
 	onOpenQuickActions?: (
 		event: MouseEvent<HTMLElement>,
-		customer: AnyRecord,
-	) => void
-	onOpenQuickActionsFromTrigger?: (
-		event: MouseEvent<HTMLButtonElement>,
 		customer: AnyRecord,
 	) => void
 }
@@ -110,31 +106,28 @@ function customerOperationalStateText(customer: AnyRecord) {
 	return 'Sin novedades'
 }
 
-function customerPrimaryPill(customer: AnyRecord, canViewEconomy: boolean) {
-	const insights = customerListInsights(customer)
-	if (customer?.has_birthday_alert) {
-		return { label: 'Cumple pronto', className: 'customer-pill--birthday' }
-	}
-	if (canViewEconomy && insights.has_balance_due) {
-		return { label: 'Con saldo', className: 'customer-pill--balance' }
-	}
-	if (insights.has_upcoming_reservation) {
-		return { label: 'Con reserva', className: 'customer-pill--reservation' }
-	}
-	if (insights.needs_follow_up) {
-		return {
-			label: 'Sin proxima visita',
-			className: 'customer-pill--follow-up',
-		}
-	}
-	return null
-}
-
-function customerContextChips(
+function customerPrimaryPill(
 	customer: AnyRecord,
-	canViewEconomy: boolean,
 	showReservationTimes = true,
 ) {
+	const insights = customerListInsights(customer)
+	if (insights.has_upcoming_reservation && insights.next_reservation) {
+		const dateLabel = customerScheduleLabel(
+			insights.next_reservation,
+			showReservationTimes,
+		)
+		return {
+			label: `Con reserva: ${dateLabel}`,
+			className: 'customer-pill--reservation',
+		}
+	}
+	return {
+		label: 'Sin reserva',
+		className: 'customer-pill--follow-up',
+	}
+}
+
+function customerContextChips(customer: AnyRecord, canViewEconomy: boolean) {
 	const insights = customerListInsights(customer)
 	const chips: Array<{ key: string; label: string; tone?: string }> = []
 
@@ -145,29 +138,6 @@ function customerContextChips(
 			tone: 'alert',
 		})
 	}
-	if (insights.has_upcoming_reservation && insights.next_reservation) {
-		chips.push({
-			key: 'reservation',
-			label: `Reserva ${customerScheduleLabel(
-				insights.next_reservation,
-				showReservationTimes,
-			)}`,
-			tone: 'info',
-		})
-	} else {
-		chips.push({
-			key: 'follow-up',
-			label: 'Sin proxima visita',
-			tone: 'muted',
-		})
-	}
-	if (insights.last_service_name) {
-		chips.push({
-			key: 'service',
-			label: `Ultimo servicio: ${insights.last_service_name}`,
-			tone: 'muted',
-		})
-	}
 	if (canViewEconomy && insights.has_balance_due) {
 		chips.push({
 			key: 'balance',
@@ -176,7 +146,7 @@ function customerContextChips(
 		})
 	}
 
-	return chips.slice(0, 4)
+	return chips
 }
 
 export function CustomerListPanel({
@@ -196,7 +166,6 @@ export function CustomerListPanel({
 	onEdit,
 	onDelete,
 	onOpenQuickActions,
-	onOpenQuickActionsFromTrigger,
 }: CustomerListPanelProps) {
 	const hasSearch = Boolean(search.trim())
 	const hasActiveFilter = hasSearch || filter !== 'all'
@@ -257,13 +226,12 @@ export function CustomerListPanel({
 					customers.map((customer) => {
 						const insights = customerListInsights(customer)
 						const customerName = serviceDisplayName(customer)
-						const primaryPill = customerPrimaryPill(customer, canViewEconomy)
-						const nextReservation = insights.next_reservation
-						const chips = customerContextChips(
+						const primaryPill = customerPrimaryPill(
 							customer,
-							canViewEconomy,
 							showReservationTimes,
 						)
+						const nextReservation = insights.next_reservation
+						const chips = customerContextChips(customer, canViewEconomy)
 						const vehicleCount =
 							vehicleCountByCustomerId.get(String(customer.id)) ??
 							Number(insights.vehicles_count ?? 0)
@@ -307,19 +275,21 @@ export function CustomerListPanel({
 											customer.email || 'Sin email',
 										])}
 									</div>
-									<div className="customer-card-meta">
-										{chips.map((chip) => (
-											<span
-												className={cx(
-													'customer-chip',
-													chip.tone && `customer-chip--${chip.tone}`,
-												)}
-												key={`${customer.id}-${chip.key}`}
-											>
-												{chip.label}
-											</span>
-										))}
-									</div>
+									{chips.length ? (
+										<div className="customer-card-meta">
+											{chips.map((chip) => (
+												<span
+													className={cx(
+														'customer-chip',
+														chip.tone && `customer-chip--${chip.tone}`,
+													)}
+													key={`${customer.id}-${chip.key}`}
+												>
+													{chip.label}
+												</span>
+											))}
+										</div>
+									) : null}
 								</div>
 								<div className="customer-record-stats">
 									<div className="customer-record-stat">
@@ -387,19 +357,6 @@ export function CustomerListPanel({
 											<Trash2 size={15} />
 											Baja
 										</button>
-										{onOpenQuickActionsFromTrigger ? (
-											<button
-												className="ghost icon-button quick-actions-trigger"
-												type="button"
-												aria-label={`Acciones rapidas de ${customerName}`}
-												title={`Acciones rapidas de ${customerName}`}
-												onClick={(event) =>
-													onOpenQuickActionsFromTrigger(event, customer)
-												}
-											>
-												<MoreHorizontal size={15} />
-											</button>
-										) : null}
 									</div>
 								</div>
 							</MotionFlashSurface>
