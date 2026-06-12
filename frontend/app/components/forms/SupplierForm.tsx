@@ -97,6 +97,9 @@ export function SupplierForm({
 				</Field>
 				<Field label="Telefono" error={fieldErrors?.['phone']}>
 					<input
+						type="tel"
+						inputMode="tel"
+						autoComplete="tel"
 						value={supplierForm.phone}
 						onChange={(event) =>
 							setSupplierForm({
@@ -111,6 +114,7 @@ export function SupplierForm({
 				<Field label="Email" error={fieldErrors?.['email']}>
 					<input
 						type="email"
+						autoComplete="email"
 						value={supplierForm.email}
 						onChange={(event) =>
 							setSupplierForm({

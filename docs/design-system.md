@@ -74,20 +74,20 @@ Enfoque recomendado para implementacion futura:
 
 ### Tokens Semanticos De Color Requeridos
 
-Documentar estos valores como capa semantica objetivo:
+Documentar estos valores como capa semantica objetivo. Los valores canonicos viven en `frontend/app/styles/tokens.css`; ante cualquier diferencia gana ese archivo. Hoy la app usa azul `#0F62FE` como primario (no el `#0284C7` historico), `#DC2626` como danger y `#64748B` como texto muted accesible.
 
 ```css
 :root {
-  --color-primary: #0284C7;
+  --color-primary: #0F62FE;
   --color-primary-foreground: #FFFFFF;
-  --color-primary-hover: #0369A1;
+  --color-primary-hover: #0043CE;
   --color-secondary: #F3F4F6;
   --color-secondary-foreground: #111827;
   --color-accent: #0EA5E9;
   --color-accent-foreground: #FFFFFF;
   --color-focus-ring: rgba(14, 165, 233, 0.28);
-  --color-link: #0284C7;
-  --color-link-hover: #0369A1;
+  --color-link: #0F62FE;
+  --color-link-hover: #0043CE;
 
   --color-canvas: #F8FAFC;
   --color-canvas-deep: #FFFFFF;
@@ -98,12 +98,12 @@ Documentar estos valores como capa semantica objetivo:
   --color-surface-raised: #F8FAFC;
   --color-text: #111827;
   --color-text-soft: #4B5563;
-  --color-text-muted: #8B95A1;
+  --color-text-muted: #64748B;
   --color-border: rgba(17, 24, 39, 0.10);
   --color-border-strong: rgba(17, 24, 39, 0.16);
   --color-success: #16A34A;
   --color-warning: #F59E0B;
-  --color-danger: #E00000;
+  --color-danger: #DC2626;
 }
 ```
 
@@ -312,15 +312,10 @@ Reglas:
 
 ## Reglas De Border Radius
 
-Usar un radio sobrio y marcado por default:
+El repo usa una escala de radios definida en `frontend/app/styles/tokens.css`:
 
-- controles, botones, pills, cards, dropdowns y modales: `2px`
-- evitar tags con forma pill `999px` salvo que el usuario pida explicitamente ese tratamiento
-
-Regla practica para este repo:
-
-- mantener `--radius-sm`, `--radius-md` y `--radius-lg` mapeados a `2px` en `frontend/app/globals.css`
-- no introducir estilos redondeados one-off como `10px`, `12px` o `999px`
+- `--radius-xs: 2px`, `--radius-sm: 4px`, `--radius-md: 6px` (default real de controles, cards y modales), `--radius-lg: 8px`, `--radius-xl: 12px`, `--radius-full: 9999px`
+- preferir siempre estos tokens; no introducir radios one-off como `10px`, `14px` o `999px` (para circulos/pills usar `--radius-full`)
 - usar espaciado, contraste de borde y tipografia para jerarquia antes que radio o sombra
 
 ## Reglas De Sombra Y Elevacion

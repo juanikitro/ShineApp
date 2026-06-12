@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react'
 
+import { useConfirmDialog } from '@/lib/use-confirm-dialog'
+
 import {
 	CalendarClock,
 	CheckCircle2,
@@ -104,6 +106,7 @@ export function TasksPanel({
 	const [editing, setEditing] = useState<AnyRecord | null>(null)
 	const [creating, setCreating] = useState(false)
 	const [showDone, setShowDone] = useState(false)
+	const { requestConfirm, ConfirmDialog } = useConfirmDialog()
 
 	const currentUserId = currentUser?.id != null ? Number(currentUser.id) : null
 
@@ -237,10 +240,9 @@ export function TasksPanel({
 								type="button"
 								variant="ghost"
 								className="icon-button task-delete"
-								onClick={() => {
-									if (window.confirm('¿Eliminar la tarea?')) {
-										void onDelete(Number(task.id))
-									}
+								onClick={async () => {
+									const ok = await requestConfirm({ title: 'Eliminar tarea', message: '¿Eliminar la tarea?', confirmLabel: 'Eliminar', tone: 'danger' })
+									if (ok) void onDelete(Number(task.id))
 								}}
 								aria-label="Eliminar tarea"
 								title="Eliminar"
@@ -412,6 +414,7 @@ export function TasksPanel({
 					onClose={() => setEditing(null)}
 				/>
 			) : null}
+			<ConfirmDialog />
 		</div>
 	)
 }
