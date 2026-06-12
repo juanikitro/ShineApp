@@ -1728,7 +1728,7 @@
 .customer-chip {
   align-items: center;
   border: 1px solid var(--shop-border);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   display: inline-flex;
   font-size: var(--text-sm);
   font-weight: 750;
@@ -1791,8 +1791,29 @@
 }
 
 @media (max-width: 860px) {
+  /* En mobile mostramos solo 2 stats clave (proxima visita + saldo) en vez de
+     ocultar todo el bloque: evita la perdida total de datos operativos. */
   .customer-record-stats {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .customer-record-stat:nth-child(2),
+  .customer-record-stat:nth-child(3) {
     display: none;
+  }
+
+  .customer-record-stat {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-left: 12px;
+    padding-right: 12px;
+    width: auto;
+  }
+
+  .customer-record-stat:first-child {
+    border-left: none;
+    padding-left: 0;
   }
 
   .customer-record-actions {
