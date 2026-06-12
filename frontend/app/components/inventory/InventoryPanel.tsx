@@ -212,6 +212,9 @@ export function InventoryPanel({
 							</MotionFlashSurface>
 						)
 					})}
+					{suppliers.length ? null : (
+						<Empty text="Sin proveedores cargados." />
+					)}
 					{materials.length ? (
 						materials.map((item) => {
 							const usage = materialUsageSummary(item)
@@ -348,6 +351,9 @@ export function InventoryPanel({
 							</MotionFlashSurface>
 						)
 					})}
+					{materialOpenUnits.length ? null : (
+						<Empty text="Sin unidades abiertas." />
+					)}
 					{purchases.slice(0, 5).map((item) => {
 						const quickActions = materialPurchaseQuickActions(item)
 						return (
@@ -381,6 +387,9 @@ export function InventoryPanel({
 							</MotionFlashSurface>
 						)
 					})}
+					{purchases.length ? null : (
+						<Empty text="Sin compras registradas." />
+					)}
 					{consumptions.slice(0, 5).map((item) => {
 						const quickActions = materialConsumptionQuickActions(item)
 						return (

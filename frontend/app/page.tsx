@@ -4929,6 +4929,39 @@ export default function Home() {
 		loadErrorNotice && !fixedExpenses.length && !fixedExpenseOccurrences.length,
 	)
 
+	// Fallback uniforme de carga/error para secciones que antes aparecian "pop-in":
+	// muestra skeleton mientras carga o un ErrorState con reintento si la carga fallo.
+	const sectionFallback = (
+		key: DataSetKey,
+		hasData: boolean,
+		loadingLabel: string,
+	): ReactNode => {
+		const showLoading = isDataSetLoading(key) && !hasData
+		return (
+			<div className="grid">
+				<section className="panel">
+					{showLoading ? (
+						<SkeletonList rows={6} label={loadingLabel} />
+					) : (
+						<ErrorState
+							text={loadErrorNotice?.title ?? 'No se pudieron cargar los datos'}
+							hint={loadErrorNotice?.description}
+							action={
+								<button
+									type="button"
+									className="ghost"
+									onClick={() => loadData({ force: true })}
+								>
+									Actualizar
+								</button>
+							}
+						/>
+					)}
+				</section>
+			</div>
+		)
+	}
+
 	function materialUsageRows(material: AnyRecord) {
 		const legacyRows = consumptions.filter(
 			(item) => String(item.material) === String(material.id),
@@ -13262,7 +13295,11 @@ export default function Home() {
 					</div>
 				) : null}
 
-				{displayedActive === 'services' ? (
+				{displayedActive === 'services' &&
+				(isDataSetLoading('services') || Boolean(loadErrorNotice)) &&
+				!services.length ? (
+					sectionFallback('services', false, 'Cargando servicios')
+				) : displayedActive === 'services' ? (
 					<ServicesPanel
 						canViewEconomy={canViewEconomy}
 						customerDaysAgoText={customerDaysAgoText}
@@ -13491,7 +13528,11 @@ export default function Home() {
 					</div>
 				) : null}
 
-				{displayedActive === 'agenda' && workViewMode === 'status' ? (
+				{displayedActive === 'agenda' && workViewMode === 'status' &&
+				(isDataSetLoading('reservations') || Boolean(loadErrorNotice)) &&
+				!reservations.length ? (
+					sectionFallback('reservations', false, 'Cargando trabajos')
+				) : displayedActive === 'agenda' && workViewMode === 'status' ? (
 					<WorkStatusView
 						sensors={agendaSensors}
 						onDragStart={handleWorkStatusDragStart}
@@ -13514,7 +13555,11 @@ export default function Home() {
 					/>
 				) : null}
 
-				{displayedActive === 'agenda' && workViewMode === 'entry-date' ? (
+				{displayedActive === 'agenda' && workViewMode === 'entry-date' &&
+				(isDataSetLoading('reservations') || Boolean(loadErrorNotice)) &&
+				!reservations.length ? (
+					sectionFallback('reservations', false, 'Cargando ingresos')
+				) : displayedActive === 'agenda' && workViewMode === 'entry-date' ? (
 					<WorkEntryDateView
 						workEntryDateGroups={workEntryDateGroups}
 						workFreeQuotesWithoutEntryDate={workFreeQuotesWithoutEntryDate}
@@ -13642,7 +13687,9 @@ export default function Home() {
 						onRefresh={() => loadData({ force: true })}
 					/>
 				) : null}
-				{displayedActive === 'inventory' && isDataSetLoading('materials') && !materials.length ? (
+				{displayedActive === 'inventory' && Boolean(loadErrorNotice) && !materials.length ? (
+					sectionFallback('materials', false, 'Cargando inventario')
+				) : displayedActive === 'inventory' && isDataSetLoading('materials') && !materials.length ? (
 					<div className="grid">
 						<section className="panel">
 							<SkeletonList rows={6} columns={4} label="Cargando inventario" />
@@ -13696,7 +13743,11 @@ export default function Home() {
 					/>
 				) : null}
 
-				{displayedActive === 'tools' ? (
+				{displayedActive === 'tools' &&
+				(isDataSetLoading('tools') || Boolean(loadErrorNotice)) &&
+				!filteredTools.length ? (
+					sectionFallback('tools', false, 'Cargando herramientas')
+				) : displayedActive === 'tools' ? (
 					<ToolsPanel
 						detailRecordProps={detailRecordProps}
 						filteredTools={filteredTools}
@@ -13726,7 +13777,11 @@ export default function Home() {
 					/>
 				) : null}
 
-				{displayedActive === 'tasks' ? (
+				{displayedActive === 'tasks' &&
+				(isDataSetLoading('tasks') || Boolean(loadErrorNotice)) &&
+				!tasks.length ? (
+					sectionFallback('tasks', false, 'Cargando tareas')
+				) : displayedActive === 'tasks' ? (
 					<TasksPanel
 						tasks={tasks}
 						employees={employees}
@@ -13775,7 +13830,11 @@ export default function Home() {
 					/>
 				) : null}
 
-				{displayedActive === 'quotes' ? (
+				{displayedActive === 'quotes' &&
+				(isDataSetLoading('quotes') || Boolean(loadErrorNotice)) &&
+				!quotes.length ? (
+					sectionFallback('quotes', false, 'Cargando cotizaciones')
+				) : displayedActive === 'quotes' ? (
 					<QuotesPanel
 						activeQuoteDrag={activeQuoteDrag}
 						agendaSensors={agendaSensors}
