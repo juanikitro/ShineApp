@@ -191,6 +191,15 @@ class Quote(SoftDeleteMixin):
             self.deleted_at = timezone.now()
             self.save(update_fields=["deleted_at", "updated_at"])
 
+    def restore(self):
+        with transaction.atomic():
+            now = timezone.now()
+            Quote.all_objects.filter(pk=self.pk).update(deleted_at=None, updated_at=now)
+            self.deleted_at = None
+            self.updated_at = now
+            for item in self.items(manager="all_objects").filter(deleted_at__isnull=False):
+                item.restore()
+
     def __str__(self):
         return f"Cotizacion {self.public_code or self.id or '-'}"
 

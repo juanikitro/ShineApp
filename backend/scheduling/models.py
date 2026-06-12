@@ -80,6 +80,22 @@ class Reservation(SoftDeleteMixin):
             self.deleted_at = timezone.now()
             self.save(update_fields=["deleted_at", "updated_at"])
 
+    def restore(self):
+        with transaction.atomic():
+            now = timezone.now()
+            Reservation.all_objects.filter(pk=self.pk).update(deleted_at=None, updated_at=now)
+            self.deleted_at = None
+            self.updated_at = now
+            for item in self.items(manager="all_objects").filter(deleted_at__isnull=False):
+                item.restore()
+            from workorders.models import WorkOrder
+
+            work_order = (
+                WorkOrder.all_objects.filter(reservation_id=self.pk, deleted_at__isnull=False).first()
+            )
+            if work_order is not None:
+                work_order.restore()
+
     @property
     def service_items(self):
         prefetched = getattr(self, "_prefetched_objects_cache", {}).get("items")

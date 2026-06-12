@@ -26,6 +26,7 @@ import {
 import changelogData from '@/app/data/changelog.generated.json'
 
 import { BusinessSettingsPanel } from '@/app/components/settings/BusinessSettingsPanel'
+import { TrashSettingsPanel } from '@/app/components/settings/TrashSettingsPanel'
 import { TurneraSettingsPanel } from '@/app/components/settings/TurneraSettingsPanel'
 import { AuditLogCard } from '@/app/components/ui/AuditLogCard'
 import { Empty, LoadingState } from '@/app/components/ui/Empty'
@@ -56,6 +57,7 @@ export type SettingsSection =
 	| 'agenda'
 	| 'users'
 	| 'history'
+	| 'trash'
 	| 'novedades'
 
 type CashClassificationPair = AnyRecord & {
@@ -323,6 +325,7 @@ export function SettingsWorkspace({
 						onUpdateAuditFilter={onUpdateAuditFilter}
 					/>
 				) : null}
+				{settingsSection === 'trash' ? <TrashSettingsPanel /> : null}
 				{settingsSection === 'novedades' ? <NewsSettingsPanel /> : null}
 			</div>
 		</div>
