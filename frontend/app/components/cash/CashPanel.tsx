@@ -7,6 +7,8 @@ import {
 } from 'react'
 
 import {
+	ArrowDownRight,
+	ArrowUpRight,
 	ChevronDown,
 	ChevronLeft,
 	ChevronRight,
@@ -17,7 +19,11 @@ import {
 	LockOpen,
 	ReceiptText,
 	RefreshCw,
+	Scale,
 	SlidersHorizontal,
+	TrendingDown,
+	TrendingUp,
+	Wallet,
 } from 'lucide-react'
 
 import { CashEntryRow } from '@/app/components/cash/CashEntryRow'
@@ -171,6 +177,18 @@ function formatCashPercent(value: number) {
 	})
 }
 
+function cashBalanceTone(amount: number) {
+	if (amount > 0) return 'positive'
+	if (amount < 0) return 'negative'
+	return 'neutral'
+}
+
+function cashBalanceLabel(amount: number) {
+	if (amount > 0) return 'Cash flow positivo'
+	if (amount < 0) return 'Cash flow negativo'
+	return 'Cash flow equilibrado'
+}
+
 export function CashPanel({
 	cashClosure,
 	cashEntries,
@@ -221,6 +239,18 @@ export function CashPanel({
 	const cashSummaryModeLabel =
 		cashSummaryModeOptions.find((option) => option.value === cashSummaryMode)
 			?.label ?? 'Flujo de caja'
+	const consolidatedTotals = cashSummaryMode === 'cashflow' ? cashflowTotals : economicTotals
+	const consolidatedBalance = numberValue(consolidatedTotals.balance)
+	const consolidatedIncome = numberValue(consolidatedTotals.income)
+	const consolidatedExpense = numberValue(consolidatedTotals.expense)
+	const partnerContributions =
+		cashFlowSummary.groups.find((group) => group.key === 'partner_contributions')?.amount ?? 0
+	const investments =
+		cashFlowSummary.groups.find((group) => group.key === 'investments')?.amount ?? 0
+	const partnerWithdrawals =
+		cashFlowSummary.groups.find((group) => group.key === 'partner_withdrawals')?.amount ?? 0
+	const cashBalance = numberValue(cashflowTotals.balance)
+	const cashBalanceToneClass = cashBalanceTone(cashBalance)
 
 	function renderCashSummaryLine(line: CashSummaryLine) {
 		return (
@@ -273,9 +303,32 @@ export function CashPanel({
 		)
 	}
 
-	function renderCashSummaryBalance(label: string, amount: number) {
+	function renderCashSummaryBalance(
+		label: string,
+		amount: number,
+		options: { highlight?: boolean } = {},
+	) {
 		return (
-			<div className="cash-summary-balance" key={label}>
+			<div
+				className={cx(
+					'cash-summary-balance',
+					options.highlight && 'cash-summary-balance--highlight',
+				)}
+				key={label}
+			>
+				<span>{label}</span>
+				<strong
+					className={`cash-summary-total ${cashSummaryAmountClass(amount)}`}
+				>
+					{money(amount)}
+				</strong>
+			</div>
+		)
+	}
+
+	function renderConsolidatedRow(label: string, amount: number) {
+		return (
+			<div className="cash-consolidated-row" key={label}>
 				<span>{label}</span>
 				<strong
 					className={`cash-summary-total ${cashSummaryAmountClass(amount)}`}
@@ -428,7 +481,10 @@ export function CashPanel({
 								: ''}
 						</div>
 						<section className="grid three section-block-end cash-metrics-primary">
-							<div className="metric cash-metric">
+							<div className="metric cash-metric cash-metric--income">
+								<span className="metric-icon" aria-hidden="true">
+									<TrendingUp size={20} />
+								</span>
 								<span>
 									<span className="cash-term income">Ingresos</span> de caja
 								</span>
@@ -439,7 +495,10 @@ export function CashPanel({
 									/>
 								</strong>
 							</div>
-							<div className="metric cash-metric">
+							<div className="metric cash-metric cash-metric--expense">
+								<span className="metric-icon" aria-hidden="true">
+									<TrendingDown size={20} />
+								</span>
 								<span>
 									<span className="cash-term expense">Egresos</span> de caja
 								</span>
@@ -451,75 +510,113 @@ export function CashPanel({
 								</strong>
 							</div>
 							<div className="metric cash-metric cash-metric-balance">
+								<span className="metric-icon" aria-hidden="true">
+									<Wallet size={20} />
+								</span>
 								<span>Saldo de caja</span>
 								<strong>
 									<AnimatedNumber
-										value={numberValue(cashflowTotals.balance)}
+										value={cashBalance}
 										format={money}
 									/>
 								</strong>
+								<small
+									className={`cash-balance-status cash-balance-status--${cashBalanceToneClass}`}
+								>
+									{cashBalance > 0 ? (
+										<ArrowUpRight size={12} aria-hidden="true" />
+									) : cashBalance < 0 ? (
+										<ArrowDownRight size={12} aria-hidden="true" />
+									) : null}
+									{cashBalanceLabel(cashBalance)}
+								</small>
 							</div>
 						</section>
-						<section className="cash-economic-panel section-block-end">
-							<div>
-								<span>Resultado del dia</span>
-								<strong>
-									<AnimatedNumber
-										value={numberValue(economicTotals.balance)}
-										format={money}
+						<section className="cash-flow-grid section-block-end">
+							<article className="cash-flow-card cash-flow-card--main">
+								<div className="cash-flow-head">
+									<div>
+										<h3>
+											Flujo de dinero del dia
+											<Info size={16} aria-hidden="true" />
+										</h3>
+										<p>
+											Resumen completo del dia en modo {cashSummaryModeLabel}.
+											Los filtros de abajo no alteran estos totales.
+										</p>
+									</div>
+									<SegmentedControl
+										ariaLabel="Vista del resumen"
+										className="cash-summary-toggle"
+										options={cashSummaryModeOptions}
+										value={cashSummaryMode}
+										onChange={onCashSummaryModeChange}
 									/>
-								</strong>
-							</div>
-							<p>
-								<span className="cash-term income">Ingresos</span>{' '}
-								{money(economicTotals.income)} -{' '}
-								<span className="cash-term expense">egresos</span>{' '}
-								{money(economicTotals.expense)}. Incluye deudas originales
-								devengadas.
-							</p>
-						</section>
-						<section className="cash-flow-card section-block-end">
-							<div className="cash-flow-head">
-								<div>
-									<h3>
-										Flujo de dinero del dia
-										<Info size={16} aria-hidden="true" />
-									</h3>
-									<p>
-										Resumen completo del dia en modo {cashSummaryModeLabel}.
-										Los filtros de abajo no alteran estos totales.
-									</p>
 								</div>
-								<SegmentedControl
-									ariaLabel="Vista del resumen"
-									className="cash-summary-toggle"
-									options={cashSummaryModeOptions}
-									value={cashSummaryMode}
-									onChange={onCashSummaryModeChange}
-								/>
-							</div>
-							<div className="cash-summary-body">
-								{renderCashSummaryGroup('charges')}
-								{renderCashSummaryGroup('payments')}
-								{renderCashSummaryBalance(
-									'Balance comercial',
-									cashFlowSummary.commercialBalance,
-								)}
-								{renderCashSummaryGroup('partner_contributions')}
-								{renderCashSummaryGroup('investments')}
-								{renderCashSummaryGroup('partner_withdrawals')}
-								{renderCashSummaryGroup('adjustments', {
-									hideWhenEmpty: true,
-								})}
-								{renderCashSummaryBalance(
-									'Balance financiero',
-									cashFlowSummary.financialBalance,
-								)}
-								{renderCashSummaryBalance(
-									'Flujo neto de dinero',
-									cashFlowSummary.netFlow,
-								)}
-							</div>
+								<div className="cash-summary-body">
+									{renderCashSummaryGroup('charges')}
+									{renderCashSummaryGroup('payments')}
+									{renderCashSummaryGroup('adjustments', {
+										hideWhenEmpty: true,
+									})}
+								</div>
+								<footer className="cash-flow-result">
+									<div className="cash-flow-result__main">
+										<span>Resultado final</span>
+										<strong
+											className={`cash-flow-result__amount cash-summary-total ${cashSummaryAmountClass(consolidatedBalance)}`}
+										>
+											<AnimatedNumber
+												value={consolidatedBalance}
+												format={money}
+											/>
+										</strong>
+									</div>
+									<div className="cash-flow-result__side">
+										<div className="cash-flow-result__side-item">
+											<span>Ingresos totales</span>
+											<strong className="cash-flow-result__side-amount positive">
+												{money(consolidatedIncome)}
+											</strong>
+										</div>
+										<div className="cash-flow-result__side-item">
+											<span>Egresos totales</span>
+											<strong className="cash-flow-result__side-amount negative">
+												{money(consolidatedExpense)}
+											</strong>
+										</div>
+									</div>
+								</footer>
+							</article>
+							<aside
+								className="cash-consolidated-card"
+								aria-label="Metricas consolidadas"
+							>
+								<div className="cash-consolidated-head">
+									<h3>
+										Metricas consolidadas
+										<Scale size={16} aria-hidden="true" />
+									</h3>
+								</div>
+								<div className="cash-consolidated-body">
+									{renderConsolidatedRow(
+										'Balance comercial',
+										cashFlowSummary.commercialBalance,
+									)}
+									{renderConsolidatedRow('Aportes', partnerContributions)}
+									{renderConsolidatedRow('Inversiones', investments)}
+									{renderConsolidatedRow('Retiros', partnerWithdrawals)}
+									{renderConsolidatedRow(
+										'Balance financiero',
+										cashFlowSummary.financialBalance,
+									)}
+									{renderCashSummaryBalance(
+										'Flujo neto de dinero',
+										cashFlowSummary.netFlow,
+										{ highlight: true },
+									)}
+								</div>
+							</aside>
 						</section>
 						<section
 							className="cash-filters section-block-end"
@@ -529,7 +626,8 @@ export function CashPanel({
 								<div>
 									<h3 id="cash-filters-title">Movimientos del dia</h3>
 									<p>
-										Filtra el listado sin modificar el resumen del dia.
+										Listado cronologico de todas las operaciones del dia.
+										Los filtros no alteran los totales de arriba.
 									</p>
 								</div>
 								<div className="cash-filter-actions">
@@ -675,6 +773,18 @@ export function CashPanel({
 								</div>
 							) : null}
 						</section>
+						{filteredCashEntries.length ? (
+							<div
+								className="cash-entry-columns"
+								aria-hidden="true"
+								role="presentation"
+							>
+								<span>Hora</span>
+								<span>Concepto / Categoria</span>
+								<span>Cliente / Detalle</span>
+								<span className="cash-entry-columns__amount">Monto</span>
+							</div>
+						) : null}
 						<div className="cash-entry-list">
 							{filteredCashEntries.length ? (
 								filteredCashEntries.map((item: AnyRecord) => {
@@ -738,6 +848,11 @@ export function CashPanel({
 								/>
 							)}
 						</div>
+						{filteredCashEntries.length ? (
+							<div className="cash-entry-footer" role="status" aria-live="polite">
+								Mostrando {filteredCashEntries.length} de {cashEntries.length} movimientos
+							</div>
+						) : null}
 					</>
 				) : null}
 			</section>
