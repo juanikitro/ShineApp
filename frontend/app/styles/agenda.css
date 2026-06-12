@@ -176,6 +176,13 @@
   width: var(--button-height-icon);
 }
 
+.agenda-nav-row {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
 .agenda-date-picker {
   background: transparent;
   border: 1px solid transparent;
@@ -1109,6 +1116,11 @@
 
   .agenda-toolbar-tools {
     justify-items: start;
+  }
+
+  .agenda-nav-row {
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 
   .agenda-nav {
