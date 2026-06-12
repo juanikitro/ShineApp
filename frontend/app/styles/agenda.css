@@ -116,7 +116,7 @@
 
 .agenda-nav {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   justify-content: flex-end;
 }
@@ -179,25 +179,28 @@
 .agenda-nav-row {
   align-items: center;
   display: flex;
+  flex-wrap: nowrap;
   gap: 6px;
   justify-content: flex-end;
 }
 
 .agenda-date-picker {
-  background: transparent;
-  border: 1px solid transparent;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--shop-border-strong);
   border-radius: var(--radius-sm);
-  color: var(--color-text-soft);
+  color: var(--color-text);
   cursor: pointer;
+  flex: 0 0 auto;
   font-size: var(--text-base);
-  font-weight: 500;
+  font-weight: 600;
   height: var(--button-height);
-  padding: 0 8px;
+  padding: 0 10px;
+  width: auto;
 }
 
 .agenda-date-picker:hover {
-  background: var(--color-surface-raised);
-  border-color: var(--color-border);
+  background: var(--color-surface-interactive);
+  border-color: var(--color-primary);
   color: var(--color-text);
 }
 
@@ -274,7 +277,7 @@
 
 .week-board {
   --agenda-board-days: 5;
-  --agenda-instance-card-height: 284px;
+  --agenda-instance-card-height: 232px;
   display: grid;
   align-items: start;
   gap: 0 var(--space-3);
@@ -1199,13 +1202,13 @@
   }
 
   .week-board {
-    --agenda-instance-card-height: 264px;
-    min-height: 492px;
+    --agenda-instance-card-height: 220px;
+    min-height: 420px;
     min-width: 780px;
   }
 
   .day-row {
-    min-height: 492px;
+    min-height: 420px;
   }
 
   .agenda-day-head {

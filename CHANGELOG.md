@@ -18,6 +18,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Caja: rediseno de KPIs y metricas consolidadas en dos columnas](docs/registro/cambios/2026-06-12-caja-rediseno-kpis-y-metricas-consolidadas.md)
 - [Caja: boton unico "Cargar movimiento" con toggle por tipo](docs/registro/cambios/2026-06-12-caja-cargar-movimiento-unificado.md)
 - [Buscador global ahora cubre tareas y se documenta la regla para modulos nuevos](docs/registro/cambios/2026-06-12-buscador-global-cubre-tareas.md)
+- [Agenda: toolbar de navegacion horizontal y altura de cards ajustada](docs/registro/cambios/2026-06-12-agenda-toolbar-y-altura-card.md)
 - [Agenda: cards de reservas más compactas](docs/registro/cambios/2026-06-12-agenda-cards-compactas.md)
 
 ## 2026-06-11
