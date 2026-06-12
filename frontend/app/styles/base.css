@@ -531,6 +531,15 @@ label {
   }
 }
 
+/* iOS: prevent auto-zoom on input focus (triggered when font-size < 16px) */
+@media (hover: none) and (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 .login-screen {
   align-items: center;
   display: grid;
