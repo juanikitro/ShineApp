@@ -10,11 +10,11 @@ import {
 	ChevronDown,
 	ChevronLeft,
 	ChevronRight,
-	CreditCard,
 	Eye,
 	Info,
 	LockKeyhole,
 	LockOpen,
+	Plus,
 	ReceiptText,
 	RefreshCw,
 	SlidersHorizontal,
@@ -122,11 +122,9 @@ type CashPanelProps = {
 	onClearCashFilters: () => void
 	onCloseDay: () => void
 	onReopenDay: () => void
-	onCollectWork: () => void
 	onCreateMovement: () => void
 	onMoveSelectedDay: (offset: number) => void
 	onOpenCashEntryDetail: (entry: AnyRecord) => void
-	onPayDebt: () => void
 	onQuickActionsContext: (
 		event: MouseEvent<HTMLDivElement>,
 		title: string,
@@ -203,11 +201,9 @@ export function CashPanel({
 	onClearCashFilters,
 	onCloseDay,
 	onReopenDay,
-	onCollectWork,
 	onCreateMovement,
 	onMoveSelectedDay,
 	onOpenCashEntryDetail,
-	onPayDebt,
 	onQuickActionsContext,
 	onRefresh,
 	onRegisterAdjustment,
@@ -341,31 +337,13 @@ export function CashPanel({
 								type="button"
 								className="primary"
 								disabled={cashIsClosed}
-								onClick={onCollectWork}
-							>
-								<CreditCard size={16} />
-								Cobrar trabajo
-							</button>
-							<button
-								type="button"
-								className="ghost"
-								disabled={cashIsClosed}
 								onClick={onCreateMovement}
 							>
-								<ReceiptText size={16} />
-								Ingreso / egreso
+								<Plus size={16} />
+								Cargar movimiento
 							</button>
 						</div>
 						<div className="finance-secondary-actions">
-							<button
-								type="button"
-								className="ghost"
-								disabled={cashIsClosed}
-								onClick={onPayDebt}
-							>
-								<CreditCard size={16} />
-								Pagar deuda
-							</button>
 							<button
 								type="button"
 								className="ghost"
@@ -728,10 +706,10 @@ export function CashPanel({
 											<button
 												type="button"
 												className="primary"
-												onClick={onCollectWork}
+												onClick={onCreateMovement}
 											>
-												<CreditCard size={16} />
-												Cobrar trabajo
+												<Plus size={16} />
+												Cargar movimiento
 											</button>
 										)
 									}
