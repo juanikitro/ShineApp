@@ -2765,6 +2765,14 @@
   min-width: 0;
 }
 
+.cash-action-rail {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
 .finance-primary-actions,
 .finance-secondary-actions,
 .finance-record-actions,
@@ -4348,6 +4356,7 @@
   }
 
   .finance-action-rail,
+  .cash-action-rail,
   .settings-action-rail,
   .finance-primary-actions,
   .finance-secondary-actions,
@@ -4360,6 +4369,7 @@
   }
 
   .finance-action-rail,
+  .cash-action-rail,
   .settings-action-rail {
     width: 100%;
   }
@@ -4652,6 +4662,7 @@
 
   .finance-primary-actions,
   .finance-secondary-actions,
+  .cash-action-rail,
   .finance-record-actions,
   .finance-record-secondary-actions,
   .settings-primary-actions,
@@ -4662,6 +4673,7 @@
 
   .finance-primary-actions button,
   .finance-secondary-actions button,
+  .cash-action-rail button,
   .finance-record-actions > button,
   .finance-record-secondary-actions button,
   .settings-primary-actions button,
