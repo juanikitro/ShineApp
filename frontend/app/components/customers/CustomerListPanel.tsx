@@ -105,47 +105,55 @@ function customerOperationalStateText(customer: AnyRecord) {
 	return 'Sin novedades'
 }
 
+function customerOperationalStateHint(customer: AnyRecord) {
+	const insights = customerListInsights(customer)
+	if (customer?.has_birthday_alert && customer.birthday_label) {
+		return String(customer.birthday_label)
+	}
+	if (insights.has_upcoming_reservation && insights.next_reservation?.day) {
+		return formatDateLabel(insights.next_reservation.day)
+	}
+	if (insights.last_visit_at) {
+		return customerDaysAgoText(insights.days_since_last_visit, '')
+	}
+	return ''
+}
+
 function customerPrimaryPill(
 	customer: AnyRecord,
 	showReservationTimes = true,
 ) {
 	const insights = customerListInsights(customer)
-	if (insights.has_upcoming_reservation && insights.next_reservation) {
-		const dateLabel = customerScheduleLabel(
-			insights.next_reservation,
-			showReservationTimes,
-		)
-		return {
-			label: `Con reserva: ${dateLabel}`,
-			className: 'customer-pill--reservation',
-		}
+	if (!insights.has_upcoming_reservation || !insights.next_reservation) {
+		return null
 	}
+	const dateLabel = customerScheduleLabel(
+		insights.next_reservation,
+		showReservationTimes,
+	)
 	return {
-		label: 'Sin reserva',
-		className: 'customer-pill--follow-up',
+		label: `Con reserva: ${dateLabel}`,
+		className: 'customer-pill--reservation',
 	}
 }
 
-function customerContextChips(customer: AnyRecord, canViewEconomy: boolean) {
-	const insights = customerListInsights(customer)
-	const chips: Array<{ key: string; label: string; tone?: string }> = []
+function customerBirthdayLabel(customer: AnyRecord) {
+	const dateLabel = formatDateLabel(customer.next_birthday)
+	const days = Number(customer.days_until_birthday)
+	if (days === 0) return `Cumple hoy: ${dateLabel}`
+	if (days === 1) return `Cumple manana: ${dateLabel}`
+	return `Cumple pronto: ${dateLabel}`
+}
 
-	if (customer?.has_birthday_alert) {
-		chips.push({
+function customerContextChips(customer: AnyRecord) {
+	if (!customer?.has_birthday_alert) return []
+	return [
+		{
 			key: 'birthday',
-			label: `Cumple pronto: ${formatDateLabel(customer.next_birthday)}`,
+			label: customerBirthdayLabel(customer),
 			tone: 'alert',
-		})
-	}
-	if (canViewEconomy && insights.has_balance_due) {
-		chips.push({
-			key: 'balance',
-			label: `Saldo ${money(insights.balance_due_total)}`,
-			tone: 'warning',
-		})
-	}
-
-	return chips
+		},
+	]
 }
 
 export function CustomerListPanel({
@@ -230,7 +238,7 @@ export function CustomerListPanel({
 							showReservationTimes,
 						)
 						const nextReservation = insights.next_reservation
-						const chips = customerContextChips(customer, canViewEconomy)
+						const chips = customerContextChips(customer)
 						const vehicleCount =
 							vehicleCountByCustomerId.get(String(customer.id)) ??
 							Number(insights.vehicles_count ?? 0)
@@ -323,7 +331,7 @@ export function CustomerListPanel({
 										<small>
 											{canViewEconomy
 												? `${insights.balance_due_work_orders_count ?? 0} trabajos con saldo`
-												: customerOperationalStateText(customer)}
+												: customerOperationalStateHint(customer)}
 										</small>
 									</div>
 								</div>

@@ -1704,31 +1704,16 @@
   color: var(--shop-ink);
 }
 
-.customer-pill--birthday,
 .customer-chip--alert {
   background: var(--status-confirmed-bg);
   border-color: var(--status-confirmed-border);
   color: var(--status-confirmed-text);
 }
 
-.customer-pill--balance,
-.customer-chip--warning {
-  background: var(--status-pending-bg);
-  border-color: var(--status-pending-border);
-  color: var(--status-pending-text);
-}
-
-.customer-pill--reservation,
-.customer-chip--info {
+.customer-pill--reservation {
   background: var(--color-secondary);
   border-color: var(--color-workspace-active-border);
   color: var(--color-link);
-}
-
-.customer-pill--follow-up,
-.customer-chip--muted {
-  background: var(--color-workspace-surface-raised);
-  color: var(--shop-ink-soft);
 }
 
 .customer-record-stat {
