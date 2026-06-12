@@ -621,13 +621,14 @@
   box-shadow: none;
   cursor: pointer;
   display: grid;
-  gap: 10px;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: minmax(0, 1fr) auto;
   height: 100%;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
-  padding: 10px;
+  padding: 8px;
 }
 
 .agenda-entry-card--reservation {
@@ -642,6 +643,7 @@
   align-items: flex-start;
   display: flex;
   gap: 10px;
+  grid-column: 1 / -1;
   justify-content: space-between;
   min-height: 0;
   overflow: hidden;
@@ -780,18 +782,19 @@
 }
 
 .agenda-card-actions {
-  display: grid;
-  gap: 6px;
-  margin-top: auto;
+  align-items: center;
+  display: flex;
+  gap: 4px;
   min-width: 0;
+}
+
+.agenda-entry-card:not(:has(.agenda-work-debt)) .agenda-card-actions {
+  grid-column: 1 / -1;
 }
 
 .agenda-primary-actions,
 .agenda-secondary-actions {
-  align-items: center;
-  display: flex;
-  gap: 6px;
-  min-width: 0;
+  display: contents;
 }
 
 .agenda-primary-actions {
@@ -799,9 +802,7 @@
 }
 
 .agenda-secondary-actions {
-  border-top: 1px solid var(--shop-border);
   justify-content: flex-start;
-  padding-top: 6px;
 }
 
 .agenda-inline-metrics {
@@ -829,12 +830,7 @@
 }
 
 .agenda-primary-actions .agenda-action-button {
-  flex: 1 1 auto;
   justify-content: center;
-}
-
-.agenda-primary-actions .agenda-action-button--icon-danger {
-  flex: 0 0 auto;
 }
 
 .agenda-secondary-actions .agenda-action-button--icon-danger {
@@ -1010,22 +1006,14 @@
 }
 
 .agenda-work-debt {
-  align-items: center;
-  background: var(--color-workspace-surface-raised);
-  border: 1px solid var(--shop-border);
-  border-radius: var(--radius-sm);
-  display: flex;
-  gap: 10px;
-  justify-content: space-between;
-  padding: 10px 12px;
+  align-self: center;
+  display: grid;
+  gap: 2px;
 }
 
 .agenda-work-debt-main {
-  align-items: baseline;
-  display: flex;
-  flex: 1 1 auto;
-  gap: var(--space-2);
-  justify-content: space-between;
+  display: grid;
+  gap: 1px;
   min-width: 0;
 }
 
@@ -1231,12 +1219,6 @@
     overflow-x: auto;
     padding-bottom: 2px;
     scrollbar-width: thin;
-  }
-
-  .agenda-work-debt {
-    align-items: stretch;
-    display: grid;
-    gap: 6px;
   }
 
   .agenda-work-materials {
