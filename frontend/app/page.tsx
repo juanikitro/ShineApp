@@ -3247,7 +3247,7 @@ export default function Home() {
 		reservation: AnyRecord,
 		workOrder: AnyRecord | null | undefined,
 		row: AgendaOperationalRow,
-		options: { statusMode?: 'reservation' | 'work-order'; listMode?: boolean } = {},
+		options: { statusMode?: 'reservation' | 'work-order' } = {},
 	) {
 		const showWork = reservationShowsWork(reservation, workOrder)
 		const rangeLabel = reservationRangeLabel(reservation)
@@ -3303,7 +3303,6 @@ export default function Home() {
 				reservationStatusValue={reservationStatusValue}
 				serviceLines={serviceLines}
 				statusMode={options.statusMode}
-				listMode={options.listMode}
 				timeLabel={reservationStartTimeLabel(reservation, 'Sin hora')}
 				title={String(reservation.customer_name ?? '')}
 				vehicleModel={vehicleModel}

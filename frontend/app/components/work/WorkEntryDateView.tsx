@@ -28,7 +28,7 @@ type WorkEntryDateViewProps = {
 		reservation: AnyRecord,
 		workOrder: AnyRecord | null | undefined,
 		row: AgendaOperationalRow,
-		options?: { statusMode?: 'reservation' | 'work-order'; listMode?: boolean },
+		options?: { statusMode?: 'reservation' | 'work-order' },
 	) => ReactNode
 	quoteQuickActions: (item: AnyRecord) => QuickAction[]
 	detailRecordProps: (kind: string, data: AnyRecord) => Record<string, unknown>
@@ -78,7 +78,6 @@ export function WorkEntryDateView({
 				<div className="agenda-card-stack">
 					{renderReservationCard(reservation, row.workOrder, row, {
 						statusMode: 'work-order',
-						listMode: true,
 					})}
 				</div>
 			</MotionFlashSurface>
