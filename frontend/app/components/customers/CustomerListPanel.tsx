@@ -11,7 +11,6 @@ import { cx } from '@/app/components/utils'
 import { joinDisplayParts } from '@/lib/display-text'
 import {
 	type AnyRecord,
-	birthdayText,
 	formatDateLabel,
 	money,
 } from '@/lib/page-support'
@@ -134,7 +133,7 @@ function customerContextChips(customer: AnyRecord, canViewEconomy: boolean) {
 	if (customer?.has_birthday_alert) {
 		chips.push({
 			key: 'birthday',
-			label: birthdayText(customer),
+			label: `Cumple pronto: ${formatDateLabel(customer.next_birthday)}`,
 			tone: 'alert',
 		})
 	}

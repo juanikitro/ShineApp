@@ -13,6 +13,7 @@ Cleanup visual del listado de clientes para evitar duplicación de estado y mejo
 - El pill al lado del nombre ahora siempre indica estado de reserva: `Con reserva: DD/MM/YYYY` (con fecha) o `Sin reserva` (en lugar de la antigua mezcla "Cumple pronto / Con saldo / Con reserva / Sin proxima visita"). La fecha se incluye dentro del propio badge para evitar que se repita abajo.
 - Se quitó la chip duplicada `Reserva DD/MM/YYYY` y la chip `Sin proxima visita` (ya cubiertas por el badge).
 - Se quitó la chip `Ultimo servicio: ...` porque el dato ya aparece en la columna `Ultima visita`.
+- La chip de cumple ahora muestra `Cumple pronto: DD/MM/YYYY` usando `next_birthday` (en lugar del texto nuanced "Cumple hoy/manana/en N dias (DD/MM)").
 - Las chips de cumple y saldo se mantienen como complementos cuando aplican.
 - El bloque `customer-card-meta` solo se renderiza cuando hay al menos una chip.
 - Se eliminó el botón flotante de acciones rapidas (icono `MoreHorizontal`) porque los botones `Dashboard`, `Editar` y `Baja` ya estan visibles. Se quitó tambien el prop `onOpenQuickActionsFromTrigger` y su pasamanos desde `frontend/app/page.tsx`. El menu por click derecho (`onContextMenu`) sigue disponible.
