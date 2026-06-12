@@ -7,6 +7,7 @@ from fixed_expenses.models import FixedExpense
 from inventory.models import Material, Supplier, Tool
 from quotes.models import Quote
 from scheduling.models import Reservation
+from tasks.models import Task, TaskPriority
 from workorders.models import WorkOrder
 
 
@@ -206,6 +207,112 @@ class TestCashMovementIndirectSearch:
         data = response.json()
         types = {g["type"] for g in data["groups"]}
         assert "cash_movement" in types
+
+
+class TestTaskSearch:
+    def test_finds_task_by_title(self, api_client, default_business):
+        task = Task.objects.create(
+            business=default_business,
+            title="Llamar al contador Federico",
+            priority=TaskPriority.HIGH,
+        )
+        response = api_client.get(URL, {"q": "contador"})
+        data = response.json()
+        types = [g["type"] for g in data["groups"]]
+        assert "task" in types
+        items = next(g["items"] for g in data["groups"] if g["type"] == "task")
+        assert any(item["id"] == task.id for item in items)
+
+    def test_finds_task_by_description(self, api_client, default_business):
+        task = Task.objects.create(
+            business=default_business,
+            title="Pendiente generico",
+            description="Revisar el stock del lavadero del oeste",
+        )
+        response = api_client.get(URL, {"q": "lavadero del oeste"})
+        data = response.json()
+        types = [g["type"] for g in data["groups"]]
+        assert "task" in types
+        items = next(g["items"] for g in data["groups"] if g["type"] == "task")
+        assert any(item["id"] == task.id for item in items)
+
+    def test_finds_task_by_assignee_username(self, api_client, db, default_business, django_user_model):
+        from core.models import UserProfile
+        worker = django_user_model.objects.create_user(username="lucia", password="x")
+        UserProfile.objects.get_or_create(user=worker, defaults={"business": default_business})
+        task = Task.objects.create(
+            business=default_business,
+            title="Cuadrar caja",
+            assignee=worker,
+        )
+        response = api_client.get(URL, {"q": "lucia"})
+        data = response.json()
+        items = next((g["items"] for g in data["groups"] if g["type"] == "task"), [])
+        assert any(item["id"] == task.id for item in items)
+
+    def test_does_not_return_other_business_task(self, api_client, db):
+        from core.models import BusinessAccount, BusinessProfile
+        other = BusinessAccount.objects.create(name="Negocio ajeno", slug="ajeno-tasks")
+        BusinessProfile.get_solo(business=other)
+        Task.objects.create(business=other, title="Tarea ajena unica xyzzy")
+        response = api_client.get(URL, {"q": "xyzzy"})
+        data = response.json()
+        for group in data["groups"]:
+            if group["type"] != "task":
+                continue
+            for item in group["items"]:
+                assert "ajena" not in item["label"].lower()
+
+    def test_employee_only_sees_own_tasks(
+        self, api_client, employee_client, default_business
+    ):
+        # api_client.user es empleador (group "empleador")
+        owner_task = Task.objects.create(
+            business=default_business,
+            title="Tarea propia del empleado xyzzy",
+            assignee=employee_client.user,
+        )
+        Task.objects.create(
+            business=default_business,
+            title="Tarea ajena del jefe xyzzy",
+            assignee=api_client.user,
+        )
+        response = employee_client.get(URL, {"q": "xyzzy"})
+        data = response.json()
+        items = next((g["items"] for g in data["groups"] if g["type"] == "task"), [])
+        ids = {item["id"] for item in items}
+        assert owner_task.id in ids
+        assert all("ajena" not in item["label"].lower() for item in items)
+
+    def test_employer_sees_all_tasks(self, api_client, default_business):
+        Task.objects.create(
+            business=default_business,
+            title="Pendiente del local norte xyzzy",
+        )
+        Task.objects.create(
+            business=default_business,
+            title="Pendiente del local sur xyzzy",
+        )
+        response = api_client.get(URL, {"q": "xyzzy"})
+        data = response.json()
+        items = next((g["items"] for g in data["groups"] if g["type"] == "task"), [])
+        assert len(items) >= 2
+
+    def test_task_result_has_required_fields(self, api_client, default_business):
+        Task.objects.create(
+            business=default_business,
+            title="Llamada importante xyzzy",
+            priority=TaskPriority.HIGH,
+        )
+        response = api_client.get(URL, {"q": "xyzzy"})
+        data = response.json()
+        items = next(g["items"] for g in data["groups"] if g["type"] == "task")
+        item = items[0]
+        assert "id" in item
+        assert "label" in item
+        assert "sublabel" in item
+        assert "detail_path" in item
+        assert item["detail_path"].startswith("/tasks/")
 
 
 class TestSearchResponseShape:

@@ -523,7 +523,8 @@ function searchQueryFromUrl(): string {
 
 // Mapea cada tipo de resultado del buscador global a su seccion del SPA y al
 // modal de detalle/edicion correspondiente. `fixed_expense` no tiene detail
-// modal: abre el form modal de gastos fijos.
+// modal: abre el form modal de gastos fijos. `task` solo navega: TasksPanel
+// edita en linea.
 const searchResultTargets: Record<
 	string,
 	{ section: Section; detailTitle: string; apiPath: (id: number) => string }
@@ -532,6 +533,11 @@ const searchResultTargets: Record<
 		section: 'customers',
 		detailTitle: 'Cliente',
 		apiPath: (id) => `/customers/${id}/`,
+	},
+	task: {
+		section: 'tasks',
+		detailTitle: '',
+		apiPath: (id) => `/tasks/${id}/`,
 	},
 	vehicle: {
 		section: 'vehicles',
@@ -4414,6 +4420,10 @@ export default function Home() {
 		if (!target) return
 		if (!canViewEconomy && sectionRequiresEmployer(target.section)) return
 		handleSectionChange(target.section)
+		if (groupType === 'task') {
+			// TasksPanel edita en linea: alcanza con cambiar de seccion.
+			return
+		}
 		try {
 			const data = await apiFetch<AnyRecord>(target.apiPath(item.id))
 			if (groupType === 'fixed_expense') {
@@ -13029,13 +13039,6 @@ export default function Home() {
 							}
 							onOpenQuickActions={(event, item) =>
 								openQuickActionsFromContext(
-									event,
-									'Acciones de cliente',
-									customerQuickActions(item),
-								)
-							}
-							onOpenQuickActionsFromTrigger={(event, item) =>
-								openQuickActionsFromTrigger(
 									event,
 									'Acciones de cliente',
 									customerQuickActions(item),
