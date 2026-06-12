@@ -142,9 +142,9 @@ test('requires inline confirmation before running destructive actions', async ()
 
 	await user.click(screen.getByRole('menuitem', { name: /Eliminar/ }))
 	assert.equal(onDelete.mock.calls.length, 0)
-	assert.ok(screen.getByRole('button', { name: 'Confirmar Eliminar' }))
+	assert.ok(screen.getByRole('menuitem', { name: 'Confirmar Eliminar' }))
 
-	await user.click(screen.getByRole('button', { name: 'Confirmar Eliminar' }))
+	await user.click(screen.getByRole('menuitem', { name: 'Confirmar Eliminar' }))
 	assert.equal(onDelete.mock.calls.length, 1)
 	assert.equal(onClose.mock.calls.length, 1)
 })

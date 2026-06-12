@@ -11,6 +11,7 @@ from fixed_expenses.models import FixedExpense
 from inventory.models import Material, Supplier, Tool
 from quotes.models import Quote
 from scheduling.models import Reservation
+from tasks.models import Task
 from workorders.models import WorkOrder
 
 _DEFAULT_LIMIT = 5
@@ -262,6 +263,34 @@ def _search_debts(business, q, limit):
     ]
 
 
+def _search_tasks(business, q, limit, *, user=None, is_economy=True):
+    qs = (
+        Task.objects.filter(business=business)
+        .select_related("assignee", "created_by")
+        .filter(
+            Q(title__icontains=q)
+            | Q(description__icontains=q)
+            | Q(assignee__username__icontains=q)
+            | Q(assignee__first_name__icontains=q)
+            | Q(assignee__last_name__icontains=q)
+        )
+    )
+    if not is_economy and user is not None and getattr(user, "is_authenticated", False):
+        qs = qs.filter(assignee=user)
+    qs = qs[:limit]
+    return [
+        {
+            "id": obj.id,
+            "label": obj.title,
+            "sublabel": " · ".join(
+                filter(None, [obj.get_priority_display(), obj.get_status_display()])
+            ),
+            "detail_path": f"/tasks/{obj.id}",
+        }
+        for obj in qs
+    ]
+
+
 def _search_fixed_expenses(business, q, limit):
     qs = (
         FixedExpense.objects.filter(business=business)
@@ -323,5 +352,12 @@ class GlobalSearchView(views.APIView):
             items = fn(business, q, limit)
             if items:
                 groups.append({"type": entity_type, "label": label, "items": items})
+
+        # Tareas: visibles para empleador y empleado, pero el empleado solo ve las suyas.
+        task_items = _search_tasks(
+            business, q, limit, user=request.user, is_economy=is_economy
+        )
+        if task_items:
+            groups.append({"type": "task", "label": "Tareas", "items": task_items})
 
         return Response({"query": q, "groups": groups})

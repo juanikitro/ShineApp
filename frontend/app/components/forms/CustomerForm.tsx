@@ -19,6 +19,7 @@ type CustomerFormProps = {
 		openCombo?: boolean,
 	) => (event: KeyboardEvent<HTMLElement>) => void
 	submitting?: boolean
+	fieldErrors?: Record<string, string>
 }
 
 export function CustomerForm({
@@ -28,10 +29,11 @@ export function CustomerForm({
 	onSubmit,
 	focusNextOnEnter,
 	submitting = false,
+	fieldErrors,
 }: CustomerFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
-			<Field label="Nombre">
+			<Field label="Nombre" error={fieldErrors?.['name']}>
 				<input
 					data-focus-key="customer.name"
 					name="customer_name"
@@ -48,7 +50,7 @@ export function CustomerForm({
 					onKeyDown={focusNextOnEnter('customer.phone')}
 				/>
 			</Field>
-			<Field label="Telefono">
+			<Field label="Telefono" error={fieldErrors?.['phone']}>
 				<input
 					data-focus-key="customer.phone"
 					name="customer_phone"
@@ -65,7 +67,7 @@ export function CustomerForm({
 					onKeyDown={focusNextOnEnter('customer.email')}
 				/>
 			</Field>
-			<Field label="Email">
+			<Field label="Email" error={fieldErrors?.['email']}>
 				<input
 					data-focus-key="customer.email"
 					name="customer_email"
@@ -83,7 +85,7 @@ export function CustomerForm({
 				/>
 			</Field>
 			<div className="form-row">
-				<Field label="CUIT/DNI">
+				<Field label="CUIT/DNI" error={fieldErrors?.['tax_id']}>
 					<input
 						data-focus-key="customer.tax_id"
 						name="customer_tax_id"
@@ -98,7 +100,7 @@ export function CustomerForm({
 						onKeyDown={focusNextOnEnter('customer.billing_address')}
 					/>
 				</Field>
-				<Field label="Domicilio fiscal">
+				<Field label="Domicilio fiscal" error={fieldErrors?.['billing_address']}>
 					<input
 						data-focus-key="customer.billing_address"
 						name="customer_billing_address"
@@ -136,7 +138,7 @@ export function CustomerForm({
 				onDayKeyDown={focusNextOnEnter('customer.birthday_month')}
 				onMonthKeyDown={focusNextOnEnter('customer.notes')}
 			/>
-			<Field label="Notas">
+			<Field label="Notas" error={fieldErrors?.['notes']}>
 				<textarea
 					data-focus-key="customer.notes"
 					name="customer_notes"

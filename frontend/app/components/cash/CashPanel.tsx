@@ -39,6 +39,7 @@ import {
 	type SelectOption,
 } from '@/app/components/ui/SearchSelect'
 import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
+import { Button } from '@/app/components/ui/Button'
 import { cx } from '@/app/components/utils'
 import { type ApiErrorNotice } from '@/lib/api-errors'
 import {
@@ -344,14 +345,14 @@ export function CashPanel({
 				<div className="toolbar toolbar-spaced cash-toolbar">
 					<Field label="Dia">
 						<div className="date-stepper">
-							<button
-								type="button"
-								className="ghost date-stepper-button"
+							<Button
+								variant="ghost"
+								className="date-stepper-button"
 								onClick={() => onMoveSelectedDay(-1)}
 								aria-label="Ver dia anterior"
 							>
 								<ChevronLeft size={16} />
-							</button>
+							</Button>
 							<input
 								type="date"
 								aria-label="Dia de caja"
@@ -359,22 +360,22 @@ export function CashPanel({
 								value={selectedDay}
 								onChange={(event) => onSelectedDayChange(event.target.value)}
 							/>
-							<button
-								type="button"
-								className="ghost date-stepper-button"
+							<Button
+								variant="ghost"
+								className="date-stepper-button"
 								onClick={() => onMoveSelectedDay(1)}
 								aria-label="Ver dia siguiente"
 							>
 								<ChevronRight size={16} />
-							</button>
-							<button
-								type="button"
-								className={cx('ghost date-stepper-button', selectedDay === todayStr && 'is-today')}
+							</Button>
+							<Button
+								variant="ghost"
+								className={cx('date-stepper-button', selectedDay === todayStr && 'is-today')}
 								onClick={() => onSelectedDayChange(todayStr)}
 								aria-pressed={selectedDay === todayStr}
 							>
 								Hoy
-							</button>
+							</Button>
 						</div>
 					</Field>
 					<span
@@ -385,42 +386,38 @@ export function CashPanel({
 						{cashStatusLabel}
 					</span>
 					<div className="finance-action-rail cash-action-rail">
-						<button
-							type="button"
-							className="primary"
+						<Button
+							variant="primary"
 							disabled={cashIsClosed}
 							onClick={onCreateMovement}
 						>
 							<Plus size={16} />
 							Cargar movimiento
-						</button>
-						<button
-							type="button"
-							className="ghost"
+						</Button>
+						<Button
+							variant="ghost"
 							disabled={cashIsClosed}
 							onClick={onCloseDay}
 						>
 							<LockKeyhole size={16} />
 							Cerrar dia
-						</button>
+						</Button>
 						{cashIsClosed ? (
 							<>
-								<button
-									type="button"
-									className="ghost"
+								<Button
+									variant="ghost"
 									onClick={onRegisterAdjustment}
 								>
 									<ReceiptText size={16} />
 									Registrar ajuste hoy
-								</button>
-								<button
-									type="button"
-									className="ghost"
+								</Button>
+								<Button
+									variant="ghost"
 									onClick={onReopenDay}
 								>
 									<LockOpen size={16} />
 									Reabrir caja
-								</button>
+								</Button>
 							</>
 						) : null}
 					</div>
@@ -433,10 +430,10 @@ export function CashPanel({
 						}
 						hint={loadErrorNotice?.description}
 						action={
-							<button type="button" className="ghost" onClick={onRefresh}>
+							<Button variant="ghost" onClick={onRefresh}>
 								<RefreshCw size={16} />
 								Actualizar
-							</button>
+							</Button>
 						}
 					/>
 				) : null}
@@ -608,14 +605,13 @@ export function CashPanel({
 									<span className="cash-filter-counter">
 										{filteredCashEntries.length} de {cashEntries.length}
 									</span>
-									<button
-										type="button"
-										className="ghost"
+									<Button
+										variant="ghost"
 										disabled={!cashFiltersActive}
 										onClick={onClearCashFilters}
 									>
 										Limpiar
-									</button>
+									</Button>
 								</div>
 							</div>
 							<div className="cash-quick-bar">
@@ -666,10 +662,10 @@ export function CashPanel({
 										}
 									/>
 								</Field>
-								<button
-									type="button"
+								<Button
+									variant="ghost"
 									className={cx(
-										'ghost cash-advanced-toggle',
+										'cash-advanced-toggle',
 										advancedFiltersOpen && 'is-open',
 									)}
 									aria-expanded={advancedFiltersOpen}
@@ -677,7 +673,7 @@ export function CashPanel({
 								>
 									<SlidersHorizontal size={14} aria-hidden="true" />
 									{advancedFiltersOpen ? 'Cerrar filtros' : 'Mas filtros'}
-								</button>
+								</Button>
 							</div>
 							{advancedFiltersOpen ? (
 								<div className="cash-filter-grid">
@@ -800,23 +796,21 @@ export function CashPanel({
 									}
 									action={
 										cashEntries.length ? undefined : cashIsClosed ? (
-											<button
-												type="button"
-												className="ghost"
+											<Button
+												variant="ghost"
 												onClick={onRegisterAdjustment}
 											>
 												<ReceiptText size={16} />
 												Registrar ajuste hoy
-											</button>
+											</Button>
 										) : (
-											<button
-												type="button"
-												className="primary"
+											<Button
+												variant="primary"
 												onClick={onCreateMovement}
 											>
 												<Plus size={16} />
 												Cargar movimiento
-											</button>
+											</Button>
 										)
 									}
 								/>

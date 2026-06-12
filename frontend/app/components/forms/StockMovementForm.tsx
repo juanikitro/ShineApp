@@ -46,6 +46,7 @@ type StockMovementFormProps = {
 	flashClass: (key: string | null) => string
 	fieldFlashKey: (target: string) => string
 	submitting?: boolean
+	fieldErrors?: Record<string, string>
 }
 
 export function StockMovementForm({
@@ -77,6 +78,7 @@ export function StockMovementForm({
 	flashClass,
 	fieldFlashKey,
 	submitting = false,
+	fieldErrors,
 }: StockMovementFormProps) {
 	return (
 		<form className="form-grid stock-movement-form" onSubmit={onSubmit}>
@@ -93,7 +95,7 @@ export function StockMovementForm({
 						})
 					}
 				/>
-				<Field label="Fecha">
+				<Field label="Fecha" error={fieldErrors?.['occurred_on']}>
 					<input
 						type="date"
 						value={stockMovementForm.occurred_on}
@@ -171,7 +173,7 @@ export function StockMovementForm({
 			) : null}
 			{stockMovementRequiresSupplier ? (
 				<div className="form-row">
-					<Field label="Numero de comprobante">
+					<Field label="Numero de comprobante" error={fieldErrors?.['document_number']}>
 						<input
 							value={stockMovementForm.document_number}
 							onChange={(event) =>
@@ -323,7 +325,7 @@ export function StockMovementForm({
 					}
 				/>
 			) : null}
-			<Field label="Notas">
+			<Field label="Notas" error={fieldErrors?.['notes']}>
 				<textarea
 					value={stockMovementForm.notes}
 					onChange={(event) =>

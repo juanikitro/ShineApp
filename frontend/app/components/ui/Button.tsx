@@ -9,7 +9,7 @@ import {
 	useState,
 } from 'react'
 
-type Variant = 'primary' | 'ghost' | 'destructive' | 'subtle'
+type Variant = 'primary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md'
 
 export type ButtonProps = Omit<

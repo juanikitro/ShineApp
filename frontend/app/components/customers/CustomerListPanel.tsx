@@ -2,16 +2,16 @@
 
 import { type MouseEvent } from 'react'
 
-import { Eye, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
+import { Button } from '@/app/components/ui/Button'
 import { Empty } from '@/app/components/ui/Empty'
 import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
 import { cx } from '@/app/components/utils'
 import { joinDisplayParts } from '@/lib/display-text'
 import {
 	type AnyRecord,
-	birthdayText,
 	formatDateLabel,
 	money,
 } from '@/lib/page-support'
@@ -47,10 +47,6 @@ type CustomerListPanelProps = {
 	onDelete: (customer: AnyRecord) => void
 	onOpenQuickActions?: (
 		event: MouseEvent<HTMLElement>,
-		customer: AnyRecord,
-	) => void
-	onOpenQuickActionsFromTrigger?: (
-		event: MouseEvent<HTMLButtonElement>,
 		customer: AnyRecord,
 	) => void
 }
@@ -110,73 +106,55 @@ function customerOperationalStateText(customer: AnyRecord) {
 	return 'Sin novedades'
 }
 
-function customerPrimaryPill(customer: AnyRecord, canViewEconomy: boolean) {
+function customerOperationalStateHint(customer: AnyRecord) {
 	const insights = customerListInsights(customer)
-	if (customer?.has_birthday_alert) {
-		return { label: 'Cumple pronto', className: 'customer-pill--birthday' }
+	if (customer?.has_birthday_alert && customer.birthday_label) {
+		return String(customer.birthday_label)
 	}
-	if (canViewEconomy && insights.has_balance_due) {
-		return { label: 'Con saldo', className: 'customer-pill--balance' }
+	if (insights.has_upcoming_reservation && insights.next_reservation?.day) {
+		return formatDateLabel(insights.next_reservation.day)
 	}
-	if (insights.has_upcoming_reservation) {
-		return { label: 'Con reserva', className: 'customer-pill--reservation' }
+	if (insights.last_visit_at) {
+		return customerDaysAgoText(insights.days_since_last_visit, '')
 	}
-	if (insights.needs_follow_up) {
-		return {
-			label: 'Sin proxima visita',
-			className: 'customer-pill--follow-up',
-		}
-	}
-	return null
+	return ''
 }
 
-function customerContextChips(
+function customerPrimaryPill(
 	customer: AnyRecord,
-	canViewEconomy: boolean,
 	showReservationTimes = true,
 ) {
 	const insights = customerListInsights(customer)
-	const chips: Array<{ key: string; label: string; tone?: string }> = []
+	if (!insights.has_upcoming_reservation || !insights.next_reservation) {
+		return null
+	}
+	const dateLabel = customerScheduleLabel(
+		insights.next_reservation,
+		showReservationTimes,
+	)
+	return {
+		label: `Con reserva: ${dateLabel}`,
+		className: 'customer-pill--reservation',
+	}
+}
 
-	if (customer?.has_birthday_alert) {
-		chips.push({
+function customerBirthdayLabel(customer: AnyRecord) {
+	const dateLabel = formatDateLabel(customer.next_birthday)
+	const days = Number(customer.days_until_birthday)
+	if (days === 0) return `Cumple hoy: ${dateLabel}`
+	if (days === 1) return `Cumple manana: ${dateLabel}`
+	return `Cumple pronto: ${dateLabel}`
+}
+
+function customerContextChips(customer: AnyRecord) {
+	if (!customer?.has_birthday_alert) return []
+	return [
+		{
 			key: 'birthday',
-			label: birthdayText(customer),
+			label: customerBirthdayLabel(customer),
 			tone: 'alert',
-		})
-	}
-	if (insights.has_upcoming_reservation && insights.next_reservation) {
-		chips.push({
-			key: 'reservation',
-			label: `Reserva ${customerScheduleLabel(
-				insights.next_reservation,
-				showReservationTimes,
-			)}`,
-			tone: 'info',
-		})
-	} else {
-		chips.push({
-			key: 'follow-up',
-			label: 'Sin proxima visita',
-			tone: 'muted',
-		})
-	}
-	if (insights.last_service_name) {
-		chips.push({
-			key: 'service',
-			label: `Ultimo servicio: ${insights.last_service_name}`,
-			tone: 'muted',
-		})
-	}
-	if (canViewEconomy && insights.has_balance_due) {
-		chips.push({
-			key: 'balance',
-			label: `Saldo ${money(insights.balance_due_total)}`,
-			tone: 'warning',
-		})
-	}
-
-	return chips.slice(0, 4)
+		},
+	]
 }
 
 export function CustomerListPanel({
@@ -196,7 +174,6 @@ export function CustomerListPanel({
 	onEdit,
 	onDelete,
 	onOpenQuickActions,
-	onOpenQuickActionsFromTrigger,
 }: CustomerListPanelProps) {
 	const hasSearch = Boolean(search.trim())
 	const hasActiveFilter = hasSearch || filter !== 'all'
@@ -216,10 +193,10 @@ export function CustomerListPanel({
 						{filterLabel}
 					</p>
 				</div>
-				<button type="button" className="primary" onClick={onCreate}>
+				<Button type="button" variant="primary" onClick={onCreate}>
 					<Plus size={16} />
 					Nuevo cliente
-				</button>
+				</Button>
 			</div>
 			<div className="customer-list-toolbar">
 				<input
@@ -246,10 +223,10 @@ export function CustomerListPanel({
 							priorice seguimiento, reservas y saldo.
 						</span>
 					</div>
-					<button type="button" className="ghost" onClick={onCreate}>
+					<Button type="button" variant="ghost" onClick={onCreate}>
 						<Plus size={16} />
 						Sumar cliente
-					</button>
+					</Button>
 				</div>
 			) : null}
 			<div className="records customer-records">
@@ -257,13 +234,12 @@ export function CustomerListPanel({
 					customers.map((customer) => {
 						const insights = customerListInsights(customer)
 						const customerName = serviceDisplayName(customer)
-						const primaryPill = customerPrimaryPill(customer, canViewEconomy)
-						const nextReservation = insights.next_reservation
-						const chips = customerContextChips(
+						const primaryPill = customerPrimaryPill(
 							customer,
-							canViewEconomy,
 							showReservationTimes,
 						)
+						const nextReservation = insights.next_reservation
+						const chips = customerContextChips(customer)
 						const vehicleCount =
 							vehicleCountByCustomerId.get(String(customer.id)) ??
 							Number(insights.vehicles_count ?? 0)
@@ -307,19 +283,21 @@ export function CustomerListPanel({
 											customer.email || 'Sin email',
 										])}
 									</div>
-									<div className="customer-card-meta">
-										{chips.map((chip) => (
-											<span
-												className={cx(
-													'customer-chip',
-													chip.tone && `customer-chip--${chip.tone}`,
-												)}
-												key={`${customer.id}-${chip.key}`}
-											>
-												{chip.label}
-											</span>
-										))}
-									</div>
+									{chips.length ? (
+										<div className="customer-card-meta">
+											{chips.map((chip) => (
+												<span
+													className={cx(
+														'customer-chip',
+														chip.tone && `customer-chip--${chip.tone}`,
+													)}
+													key={`${customer.id}-${chip.key}`}
+												>
+													{chip.label}
+												</span>
+											))}
+										</div>
+									) : null}
 								</div>
 								<div className="customer-record-stats">
 									<div className="customer-record-stat">
@@ -354,52 +332,39 @@ export function CustomerListPanel({
 										<small>
 											{canViewEconomy
 												? `${insights.balance_due_work_orders_count ?? 0} trabajos con saldo`
-												: customerOperationalStateText(customer)}
+												: customerOperationalStateHint(customer)}
 										</small>
 									</div>
 								</div>
 								<div className="customer-record-actions">
-									<button
+									<Button
 										type="button"
-										className="primary"
+										variant="primary"
 										aria-label={`Abrir ${primaryActionLabel.toLowerCase()} de ${customerName}`}
 										onClick={() => onOpenDashboard(customer)}
 									>
 										<Eye size={15} />
 										{primaryActionLabel}
-									</button>
+									</Button>
 									<div className="customer-secondary-actions">
-										<button
-											className="ghost"
+										<Button
+											variant="ghost"
 											type="button"
 											aria-label={`Editar cliente ${customerName}`}
 											onClick={() => onEdit(customer)}
 										>
 											<Pencil size={15} />
 											Editar
-										</button>
-										<button
-											className="danger"
+										</Button>
+										<Button
+											variant="danger"
 											type="button"
 											aria-label={`Dar de baja cliente ${customerName}`}
 											onClick={() => onDelete(customer)}
 										>
 											<Trash2 size={15} />
 											Baja
-										</button>
-										{onOpenQuickActionsFromTrigger ? (
-											<button
-												className="ghost icon-button quick-actions-trigger"
-												type="button"
-												aria-label={`Acciones rapidas de ${customerName}`}
-												title={`Acciones rapidas de ${customerName}`}
-												onClick={(event) =>
-													onOpenQuickActionsFromTrigger(event, customer)
-												}
-											>
-												<MoreHorizontal size={15} />
-											</button>
-										) : null}
+										</Button>
 									</div>
 								</div>
 							</MotionFlashSurface>
@@ -419,21 +384,21 @@ export function CustomerListPanel({
 						}
 						action={
 							hasActiveFilter ? (
-								<button
+								<Button
 									type="button"
-									className="ghost"
+									variant="ghost"
 									onClick={() => {
 										onSearchChange('')
 										onFilterChange('all')
 									}}
 								>
 									Limpiar filtros
-								</button>
+								</Button>
 							) : (
-								<button type="button" className="primary" onClick={onCreate}>
+								<Button type="button" variant="primary" onClick={onCreate}>
 									<Plus size={16} />
 									Nuevo cliente
-								</button>
+								</Button>
 							)
 						}
 					/>

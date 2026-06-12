@@ -10,12 +10,15 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 - [UX: bloqueo de botones, loaders globales y confirmaciones in-app](2026-06-12-ux-loading-y-bloqueo-de-botones.md)
-- [Mejoras al modulo de tareas (UI, interaccion y negocio)](2026-06-12-tareas-mejoras-ui-y-negocio.md)
+- [UI/UX: pasada de consistencia, a11y y estados (2026-06-12)](2026-06-12-ui-audit-fixes.md)
 - [regen-docs: PR en lugar de push directo a main](2026-06-12-regen-docs-via-pr.md)
 - [Papelera: ver, restaurar y purgar registros borrados](2026-06-12-papelera-restore-borrado-logico.md)
 - [Modulo de tareas para empleadores y empleados](2026-06-12-modulo-tareas.md)
+- [Clientes: badge único de reserva y columnas alineadas](2026-06-12-clientes-listado-badge-y-columnas.md)
 - [Caja: rediseno de KPIs y metricas consolidadas en dos columnas](2026-06-12-caja-rediseno-kpis-y-metricas-consolidadas.md)
 - [Caja: boton unico "Cargar movimiento" con toggle por tipo](2026-06-12-caja-cargar-movimiento-unificado.md)
+- [Buscador global ahora cubre tareas y se documenta la regla para modulos nuevos](2026-06-12-buscador-global-cubre-tareas.md)
+- [Agenda: toolbar de navegacion horizontal y altura de cards ajustada](2026-06-12-agenda-toolbar-y-altura-card.md)
 - [Agenda: cards de reservas más compactas](2026-06-12-agenda-cards-compactas.md)
 - [Turnera: precios mostrados segun el tipo de vehiculo seleccionado](2026-06-11-turnera-precio-por-tipo-de-vehiculo.md)
 - [Turnera: el logo del header entra completo, sin recorte cuadrado](2026-06-11-turnera-logo-sin-recorte.md)

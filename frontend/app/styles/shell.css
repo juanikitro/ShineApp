@@ -89,7 +89,45 @@
   gap: 6px;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color var(--motion-duration-base) var(--motion-ease-standard);
   width: 100%;
+}
+
+.nav::-webkit-scrollbar {
+  width: 8px;
+}
+
+.nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nav::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+  transition: background var(--motion-duration-base) var(--motion-ease-standard);
+}
+
+.sidebar:hover .nav,
+.sidebar:focus-within .nav {
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+.sidebar:hover .nav::-webkit-scrollbar-thumb,
+.sidebar:focus-within .nav::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+}
+
+.nav::-webkit-scrollbar-thumb:hover {
+  background: var(--shop-ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav,
+  .nav::-webkit-scrollbar-thumb {
+    transition: none;
+  }
 }
 
 .nav button {
@@ -1050,7 +1088,7 @@
 .trash-feedback {
   background: color-mix(in srgb, var(--shop-accent) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--shop-accent) 30%, transparent);
-  border-radius: var(--radius-2);
+  border-radius: var(--radius-md);
   color: var(--shop-ink);
   margin-bottom: var(--space-3);
   padding: var(--space-2) var(--space-3);
@@ -1704,39 +1742,26 @@
   color: var(--shop-ink);
 }
 
-.customer-pill--birthday,
 .customer-chip--alert {
   background: var(--status-confirmed-bg);
   border-color: var(--status-confirmed-border);
   color: var(--status-confirmed-text);
 }
 
-.customer-pill--balance,
-.customer-chip--warning {
-  background: var(--status-pending-bg);
-  border-color: var(--status-pending-border);
-  color: var(--status-pending-text);
-}
-
-.customer-pill--reservation,
-.customer-chip--info {
+.customer-pill--reservation {
   background: var(--color-secondary);
   border-color: var(--color-workspace-active-border);
   color: var(--color-link);
 }
 
-.customer-pill--follow-up,
-.customer-chip--muted {
-  background: var(--color-workspace-surface-raised);
-  color: var(--shop-ink-soft);
-}
-
 .customer-record-stat {
   border-left: 1px solid var(--shop-border);
+  box-sizing: border-box;
   display: grid;
+  flex: 0 0 168px;
   gap: 2px;
-  min-width: 110px;
   padding: 0 16px;
+  width: 168px;
 }
 
 .customer-record-stat span {
@@ -4946,6 +4971,21 @@
 
   .settings-operational-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .customer-dashboard-profile,
+  .customer-dashboard-metrics,
+  .service-dashboard-profile,
+  .supplier-dashboard-profile {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mode-toggle button {
+    min-height: 44px;
+  }
+
+  .quick-actions-menu-item {
+    min-height: 44px;
   }
 
   .cash-flow-card,

@@ -6,6 +6,7 @@ import { FinanceRecordCard } from '@/app/components/finance/FinanceRecordCard'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
 import { SkeletonList } from '@/app/components/ui/Skeleton'
 import { Field } from '@/app/components/ui/Field'
+import { Button } from '@/app/components/ui/Button'
 import { joinDisplayParts } from '@/lib/display-text'
 import { type ApiErrorNotice } from '@/lib/api-errors'
 import {
@@ -93,14 +94,13 @@ export function FixedExpensePanel({
 				<div className="panel-head finance-panel-head">
 					<div className="finance-action-rail">
 						<div className="finance-primary-actions">
-							<button
-								type="button"
-								className="primary"
+							<Button
+								variant="primary"
 								onClick={onCreateFixedExpense}
 							>
 								<CalendarClock size={16} />
 								Nuevo gasto fijo
-							</button>
+							</Button>
 						</div>
 					</div>
 				</div>
@@ -112,10 +112,10 @@ export function FixedExpensePanel({
 						}
 						hint={loadErrorNotice?.description}
 						action={
-							<button type="button" className="ghost" onClick={onRefresh}>
+							<Button variant="ghost" onClick={onRefresh}>
 								<RefreshCw size={16} />
 								Actualizar
-							</button>
+							</Button>
 						}
 					/>
 				) : null}
@@ -242,29 +242,26 @@ export function FixedExpensePanel({
 												</button>
 												<div className="fixed-expense-item-actions">
 													{plan.is_active ? (
-														<button
-															type="button"
-															className="ghost"
+														<Button
+															variant="ghost"
 															onClick={() => onPauseFixedExpense(plan.id)}
 														>
 															Pausar
-														</button>
+														</Button>
 													) : (
-														<button
-															type="button"
-															className="ghost"
+														<Button
+															variant="ghost"
 															onClick={() => onResumeFixedExpense(plan.id)}
 														>
 															Reanudar
-														</button>
+														</Button>
 													)}
-													<button
-														type="button"
-														className="ghost danger"
+													<Button
+														variant="danger"
 														onClick={() => onDeleteFixedExpense(plan.id)}
 													>
 														Eliminar
-													</button>
+													</Button>
 												</div>
 											</li>
 										)
@@ -284,14 +281,13 @@ export function FixedExpensePanel({
 									}
 									action={
 										fixedExpenses.length ? undefined : (
-											<button
-												type="button"
-												className="primary"
+											<Button
+												variant="primary"
 												onClick={onCreateFixedExpense}
 											>
 												<CalendarClock size={16} />
 												Nuevo gasto fijo
-											</button>
+											</Button>
 										)
 									}
 								/>

@@ -143,7 +143,7 @@ export function useConfirmDialog(): ConfirmDialogApi {
 									{pending.cancelLabel ?? 'Cancelar'}
 								</Button>
 								<Button
-									variant={pending.tone === 'danger' ? 'destructive' : 'primary'}
+									variant={pending.tone === 'danger' ? 'danger' : 'primary'}
 									onClick={() => {
 										void confirm()
 									}}

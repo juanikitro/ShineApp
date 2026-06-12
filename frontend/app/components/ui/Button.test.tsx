@@ -52,12 +52,12 @@ test('Button does not fire onClick while loading', async () => {
 
 test('Button respects variant and size class names', () => {
 	render(
-		<Button variant="destructive" size="sm" className="custom">
+		<Button variant="danger" size="sm" className="custom">
 			Borrar
 		</Button>,
 	)
 	const btn = screen.getByRole('button')
-	assert.equal(btn.className.includes('destructive'), true)
+	assert.equal(btn.className.includes('danger'), true)
 	assert.equal(btn.className.includes('button-sm'), true)
 	assert.equal(btn.className.includes('custom'), true)
 })
@@ -73,11 +73,11 @@ test('Button type=submit is preserved for forms', () => {
 
 test('Button onClickAsync locks the button while the promise is pending', async () => {
 	const user = userEvent.setup()
-	let resolveFn: (() => void) | null = null
+	const deferred: { resolve: (() => void) | null } = { resolve: null }
 	const handler = vi.fn(
 		() =>
 			new Promise<void>((resolve) => {
-				resolveFn = resolve
+				deferred.resolve = resolve
 			}),
 	)
 	render(<Button onClickAsync={handler}>Guardar</Button>)
@@ -92,7 +92,7 @@ test('Button onClickAsync locks the button while the promise is pending', async 
 	await user.click(btn)
 	assert.equal(handler.mock.calls.length, 1)
 
-	resolveFn?.()
+	deferred.resolve?.()
 	await new Promise((r) => setTimeout(r, 0))
 	assert.equal((btn as HTMLButtonElement).disabled, false)
 	assert.equal(btn.hasAttribute('aria-busy'), false)
@@ -100,11 +100,11 @@ test('Button onClickAsync locks the button while the promise is pending', async 
 
 test('Button onClickAsync releases lock even if the promise rejects', async () => {
 	const user = userEvent.setup()
-	let rejectFn: ((err: Error) => void) | null = null
+	const deferred: { reject: ((err: Error) => void) | null } = { reject: null }
 	const handler = vi.fn(
 		() =>
 			new Promise<void>((_, reject) => {
-				rejectFn = reject
+				deferred.reject = reject
 			}),
 	)
 	render(<Button onClickAsync={handler}>Reintentar</Button>)
@@ -113,7 +113,7 @@ test('Button onClickAsync releases lock even if the promise rejects', async () =
 	await user.click(btn)
 	assert.equal((btn as HTMLButtonElement).disabled, true)
 
-	rejectFn?.(new Error('boom'))
+	deferred.reject?.(new Error('boom'))
 	await new Promise((r) => setTimeout(r, 0))
 	assert.equal((btn as HTMLButtonElement).disabled, false)
 })

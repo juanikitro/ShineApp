@@ -5,6 +5,7 @@ import { type ReactNode } from 'react'
 import { ChevronLeft, Plus } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
+import { Button } from '@/app/components/ui/Button'
 import { Empty, LoadingState } from '@/app/components/ui/Empty'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { Panel } from '@/app/components/ui/Panel'
@@ -374,21 +375,21 @@ export function ServicesPanel({
 			<div className="grid customer-dashboard service-dashboard">
 				<Panel>
 					<div className="customer-dashboard-head service-dashboard-head">
-						<button type="button" className="ghost" onClick={onBackToServices}>
+						<Button type="button" variant="ghost" onClick={onBackToServices}>
 							<ChevronLeft size={16} />
 							Servicios
-						</button>
+						</Button>
 						<div>
 							<h2>{serviceDisplayName(service)}</h2>
 							<p>Dashboard especifico del servicio</p>
 						</div>
-						<button
+						<Button
 							type="button"
-							className="ghost"
+							variant="ghost"
 							onClick={() => onOpenServiceDetail(service)}
 						>
 							Editar servicio
-						</button>
+						</Button>
 					</div>
 					<div className="customer-dashboard-profile service-dashboard-profile">
 						<div>
@@ -507,10 +508,10 @@ export function ServicesPanel({
 						</p>
 					</div>
 					{canViewEconomy ? (
-						<button type="button" className="primary" onClick={onCreateService}>
+						<Button type="button" variant="primary" onClick={onCreateService}>
 							<Plus size={16} />
 							Nuevo servicio
-						</button>
+						</Button>
 					) : null}
 				</div>
 				<div className="records">
@@ -544,20 +545,20 @@ export function ServicesPanel({
 										actions={
 											canViewEconomy ? (
 												<>
-													<button
+													<Button
 														type="button"
-														className="ghost"
+														variant="ghost"
 														onClick={() => onOpenServiceDetail(item)}
 													>
 														Editar
-													</button>
-													<button
+													</Button>
+													<Button
 														type="button"
-														className="danger"
+														variant="danger"
 														onClick={() => onDeleteService(item)}
 													>
 														Inactivar
-													</button>
+													</Button>
 												</>
 											) : undefined
 										}
