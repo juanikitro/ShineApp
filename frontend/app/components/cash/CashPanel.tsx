@@ -331,49 +331,45 @@ export function CashPanel({
 					>
 						{cashStatusLabel}
 					</span>
-					<div className="finance-action-rail">
-						<div className="finance-primary-actions">
-							<button
-								type="button"
-								className="primary"
-								disabled={cashIsClosed}
-								onClick={onCreateMovement}
-							>
-								<Plus size={16} />
-								Cargar movimiento
-							</button>
-						</div>
-						<div className="finance-secondary-actions">
-							<button
-								type="button"
-								className="ghost"
-								disabled={cashIsClosed}
-								onClick={onCloseDay}
-							>
-								<LockKeyhole size={16} />
-								Cerrar dia
-							</button>
-							{cashIsClosed ? (
-								<>
-									<button
-										type="button"
-										className="ghost"
-										onClick={onRegisterAdjustment}
-									>
-										<ReceiptText size={16} />
-										Registrar ajuste hoy
-									</button>
-									<button
-										type="button"
-										className="ghost"
-										onClick={onReopenDay}
-									>
-										<LockOpen size={16} />
-										Reabrir caja
-									</button>
-								</>
-							) : null}
-						</div>
+					<div className="finance-action-rail cash-action-rail">
+						<button
+							type="button"
+							className="primary"
+							disabled={cashIsClosed}
+							onClick={onCreateMovement}
+						>
+							<Plus size={16} />
+							Cargar movimiento
+						</button>
+						<button
+							type="button"
+							className="ghost"
+							disabled={cashIsClosed}
+							onClick={onCloseDay}
+						>
+							<LockKeyhole size={16} />
+							Cerrar dia
+						</button>
+						{cashIsClosed ? (
+							<>
+								<button
+									type="button"
+									className="ghost"
+									onClick={onRegisterAdjustment}
+								>
+									<ReceiptText size={16} />
+									Registrar ajuste hoy
+								</button>
+								<button
+									type="button"
+									className="ghost"
+									onClick={onReopenDay}
+								>
+									<LockOpen size={16} />
+									Reabrir caja
+								</button>
+							</>
+						) : null}
 					</div>
 				</div>
 				{loadBlocked ? (
