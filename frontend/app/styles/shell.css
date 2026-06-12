@@ -89,7 +89,45 @@
   gap: 6px;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color var(--motion-duration-base) var(--motion-ease-standard);
   width: 100%;
+}
+
+.nav::-webkit-scrollbar {
+  width: 8px;
+}
+
+.nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nav::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+  transition: background var(--motion-duration-base) var(--motion-ease-standard);
+}
+
+.sidebar:hover .nav,
+.sidebar:focus-within .nav {
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+.sidebar:hover .nav::-webkit-scrollbar-thumb,
+.sidebar:focus-within .nav::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+}
+
+.nav::-webkit-scrollbar-thumb:hover {
+  background: var(--shop-ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav,
+  .nav::-webkit-scrollbar-thumb {
+    transition: none;
+  }
 }
 
 .nav button {
