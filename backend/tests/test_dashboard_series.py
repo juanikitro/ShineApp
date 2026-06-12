@@ -224,3 +224,10 @@ def test_dashboard_cash_by_category_sums_match_cashflow_totals():
     expense_totals = [row["total"] for row in breakdown["expense_by_category"]]
     assert expense_totals == sorted(expense_totals, reverse=True)
 
+    # income_by_service: sin payment vinculado cae al category como nombre de servicio.
+    income_by_service = {row["service"]: row["total"] for row in breakdown["income_by_service"]}
+    assert income_by_service["Lavado"] == Decimal("50000.00")
+    assert income_by_service["Detailing"] == Decimal("30000.00")
+    income_service_totals = [row["total"] for row in breakdown["income_by_service"]]
+    assert income_service_totals == sorted(income_service_totals, reverse=True)
+

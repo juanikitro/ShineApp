@@ -3571,6 +3571,23 @@ export default function Home() {
 		setSelectedDay(currentToday)
 	}
 
+	function goToDate(isoDate: string) {
+		const currentDate = new Date(`${agendaStartDay}T00:00:00`).getTime()
+		const targetDate = new Date(`${isoDate}T00:00:00`).getTime()
+		const offsetDays = Math.round((targetDate - currentDate) / 86_400_000)
+		if (Number.isFinite(offsetDays) && offsetDays !== 0) {
+			const slideMotion = agendaSlideMotionFromOffset(offsetDays, AGENDA_VISIBLE_DAYS)
+			setAgendaSlideMotion(slideMotion)
+			setAgendaOverlapSuppressedStartDay(
+				agendaSlideWindowsOverlap(slideMotion, AGENDA_VISIBLE_DAYS)
+					? isoDate
+					: null,
+			)
+		}
+		setAgendaStartDay(isoDate)
+		setSelectedDay(isoDate)
+	}
+
 	function openQuickReservation(day: string, prefillDay = false) {
 		setSelectedDay(day)
 		setQuickReservationPrefillDay(prefillDay)
@@ -13123,11 +13140,13 @@ export default function Home() {
 					<div className="grid agenda-layout">
 						<section className="panel agenda-panel">
 							<AgendaBoardToolbar
+								currentDay={agendaStartDay}
 								endLabel={formatDayLabel(weekEndDay)}
 								startLabel={formatDayLabel(agendaStartDay)}
 								visibleDays={AGENDA_VISIBLE_DAYS}
 								onMove={moveAgenda}
 								onToday={goToToday}
+								onGoToDate={goToDate}
 							/>
 							{agendaLoadError ? (
 								<ErrorState
