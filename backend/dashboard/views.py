@@ -349,6 +349,7 @@ def cash_by_category_for_period(business, date_from, date_to):
     """
     movements = CashMovement.objects.select_related(
         "payment",
+        "payment__work_order__service",
         "material_purchase",
         "stock_movement",
         "debt",
@@ -358,6 +359,7 @@ def cash_by_category_for_period(business, date_from, date_to):
         occurred_at__date__lte=date_to,
     )
     income = defaultdict(lambda: ZERO)
+    income_by_service = defaultdict(lambda: ZERO)
     expense = defaultdict(lambda: ZERO)
     for movement in movements:
         if not cash_movement_cashflow_effect(movement):
@@ -365,6 +367,12 @@ def cash_by_category_for_period(business, date_from, date_to):
         category = str(movement.category or "").strip() or "Sin categoria"
         if movement.movement_type == CashMovement.MovementType.INCOME:
             income[category] += movement.amount
+            payment = movement.payment
+            if payment and payment.work_order and payment.work_order.service:
+                service_name = payment.work_order.service.name
+            else:
+                service_name = str(movement.category or "").strip() or "Sin servicio"
+            income_by_service[service_name] += movement.amount
         elif movement.movement_type == CashMovement.MovementType.EXPENSE:
             expense[category] += movement.amount
 
@@ -389,8 +397,19 @@ def cash_by_category_for_period(business, date_from, date_to):
             )
         ]
 
+    def to_service_rows(bucket):
+        return [
+            {"service": service, "total": total}
+            for service, total in sorted(
+                bucket.items(),
+                key=lambda item: item[1],
+                reverse=True,
+            )
+        ]
+
     return {
         "income_by_category": to_rows(income),
+        "income_by_service": to_service_rows(income_by_service),
         "expense_by_category": to_rows(expense),
     }
 
