@@ -1510,6 +1510,11 @@
   font-size: var(--text-base);
 }
 
+.record-prices {
+  color: var(--shop-ink-soft);
+  font-size: var(--text-sm);
+}
+
 .birthday-badge {
   align-items: center;
   background: var(--color-secondary);
