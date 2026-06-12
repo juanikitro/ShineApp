@@ -59,11 +59,14 @@ class SectorSerializer(BusinessScopedSerializerMixin, serializers.ModelSerialize
 class ServiceMaterialSerializer(serializers.ModelSerializer):
     material_name = serializers.CharField(source="material.name", read_only=True)
     material_unit = serializers.CharField(source="material.unit", read_only=True)
+    material_unit_cost = serializers.DecimalField(
+        source="material.estimated_unit_cost", max_digits=12, decimal_places=2, read_only=True
+    )
 
     class Meta:
         model = ServiceMaterial
-        fields = ["id", "service", "material", "material_name", "material_unit", "quantity", "notes"]
-        read_only_fields = ["id", "material_name", "material_unit"]
+        fields = ["id", "service", "material", "material_name", "material_unit", "material_unit_cost", "quantity", "notes"]
+        read_only_fields = ["id", "material_name", "material_unit", "material_unit_cost"]
 
     def validate_quantity(self, value):
         if value <= 0:

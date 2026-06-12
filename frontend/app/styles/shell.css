@@ -1510,6 +1510,11 @@
   font-size: var(--text-base);
 }
 
+.record-prices {
+  color: var(--shop-ink-soft);
+  font-size: var(--text-sm);
+}
+
 .birthday-badge {
   align-items: center;
   background: var(--color-secondary);
@@ -1591,16 +1596,37 @@
 }
 
 .customer-record-card {
-  gap: var(--space-3);
-  padding: 14px;
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  padding: 12px 16px;
 }
 
-.customer-record-head {
+.customer-record-identity {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  padding-right: 16px;
+}
+
+.customer-record-name {
   align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.customer-record-name .record-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .customer-card-meta,
-.customer-record-actions,
 .customer-secondary-actions {
   align-items: center;
   display: flex;
@@ -1608,12 +1634,28 @@
   gap: var(--space-2);
 }
 
-.customer-record-actions {
-  justify-content: flex-end;
+.customer-card-meta {
+  margin-top: 0;
 }
 
-.customer-card-meta {
-  margin-top: var(--space-2);
+.customer-record-stats {
+  align-self: stretch;
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.customer-record-actions {
+  --button-height: var(--button-height-compact);
+  --button-padding-block: var(--button-padding-block-compact);
+  --button-padding-inline: var(--button-padding-inline-compact);
+  --button-font-size: var(--button-font-size-compact);
+  align-items: stretch;
+  border-left: 1px solid var(--shop-border);
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 16px;
 }
 
 .customer-pill,
@@ -1661,39 +1703,59 @@
   color: var(--shop-ink-soft);
 }
 
-.customer-record-body {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
 .customer-record-stat {
-  background: var(--color-workspace-surface-raised);
-  border: 1px solid var(--color-workspace-border);
-  border-radius: var(--radius-sm);
+  border-left: 1px solid var(--shop-border);
   display: grid;
-  gap: var(--space-1);
-  min-width: 0;
-  padding: 10px;
+  gap: 2px;
+  min-width: 110px;
+  padding: 0 16px;
 }
 
 .customer-record-stat span {
-  color: var(--shop-ink-soft);
+  color: var(--shop-ink-muted);
   font-size: var(--text-xs);
   font-weight: 750;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
 .customer-record-stat strong {
   color: var(--shop-ink);
-  font-size: var(--text-md);
-  overflow-wrap: anywhere;
+  font-size: var(--text-base);
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .customer-record-stat small {
   color: var(--shop-ink-soft);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+  .customer-record-stats {
+    display: none;
+  }
+
+  .customer-record-actions {
+    border-left: none;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .customer-record-card {
+    flex-wrap: wrap;
+  }
+
+  .customer-record-identity {
+    padding-right: 0;
+  }
 }
 
 .record-actions {
@@ -2763,6 +2825,14 @@
   justify-items: end;
   max-width: 100%;
   min-width: 0;
+}
+
+.cash-action-rail {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .finance-primary-actions,
@@ -4348,6 +4418,7 @@
   }
 
   .finance-action-rail,
+  .cash-action-rail,
   .settings-action-rail,
   .finance-primary-actions,
   .finance-secondary-actions,
@@ -4360,6 +4431,7 @@
   }
 
   .finance-action-rail,
+  .cash-action-rail,
   .settings-action-rail {
     width: 100%;
   }
@@ -4652,6 +4724,7 @@
 
   .finance-primary-actions,
   .finance-secondary-actions,
+  .cash-action-rail,
   .finance-record-actions,
   .finance-record-secondary-actions,
   .settings-primary-actions,
@@ -4662,6 +4735,7 @@
 
   .finance-primary-actions button,
   .finance-secondary-actions button,
+  .cash-action-rail button,
   .finance-record-actions > button,
   .finance-record-secondary-actions button,
   .settings-primary-actions button,
