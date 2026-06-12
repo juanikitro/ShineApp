@@ -179,6 +179,14 @@ No agregar el `DJANGO_SECRET_KEY` real, claves Supabase S3 ni secretos SMTP a Gi
 - Validar: abrir o inspeccionar un PR hacia `main`; GitHub debe bloquear merge hasta que `Validate / ci-required` pase en el ultimo commit o merge queue group.
 - Riesgo si se omite: pushes directos o PRs stale pueden llegar a `main` y disparar deploy productivo sin el gate completo.
 
+## 12.1 Habilitar Auto-Merge Para El Workflow De Docs
+
+- Que: habilitar la opcion "Allow auto-merge" en la configuracion del repositorio.
+- Donde: Settings > General > Pull Requests > Allow auto-merge (checkbox).
+- Por que: el ruleset de `main` bloquea push directo de GitHub Actions (limitacion de GitHub para repos personales). El workflow `regen-docs.yml` abre un PR desde `chore/regen-docs` y activa auto-merge para que se mergee automaticamente cuando pase el CI. Sin esta opcion, el comando `gh pr merge --auto` falla y el PR queda abierto para merge manual.
+- Validar: mergear cualquier PR a `main`; debe aparecer un PR "chore: regenerar changelog e indice" que se mergea solo despues de que el CI pase (~5 min).
+- Riesgo si se omite: los docs (CHANGELOG.md e indices) quedan desactualizados en `main` y el job `Validate / docs` falla en cada push hasta que el PR se mergee manualmente.
+
 ## 13. Hacer Que GitHub Actions Sea El Unico Camino De Deploy Productivo Automatico
 
 - Que: deshabilitar o bypassear los deploys Git productivos built-in de Vercel para `shineapp-api` y `shineapp-web`, o configurarlos para saltearse cuando GitHub Actions sea responsable de produccion.
