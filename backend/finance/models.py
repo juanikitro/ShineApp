@@ -59,6 +59,16 @@ class Payment(SoftDeleteMixin):
             self.deleted_at = timezone.now()
             self.save(update_fields=["deleted_at"])
 
+    def restore(self):
+        with transaction.atomic():
+            Payment.all_objects.filter(pk=self.pk).update(deleted_at=None)
+            self.deleted_at = None
+            movement = (
+                CashMovement.all_objects.filter(payment_id=self.pk, deleted_at__isnull=False).first()
+            )
+            if movement is not None:
+                movement.restore()
+
 
 class CashMovement(SoftDeleteMixin):
     class MovementType(models.TextChoices):

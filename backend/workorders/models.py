@@ -92,6 +92,15 @@ class WorkOrder(SoftDeleteMixin):
             self.deleted_at = timezone.now()
             self.save(update_fields=["deleted_at", "updated_at"])
 
+    def restore(self):
+        with transaction.atomic():
+            now = timezone.now()
+            WorkOrder.all_objects.filter(pk=self.pk).update(deleted_at=None, updated_at=now)
+            self.deleted_at = None
+            self.updated_at = now
+            for payment in self.payments(manager="all_objects").filter(deleted_at__isnull=False):
+                payment.restore()
+
     @property
     def paid_amount(self):
         return self.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")

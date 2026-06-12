@@ -479,6 +479,7 @@ type SettingsSection =
 	| 'agenda'
 	| 'users'
 	| 'history'
+	| 'trash'
 	| 'novedades'
 
 const settingsSectionOptions: Array<{
@@ -493,6 +494,7 @@ const settingsSectionOptions: Array<{
 	{ value: 'agenda', label: 'Agenda', icon: CalendarDays },
 	{ value: 'users', label: 'Usuarios', icon: Users },
 	{ value: 'history', label: 'Historial', icon: History },
+	{ value: 'trash', label: 'Papelera', icon: Trash2 },
 	{ value: 'novedades', label: 'Novedades', icon: Sparkles },
 ]
 const navigationConfig = {

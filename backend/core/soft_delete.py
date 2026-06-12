@@ -8,12 +8,16 @@ Los modelos que extiendan `SoftDeleteMixin` adoptan:
 - `Meta.base_manager_name = "objects"` para que los related managers
   reverse (`customer.reservations`, `work_order.payments`) tambien filtren.
 - Override de `delete()` que marca `deleted_at = timezone.now()`.
+- `restore()` para revertir el borrado logico (limpia `deleted_at` y, si
+  existe el campo `is_active`, lo vuelve a `True`).
 - Metodo `hard_delete()` para el borrado fisico real.
 
 La propagacion en cascada NO es automatica: cada modelo padre debe
 implementar su propio `delete()` que llame `delete()` en los hijos
 relevantes (envuelto en `transaction.atomic`). Esto es deliberado para
-mantener cascadas explicitas y visibles en el codigo.
+mantener cascadas explicitas y visibles en el codigo. La cascada inversa
+(`restore`) sigue la misma convencion: cada padre con cascada documenta
+y restaura sus hijos.
 """
 
 from django.db import models
@@ -56,3 +60,16 @@ class SoftDeleteMixin(models.Model):
 
     def hard_delete(self, using=None, keep_parents=False):
         return super().delete(using=using, keep_parents=keep_parents)
+
+    def restore(self):
+        # No usamos `save(update_fields=...)` porque `base_manager_name="objects"`
+        # filtra registros borrados y haria fallar el chequeo de filas. Hacemos
+        # el update via `all_objects` y refrescamos la instancia en memoria.
+        updates = {"deleted_at": None}
+        if hasattr(self, "is_active"):
+            updates["is_active"] = True
+        if hasattr(self, "updated_at"):
+            updates["updated_at"] = timezone.now()
+        type(self).all_objects.filter(pk=self.pk).update(**updates)
+        for field, value in updates.items():
+            setattr(self, field, value)
