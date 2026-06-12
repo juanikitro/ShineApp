@@ -64,6 +64,7 @@ type ReservationFormProps = {
 	flashClass: (key: string | null) => string
 	fieldFlashKey: (target: string) => string
 	submitting?: boolean
+	fieldErrors?: Record<string, string>
 }
 
 export function ReservationForm({
@@ -96,6 +97,7 @@ export function ReservationForm({
 	flashClass,
 	fieldFlashKey,
 	submitting = false,
+	fieldErrors,
 }: ReservationFormProps) {
 	const today = todayIsoDate()
 	const selectedDay =
@@ -333,7 +335,7 @@ export function ReservationForm({
 				</div>
 			</div>
 			<div className="form-row">
-				<Field label="Fecha de ingreso (opcional)">
+				<Field label="Fecha de ingreso (opcional)" error={fieldErrors?.['day']}>
 					<input
 						data-focus-key="reservation.day"
 						name="reservation_day"
@@ -350,7 +352,7 @@ export function ReservationForm({
 						onKeyDown={focusNextOnEnter('reservation.exit_day')}
 					/>
 				</Field>
-				<Field label="Fecha de egreso">
+				<Field label="Fecha de egreso" error={fieldErrors?.['exit_day']}>
 					<input
 						data-focus-key="reservation.exit_day"
 						name="reservation_exit_day"
@@ -415,7 +417,7 @@ export function ReservationForm({
 			) : null}
 			{useReservationTimes ? (
 				<div className="form-row">
-					<Field label="Hora de ingreso (opcional)">
+					<Field label="Hora de ingreso (opcional)" error={fieldErrors?.['start_time']}>
 						<select
 							data-focus-key="reservation.start_time"
 							name="reservation_start_time"
@@ -444,7 +446,7 @@ export function ReservationForm({
 							))}
 						</select>
 					</Field>
-					<Field label="Hora de egreso (opcional)">
+					<Field label="Hora de egreso (opcional)" error={fieldErrors?.['exit_time']}>
 						<select
 							data-focus-key="reservation.exit_time"
 							name="reservation_exit_time"
@@ -472,7 +474,7 @@ export function ReservationForm({
 					</Field>
 				</div>
 			) : null}
-			<Field label="Notas">
+			<Field label="Notas" error={fieldErrors?.['notes']}>
 				<textarea
 					data-focus-key="reservation.notes"
 					name="reservation_notes"

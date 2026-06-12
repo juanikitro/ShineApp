@@ -4,6 +4,7 @@ import { type ReactNode } from 'react'
 
 import { ChevronLeft, Pencil } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { ErrorState, LoadingState } from '@/app/components/ui/Empty'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { Panel } from '@/app/components/ui/Panel'
@@ -49,14 +50,15 @@ export function CustomerDashboardShell({
 		<div className="grid customer-dashboard">
 			<Panel className="customer-dashboard-hero-panel">
 				<div className="customer-dashboard-head">
-					<button
+					<Button
 						type="button"
-						className="ghost customer-dashboard-back"
+						variant="ghost"
+						className="customer-dashboard-back"
 						onClick={onBack}
 					>
 						<ChevronLeft size={16} />
 						Clientes
-					</button>
+					</Button>
 					<div className="customer-dashboard-title">
 						<span className="panel-kicker">Dashboard de cliente</span>
 						<h2>{title}</h2>
@@ -64,10 +66,10 @@ export function CustomerDashboardShell({
 						{birthdayBadge}
 					</div>
 					<div className="customer-dashboard-actions">
-						<button type="button" className="ghost" onClick={onEdit}>
+						<Button type="button" variant="ghost" onClick={onEdit}>
 							<Pencil size={15} />
 							Editar cliente
-						</button>
+						</Button>
 					</div>
 				</div>
 				<div className="customer-dashboard-profile">
@@ -89,9 +91,9 @@ export function CustomerDashboardShell({
 					text="No se pudo cargar el historial economico del cliente."
 					hint="El perfil sigue disponible, pero no se muestran ventas, pagos ni rankings para evitar datos incompletos."
 					action={
-						<button type="button" className="ghost" onClick={onBack}>
+						<Button type="button" variant="ghost" onClick={onBack}>
 							Volver al listado
-						</button>
+						</Button>
 					}
 				/>
 			) : null}

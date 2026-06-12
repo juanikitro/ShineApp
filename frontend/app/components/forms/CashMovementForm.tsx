@@ -40,6 +40,7 @@ type CashMovementFormProps = {
 		openCombo?: boolean,
 	) => (event: KeyboardEvent<HTMLElement>) => void
 	submitting?: boolean
+	fieldErrors?: Record<string, string>
 }
 
 export function CashMovementForm({
@@ -56,6 +57,7 @@ export function CashMovementForm({
 	focusField,
 	focusNextOnEnter,
 	submitting = false,
+	fieldErrors,
 }: CashMovementFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -129,7 +131,7 @@ export function CashMovementForm({
 				/>
 			</div>
 			<div className="form-row">
-				<Field label="Importe">
+				<Field label="Importe" error={fieldErrors?.['amount']}>
 					<NumericInput
 						data-focus-key="cash-movement.amount"
 						required
@@ -144,7 +146,7 @@ export function CashMovementForm({
 						onKeyDown={focusNextOnEnter('cash-movement.occurred_at')}
 					/>
 				</Field>
-				<Field label="Fecha que impacta">
+				<Field label="Fecha que impacta" error={fieldErrors?.['occurred_at']}>
 					<input
 						data-focus-key="cash-movement.occurred_at"
 						required
@@ -159,7 +161,7 @@ export function CashMovementForm({
 						onKeyDown={focusNextOnEnter('cash-movement.occurred_at')}
 					/>
 				</Field>
-				<Field label="Corrige cierre">
+				<Field label="Corrige cierre" error={fieldErrors?.['adjusts_closed_day']}>
 					<input
 						type="date"
 						value={movementForm.adjusts_closed_day ?? ''}
@@ -184,7 +186,7 @@ export function CashMovementForm({
 					<strong>{formatDateLabel(movementForm.adjusts_closed_day)}</strong>.
 				</div>
 			) : null}
-			<Field label="Detalle">
+			<Field label="Detalle" error={fieldErrors?.['description']}>
 				<textarea
 					data-focus-key="cash-movement.description"
 					value={movementForm.description}

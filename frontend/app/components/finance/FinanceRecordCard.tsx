@@ -6,6 +6,7 @@ import {
 } from 'react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
+import { Button } from '@/app/components/ui/Button'
 import { RecordCardHeader } from '@/app/components/ui/RecordCard'
 import { cx } from '@/app/components/utils'
 
@@ -50,9 +51,8 @@ type FinanceRecordCardProps = {
 
 function renderAction(action: FinanceRecordAction, key: string) {
 	return (
-		<button
-			type="button"
-			className={action.variant ?? 'ghost'}
+		<Button
+			variant={action.variant ?? 'ghost'}
 			aria-label={action.ariaLabel}
 			disabled={action.disabled}
 			onClick={action.onClick}
@@ -60,7 +60,7 @@ function renderAction(action: FinanceRecordAction, key: string) {
 		>
 			{action.icon}
 			{action.label}
-		</button>
+		</Button>
 	)
 }
 

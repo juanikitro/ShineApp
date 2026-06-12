@@ -1088,7 +1088,7 @@
 .trash-feedback {
   background: color-mix(in srgb, var(--shop-accent) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--shop-accent) 30%, transparent);
-  border-radius: var(--radius-2);
+  border-radius: var(--radius-md);
   color: var(--shop-ink);
   margin-bottom: var(--space-3);
   padding: var(--space-2) var(--space-3);
@@ -4971,6 +4971,21 @@
 
   .settings-operational-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .customer-dashboard-profile,
+  .customer-dashboard-metrics,
+  .service-dashboard-profile,
+  .supplier-dashboard-profile {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mode-toggle button {
+    min-height: 44px;
+  }
+
+  .quick-actions-menu-item {
+    min-height: 44px;
   }
 
   .cash-flow-card,

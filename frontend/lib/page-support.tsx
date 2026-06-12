@@ -1614,7 +1614,7 @@ function NoticeToast({
 			</div>
 			{toast.fields?.length ? (
 				<ul className="alert-fields">
-					{toast.fields.slice(0, 3).map((field, index) => (
+					{toast.fields.slice(0, 8).map((field, index) => (
 						<li key={`${field.path}-${index}`}>
 							<strong>{field.label}</strong>
 							<span>{field.message}</span>

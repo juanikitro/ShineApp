@@ -7,6 +7,7 @@ import { Package } from 'lucide-react'
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
 import { Empty } from '@/app/components/ui/Empty'
 import { type QuickAction } from '@/app/components/ui/QuickActionsMenu'
+import { Button } from '@/app/components/ui/Button'
 import { joinDisplayParts } from '@/lib/display-text'
 import {
 	money,
@@ -103,20 +104,20 @@ export function InventoryPanel({
 			<section className="panel">
 				<div className="panel-head">
 					<div className="record-actions">
-						<button
+						<Button
 							type="button"
-							className="primary"
+							variant="primary"
 							onClick={onOpenStockMovementForm}
 						>
 							<Package size={16} />
 							Nuevo movimiento
-						</button>
-						<button type="button" className="ghost" onClick={onOpenMaterialForm}>
+						</Button>
+						<Button type="button" variant="ghost" onClick={onOpenMaterialForm}>
 							Nuevo material
-						</button>
-						<button type="button" className="ghost" onClick={onOpenSupplierForm}>
+						</Button>
+						<Button type="button" variant="ghost" onClick={onOpenSupplierForm}>
 							Proveedor
-						</button>
+						</Button>
 					</div>
 				</div>
 				<div className="inventory-metrics">
@@ -212,6 +213,9 @@ export function InventoryPanel({
 							</MotionFlashSurface>
 						)
 					})}
+					{suppliers.length ? null : (
+						<Empty text="Sin proveedores cargados." />
+					)}
 					{materials.length ? (
 						materials.map((item) => {
 							const usage = materialUsageSummary(item)
@@ -258,27 +262,27 @@ export function InventoryPanel({
 											</div>
 										</div>
 										<div className="record-actions">
-											<button
+											<Button
 												type="button"
-												className="ghost"
+												variant="ghost"
 												onClick={() => onOpenUnitForMaterial(item)}
 											>
 												Abrir unidad
-											</button>
-											<button
+											</Button>
+											<Button
 												type="button"
-												className="ghost"
+												variant="ghost"
 												onClick={() => onOpenMaterialDetail(item)}
 											>
 												Editar
-											</button>
-											<button
+											</Button>
+											<Button
 												type="button"
-												className="danger"
+												variant="danger"
 												onClick={() => onDeleteMaterial(item)}
 											>
 												Inactivar
-											</button>
+											</Button>
 											{renderQuickActionsTrigger(
 												'Acciones de material',
 												quickActions,
@@ -330,12 +334,13 @@ export function InventoryPanel({
 									availableQuickActions(quickActions).length ? (
 										<div className="record-actions">
 											{item.status === 'open' ? (
-												<button
-													className="primary"
+												<Button
+													type="button"
+													variant="primary"
 													onClick={() => onFinishOpenUnit(item)}
 												>
 													Finalizar
-												</button>
+												</Button>
 											) : null}
 											{renderQuickActionsTrigger(
 												'Acciones de unidad',
@@ -348,6 +353,9 @@ export function InventoryPanel({
 							</MotionFlashSurface>
 						)
 					})}
+					{materialOpenUnits.length ? null : (
+						<Empty text="Sin unidades abiertas." />
+					)}
 					{purchases.slice(0, 5).map((item) => {
 						const quickActions = materialPurchaseQuickActions(item)
 						return (
@@ -381,6 +389,9 @@ export function InventoryPanel({
 							</MotionFlashSurface>
 						)
 					})}
+					{purchases.length ? null : (
+						<Empty text="Sin compras registradas." />
+					)}
 					{consumptions.slice(0, 5).map((item) => {
 						const quickActions = materialConsumptionQuickActions(item)
 						return (

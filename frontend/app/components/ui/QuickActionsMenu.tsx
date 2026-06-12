@@ -238,7 +238,7 @@ export function QuickActionsMenu({
 					<button
 						key={action.id}
 						type="button"
-						role={confirming ? undefined : 'menuitem'}
+						role="menuitem"
 						disabled={action.disabled || running}
 						aria-busy={running || undefined}
 						className={cx(

@@ -2,6 +2,7 @@
 
 import { ChevronLeft, FileText, Package, ReceiptText } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Empty, LoadingState } from '@/app/components/ui/Empty'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { Panel } from '@/app/components/ui/Panel'
@@ -316,42 +317,42 @@ export function SupplierDashboardPanel({
 		<div className="grid customer-dashboard supplier-dashboard">
 			<Panel>
 				<div className="customer-dashboard-head supplier-dashboard-head">
-					<button
+					<Button
 						type="button"
-						className="ghost"
+						variant="ghost"
 						onClick={onBack}
 					>
 						<ChevronLeft size={16} />
 						Proveedores
-					</button>
+					</Button>
 					<div>
 						<h2>{supplier.name}</h2>
 						<p>{supplierProfileSubtitle(supplier) || 'Dashboard operativo del proveedor'}</p>
 					</div>
 					<div className="record-actions">
-						<button
+						<Button
 							type="button"
-							className="primary"
+							variant="primary"
 							onClick={() => onNewPurchase(supplier)}
 						>
 							<Package size={16} />
 							Nueva compra
-						</button>
-						<button
+						</Button>
+						<Button
 							type="button"
-							className="ghost"
+							variant="ghost"
 							onClick={() => onNewDebt(supplier)}
 						>
 							<ReceiptText size={16} />
 							Nueva deuda
-						</button>
-						<button
+						</Button>
+						<Button
 							type="button"
-							className="ghost"
+							variant="ghost"
 							onClick={() => onOpenDetail('Proveedor', supplier)}
 						>
 							Editar proveedor
-						</button>
+						</Button>
 					</div>
 				</div>
 				<div className="customer-dashboard-profile supplier-dashboard-profile">

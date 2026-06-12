@@ -284,6 +284,12 @@ textarea:focus-visible,
   outline: none;
 }
 
+a:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .button-hover-tooltip {
     transition: none;
@@ -373,6 +379,26 @@ label {
   font-weight: 650;
   gap: 6px;
   letter-spacing: 0.02em;
+}
+
+.field--error input,
+.field--error select,
+.field--error textarea,
+.field--error .combo-trigger {
+  border-color: var(--color-danger);
+}
+
+.field--error input:focus-visible,
+.field--error select:focus-visible,
+.field--error textarea:focus-visible {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px var(--color-danger-bg);
+}
+
+.field-error {
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+  font-weight: 500;
 }
 
 .combo-field {
@@ -537,6 +563,22 @@ label {
   select,
   textarea {
     font-size: 16px;
+  }
+}
+
+/* Mobile: minimum 44px touch targets (WCAG 2.5.5) */
+@media (max-width: 620px) {
+  button,
+  .combo-trigger,
+  .combo-options button {
+    min-height: 44px;
+  }
+
+  button.icon-button,
+  .icon-button {
+    min-height: 44px;
+    min-width: 44px;
+    width: 44px;
   }
 }
 

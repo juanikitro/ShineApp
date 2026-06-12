@@ -35,6 +35,7 @@ type PaymentFormProps = {
 		openCombo?: boolean,
 	) => (event: KeyboardEvent<HTMLElement>) => void
 	submitting?: boolean
+	fieldErrors?: Record<string, string>
 }
 
 export function PaymentForm({
@@ -48,6 +49,7 @@ export function PaymentForm({
 	focusField,
 	focusNextOnEnter,
 	submitting = false,
+	fieldErrors,
 }: PaymentFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -89,7 +91,7 @@ export function PaymentForm({
 				</div>
 			) : null}
 			<div className="form-row">
-				<Field label="Importe">
+				<Field label="Importe" error={fieldErrors?.['amount']}>
 					<NumericInput
 						data-focus-key="payment.amount"
 						required
@@ -139,7 +141,7 @@ export function PaymentForm({
 					focusField('payment.notes')
 				}}
 			/>
-			<Field label="Notas">
+			<Field label="Notas" error={fieldErrors?.['notes']}>
 				<textarea
 					data-focus-key="payment.notes"
 					value={paymentForm.notes}

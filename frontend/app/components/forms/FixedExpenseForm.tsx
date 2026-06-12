@@ -38,6 +38,7 @@ type FixedExpenseFormProps = {
 		openCombo?: boolean,
 	) => (event: KeyboardEvent<HTMLElement>) => void
 	submitting?: boolean
+	fieldErrors?: Record<string, string>
 }
 
 export function FixedExpenseForm({
@@ -54,10 +55,11 @@ export function FixedExpenseForm({
 	focusField,
 	focusNextOnEnter,
 	submitting = false,
+	fieldErrors,
 }: FixedExpenseFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
-			<Field label="Concepto">
+			<Field label="Concepto" error={fieldErrors?.['concept']}>
 				<input
 					data-focus-key="fixed-expense.concept"
 					required
@@ -89,7 +91,7 @@ export function FixedExpenseForm({
 				}}
 			/>
 			<div className="form-row">
-				<Field label="Monto del periodo">
+				<Field label="Monto del periodo" error={fieldErrors?.['amount']}>
 					<NumericInput
 						data-focus-key="fixed-expense.amount"
 						required
@@ -104,7 +106,7 @@ export function FixedExpenseForm({
 						onKeyDown={focusNextOnEnter('fixed-expense.start_date')}
 					/>
 				</Field>
-				<Field label="Inicio">
+				<Field label="Inicio" error={fieldErrors?.['start_date']}>
 					<input
 						data-focus-key="fixed-expense.start_date"
 						type="date"
@@ -119,7 +121,7 @@ export function FixedExpenseForm({
 				</Field>
 			</div>
 			<div className="form-row">
-				<Field label="Cada">
+				<Field label="Cada" error={fieldErrors?.['interval_count']}>
 					<NumericInput
 						required
 						value={String(fixedExpenseForm.interval_count ?? '1')}
@@ -177,7 +179,7 @@ export function FixedExpenseForm({
 				/>
 			</div>
 			<div className="form-row">
-				<Field label="Vence a los (dias)">
+				<Field label="Vence a los (dias)" error={fieldErrors?.['due_offset_days']}>
 					<NumericInput
 						value={String(fixedExpenseForm.due_offset_days ?? '0')}
 						onChange={(raw) =>
@@ -188,7 +190,7 @@ export function FixedExpenseForm({
 						}
 					/>
 				</Field>
-				<Field label="Fin (opcional)">
+				<Field label="Fin (opcional)" error={fieldErrors?.['end_date']}>
 					<input
 						type="date"
 						value={String(fixedExpenseForm.end_date ?? '')}
@@ -201,7 +203,7 @@ export function FixedExpenseForm({
 					/>
 				</Field>
 			</div>
-			<Field label="Cantidad maxima de periodos (opcional)">
+			<Field label="Cantidad maxima de periodos (opcional)" error={fieldErrors?.['max_cycles']}>
 				<NumericInput
 					value={String(fixedExpenseForm.max_cycles ?? '')}
 					onChange={(raw) =>
@@ -212,7 +214,7 @@ export function FixedExpenseForm({
 					}
 				/>
 			</Field>
-			<Field label="Notas">
+			<Field label="Notas" error={fieldErrors?.['notes']}>
 				<textarea
 					data-focus-key="fixed-expense.notes"
 					value={fixedExpenseForm.notes}

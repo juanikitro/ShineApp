@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RefreshCw, RotateCcw, Search, Trash2 } from 'lucide-react'
 
 import { apiFetch } from '@/lib/api'
+import { useConfirmDialog } from '@/lib/use-confirm-dialog'
+import { Button } from '@/app/components/ui/Button'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
 import { Field } from '@/app/components/ui/Field'
 import { MetricCard } from '@/app/components/ui/MetricCard'
@@ -57,6 +59,7 @@ export function TrashSettingsPanel() {
 	const [searchTerm, setSearchTerm] = useState('')
 	const [pending, setPending] = useState<PendingAction>(null)
 	const [feedback, setFeedback] = useState<string | null>(null)
+	const { requestConfirm, ConfirmDialog } = useConfirmDialog()
 
 	const fetchTrash = useCallback(async () => {
 		setLoading(true)
@@ -121,9 +124,7 @@ export function TrashSettingsPanel() {
 	}, [groups, total])
 
 	async function handleRestore(group: TrashGroup, item: TrashItem) {
-		const confirmed = window.confirm(
-			`¿Restaurar ${group.label_singular.toLowerCase()} "${item.label}"?`,
-		)
+		const confirmed = await requestConfirm({ title: 'Restaurar', message: `¿Restaurar ${group.label_singular.toLowerCase()} "${item.label}"?`, confirmLabel: 'Restaurar' })
 		if (!confirmed) return
 		setPending({ kind: 'restore', type: group.type, id: item.id })
 		setFeedback(null)
@@ -145,9 +146,7 @@ export function TrashSettingsPanel() {
 	}
 
 	async function handlePurge(group: TrashGroup, item: TrashItem) {
-		const confirmed = window.confirm(
-			`¿Eliminar definitivamente ${group.label_singular.toLowerCase()} "${item.label}"? Esta accion no se puede deshacer.`,
-		)
+		const confirmed = await requestConfirm({ title: 'Eliminar definitivamente', message: `¿Eliminar definitivamente ${group.label_singular.toLowerCase()} "${item.label}"? Esta accion no se puede deshacer.`, confirmLabel: 'Eliminar', tone: 'danger' })
 		if (!confirmed) return
 		setPending({ kind: 'purge', type: group.type, id: item.id })
 		setFeedback(null)
@@ -181,10 +180,10 @@ export function TrashSettingsPanel() {
 				</div>
 				<div className="settings-action-rail">
 					<div className="settings-secondary-actions">
-						<button type="button" className="ghost" onClick={fetchTrash}>
+						<Button variant="ghost" onClick={fetchTrash}>
 							<RefreshCw size={16} />
 							Actualizar
-						</button>
+						</Button>
 					</div>
 				</div>
 			</div>
@@ -217,15 +216,14 @@ export function TrashSettingsPanel() {
 					/>
 				</Field>
 				<div className="record-actions audit-filter-actions">
-					<button
-						type="button"
-						className="ghost"
+					<Button
+						variant="ghost"
 						disabled={!searchTerm}
 						onClick={() => setSearchTerm('')}
 					>
 						<Search size={16} />
 						Limpiar
-					</button>
+					</Button>
 				</div>
 			</form>
 
@@ -245,10 +243,10 @@ export function TrashSettingsPanel() {
 					text="No se pudo cargar la papelera."
 					hint={error}
 					action={
-						<button type="button" className="ghost" onClick={fetchTrash}>
+						<Button variant="ghost" onClick={fetchTrash}>
 							<RefreshCw size={16} />
 							Reintentar
-						</button>
+						</Button>
 					}
 				/>
 			) : total === 0 ? (
@@ -300,24 +298,24 @@ export function TrashSettingsPanel() {
 													}
 													actions={
 														<>
-															<button
-																type="button"
-																className="ghost"
+															<Button
+																variant="ghost"
 																disabled={isBusy}
+																loading={isRestoring}
 																onClick={() => handleRestore(group, item)}
 															>
 																<RotateCcw size={16} />
 																{isRestoring ? 'Restaurando...' : 'Restaurar'}
-															</button>
-															<button
-																type="button"
-																className="danger"
+															</Button>
+															<Button
+																variant="danger"
 																disabled={isBusy}
+																loading={isPurging}
 																onClick={() => handlePurge(group, item)}
 															>
 																<Trash2 size={16} />
 																{isPurging ? 'Eliminando...' : 'Eliminar'}
-															</button>
+															</Button>
 														</>
 													}
 												/>
@@ -330,6 +328,7 @@ export function TrashSettingsPanel() {
 					)}
 				</div>
 			)}
+			<ConfirmDialog />
 		</section>
 	)
 }

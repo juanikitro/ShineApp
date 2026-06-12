@@ -1213,9 +1213,27 @@ export default function Home() {
 	useEffect(() => revokeProfileAvatarObjectUrl, [])
 	const { flashTarget, flash } = useFlashTarget(FEEDBACK_PULSE_MS)
 
+	const [formFieldErrors, setFormFieldErrors] = useState<Record<string, string>>(
+		{},
+	)
+
+	function fieldErrorMapFromNotice(notice: ApiErrorNotice): Record<string, string> {
+		const map: Record<string, string> = {}
+		for (const field of notice.fields ?? []) {
+			const path = field?.path
+			if (path && !(String(path) in map)) {
+				map[String(path)] = String(field.message ?? '')
+			}
+		}
+		return map
+	}
+
 	function setError(notice: ApiErrorNotice | null) {
 		if (notice) {
 			showToast(apiErrorToast(notice))
+			setFormFieldErrors(fieldErrorMapFromNotice(notice))
+		} else {
+			setFormFieldErrors({})
 		}
 	}
 
@@ -1576,6 +1594,7 @@ export default function Home() {
 
 	useEffect(() => {
 		if (!formModal) return
+		setFormFieldErrors({})
 		const firstFocus: Record<FormModalKind, string> = {
 			customer: 'customer.name',
 			vehicle: 'vehicle.customer',
@@ -2744,15 +2763,15 @@ export default function Home() {
 					<div className="record-actions">
 						<StatusPill value={workOrder.status} labels={orderLabels} />
 						{options.showDetailAction ? (
-							<button
+							<Button
 								type="button"
-								className="ghost"
+								variant="ghost"
 								onClick={() =>
 									openDetailModal('Orden de trabajo', workOrder)
 								}
 							>
 								Editar trabajo
-							</button>
+							</Button>
 						) : null}
 					</div>
 				</div>
@@ -3218,14 +3237,14 @@ export default function Home() {
 						text="Sin reservas o cotizaciones para este filtro."
 						hint="Crea una reserva o cambia el tipo de servicio para ver trabajos por fecha de ingreso."
 						action={
-							<button
+							<Button
 								type="button"
-								className="primary"
+								variant="primary"
 								onClick={() => openQuickReservation(selectedDay)}
 							>
 								<Plus size={16} />
 								Crear reserva
-							</button>
+							</Button>
 						}
 					/>
 				</section>
@@ -4938,6 +4957,39 @@ export default function Home() {
 	const fixedExpenseLoadBlocked = Boolean(
 		loadErrorNotice && !fixedExpenses.length && !fixedExpenseOccurrences.length,
 	)
+
+	// Fallback uniforme de carga/error para secciones que antes aparecian "pop-in":
+	// muestra skeleton mientras carga o un ErrorState con reintento si la carga fallo.
+	const sectionFallback = (
+		key: DataSetKey,
+		hasData: boolean,
+		loadingLabel: string,
+	): ReactNode => {
+		const showLoading = isDataSetLoading(key) && !hasData
+		return (
+			<div className="grid">
+				<section className="panel">
+					{showLoading ? (
+						<SkeletonList rows={6} label={loadingLabel} />
+					) : (
+						<ErrorState
+							text={loadErrorNotice?.title ?? 'No se pudieron cargar los datos'}
+							hint={loadErrorNotice?.description}
+							action={
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => loadData({ force: true })}
+								>
+									Actualizar
+								</Button>
+							}
+						/>
+					)}
+				</section>
+			</div>
+		)
+	}
 
 	function materialUsageRows(material: AnyRecord) {
 		const legacyRows = consumptions.filter(
@@ -6831,6 +6883,7 @@ export default function Home() {
 				String(profileForm.subscription_type ?? 'trial'),
 			)
 		}
+		pendingActions.begin('save:profile')
 		try {
 			const saved = await apiFetch<AnyRecord>('/auth/me/', {
 				method: 'PATCH',
@@ -6851,6 +6904,8 @@ export default function Home() {
 						'Revisa los datos e intenta nuevamente.',
 				}),
 			)
+		} finally {
+			pendingActions.end('save:profile')
 		}
 	}
 
@@ -7892,22 +7947,22 @@ export default function Home() {
 		return (
 			<div className="modal-actions split">
 				{canDelete ? (
-					<button
+					<Button
 						type="button"
-						className="danger"
+						variant="danger"
 						onClick={deleteDetail}
 					>
 						<Trash2 size={16} />
 						Eliminar
-					</button>
+					</Button>
 				) : (
 					<span />
 				)}
 				<div className="modal-actions detail-save-actions">
 					{beforeSubmit}
-					<button className="primary" disabled={!isDetailDirty()}>
+					<Button type="submit" variant="primary" disabled={!isDetailDirty()}>
 						Editar
-					</button>
+					</Button>
 				</div>
 			</div>
 		)
@@ -7946,6 +8001,9 @@ export default function Home() {
 					<Field label="Telefono">
 						<input
 							data-focus-key="detail.customer.phone"
+							type="tel"
+							inputMode="tel"
+							autoComplete="tel"
 							value={data.phone ?? ''}
 							onChange={(event) =>
 								updateDetailEdit({ phone: event.target.value })
@@ -7957,6 +8015,7 @@ export default function Home() {
 						<input
 							data-focus-key="detail.customer.email"
 							type="email"
+							autoComplete="email"
 							value={data.email ?? ''}
 							onChange={(event) =>
 								updateDetailEdit({ email: event.target.value })
@@ -8197,25 +8256,25 @@ export default function Home() {
 											}
 										/>
 									</Field>
-									<button
+									<Button
 										type="button"
-										className="ghost"
+										variant="ghost"
 										onClick={() => removeServiceMaterialLine(index)}
 									>
 										<Trash2 size={16} />
-									</button>
+									</Button>
 								</div>
 							)
 						})}
 					</div>
-					<button
+					<Button
 						type="button"
-						className="ghost"
+						variant="ghost"
 						onClick={addServiceMaterialLine}
 					>
 						<Plus size={16} />
 						Agregar material
-					</button>
+					</Button>
 					{renderDetailEditActions()}
 				</form>
 			)
@@ -8509,14 +8568,14 @@ export default function Home() {
 					<div className="quote-lines">
 						<div className="quote-lines-head">
 							<h3>Servicios</h3>
-							<button
+							<Button
 								type="button"
-								className="ghost"
+								variant="ghost"
 								onClick={addDetailReservationItem}
 							>
 								<Plus size={16} />
 								Agregar servicio
-							</button>
+							</Button>
 						</div>
 						{detailReservationItems(data).map(
 							(item: AnyRecord, index: number) => {
@@ -8565,13 +8624,13 @@ export default function Home() {
 											</div>
 										</div>
 										{detailReservationItems(data).length > 1 ? (
-											<button
+											<Button
 												type="button"
-												className="danger"
+												variant="danger"
 												onClick={() => removeDetailReservationItem(index)}
 											>
 												Quitar
-											</button>
+											</Button>
 										) : null}
 									</div>
 								)
@@ -8674,14 +8733,14 @@ export default function Home() {
 						: null}
 					{renderDetailEditActions(
 						canViewEconomy ? (
-							<button
+							<Button
 								type="button"
-								className="ghost"
+								variant="ghost"
 								onClick={() => createQuoteFromReservation(detailModal.data)}
 							>
 								<FileText size={16} />
 								Crear cotizacion
-							</button>
+							</Button>
 						) : null,
 					)}
 				</form>
@@ -8795,9 +8854,9 @@ export default function Home() {
 					</Field>
 					{canViewEconomy && detailModal.data.id ? (
 						<div className="modal-actions">
-							<button
+							<Button
 								type="button"
-								className="ghost"
+								variant="ghost"
 								onClick={() =>
 									openConsumptionForOrder(
 										detailModal.data,
@@ -8807,7 +8866,7 @@ export default function Home() {
 							>
 								<Package size={16} />
 								Consumir material
-							</button>
+							</Button>
 						</div>
 					) : null}
 					{renderDetailEditActions()}
@@ -8971,23 +9030,23 @@ export default function Home() {
 						/>
 					</Field>
 					<div className="modal-actions">
-						<button
+						<Button
 							type="button"
-							className="ghost"
+							variant="ghost"
 							onClick={() => downloadQuotePdf(data)}
 						>
 							<FileText size={16} />
 							Bajar PDF
-						</button>
+						</Button>
 						{quoteLaneStatus(data) === 'draft' ? (
-							<button
+							<Button
 								type="button"
-								className="primary"
+								variant="primary"
 								onClick={() => downloadQuotePdfAndMarkSent(data)}
 							>
 								<FileText size={16} />
 								Bajar y marcar enviado
-							</button>
+							</Button>
 						) : null}
 					</div>
 					{renderDetailEditActions()}
@@ -9796,6 +9855,7 @@ export default function Home() {
 			formModalExit.close()
 			return saved
 		}, {
+			key: 'save:service',
 			flashTarget: (saved: AnyRecord) =>
 				recordFlashKey('service', saved?.id ?? currentId),
 			successTitle: entityFeedbackTitle(
@@ -10193,6 +10253,7 @@ export default function Home() {
 			formModalExit.close()
 			return created
 		}, {
+			key: 'save:debt-payment',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('debt-payment', created?.id),
 			successTitle: entityFeedbackTitle('debt-payment', 'created'),
@@ -11116,16 +11177,16 @@ export default function Home() {
 				</div>
 				<div className="record-actions">
 					{editing ? (
-						<button
+						<Button
 							type="button"
-							className="ghost"
+							variant="ghost"
 							onClick={() => {
 								resetExpenseClassificationForm()
 								formModalExit.close()
 							}}
 						>
 							Cancelar
-						</button>
+						</Button>
 					) : null}
 					<Button
 						type="submit"
@@ -11331,7 +11392,7 @@ export default function Home() {
 						onClose={profileExit.close}
 					>
 						{currentUser ? (
-						<ProfileModal
+						<ProfileModal submitting={isActionPending('save:profile')}
 							onSubmit={saveProfile}
 							currentUser={currentUser}
 							profileForm={profileForm}
@@ -11362,7 +11423,7 @@ export default function Home() {
 						title="Nuevo cliente"
 						onClose={formModalExit.close}
 					>
-						<CustomerForm
+						<CustomerForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar cliente"
 						onSubmit={saveCustomer}
 						customerForm={customerForm}
@@ -11378,7 +11439,7 @@ export default function Home() {
 						title="Nuevo vehiculo"
 						onClose={formModalExit.close}
 					>
-						<VehicleForm
+						<VehicleForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar vehiculo"
 						onSubmit={saveVehicle}
 						vehicleForm={vehicleForm}
@@ -11403,7 +11464,7 @@ export default function Home() {
 						title="Nueva cotizacion"
 						onClose={formModalExit.close}
 					>
-						<QuoteForm
+						<QuoteForm fieldErrors={formFieldErrors}
 						submitLabel="Crear cotizacion"
 						onSubmit={saveQuote}
 						quoteForm={quoteForm}
@@ -11436,7 +11497,7 @@ export default function Home() {
 						title="Nuevo servicio"
 						onClose={formModalExit.close}
 					>
-						<ServiceForm
+						<ServiceForm fieldErrors={formFieldErrors} submitting={isActionPending('save:service')}
 						submitLabel="Guardar servicio"
 						onSubmit={saveService}
 						serviceForm={serviceForm}
@@ -11459,7 +11520,7 @@ export default function Home() {
 						title="Registrar pago"
 						onClose={formModalExit.close}
 					>
-						<PaymentForm
+						<PaymentForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar pago"
 						onSubmit={savePayment}
 						paymentForm={paymentForm}
@@ -11479,7 +11540,7 @@ export default function Home() {
 						title="Movimiento manual"
 						onClose={formModalExit.close}
 					>
-						<CashMovementForm
+						<CashMovementForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar movimiento"
 						onSubmit={saveCashMovement}
 						movementForm={movementForm}
@@ -11522,7 +11583,7 @@ export default function Home() {
 								}}
 							/>
 							{cashLoadTab === 'cash-movement' ? (
-								<CashMovementForm
+								<CashMovementForm fieldErrors={formFieldErrors}
 									submitLabel="Guardar movimiento"
 									onSubmit={saveCashMovement}
 									movementForm={movementForm}
@@ -11543,7 +11604,7 @@ export default function Home() {
 								/>
 							) : null}
 							{cashLoadTab === 'payment' ? (
-								<PaymentForm
+								<PaymentForm fieldErrors={formFieldErrors}
 									submitLabel="Guardar pago"
 									onSubmit={savePayment}
 									paymentForm={paymentForm}
@@ -11557,7 +11618,7 @@ export default function Home() {
 								/>
 							) : null}
 							{cashLoadTab === 'debt-payment' ? (
-								<DebtPaymentForm
+								<DebtPaymentForm fieldErrors={formFieldErrors} submitting={isActionPending('save:debt-payment')}
 									submitLabel="Guardar pago de deuda"
 									onSubmit={saveDebtPayment}
 									debtPaymentForm={debtPaymentForm}
@@ -11593,7 +11654,7 @@ export default function Home() {
 						title="Nueva deuda"
 						onClose={formModalExit.close}
 					>
-						<DebtForm
+						<DebtForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar deuda"
 						onSubmit={saveDebt}
 						debtForm={debtForm}
@@ -11616,7 +11677,7 @@ export default function Home() {
 						title={fixedExpenseForm.id ? 'Editar gasto fijo' : 'Nuevo gasto fijo'}
 						onClose={formModalExit.close}
 					>
-						<FixedExpenseForm
+						<FixedExpenseForm fieldErrors={formFieldErrors}
 							submitLabel="Guardar gasto fijo"
 							onSubmit={saveFixedExpense}
 							fixedExpenseForm={fixedExpenseForm}
@@ -11724,10 +11785,10 @@ export default function Home() {
 								/>
 							</Field>
 							<div className="form-actions">
-								<button type="submit" className="primary">
+								<Button type="submit" variant="primary">
 									<CreditCard size={16} />
 									Confirmar pago
-								</button>
+								</Button>
 							</div>
 						</form>
 					</Modal>
@@ -11738,7 +11799,7 @@ export default function Home() {
 						title="Registrar pago de deuda"
 						onClose={formModalExit.close}
 					>
-						<DebtPaymentForm
+						<DebtPaymentForm fieldErrors={formFieldErrors} submitting={isActionPending('save:debt-payment')}
 						onSubmit={saveDebtPayment}
 						debtPaymentForm={debtPaymentForm}
 						setDebtPaymentForm={setDebtPaymentForm}
@@ -11755,7 +11816,7 @@ export default function Home() {
 						title="Nuevo material"
 						onClose={formModalExit.close}
 					>
-						<MaterialForm
+						<MaterialForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar material"
 						onSubmit={saveMaterial}
 						materialForm={materialForm}
@@ -11771,7 +11832,7 @@ export default function Home() {
 						title="Nuevo proveedor"
 						onClose={formModalExit.close}
 					>
-						<SupplierForm
+						<SupplierForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar proveedor"
 						onSubmit={saveSupplier}
 						supplierForm={supplierForm}
@@ -11787,7 +11848,7 @@ export default function Home() {
 						title="Crear movimiento de stock"
 						onClose={formModalExit.close}
 					>
-						<StockMovementForm
+						<StockMovementForm fieldErrors={formFieldErrors}
 						submitLabel="Crear movimiento"
 						onSubmit={saveStockMovement}
 						stockMovementForm={stockMovementForm}
@@ -11953,7 +12014,7 @@ export default function Home() {
 						}
 						onClose={quickReservationExit.close}
 					>
-						<ReservationForm
+						<ReservationForm fieldErrors={formFieldErrors}
 							submitLabel={reservationForm.day ? 'Crear reserva' : 'Crear cotizacion'}
 							onSubmit={saveReservation}
 							prefillDayMode={Boolean(quickReservationPrefillDay)}
@@ -12374,7 +12435,7 @@ export default function Home() {
 						title="Nuevo proveedor"
 						onClose={quickCreateExit.close}
 					>
-						<SupplierForm
+						<SupplierForm fieldErrors={formFieldErrors}
 						submitLabel="Crear proveedor"
 						onSubmit={saveQuickSupplier}
 						supplierForm={supplierForm}
@@ -12757,15 +12818,15 @@ export default function Home() {
 											triggerPeriodReloadNow()
 										}}
 									>
-										<button
+										<Button
 											type="button"
-											className="ghost icon-button"
+											variant="ghost" className="icon-button"
 											onClick={() => goToMonth(-1)}
 											aria-label="Mes anterior"
 											title="Mes anterior"
 										>
 											<ChevronLeft size={16} />
-										</button>
+										</Button>
 										<Field label="Desde">
 											<input
 												type="date"
@@ -12784,15 +12845,15 @@ export default function Home() {
 												}
 											/>
 										</Field>
-										<button
+										<Button
 											type="button"
-											className="ghost icon-button"
+											variant="ghost" className="icon-button"
 											onClick={() => goToMonth(1)}
 											aria-label="Mes siguiente"
 											title="Mes siguiente"
 										>
 											<ChevronRight size={16} />
-										</button>
+										</Button>
 										<Button
 											type="submit"
 											variant="primary"
@@ -12831,20 +12892,20 @@ export default function Home() {
 										Menu
 									</button>
 									{displayedActive === 'agenda' ? (
-										<button
+										<Button
 											type="button"
-											className="primary"
+											variant="primary"
 											aria-label="Crear reserva para el dia seleccionado"
 											title="Crear reserva para el dia seleccionado"
 											onClick={() => openQuickReservation(selectedDay)}
 										>
 											<Plus size={16} />
 											Crear
-										</button>
+										</Button>
 									) : null}
-									<button
+									<Button
 										type="button"
-										className="ghost"
+										variant="ghost"
 										aria-label={`Actualizar ${title.label.toLowerCase()}`}
 										title={`Actualizar ${title.label.toLowerCase()}`}
 										onClick={() => loadData({ force: true })}
@@ -12852,7 +12913,7 @@ export default function Home() {
 									>
 										<RefreshCw size={16} />
 										Actualizar
-									</button>
+									</Button>
 								</div>
 							</>
 						}
@@ -13009,22 +13070,22 @@ export default function Home() {
 									<p>Compras, materiales, comprobantes, caja y deuda vinculada.</p>
 								</div>
 								<div className="record-actions">
-									<button
+									<Button
 										type="button"
-										className="primary"
+										variant="primary"
 										onClick={() => openFormModal('supplier')}
 									>
 										<Building2 size={16} />
 										Nuevo proveedor
-									</button>
-									<button
+									</Button>
+									<Button
 										type="button"
-										className="ghost"
+										variant="ghost"
 										onClick={() => openFormModal('stock-movement')}
 									>
 										<Package size={16} />
 										Nueva compra
-									</button>
+									</Button>
 								</div>
 							</div>
 							<div className="toolbar toolbar-spaced">
@@ -13067,23 +13128,23 @@ export default function Home() {
 													}
 													actions={
 														<>
-														<button
+														<Button
 															type="button"
-															className="primary"
+															variant="primary"
 															onClick={() => openStockPurchaseForSupplier(item)}
 														>
 															Nueva compra
-														</button>
-														<button
+														</Button>
+														<Button
 															type="button"
-															className="ghost"
+															variant="ghost"
 															onClick={() => openDetailModal('Proveedor', item)}
 														>
 															Editar
-														</button>
-														<button
+														</Button>
+														<Button
 															type="button"
-															className="danger"
+															variant="danger"
 															onClick={() =>
 																runAction(
 																	() =>
@@ -13104,7 +13165,7 @@ export default function Home() {
 															}
 														>
 															Inactivar
-														</button>
+														</Button>
 														{renderQuickActionsTrigger(
 															'Acciones de proveedor',
 															quickActions,
@@ -13158,14 +13219,14 @@ export default function Home() {
 						<section className="panel">
 							<div className="panel-head">
 								<h2>Vehiculos</h2>
-								<button
+								<Button
 									type="button"
-									className="primary"
+									variant="primary"
 									onClick={() => openFormModal('vehicle')}
 								>
 									<Car size={16} />
 									Nuevo vehiculo
-								</button>
+								</Button>
 							</div>
 							<div
 								className="toolbar toolbar-spaced"
@@ -13207,16 +13268,16 @@ export default function Home() {
 													</div>
 												</div>
 												<div className="record-actions">
-													<button
-														className="ghost"
+													<Button
+														variant="ghost"
 														onClick={() =>
 															openDetailModal('Vehiculo', item)
 														}
 													>
 														Editar
-													</button>
-													<button
-														className="danger"
+													</Button>
+													<Button
+														variant="danger"
 														onClick={() =>
 															runAction(() =>
 																apiFetch(
@@ -13240,7 +13301,7 @@ export default function Home() {
 													}
 												>
 													Baja
-												</button>
+												</Button>
 											</div>
 										</div>
 										</MotionFlashSurface>
@@ -13265,7 +13326,11 @@ export default function Home() {
 					</div>
 				) : null}
 
-				{displayedActive === 'services' ? (
+				{displayedActive === 'services' &&
+				(isDataSetLoading('services') || Boolean(loadErrorNotice)) &&
+				!services.length ? (
+					sectionFallback('services', false, 'Cargando servicios')
+				) : displayedActive === 'services' ? (
 					<ServicesPanel
 						canViewEconomy={canViewEconomy}
 						customerDaysAgoText={customerDaysAgoText}
@@ -13352,14 +13417,14 @@ export default function Home() {
 									text={agendaLoadError.title}
 									hint={agendaLoadError.description}
 									action={
-										<button
+										<Button
 											type="button"
-											className="ghost"
+											variant="ghost"
 											onClick={() => loadData({ force: true })}
 										>
 											<RefreshCw size={16} />
 											Actualizar
-										</button>
+										</Button>
 									}
 								/>
 							) : null}
@@ -13494,7 +13559,11 @@ export default function Home() {
 					</div>
 				) : null}
 
-				{displayedActive === 'agenda' && workViewMode === 'status' ? (
+				{displayedActive === 'agenda' && workViewMode === 'status' &&
+				(isDataSetLoading('reservations') || Boolean(loadErrorNotice)) &&
+				!reservations.length ? (
+					sectionFallback('reservations', false, 'Cargando trabajos')
+				) : displayedActive === 'agenda' && workViewMode === 'status' ? (
 					<WorkStatusView
 						sensors={agendaSensors}
 						onDragStart={handleWorkStatusDragStart}
@@ -13517,7 +13586,11 @@ export default function Home() {
 					/>
 				) : null}
 
-				{displayedActive === 'agenda' && workViewMode === 'entry-date' ? (
+				{displayedActive === 'agenda' && workViewMode === 'entry-date' &&
+				(isDataSetLoading('reservations') || Boolean(loadErrorNotice)) &&
+				!reservations.length ? (
+					sectionFallback('reservations', false, 'Cargando ingresos')
+				) : displayedActive === 'agenda' && workViewMode === 'entry-date' ? (
 					<WorkEntryDateView
 						workEntryDateGroups={workEntryDateGroups}
 						workFreeQuotesWithoutEntryDate={workFreeQuotesWithoutEntryDate}
@@ -13645,7 +13718,9 @@ export default function Home() {
 						onRefresh={() => loadData({ force: true })}
 					/>
 				) : null}
-				{displayedActive === 'inventory' && isDataSetLoading('materials') && !materials.length ? (
+				{displayedActive === 'inventory' && Boolean(loadErrorNotice) && !materials.length ? (
+					sectionFallback('materials', false, 'Cargando inventario')
+				) : displayedActive === 'inventory' && isDataSetLoading('materials') && !materials.length ? (
 					<div className="grid">
 						<section className="panel">
 							<SkeletonList rows={6} columns={4} label="Cargando inventario" />
@@ -13699,7 +13774,11 @@ export default function Home() {
 					/>
 				) : null}
 
-				{displayedActive === 'tools' ? (
+				{displayedActive === 'tools' &&
+				(isDataSetLoading('tools') || Boolean(loadErrorNotice)) &&
+				!filteredTools.length ? (
+					sectionFallback('tools', false, 'Cargando herramientas')
+				) : displayedActive === 'tools' ? (
 					<ToolsPanel
 						detailRecordProps={detailRecordProps}
 						filteredTools={filteredTools}
@@ -13729,7 +13808,11 @@ export default function Home() {
 					/>
 				) : null}
 
-				{displayedActive === 'tasks' ? (
+				{displayedActive === 'tasks' &&
+				(isDataSetLoading('tasks') || Boolean(loadErrorNotice)) &&
+				!tasks.length ? (
+					sectionFallback('tasks', false, 'Cargando tareas')
+				) : displayedActive === 'tasks' ? (
 					<TasksPanel
 						tasks={tasks}
 						employees={employees}
@@ -13778,7 +13861,11 @@ export default function Home() {
 					/>
 				) : null}
 
-				{displayedActive === 'quotes' ? (
+				{displayedActive === 'quotes' &&
+				(isDataSetLoading('quotes') || Boolean(loadErrorNotice)) &&
+				!quotes.length ? (
+					sectionFallback('quotes', false, 'Cargando cotizaciones')
+				) : displayedActive === 'quotes' ? (
 					<QuotesPanel
 						activeQuoteDrag={activeQuoteDrag}
 						agendaSensors={agendaSensors}
