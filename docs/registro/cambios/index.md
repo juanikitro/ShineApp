@@ -10,6 +10,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 - [UX: bloqueo de botones, loaders globales y confirmaciones in-app](2026-06-12-ux-loading-y-bloqueo-de-botones.md)
+- [Mejoras al modulo de tareas (UI, interaccion y negocio)](2026-06-12-tareas-mejoras-ui-y-negocio.md)
 - [regen-docs: PR en lugar de push directo a main](2026-06-12-regen-docs-via-pr.md)
 - [Papelera: ver, restaurar y purgar registros borrados](2026-06-12-papelera-restore-borrado-logico.md)
 - [Modulo de tareas para empleadores y empleados](2026-06-12-modulo-tareas.md)
