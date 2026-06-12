@@ -31,6 +31,7 @@ type DebtPaymentFormProps = {
 		key: string,
 		openCombo?: boolean,
 	) => (event: KeyboardEvent<HTMLElement>) => void
+	fieldErrors?: Record<string, string>
 }
 
 export function DebtPaymentForm({
@@ -42,6 +43,7 @@ export function DebtPaymentForm({
 	selectedDebtForPayment,
 	focusField,
 	focusNextOnEnter,
+	fieldErrors,
 }: DebtPaymentFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -80,7 +82,7 @@ export function DebtPaymentForm({
 				</div>
 			) : null}
 			<div className="form-row">
-				<Field label="Importe">
+				<Field label="Importe" error={fieldErrors?.['amount']}>
 					<NumericInput
 						data-focus-key="debt-payment.amount"
 						required
@@ -95,7 +97,7 @@ export function DebtPaymentForm({
 						onKeyDown={focusNextOnEnter('debt-payment.paid_at')}
 					/>
 				</Field>
-				<Field label="Fecha pago">
+				<Field label="Fecha pago" error={fieldErrors?.['paid_at']}>
 					<input
 						data-focus-key="debt-payment.paid_at"
 						type="date"
@@ -125,7 +127,7 @@ export function DebtPaymentForm({
 					focusField('debt-payment.notes')
 				}}
 			/>
-			<Field label="Notas">
+			<Field label="Notas" error={fieldErrors?.['notes']}>
 				<textarea
 					data-focus-key="debt-payment.notes"
 					value={debtPaymentForm.notes}

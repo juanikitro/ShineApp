@@ -1207,9 +1207,27 @@ export default function Home() {
 	useEffect(() => revokeProfileAvatarObjectUrl, [])
 	const { flashTarget, flash } = useFlashTarget(FEEDBACK_PULSE_MS)
 
+	const [formFieldErrors, setFormFieldErrors] = useState<Record<string, string>>(
+		{},
+	)
+
+	function fieldErrorMapFromNotice(notice: ApiErrorNotice): Record<string, string> {
+		const map: Record<string, string> = {}
+		for (const field of notice.fields ?? []) {
+			const path = field?.path
+			if (path && !(String(path) in map)) {
+				map[String(path)] = String(field.message ?? '')
+			}
+		}
+		return map
+	}
+
 	function setError(notice: ApiErrorNotice | null) {
 		if (notice) {
 			showToast(apiErrorToast(notice))
+			setFormFieldErrors(fieldErrorMapFromNotice(notice))
+		} else {
+			setFormFieldErrors({})
 		}
 	}
 
@@ -1570,6 +1588,7 @@ export default function Home() {
 
 	useEffect(() => {
 		if (!formModal) return
+		setFormFieldErrors({})
 		const firstFocus: Record<FormModalKind, string> = {
 			customer: 'customer.name',
 			vehicle: 'vehicle.customer',
@@ -11385,7 +11404,7 @@ export default function Home() {
 						title="Nuevo cliente"
 						onClose={formModalExit.close}
 					>
-						<CustomerForm
+						<CustomerForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar cliente"
 						onSubmit={saveCustomer}
 						customerForm={customerForm}
@@ -11401,7 +11420,7 @@ export default function Home() {
 						title="Nuevo vehiculo"
 						onClose={formModalExit.close}
 					>
-						<VehicleForm
+						<VehicleForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar vehiculo"
 						onSubmit={saveVehicle}
 						vehicleForm={vehicleForm}
@@ -11426,7 +11445,7 @@ export default function Home() {
 						title="Nueva cotizacion"
 						onClose={formModalExit.close}
 					>
-						<QuoteForm
+						<QuoteForm fieldErrors={formFieldErrors}
 						submitLabel="Crear cotizacion"
 						onSubmit={saveQuote}
 						quoteForm={quoteForm}
@@ -11459,7 +11478,7 @@ export default function Home() {
 						title="Nuevo servicio"
 						onClose={formModalExit.close}
 					>
-						<ServiceForm
+						<ServiceForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar servicio"
 						onSubmit={saveService}
 						serviceForm={serviceForm}
@@ -11482,7 +11501,7 @@ export default function Home() {
 						title="Registrar pago"
 						onClose={formModalExit.close}
 					>
-						<PaymentForm
+						<PaymentForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar pago"
 						onSubmit={savePayment}
 						paymentForm={paymentForm}
@@ -11502,7 +11521,7 @@ export default function Home() {
 						title="Movimiento manual"
 						onClose={formModalExit.close}
 					>
-						<CashMovementForm
+						<CashMovementForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar movimiento"
 						onSubmit={saveCashMovement}
 						movementForm={movementForm}
@@ -11545,7 +11564,7 @@ export default function Home() {
 								}}
 							/>
 							{cashLoadTab === 'cash-movement' ? (
-								<CashMovementForm
+								<CashMovementForm fieldErrors={formFieldErrors}
 									submitLabel="Guardar movimiento"
 									onSubmit={saveCashMovement}
 									movementForm={movementForm}
@@ -11566,7 +11585,7 @@ export default function Home() {
 								/>
 							) : null}
 							{cashLoadTab === 'payment' ? (
-								<PaymentForm
+								<PaymentForm fieldErrors={formFieldErrors}
 									submitLabel="Guardar pago"
 									onSubmit={savePayment}
 									paymentForm={paymentForm}
@@ -11580,7 +11599,7 @@ export default function Home() {
 								/>
 							) : null}
 							{cashLoadTab === 'debt-payment' ? (
-								<DebtPaymentForm
+								<DebtPaymentForm fieldErrors={formFieldErrors}
 									submitLabel="Guardar pago de deuda"
 									onSubmit={saveDebtPayment}
 									debtPaymentForm={debtPaymentForm}
@@ -11616,7 +11635,7 @@ export default function Home() {
 						title="Nueva deuda"
 						onClose={formModalExit.close}
 					>
-						<DebtForm
+						<DebtForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar deuda"
 						onSubmit={saveDebt}
 						debtForm={debtForm}
@@ -11639,7 +11658,7 @@ export default function Home() {
 						title={fixedExpenseForm.id ? 'Editar gasto fijo' : 'Nuevo gasto fijo'}
 						onClose={formModalExit.close}
 					>
-						<FixedExpenseForm
+						<FixedExpenseForm fieldErrors={formFieldErrors}
 							submitLabel="Guardar gasto fijo"
 							onSubmit={saveFixedExpense}
 							fixedExpenseForm={fixedExpenseForm}
@@ -11761,7 +11780,7 @@ export default function Home() {
 						title="Registrar pago de deuda"
 						onClose={formModalExit.close}
 					>
-						<DebtPaymentForm
+						<DebtPaymentForm fieldErrors={formFieldErrors}
 						onSubmit={saveDebtPayment}
 						debtPaymentForm={debtPaymentForm}
 						setDebtPaymentForm={setDebtPaymentForm}
@@ -11778,7 +11797,7 @@ export default function Home() {
 						title="Nuevo material"
 						onClose={formModalExit.close}
 					>
-						<MaterialForm
+						<MaterialForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar material"
 						onSubmit={saveMaterial}
 						materialForm={materialForm}
@@ -11794,7 +11813,7 @@ export default function Home() {
 						title="Nuevo proveedor"
 						onClose={formModalExit.close}
 					>
-						<SupplierForm
+						<SupplierForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar proveedor"
 						onSubmit={saveSupplier}
 						supplierForm={supplierForm}
@@ -11810,7 +11829,7 @@ export default function Home() {
 						title="Crear movimiento de stock"
 						onClose={formModalExit.close}
 					>
-						<StockMovementForm
+						<StockMovementForm fieldErrors={formFieldErrors}
 						submitLabel="Crear movimiento"
 						onSubmit={saveStockMovement}
 						stockMovementForm={stockMovementForm}
@@ -11976,7 +11995,7 @@ export default function Home() {
 						}
 						onClose={quickReservationExit.close}
 					>
-						<ReservationForm
+						<ReservationForm fieldErrors={formFieldErrors}
 							submitLabel={reservationForm.day ? 'Crear reserva' : 'Crear cotizacion'}
 							onSubmit={saveReservation}
 							prefillDayMode={Boolean(quickReservationPrefillDay)}
@@ -12397,7 +12416,7 @@ export default function Home() {
 						title="Nuevo proveedor"
 						onClose={quickCreateExit.close}
 					>
-						<SupplierForm
+						<SupplierForm fieldErrors={formFieldErrors}
 						submitLabel="Crear proveedor"
 						onSubmit={saveQuickSupplier}
 						supplierForm={supplierForm}

@@ -31,6 +31,7 @@ type ServiceFormProps = {
 		key: string,
 	) => (event: KeyboardEvent<HTMLElement>) => void
 	focusField: (key: string) => void
+	fieldErrors?: Record<string, string>
 }
 
 export function ServiceForm({
@@ -47,6 +48,7 @@ export function ServiceForm({
 	updateServiceMaterialLine,
 	focusNextOnEnter,
 	focusField,
+	fieldErrors,
 }: ServiceFormProps) {
 	const sectorOptions = sectors
 		.filter((s) => s.is_active !== false)
@@ -58,7 +60,7 @@ export function ServiceForm({
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
 			<div className="form-row">
-				<Field label="Nombre">
+				<Field label="Nombre" error={fieldErrors?.['name']}>
 					<input
 						data-focus-key="service.name"
 						required
@@ -99,7 +101,7 @@ export function ServiceForm({
 				}}
 			/>
 			<div className="form-row">
-				<Field label="Precio base">
+				<Field label="Precio base" error={fieldErrors?.['base_price']}>
 					<NumericInput
 						data-focus-key="service.base_price"
 						required
@@ -137,7 +139,7 @@ export function ServiceForm({
 					</Field>
 				))}
 			</div>
-			<Field label="Notas">
+			<Field label="Notas" error={fieldErrors?.['notes']}>
 				<textarea
 					data-focus-key="service.notes"
 					value={serviceForm.notes}

@@ -47,6 +47,7 @@ type QuoteFormProps = {
 	flashClass: (key: string | null) => string
 	fieldFlashKey: (target: string) => string
 	submitting?: boolean
+	fieldErrors?: Record<string, string>
 }
 
 export function QuoteForm({
@@ -73,6 +74,7 @@ export function QuoteForm({
 	flashClass,
 	fieldFlashKey,
 	submitting = false,
+	fieldErrors,
 }: QuoteFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -96,7 +98,7 @@ export function QuoteForm({
 				onChange={updateQuoteVehicle}
 			/>
 			<div className="form-row">
-				<Field label="Fecha tentativa">
+				<Field label="Fecha tentativa" error={fieldErrors?.['reservation_day']}>
 					<input
 						type="date"
 						value={quoteForm.reservation_day ?? ''}
@@ -109,7 +111,7 @@ export function QuoteForm({
 					/>
 				</Field>
 				{useReservationTimes ? (
-					<Field label="Hora tentativa">
+					<Field label="Hora tentativa" error={fieldErrors?.['reservation_start_time']}>
 						<input
 							type="time"
 							value={quoteForm.reservation_start_time ?? ''}
@@ -221,7 +223,7 @@ export function QuoteForm({
 			<details className="quote-advanced">
 				<summary>Avanzado comercial</summary>
 				<div className="form-row">
-					<Field label="Valida hasta">
+					<Field label="Valida hasta" error={fieldErrors?.['valid_until']}>
 						<input
 							type="date"
 							value={quoteForm.valid_until ?? ''}
@@ -233,7 +235,7 @@ export function QuoteForm({
 							}
 						/>
 					</Field>
-					<Field label="Descuento %">
+					<Field label="Descuento %" error={fieldErrors?.['discount_rate']}>
 						<input
 							type="number"
 							min="0"
@@ -248,7 +250,7 @@ export function QuoteForm({
 							}
 						/>
 					</Field>
-					<Field label="IVA %">
+					<Field label="IVA %" error={fieldErrors?.['tax_rate']}>
 						<input
 							type="number"
 							min="0"
@@ -270,7 +272,7 @@ export function QuoteForm({
 					<span>IVA {money(quoteTotals.taxAmount)}</span>
 					<strong>{money(quoteTotals.total)}</strong>
 				</div>
-				<Field label="Terminos">
+				<Field label="Terminos" error={fieldErrors?.['terms']}>
 					<textarea
 						value={quoteForm.terms ?? ''}
 						onChange={(event) =>
@@ -281,7 +283,7 @@ export function QuoteForm({
 						}
 					/>
 				</Field>
-				<Field label="Instrucciones de pago">
+				<Field label="Instrucciones de pago" error={fieldErrors?.['payment_instructions']}>
 					<textarea
 						value={quoteForm.payment_instructions ?? ''}
 						onChange={(event) =>
@@ -293,7 +295,7 @@ export function QuoteForm({
 					/>
 				</Field>
 			</details>
-			<Field label="Observaciones">
+			<Field label="Observaciones" error={fieldErrors?.['observations']}>
 				<textarea
 					data-focus-key="quote.observations"
 					value={quoteForm.observations}

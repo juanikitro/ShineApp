@@ -381,6 +381,26 @@ label {
   letter-spacing: 0.02em;
 }
 
+.field--error input,
+.field--error select,
+.field--error textarea,
+.field--error .combo-trigger {
+  border-color: var(--color-danger);
+}
+
+.field--error input:focus-visible,
+.field--error select:focus-visible,
+.field--error textarea:focus-visible {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px var(--color-danger-bg);
+}
+
+.field-error {
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
 .combo-field {
   color: var(--shop-ink-soft);
   display: grid;

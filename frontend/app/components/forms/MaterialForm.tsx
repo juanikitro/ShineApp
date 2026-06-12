@@ -17,6 +17,7 @@ type MaterialFormProps = {
 		key: string,
 	) => (event: KeyboardEvent<HTMLElement>) => void
 	submitting?: boolean
+	fieldErrors?: Record<string, string>
 }
 
 export function MaterialForm({
@@ -26,10 +27,11 @@ export function MaterialForm({
 	onSubmit,
 	focusNextOnEnter,
 	submitting = false,
+	fieldErrors,
 }: MaterialFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
-			<Field label="Nombre">
+			<Field label="Nombre" error={fieldErrors?.['name']}>
 				<input
 					data-focus-key="material.name"
 					required
@@ -45,7 +47,7 @@ export function MaterialForm({
 				/>
 			</Field>
 			<div className="form-row">
-				<Field label="Unidad">
+				<Field label="Unidad" error={fieldErrors?.['unit']}>
 					<input
 						data-focus-key="material.unit"
 						required
@@ -60,7 +62,7 @@ export function MaterialForm({
 						onKeyDown={focusNextOnEnter('material.stock')}
 					/>
 				</Field>
-				<Field label="Categoria">
+				<Field label="Categoria" error={fieldErrors?.['category']}>
 					<input
 						list="material-category-options"
 						value={materialForm.category}
@@ -74,7 +76,7 @@ export function MaterialForm({
 				</Field>
 			</div>
 			<div className="form-row">
-				<Field label="SKU">
+				<Field label="SKU" error={fieldErrors?.['sku']}>
 					<input
 						value={materialForm.sku}
 						onChange={(event) =>
@@ -85,7 +87,7 @@ export function MaterialForm({
 						}
 					/>
 				</Field>
-				<Field label="Presentacion">
+				<Field label="Presentacion" error={fieldErrors?.['presentation']}>
 					<input
 						value={materialForm.presentation}
 						onChange={(event) =>
@@ -98,7 +100,7 @@ export function MaterialForm({
 				</Field>
 			</div>
 			<div className="form-row">
-				<Field label="Stock">
+				<Field label="Stock" error={fieldErrors?.['stock_quantity']}>
 					<input
 						data-focus-key="material.stock"
 						type="number"
@@ -112,7 +114,7 @@ export function MaterialForm({
 						}
 					/>
 				</Field>
-				<Field label="Stock minimo">
+				<Field label="Stock minimo" error={fieldErrors?.['minimum_stock']}>
 					<input
 						type="number"
 						min="0"
