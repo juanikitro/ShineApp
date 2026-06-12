@@ -12,6 +12,8 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-12
 - [regen-docs: PR en lugar de push directo a main](docs/registro/cambios/2026-06-12-regen-docs-via-pr.md)
+- [Modulo de tareas para empleadores y empleados](docs/registro/cambios/2026-06-12-modulo-tareas.md)
+- [Agenda: cards de reservas más compactas](docs/registro/cambios/2026-06-12-agenda-cards-compactas.md)
 
 ## 2026-06-11
 - [Turnera: precios mostrados segun el tipo de vehiculo seleccionado](docs/registro/cambios/2026-06-11-turnera-precio-por-tipo-de-vehiculo.md)

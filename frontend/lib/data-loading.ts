@@ -1,6 +1,7 @@
 export const loadDataSections = [
 	'dashboard',
 	'agenda',
+	'tasks',
 	'customers',
 	'suppliers',
 	'vehicles',
@@ -21,6 +22,7 @@ export type LoadDataSection = (typeof loadDataSections)[number]
 export type DataSetKey =
 	| 'dashboard'
 	| 'cash'
+	| 'tasks'
 	| 'customers'
 	| 'vehicles'
 	| 'services'
@@ -64,6 +66,7 @@ const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 		'materialOpenUnits',
 		'quotes',
 	],
+	tasks: ['tasks', 'employees'],
 	customers: ['customers', 'vehicles', 'services'],
 	suppliers: [
 		'suppliers',

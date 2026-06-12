@@ -41,6 +41,8 @@ export async function loadAppDataSet(
 			return loaders.apiFetch<AnyRecord>(
 				`/cash/daily/?date=${scope.selectedDay}`,
 			)
+		case 'tasks':
+			return loaders.apiList<AnyRecord>('/tasks/')
 		case 'customers':
 			return loaders.apiList<AnyRecord>('/customers/')
 		case 'vehicles':
