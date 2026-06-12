@@ -14,6 +14,7 @@ import {
 
 import { FinanceRecordCard } from '@/app/components/finance/FinanceRecordCard'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
+import { SkeletonList } from '@/app/components/ui/Skeleton'
 import { Field } from '@/app/components/ui/Field'
 import {
 	type QuickAction,
@@ -159,10 +160,7 @@ export function DebtPanel({
 					/>
 				) : null}
 				{!loadBlocked && loading && !debts.length && !debtPayments.length ? (
-					<LoadingState
-						text="Cargando deudas..."
-						hint="Estamos preparando saldos, estado y pagos recientes."
-					/>
+					<SkeletonList rows={6} columns={4} label="Cargando deudas" />
 				) : null}
 				{!loadBlocked && (!loading || debts.length || debtPayments.length) ? (
 					<>

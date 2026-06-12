@@ -6,6 +6,7 @@ import { Trash2 } from 'lucide-react'
 
 import { type AgendaOperationalPhase } from '@/lib/agenda'
 import { type AgendaReservationAction } from '@/lib/reservation-actions'
+import { SavingOverlay } from '@/app/components/ui/SavingOverlay'
 import { StatusPill } from '@/app/components/ui/StatusPill'
 import { cx } from '@/app/components/utils'
 
@@ -35,6 +36,7 @@ type AgendaReservationCardProps = {
 	quickActionsTrigger?: ReactNode
 	actions: AgendaReservationAction[]
 	onAction: (action: AgendaReservationAction) => void
+	saving?: boolean
 }
 
 export function AgendaReservationCard({
@@ -56,12 +58,18 @@ export function AgendaReservationCard({
 	quickActionsTrigger,
 	actions,
 	onAction,
+	saving = false,
 }: AgendaReservationCardProps) {
 	const isWorkStatusMode = statusMode === 'work-order'
 
 	return (
 		<div
-			className="agenda-entry-card agenda-entry-card--reservation"
+			className={cx(
+				'agenda-entry-card',
+				'agenda-entry-card--reservation',
+				saving && 'agenda-entry-card--saving',
+			)}
+			aria-busy={saving || undefined}
 			{...detailProps}
 		>
 			<div className="agenda-entry-head">
@@ -85,6 +93,7 @@ export function AgendaReservationCard({
 						{timeLabel ? (
 							<span className="agenda-entry-time">{timeLabel}</span>
 						) : null}
+						<SavingOverlay active={saving} compact />
 					</div>
 					<div className="record-title">{title}</div>
 					{serviceLines.length ? (

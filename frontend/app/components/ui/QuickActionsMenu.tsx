@@ -18,7 +18,7 @@ import { cx } from '../utils'
 export type QuickAction = {
 	id: string
 	label: string
-	onSelect: () => void
+	onSelect: () => unknown
 	description?: ReactNode
 	disabled?: boolean
 	hidden?: boolean
@@ -35,6 +35,7 @@ type QuickActionsMenuProps = {
 	onClose: () => void
 	className?: string
 	returnFocusRef?: RefObject<HTMLElement | null>
+	pendingActionId?: string | null
 }
 
 export function QuickActionsMenu({
@@ -45,14 +46,24 @@ export function QuickActionsMenu({
 	onClose,
 	className,
 	returnFocusRef,
+	pendingActionId,
 }: QuickActionsMenuProps) {
 	const menuRef = useRef<HTMLDivElement>(null)
 	const [confirmingId, setConfirmingId] = useState<string | null>(null)
+	const [localRunningId, setLocalRunningId] = useState<string | null>(null)
 	const [position, setPosition] = useState(anchorPoint)
+	const mountedRef = useRef(true)
 	const visibleActions = useMemo(
 		() => actions.filter((action) => !action.hidden),
 		[actions],
 	)
+
+	useEffect(() => {
+		mountedRef.current = true
+		return () => {
+			mountedRef.current = false
+		}
+	}, [])
 
 	function closeMenu() {
 		onClose()
@@ -62,6 +73,7 @@ export function QuickActionsMenu({
 	useEffect(() => {
 		if (!open) return
 		setConfirmingId(null)
+		setLocalRunningId(null)
 		firstEnabledItem()?.focus()
 	}, [open, visibleActions])
 
@@ -85,6 +97,7 @@ export function QuickActionsMenu({
 		if (!open) return
 
 		function handleDocumentMouseDown(event: MouseEvent) {
+			if (localRunningId) return
 			const target = event.target
 			if (
 				target instanceof Node &&
@@ -98,7 +111,7 @@ export function QuickActionsMenu({
 		document.addEventListener('mousedown', handleDocumentMouseDown)
 		return () =>
 			document.removeEventListener('mousedown', handleDocumentMouseDown)
-	}, [open, onClose, returnFocusRef])
+	}, [open, onClose, returnFocusRef, localRunningId])
 
 	if (
 		!open ||
@@ -131,6 +144,7 @@ export function QuickActionsMenu({
 
 	function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
 		if (event.key === 'Escape') {
+			if (localRunningId) return
 			event.preventDefault()
 			closeMenu()
 			return
@@ -163,13 +177,39 @@ export function QuickActionsMenu({
 		focusItemAt(currentIndex + offset)
 	}
 
-	function selectAction(action: QuickAction) {
-		if (action.disabled) return
+	function runningIdFor(action: QuickAction) {
+		if (localRunningId === action.id) return true
+		if (pendingActionId && pendingActionId === action.id) return true
+		return false
+	}
+
+	async function selectAction(action: QuickAction) {
+		if (action.disabled || runningIdFor(action) || localRunningId) return
 		if (action.requiresConfirm && confirmingId !== action.id) {
 			setConfirmingId(action.id)
 			return
 		}
-		action.onSelect()
+		let result: unknown
+		try {
+			result = action.onSelect()
+		} catch (err) {
+			closeMenu()
+			throw err
+		}
+		if (
+			result &&
+			typeof result === 'object' &&
+			typeof (result as { then?: unknown }).then === 'function'
+		) {
+			setLocalRunningId(action.id)
+			try {
+				await (result as Promise<unknown>)
+			} catch {
+				// El error ya quedó en manos del onSelect; aca solo liberamos el lock.
+			} finally {
+				if (mountedRef.current) setLocalRunningId(null)
+			}
+		}
 		closeMenu()
 	}
 
@@ -190,6 +230,7 @@ export function QuickActionsMenu({
 			{title ? <div className="quick-actions-menu-title">{title}</div> : null}
 			{visibleActions.map((action) => {
 				const confirming = confirmingId === action.id
+				const running = runningIdFor(action)
 				const label = confirming
 					? `Confirmar ${action.label}`
 					: action.label
@@ -198,16 +239,25 @@ export function QuickActionsMenu({
 						key={action.id}
 						type="button"
 						role={confirming ? undefined : 'menuitem'}
-						disabled={action.disabled}
+						disabled={action.disabled || running}
+						aria-busy={running || undefined}
 						className={cx(
 							'quick-actions-menu-item',
 							action.tone === 'primary' && 'primary',
 							action.tone === 'danger' && 'danger',
 							confirming && 'confirming',
+							running && 'is-loading',
 						)}
-						onClick={() => selectAction(action)}
+						onClick={() => {
+							void selectAction(action)
+						}}
 					>
-						{action.icon ? (
+						{running ? (
+							<span
+								className="quick-actions-menu-icon button-spinner"
+								aria-hidden="true"
+							/>
+						) : action.icon ? (
 							<span className="quick-actions-menu-icon" aria-hidden="true">
 								{action.icon}
 							</span>
