@@ -26,6 +26,7 @@ type AgendaReservationCardProps = {
 	workStatusValue: string
 	workStatusLabels: Record<string, string>
 	statusMode?: 'reservation' | 'work-order'
+	listMode?: boolean
 	title: string
 	timeLabel?: string
 	serviceLines: AgendaServiceLine[]
@@ -47,6 +48,7 @@ export function AgendaReservationCard({
 	workStatusValue,
 	workStatusLabels,
 	statusMode = 'reservation',
+	listMode = false,
 	title,
 	timeLabel,
 	serviceLines,
@@ -58,6 +60,62 @@ export function AgendaReservationCard({
 	onAction,
 }: AgendaReservationCardProps) {
 	const isWorkStatusMode = statusMode === 'work-order'
+
+	if (listMode) {
+		return (
+			<div
+				className="agenda-entry-card agenda-entry-card--reservation agenda-entry-card--list"
+				{...detailProps}
+			>
+				<div className="agenda-list-identity">
+					<div className="agenda-entry-kicker">
+						{isWorkStatusMode ? (
+							<StatusPill value={workStatusValue} labels={workStatusLabels} />
+						) : (
+							<span className={`agenda-phase-badge agenda-phase-badge--${phase}`}>
+								{phaseLabel}
+							</span>
+						)}
+						{timeLabel ? (
+							<span className="agenda-entry-time">{timeLabel}</span>
+						) : null}
+					</div>
+					<div className="record-title">{title}</div>
+					{serviceLines.length ? (
+						<div className="agenda-service-stack" aria-label="Servicios">
+							{serviceLines.map((service) => (
+								<span className="agenda-service-name" key={service.key}>
+									{service.name}
+								</span>
+							))}
+						</div>
+					) : null}
+				</div>
+				<div className="agenda-list-meta">
+					{vehicleModel ? (
+						<div className="agenda-list-meta-col">
+							<span>Vehículo</span>
+							<strong>{vehicleModel}</strong>
+						</div>
+					) : null}
+					{rangeLabel ? (
+						<div className="agenda-list-meta-col">
+							<span>Período</span>
+							<strong>{rangeLabel}</strong>
+						</div>
+					) : null}
+				</div>
+				<div className="agenda-list-actions">
+					{quickActionsTrigger}
+					<AgendaReservationActionBar
+						actions={actions}
+						reservationId={reservation.id}
+						onAction={onAction}
+					/>
+				</div>
+			</div>
+		)
+	}
 
 	return (
 		<div
