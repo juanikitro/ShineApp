@@ -52,6 +52,38 @@ def send_work_order_ready(work_order):
     return _send_customer_email(work_order.customer, "Tu vehiculo esta listo", body)
 
 
+def send_task_assignment_email(task, assignee):
+    email = (getattr(assignee, "email", "") or "").strip()
+    if not email:
+        return False
+    due_label = f" para el {task.due_date:%d/%m/%Y}" if task.due_date else ""
+    body_lines = [
+        f"Hola {assignee.get_full_name().strip() or assignee.username},",
+        "",
+        f"Te asignaron la tarea \"{task.title}\"{due_label}.",
+    ]
+    if task.description:
+        body_lines.extend(["", task.description.strip()])
+    body_lines.extend([
+        "",
+        "Podes verla en ShineApp.",
+    ])
+    body = "\n".join(body_lines)
+    subject = f"Nueva tarea asignada: {task.title}"
+    try:
+        send_mail(
+            subject,
+            body,
+            settings.DEFAULT_FROM_EMAIL,
+            [email],
+            fail_silently=True,
+        )
+        return True
+    except Exception:
+        logger.exception("No se pudo enviar el email de asignacion de tarea a %s", email)
+        return False
+
+
 def send_new_public_request_notification(public_request):
     """Notifica por email a los usuarios del negocio cuando llega una nueva solicitud pública.
 

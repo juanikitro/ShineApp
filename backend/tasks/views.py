@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
 from core.permissions import can_view_economy
+from notifications.service import send_task_assignment_email
 
 from .models import Task, TaskPriority, TaskStatus
 from .serializers import TaskSerializer
@@ -21,7 +22,13 @@ PRIORITY_ORDER = Case(
 
 
 class TaskViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
-    queryset = Task.objects.select_related("assignee", "created_by", "completed_by").all()
+    queryset = Task.objects.select_related(
+        "assignee",
+        "created_by",
+        "completed_by",
+        "customer",
+        "vehicle",
+    ).all()
     serializer_class = TaskSerializer
     audit_module = "tasks"
 
@@ -75,6 +82,7 @@ class TaskViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             after=audit_snapshot(instance),
             module=self.get_audit_module(instance),
         )
+        self._notify_assignee_if_changed(instance, previous_assignee_id=None)
 
     def _ensure_can_modify(self, instance):
         if self._is_employer():
@@ -90,6 +98,7 @@ class TaskViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             serializer.validated_data.pop("assignee", None)
 
         before = audit_snapshot(instance)
+        previous_assignee_id = instance.assignee_id
         updated = serializer.save()
         record_audit_event(
             request=self.request,
@@ -99,6 +108,7 @@ class TaskViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             after=audit_snapshot(updated),
             module=self.get_audit_module(updated),
         )
+        self._notify_assignee_if_changed(updated, previous_assignee_id=previous_assignee_id)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -111,7 +121,7 @@ class TaskViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         if task.status == TaskStatus.DONE:
             return Response(self.get_serializer(task).data)
         before = audit_snapshot(task)
-        task.mark_done(request.user)
+        spawned = task.mark_done(request.user)
         record_audit_event(
             request=request,
             action="complete",
@@ -120,6 +130,16 @@ class TaskViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             after=audit_snapshot(task),
             module=self.get_audit_module(task),
         )
+        if spawned is not None:
+            record_audit_event(
+                request=request,
+                action="create",
+                instance=spawned,
+                before=None,
+                after=audit_snapshot(spawned),
+                module=self.get_audit_module(spawned),
+            )
+            self._notify_assignee_if_changed(spawned, previous_assignee_id=None)
         return Response(self.get_serializer(task).data)
 
     @action(detail=True, methods=["post"], url_path="reopen")
@@ -138,3 +158,36 @@ class TaskViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             module=self.get_audit_module(task),
         )
         return Response(self.get_serializer(task).data)
+
+    @action(detail=True, methods=["post"], url_path="restore")
+    def restore(self, request, pk=None):
+        task = Task.all_objects.filter(pk=pk).first()
+        if task is None:
+            return Response(status=http_status.HTTP_404_NOT_FOUND)
+        business = self.get_business()
+        if business is not None and task.business_id != business.id:
+            return Response(status=http_status.HTTP_404_NOT_FOUND)
+        self._ensure_can_modify(task)
+        if task.deleted_at is None:
+            return Response(self.get_serializer(task).data)
+        before = audit_snapshot(task)
+        task.restore()
+        record_audit_event(
+            request=request,
+            action="restore",
+            instance=task,
+            before=before,
+            after=audit_snapshot(task),
+            module=self.get_audit_module(task),
+        )
+        return Response(self.get_serializer(task).data)
+
+    def _notify_assignee_if_changed(self, task, previous_assignee_id):
+        new_assignee = task.assignee
+        if new_assignee is None:
+            return
+        if new_assignee.id == previous_assignee_id:
+            return
+        if new_assignee.id == getattr(self.request.user, "id", None):
+            return
+        send_task_assignment_email(task, new_assignee)
