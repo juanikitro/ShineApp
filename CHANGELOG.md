@@ -11,7 +11,9 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-12
+- [UX: bloqueo de botones, loaders globales y confirmaciones in-app](docs/registro/cambios/2026-06-12-ux-loading-y-bloqueo-de-botones.md)
 - [regen-docs: PR en lugar de push directo a main](docs/registro/cambios/2026-06-12-regen-docs-via-pr.md)
+- [Agenda: cards de reservas más compactas](docs/registro/cambios/2026-06-12-agenda-cards-compactas.md)
 
 ## 2026-06-11
 - [Turnera: precios mostrados segun el tipo de vehiculo seleccionado](docs/registro/cambios/2026-06-11-turnera-precio-por-tipo-de-vehiculo.md)

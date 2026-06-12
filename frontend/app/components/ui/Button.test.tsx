@@ -70,3 +70,58 @@ test('Button type=submit is preserved for forms', () => {
 	)
 	assert.equal(screen.getByRole('button').getAttribute('type'), 'submit')
 })
+
+test('Button onClickAsync locks the button while the promise is pending', async () => {
+	const user = userEvent.setup()
+	let resolveFn: (() => void) | null = null
+	const handler = vi.fn(
+		() =>
+			new Promise<void>((resolve) => {
+				resolveFn = resolve
+			}),
+	)
+	render(<Button onClickAsync={handler}>Guardar</Button>)
+	const btn = screen.getByRole('button')
+
+	await user.click(btn)
+	assert.equal(handler.mock.calls.length, 1)
+	assert.equal((btn as HTMLButtonElement).disabled, true)
+	assert.equal(btn.getAttribute('aria-busy'), 'true')
+
+	// Doble click durante el pending no dispara otra vez
+	await user.click(btn)
+	assert.equal(handler.mock.calls.length, 1)
+
+	resolveFn?.()
+	await new Promise((r) => setTimeout(r, 0))
+	assert.equal((btn as HTMLButtonElement).disabled, false)
+	assert.equal(btn.hasAttribute('aria-busy'), false)
+})
+
+test('Button onClickAsync releases lock even if the promise rejects', async () => {
+	const user = userEvent.setup()
+	let rejectFn: ((err: Error) => void) | null = null
+	const handler = vi.fn(
+		() =>
+			new Promise<void>((_, reject) => {
+				rejectFn = reject
+			}),
+	)
+	render(<Button onClickAsync={handler}>Reintentar</Button>)
+	const btn = screen.getByRole('button')
+
+	await user.click(btn)
+	assert.equal((btn as HTMLButtonElement).disabled, true)
+
+	rejectFn?.(new Error('boom'))
+	await new Promise((r) => setTimeout(r, 0))
+	assert.equal((btn as HTMLButtonElement).disabled, false)
+})
+
+test('Button without onClickAsync still routes onClick synchronously', async () => {
+	const user = userEvent.setup()
+	const onClick = vi.fn()
+	render(<Button onClick={onClick}>OK</Button>)
+	await user.click(screen.getByRole('button'))
+	assert.equal(onClick.mock.calls.length, 1)
+})

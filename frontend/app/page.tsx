@@ -130,6 +130,9 @@ import {
 import NextImage from 'next/image'
 
 import { Button } from '@/app/components/ui/Button'
+import { GlobalProgressBar } from '@/app/components/ui/GlobalProgressBar'
+import { SavingOverlay } from '@/app/components/ui/SavingOverlay'
+import { useConfirmDialog } from '@/lib/use-confirm-dialog'
 import { DetailModal } from '@/app/components/ui/DetailModal'
 import { DurationInput } from '@/app/components/ui/DurationInput'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
@@ -715,6 +718,7 @@ export default function Home() {
 	const { toasts, showToast, dismissToast } = useNoticeToasts()
 	const pendingActions = usePendingActions()
 	const runActionCounterRef = useRef(0)
+	const { requestConfirm, ConfirmDialog } = useConfirmDialog()
 	const isDataSetLoading = (key: DataSetKey) => loadingDataSets.has(key)
 	const loading = bootLoading || loadingDataSets.size > 0
 	const undoTimerRef = useRef<number | null>(null)
@@ -3276,6 +3280,16 @@ export default function Home() {
 			actions,
 		)
 
+		const reservationIdStr = String(reservation.id ?? '')
+		const workOrderId = workOrder?.id != null ? String(workOrder.id) : ''
+		const cardSaving =
+			(agendaMovePendingId !== null &&
+				agendaMovePendingId === reservationIdStr) ||
+			isActionPending(`reservation-status:${reservationIdStr}`) ||
+			(workOrderId
+				? isActionPending(`wo-status:${workOrderId}`)
+				: false)
+
 		return (
 			<AgendaReservationCard
 				actions={actions}
@@ -3301,6 +3315,7 @@ export default function Home() {
 					reservationLabels[reservationStatusValue] ?? reservationStatusValue
 				}
 				reservationStatusValue={reservationStatusValue}
+				saving={cardSaving}
 				serviceLines={serviceLines}
 				statusMode={options.statusMode}
 				timeLabel={reservationStartTimeLabel(reservation, 'Sin hora')}
@@ -3595,6 +3610,30 @@ export default function Home() {
 		setQuickReservationDay(day)
 	}
 
+	function showProgressToastSoon() {
+		const handle: { id: number | null; timer: number } = {
+			id: null,
+			timer: window.setTimeout(() => {
+				handle.id = showToast({
+					tone: 'success',
+					title: 'Guardando…',
+					description:
+						'El servidor está respondiendo. Esto puede tardar unos segundos en el demo.',
+					visibleMs: 30000,
+				})
+			}, 700),
+		}
+		return handle
+	}
+
+	function clearProgressToast(handle: { id: number | null; timer: number }) {
+		window.clearTimeout(handle.timer)
+		if (handle.id !== null) {
+			dismissToast(handle.id)
+			handle.id = null
+		}
+	}
+
 	async function runAction<T>(
 		action: () => Promise<T>,
 		options?: RunActionOptions<T>,
@@ -3603,6 +3642,7 @@ export default function Home() {
 			options?.key ?? `runAction:${++runActionCounterRef.current}`
 		pendingActions.begin(pendingKey)
 		setError(null)
+		const progress = showProgressToastSoon()
 		try {
 			const result = await action()
 			await loadData({ force: true })
@@ -3640,6 +3680,7 @@ export default function Home() {
 		} catch (err: any) {
 			setError(formatApiError(err))
 		} finally {
+			clearProgressToast(progress)
 			pendingActions.end(pendingKey)
 		}
 	}
@@ -3657,6 +3698,7 @@ export default function Home() {
 		pendingActions.begin(args.key)
 		args.optimistic()
 		setError(null)
+		const progress = showProgressToastSoon()
 		try {
 			const result = await args.action()
 			await loadData({ force: true })
@@ -3676,6 +3718,7 @@ export default function Home() {
 			setError(formatApiError(err))
 			return undefined
 		} finally {
+			clearProgressToast(progress)
 			pendingActions.end(args.key)
 		}
 	}
@@ -10049,12 +10092,14 @@ export default function Home() {
 	}
 
 	async function deleteFixedExpense(id: string | number) {
-		const confirmed =
-			typeof window === 'undefined'
-				? true
-				: window.confirm(
-						'Eliminar el gasto fijo. Los periodos ya generados se conservan. Continuar?',
-					)
+		const confirmed = await requestConfirm({
+			title: 'Eliminar gasto fijo',
+			message:
+				'Eliminar el gasto fijo. Los periodos ya generados se conservan. ¿Continuar?',
+			confirmLabel: 'Eliminar',
+			cancelLabel: 'Cancelar',
+			tone: 'danger',
+		})
 		if (!confirmed) return
 		await runAction(
 			async () =>
@@ -10064,12 +10109,13 @@ export default function Home() {
 	}
 
 	async function unpayFixedExpenseOccurrence(id: string | number) {
-		const confirmed =
-			typeof window === 'undefined'
-				? true
-				: window.confirm(
-						'Revertir el pago elimina el egreso de la caja. Continuar?',
-					)
+		const confirmed = await requestConfirm({
+			title: 'Revertir pago',
+			message: 'Revertir el pago elimina el egreso de la caja. ¿Continuar?',
+			confirmLabel: 'Revertir pago',
+			cancelLabel: 'Cancelar',
+			tone: 'danger',
+		})
 		if (!confirmed) return
 		await runAction(
 			async () =>
@@ -10740,7 +10786,9 @@ export default function Home() {
 					/>
 					Impacta en caja
 				</label>
-				<button className="primary">{submitLabel}</button>
+				<Button type="submit" variant="primary" loading={pendingActions.pending}>
+					{submitLabel}
+				</Button>
 			</form>
 		)
 	}
@@ -10833,10 +10881,14 @@ export default function Home() {
 						}
 					/>
 				</Field>
-				<button className="primary">
-					<Package size={16} />
+				<Button
+					type="submit"
+					variant="primary"
+					loading={pendingActions.pending}
+					leadingIcon={<Package size={16} />}
+				>
 					{submitLabel}
-				</button>
+				</Button>
 			</form>
 		)
 	}
@@ -10845,7 +10897,9 @@ export default function Home() {
 		return (
 			<form className="form-grid" onSubmit={saveConsumption}>
 				{renderConsumptionFields(true)}
-				<button className="primary">{submitLabel}</button>
+				<Button type="submit" variant="primary" loading={pendingActions.pending}>
+					{submitLabel}
+				</Button>
 			</form>
 		)
 	}
@@ -10946,10 +11000,14 @@ export default function Home() {
 						}
 					/>
 				</Field>
-				<button className="primary">
-					<Hammer size={16} />
+				<Button
+					type="submit"
+					variant="primary"
+					loading={pendingActions.pending}
+					leadingIcon={<Hammer size={16} />}
+				>
 					{submitLabel}
-				</button>
+				</Button>
 			</form>
 		)
 	}
@@ -11034,10 +11092,14 @@ export default function Home() {
 							Cancelar
 						</button>
 					) : null}
-					<button className="primary">
-						<ReceiptText size={16} />
+					<Button
+						type="submit"
+						variant="primary"
+						loading={pendingActions.pending}
+						leadingIcon={<ReceiptText size={16} />}
+					>
 						{editing ? 'Guardar cambios' : 'Crear subcategoria'}
-					</button>
+					</Button>
 				</div>
 			</form>
 		)
@@ -11092,10 +11154,14 @@ export default function Home() {
 						}
 					/>
 				</Field>
-				<button className="primary">
-					<Plus size={16} />
+				<Button
+					type="submit"
+					variant="primary"
+					loading={pendingActions.pending}
+					leadingIcon={<Plus size={16} />}
+				>
 					{submitLabel}
-				</button>
+				</Button>
 			</form>
 		)
 	}
@@ -11756,10 +11822,14 @@ export default function Home() {
 									</Field>
 								</div>
 							) : null}
-							<button className="primary">
-								<CalendarDays size={16} />
+							<Button
+								type="submit"
+								variant="primary"
+								loading={pendingActions.pending}
+								leadingIcon={<CalendarDays size={16} />}
+							>
 								Crear reserva
-							</button>
+							</Button>
 						</form>
 					</Modal>
 				) : null}
@@ -11908,10 +11978,14 @@ export default function Home() {
 									})
 								}
 							/>
-							<button className="primary">
-								<Plus size={16} />
+							<Button
+								type="submit"
+								variant="primary"
+								loading={pendingActions.pending}
+								leadingIcon={<Plus size={16} />}
+							>
 								Crear cliente
-							</button>
+							</Button>
 						</form>
 					</Modal>
 				) : null}
@@ -12015,10 +12089,14 @@ export default function Home() {
 									/>
 								</Field>
 							</div>
-							<button className="primary">
-								<Plus size={16} />
+							<Button
+								type="submit"
+								variant="primary"
+								loading={pendingActions.pending}
+								leadingIcon={<Plus size={16} />}
+							>
 								Crear vehiculo
-							</button>
+							</Button>
 						</form>
 					</Modal>
 				) : null}
@@ -12107,10 +12185,14 @@ export default function Home() {
 									</Field>
 								))}
 							</div>
-							<button className="primary">
-								<Plus size={16} />
+							<Button
+								type="submit"
+								variant="primary"
+								loading={pendingActions.pending}
+								leadingIcon={<Plus size={16} />}
+							>
 								Crear servicio
-							</button>
+							</Button>
 						</form>
 					</Modal>
 				) : null}
@@ -12165,10 +12247,14 @@ export default function Home() {
 							<div className="info-note">
 								El costo unitario se completa con la primera compra.
 							</div>
-							<button className="primary">
-								<Plus size={16} />
+							<Button
+								type="submit"
+								variant="primary"
+								loading={pendingActions.pending}
+								leadingIcon={<Plus size={16} />}
+							>
 								Crear material
-							</button>
+							</Button>
 						</form>
 					</Modal>
 				) : null}
@@ -12201,10 +12287,14 @@ export default function Home() {
 								{serviceDisplayName(consumeForOrder)}
 							</div>
 							{renderConsumptionFields(false)}
-							<button className="primary">
-								<Package size={16} />
+							<Button
+								type="submit"
+								variant="primary"
+								loading={pendingActions.pending}
+								leadingIcon={<Package size={16} />}
+							>
 								Registrar consumo
-							</button>
+							</Button>
 						</form>
 					</Modal>
 				) : null}
@@ -12278,10 +12368,14 @@ export default function Home() {
 									}
 								/>
 							</Field>
-							<button className="primary">
-								<CreditCard size={16} />
+							<Button
+								type="submit"
+								variant="primary"
+								loading={pendingActions.pending}
+								leadingIcon={<CreditCard size={16} />}
+							>
 								Registrar pago
-							</button>
+							</Button>
 						</form>
 					</Modal>
 				) : null}
@@ -12509,7 +12603,9 @@ export default function Home() {
 					/>
 				}
 			>
-				<NoticeToastViewport toasts={toasts} onDismiss={dismissToast} />
+				<GlobalProgressBar active={pendingActions.pending} />
+			<ConfirmDialog />
+			<NoticeToastViewport toasts={toasts} onDismiss={dismissToast} />
 				<QuickActionsMenu
 					open={Boolean(quickActionsMenu)}
 					anchorPoint={quickActionsMenu?.anchorPoint ?? null}
