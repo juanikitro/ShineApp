@@ -36,6 +36,7 @@ test('loadAppDataSets keeps the existing endpoint contract and entry order', asy
 	const keys = [
 		'dashboard',
 		'cash',
+		'tasks',
 		'customers',
 		'vehicles',
 		'services',
@@ -66,6 +67,7 @@ test('loadAppDataSets keeps the existing endpoint contract and entry order', asy
 		[
 			['fetch', '/dashboard/summary/?from=2026-05-01&to=2026-05-31'],
 			['fetch', '/cash/daily/?date=2026-05-20'],
+			['list', '/tasks/'],
 			['list', '/customers/'],
 			['list', '/vehicles/'],
 			['list', '/services/'],
@@ -114,6 +116,7 @@ test('applyAppDataEntry dispatches loaded data to the matching applier only', ()
 		[
 			'dashboard',
 			'cash',
+			'tasks',
 			'customers',
 			'vehicles',
 			'services',

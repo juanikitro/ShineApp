@@ -24,6 +24,7 @@ from inventory.views import (
 )
 from quotes.views import QuoteViewSet
 from scheduling.views import DailyAgendaView, ReservationViewSet
+from tasks.views import TaskViewSet
 from workorders.views import WorkOrderViewSet
 from notifications.views import (
     PublicLandingAvailabilityView,
@@ -68,6 +69,7 @@ router.register("material-open-units", MaterialOpenUnitViewSet, basename="materi
 router.register("material-purchases", MaterialPurchaseViewSet, basename="materialpurchase")
 router.register("material-consumptions", MaterialConsumptionViewSet, basename="materialconsumption")
 router.register("quotes", QuoteViewSet, basename="quote")
+router.register("tasks", TaskViewSet, basename="task")
 router.register("public-requests", PublicRequestViewSet, basename="publicrequest")
 
 urlpatterns = [

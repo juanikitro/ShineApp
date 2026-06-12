@@ -27,6 +27,7 @@ import {
 	Globe,
 	Hammer,
 	History,
+	ListTodo,
 	LockKeyhole,
 	LogOut,
 	Menu,
@@ -108,6 +109,7 @@ import {
 } from '@/app/components/quotes/QuotesPanel'
 import { ServicesPanel } from '@/app/components/services/ServicesPanel'
 import { SettingsWorkspace } from '@/app/components/settings/SettingsWorkspace'
+import { TasksPanel } from '@/app/components/tasks/TasksPanel'
 import { ToolsPanel } from '@/app/components/tools/ToolsPanel'
 import {
 	CustomerDashboardShell,
@@ -793,6 +795,7 @@ export default function Home() {
 	const [materialOpenUnits, setMaterialOpenUnits] = useState<AnyRecord[]>([])
 	const [tools, setTools] = useState<AnyRecord[]>([])
 	const [quotes, setQuotes] = useState<AnyRecord[]>([])
+	const [tasks, setTasks] = useState<AnyRecord[]>([])
 	const [publicRequests, setPublicRequests] = useState<AnyRecord[]>([])
 	const [publicRequestSelections, setPublicRequestSelections] = useState<
 		Record<string, { customer?: string; vehicle?: string }>
@@ -2222,6 +2225,7 @@ export default function Home() {
 		consumptions: setConsumptions,
 		tools: setTools,
 		quotes: setQuotes,
+		tasks: setTasks,
 		publicRequests: setPublicRequests,
 		businessProfile: syncBusinessProfile,
 		employees: setEmployees,
@@ -4442,6 +4446,7 @@ export default function Home() {
 	})
 	const navItems: SidebarNavItem[] = [
 		buildNavItem('dashboard'),
+		buildNavItem('tasks'),
 		{
 			...buildNavItem('agenda'),
 			children: canViewEconomy
@@ -13718,6 +13723,55 @@ export default function Home() {
 						onOpenToolDetail={(item) => openDetailModal('Herramienta', item)}
 						onOpenToolForm={() => openFormModal('tool')}
 						onSearchChange={setSearch}
+					/>
+				) : null}
+
+				{displayedActive === 'tasks' ? (
+					<TasksPanel
+						tasks={tasks}
+						employees={employees}
+						currentUser={currentUser}
+						canViewEconomy={canViewEconomy}
+						onCreate={async (payload) => {
+							await runAction(
+								() =>
+									apiFetch('/tasks/', {
+										method: 'POST',
+										body: JSON.stringify(payload),
+									}),
+								{ successTitle: 'Tarea creada' },
+							)
+						}}
+						onUpdate={async (id, payload) => {
+							await runAction(
+								() =>
+									apiFetch(`/tasks/${id}/`, {
+										method: 'PATCH',
+										body: JSON.stringify(payload),
+									}),
+								{ successTitle: 'Tarea actualizada' },
+							)
+						}}
+						onDelete={async (id) => {
+							await runAction(
+								() => apiFetch(`/tasks/${id}/`, { method: 'DELETE' }),
+								{ successTitle: 'Tarea eliminada' },
+							)
+						}}
+						onComplete={async (id) => {
+							await runAction(
+								() =>
+									apiFetch(`/tasks/${id}/complete/`, { method: 'POST' }),
+								{ successTitle: 'Tarea completada' },
+							)
+						}}
+						onReopen={async (id) => {
+							await runAction(
+								() =>
+									apiFetch(`/tasks/${id}/reopen/`, { method: 'POST' }),
+								{ successTitle: 'Tarea reabierta' },
+							)
+						}}
 					/>
 				) : null}
 

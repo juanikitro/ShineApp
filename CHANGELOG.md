@@ -14,6 +14,8 @@ py -3 scripts/check_docs.py --write --skip-build
 - [UX: bloqueo de botones, loaders globales y confirmaciones in-app](docs/registro/cambios/2026-06-12-ux-loading-y-bloqueo-de-botones.md)
 - [regen-docs: PR en lugar de push directo a main](docs/registro/cambios/2026-06-12-regen-docs-via-pr.md)
 - [Papelera: ver, restaurar y purgar registros borrados](docs/registro/cambios/2026-06-12-papelera-restore-borrado-logico.md)
+- [Modulo de tareas para empleadores y empleados](docs/registro/cambios/2026-06-12-modulo-tareas.md)
+- [Caja: rediseno de KPIs y metricas consolidadas en dos columnas](docs/registro/cambios/2026-06-12-caja-rediseno-kpis-y-metricas-consolidadas.md)
 - [Caja: boton unico "Cargar movimiento" con toggle por tipo](docs/registro/cambios/2026-06-12-caja-cargar-movimiento-unificado.md)
 - [Agenda: cards de reservas más compactas](docs/registro/cambios/2026-06-12-agenda-cards-compactas.md)
 

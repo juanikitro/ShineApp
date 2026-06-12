@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "quotes",
     "dashboard",
     "notifications",
+    "tasks",
     "search",
 ]
 

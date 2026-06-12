@@ -11,6 +11,7 @@ import {
 	FileText,
 	Gauge,
 	Hammer,
+	ListTodo,
 	Package,
 	ReceiptText,
 	Search,
@@ -78,6 +79,7 @@ type FormModalKind =
 type Section =
 	| 'dashboard'
 	| 'agenda'
+	| 'tasks'
 	| 'customers'
 	| 'suppliers'
 	| 'vehicles'
@@ -869,6 +871,11 @@ const sectionMeta: Record<
 		label: 'Agenda',
 		icon: CalendarDays,
 		subtitle: 'Reservas, trabajos y seguimiento diario',
+	},
+	tasks: {
+		label: 'Tareas',
+		icon: ListTodo,
+		subtitle: 'Pendientes del negocio y por empleado',
 	},
 	customers: {
 		label: 'Clientes',
