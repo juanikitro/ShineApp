@@ -43,6 +43,10 @@ class Debt(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-origin_date", "-id"]
+        indexes = [
+            models.Index(fields=["business", "-origin_date"], name="debt_biz_origin_idx"),
+            models.Index(fields=["business", "due_date"], name="debt_biz_due_idx"),
+        ]
 
     def __str__(self):
         return self.concept
@@ -122,6 +126,9 @@ class DebtPayment(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-paid_at", "-id"]
+        indexes = [
+            models.Index(fields=["business", "-paid_at"], name="debtpay_biz_paid_idx"),
+        ]
 
     def __str__(self):
         return f"{self.debt_id} - {self.amount}"
