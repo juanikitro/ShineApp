@@ -34,34 +34,7 @@ export function AgendaBoardToolbar({
 				</h2>
 			</div>
 			<div className="agenda-toolbar-tools">
-				<div className="agenda-nav" aria-label="Navegar agenda">
-					<button
-						type="button"
-						className="ghost icon-button"
-						aria-label={`Retroceder ${visibleDays} dias`}
-						title={`Retroceder ${visibleDays} dias`}
-						onClick={() => onMove(-visibleDays)}
-					>
-						<ChevronsLeft size={17} />
-					</button>
-					<button
-						type="button"
-						className="ghost icon-button"
-						aria-label="Retroceder 1 dia"
-						title="Retroceder 1 dia"
-						onClick={() => onMove(-1)}
-					>
-						<ChevronLeft size={17} />
-					</button>
-					<button
-						type="button"
-						className="ghost"
-						aria-label="Ir a hoy"
-						title="Ir a hoy"
-						onClick={onToday}
-					>
-						Hoy
-					</button>
+				<div className="agenda-nav-row">
 					<input
 						type="date"
 						className="agenda-date-picker"
@@ -70,24 +43,53 @@ export function AgendaBoardToolbar({
 						value={currentDay}
 						onChange={(e) => e.target.value && onGoToDate(e.target.value)}
 					/>
-					<button
-						type="button"
-						className="ghost icon-button"
-						aria-label="Adelantar 1 dia"
-						title="Adelantar 1 dia"
-						onClick={() => onMove(1)}
-					>
-						<ChevronRight size={17} />
-					</button>
-					<button
-						type="button"
-						className="ghost icon-button"
-						aria-label={`Adelantar ${visibleDays} dias`}
-						title={`Adelantar ${visibleDays} dias`}
-						onClick={() => onMove(visibleDays)}
-					>
-						<ChevronsRight size={17} />
-					</button>
+					<div className="agenda-nav" aria-label="Navegar agenda">
+						<button
+							type="button"
+							className="ghost icon-button"
+							aria-label={`Retroceder ${visibleDays} dias`}
+							title={`Retroceder ${visibleDays} dias`}
+							onClick={() => onMove(-visibleDays)}
+						>
+							<ChevronsLeft size={17} />
+						</button>
+						<button
+							type="button"
+							className="ghost icon-button"
+							aria-label="Retroceder 1 dia"
+							title="Retroceder 1 dia"
+							onClick={() => onMove(-1)}
+						>
+							<ChevronLeft size={17} />
+						</button>
+						<button
+							type="button"
+							className="ghost"
+							aria-label="Ir a hoy"
+							title="Ir a hoy"
+							onClick={onToday}
+						>
+							Hoy
+						</button>
+						<button
+							type="button"
+							className="ghost icon-button"
+							aria-label="Adelantar 1 dia"
+							title="Adelantar 1 dia"
+							onClick={() => onMove(1)}
+						>
+							<ChevronRight size={17} />
+						</button>
+						<button
+							type="button"
+							className="ghost icon-button"
+							aria-label={`Adelantar ${visibleDays} dias`}
+							title={`Adelantar ${visibleDays} dias`}
+							onClick={() => onMove(visibleDays)}
+						>
+							<ChevronsRight size={17} />
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>

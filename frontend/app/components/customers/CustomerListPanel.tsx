@@ -6,7 +6,6 @@ import { Eye, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
 import { Empty } from '@/app/components/ui/Empty'
-import { RecordCardHeader } from '@/app/components/ui/RecordCard'
 import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
 import { cx } from '@/app/components/utils'
 import { joinDisplayParts } from '@/lib/display-text'
@@ -293,70 +292,22 @@ export function CustomerListPanel({
 									onOpenQuickActions?.(event, customer)
 								}
 							>
-								<RecordCardHeader
-									title={customerName}
-									subtitle={joinDisplayParts([
-										customer.phone || 'Sin telefono',
-										customer.email || 'Sin email',
-									])}
-									className="customer-record-head"
-									actions={
-										<div className="customer-record-actions">
-											<button
-												type="button"
-												className="primary"
-												aria-label={`Abrir ${primaryActionLabel.toLowerCase()} de ${
-													customerName
-												}`}
-												onClick={() => onOpenDashboard(customer)}
-											>
-												<Eye size={15} />
-												{primaryActionLabel}
-											</button>
-											<div className="customer-secondary-actions">
-												<button
-													className="ghost"
-													type="button"
-													aria-label={`Editar cliente ${customerName}`}
-													onClick={() => onEdit(customer)}
-												>
-													<Pencil size={15} />
-													Editar
-												</button>
-												<button
-													className="danger"
-													type="button"
-													aria-label={`Dar de baja cliente ${customerName}`}
-													onClick={() => onDelete(customer)}
-												>
-													<Trash2 size={15} />
-													Baja
-												</button>
-												{onOpenQuickActionsFromTrigger ? (
-													<button
-														className="ghost icon-button quick-actions-trigger"
-														type="button"
-														aria-label={`Acciones rapidas de ${customerName}`}
-														title={`Acciones rapidas de ${customerName}`}
-														onClick={(event) =>
-															onOpenQuickActionsFromTrigger(event, customer)
-														}
-													>
-														<MoreHorizontal size={15} />
-													</button>
-												) : null}
-											</div>
-										</div>
-									}
-								>
-									<div className="customer-card-meta">
+								<div className="customer-record-identity">
+									<div className="customer-record-name">
+										<span className="record-title">{customerName}</span>
 										{primaryPill ? (
-											<span
-												className={cx('customer-pill', primaryPill.className)}
-											>
+											<span className={cx('customer-pill', primaryPill.className)}>
 												{primaryPill.label}
 											</span>
 										) : null}
+									</div>
+									<div className="record-sub">
+										{joinDisplayParts([
+											customer.phone || 'Sin telefono',
+											customer.email || 'Sin email',
+										])}
+									</div>
+									<div className="customer-card-meta">
 										{chips.map((chip) => (
 											<span
 												className={cx(
@@ -369,8 +320,8 @@ export function CustomerListPanel({
 											</span>
 										))}
 									</div>
-								</RecordCardHeader>
-								<div className="customer-record-body">
+								</div>
+								<div className="customer-record-stats">
 									<div className="customer-record-stat">
 										<span>Proxima visita</span>
 										<strong>
@@ -405,6 +356,50 @@ export function CustomerListPanel({
 												? `${insights.balance_due_work_orders_count ?? 0} trabajos con saldo`
 												: customerOperationalStateText(customer)}
 										</small>
+									</div>
+								</div>
+								<div className="customer-record-actions">
+									<button
+										type="button"
+										className="primary"
+										aria-label={`Abrir ${primaryActionLabel.toLowerCase()} de ${customerName}`}
+										onClick={() => onOpenDashboard(customer)}
+									>
+										<Eye size={15} />
+										{primaryActionLabel}
+									</button>
+									<div className="customer-secondary-actions">
+										<button
+											className="ghost"
+											type="button"
+											aria-label={`Editar cliente ${customerName}`}
+											onClick={() => onEdit(customer)}
+										>
+											<Pencil size={15} />
+											Editar
+										</button>
+										<button
+											className="danger"
+											type="button"
+											aria-label={`Dar de baja cliente ${customerName}`}
+											onClick={() => onDelete(customer)}
+										>
+											<Trash2 size={15} />
+											Baja
+										</button>
+										{onOpenQuickActionsFromTrigger ? (
+											<button
+												className="ghost icon-button quick-actions-trigger"
+												type="button"
+												aria-label={`Acciones rapidas de ${customerName}`}
+												title={`Acciones rapidas de ${customerName}`}
+												onClick={(event) =>
+													onOpenQuickActionsFromTrigger(event, customer)
+												}
+											>
+												<MoreHorizontal size={15} />
+											</button>
+										) : null}
 									</div>
 								</div>
 							</MotionFlashSurface>

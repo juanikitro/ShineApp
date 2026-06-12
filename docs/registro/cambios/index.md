@@ -9,7 +9,9 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [UX: bloqueo de botones, loaders globales y confirmaciones in-app](2026-06-12-ux-loading-y-bloqueo-de-botones.md)
 - [regen-docs: PR en lugar de push directo a main](2026-06-12-regen-docs-via-pr.md)
+- [Agenda: cards de reservas más compactas](2026-06-12-agenda-cards-compactas.md)
 - [Turnera: precios mostrados segun el tipo de vehiculo seleccionado](2026-06-11-turnera-precio-por-tipo-de-vehiculo.md)
 - [Turnera: el logo del header entra completo, sin recorte cuadrado](2026-06-11-turnera-logo-sin-recorte.md)
 - [Turnera: logo del negocio en el header](2026-06-11-turnera-logo-en-header.md)
