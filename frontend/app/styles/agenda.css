@@ -621,13 +621,13 @@
   box-shadow: none;
   cursor: pointer;
   display: grid;
-  gap: 8px;
+  gap: 10px;
   grid-template-rows: minmax(0, 1fr) auto auto;
   height: 100%;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
-  padding: 8px;
+  padding: 10px;
 }
 
 .agenda-entry-card--reservation {
@@ -659,7 +659,7 @@
 
 .agenda-entry-copy {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
@@ -669,7 +669,7 @@
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
 }
 
 .agenda-entry-eyebrow {
@@ -699,8 +699,8 @@
 .agenda-service-name {
   color: var(--shop-ink);
   display: -webkit-box;
-  font-size: var(--text-base);
-  font-weight: 750;
+  font-size: var(--text-md);
+  font-weight: 800;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-height: 1.25;
@@ -725,7 +725,7 @@
   display: inline-flex;
   font-size: var(--text-xs);
   font-weight: 750;
-  padding: 2px 6px;
+  padding: 3px 7px;
 }
 
 .agenda-phase-badge--entry {
@@ -755,15 +755,7 @@
   white-space: nowrap;
 }
 
-.agenda-entry-card .record-title {
-  display: -webkit-box;
-  font-size: var(--text-md);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-}
-
+.agenda-entry-card .record-title,
 .agenda-entry-card .record-sub {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -789,7 +781,7 @@
 
 .agenda-card-actions {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   margin-top: auto;
   min-width: 0;
 }
@@ -798,7 +790,7 @@
 .agenda-secondary-actions {
   align-items: center;
   display: flex;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -809,7 +801,7 @@
 .agenda-secondary-actions {
   border-top: 1px solid var(--shop-border);
   justify-content: flex-start;
-  padding-top: 4px;
+  padding-top: 6px;
 }
 
 .agenda-inline-metrics {
@@ -1018,12 +1010,14 @@
 }
 
 .agenda-work-debt {
-  align-items: baseline;
-  border-top: 1px solid var(--shop-border);
+  align-items: center;
+  background: var(--color-workspace-surface-raised);
+  border: 1px solid var(--shop-border);
+  border-radius: var(--radius-sm);
   display: flex;
-  gap: var(--space-2);
+  gap: 10px;
   justify-content: space-between;
-  padding: 4px 0;
+  padding: 10px 12px;
 }
 
 .agenda-work-debt-main {
@@ -1044,14 +1038,10 @@
 }
 
 .agenda-work-debt-main strong {
+  color: var(--shop-ink);
   font-size: var(--text-md);
   font-variant-numeric: tabular-nums;
-  font-weight: 750;
   white-space: nowrap;
-}
-
-.agenda-work-debt-main strong.debt {
-  color: var(--shop-danger);
 }
 
 .agenda-work-materials {
@@ -1228,7 +1218,7 @@
   }
 
   .agenda-entry-card {
-    padding: 7px;
+    padding: 9px;
   }
 
   .agenda-service-name {
@@ -1244,7 +1234,9 @@
   }
 
   .agenda-work-debt {
-    flex-wrap: wrap;
+    align-items: stretch;
+    display: grid;
+    gap: 6px;
   }
 
   .agenda-work-materials {
