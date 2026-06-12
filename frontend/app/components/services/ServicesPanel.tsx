@@ -100,6 +100,29 @@ export function ServicesPanel({
 		return acc
 	}, {})
 
+	function renderServicePriceRow(service: AnyRecord) {
+		const setVehiclePrices = VEHICLE_TYPES.filter((t) => {
+			const val = service[t.priceField]
+			return val !== null && val !== undefined && String(val).trim() !== ''
+		})
+
+		const totalMaterialCost = (service.materials ?? []).reduce(
+			(sum: number, m: AnyRecord) =>
+				sum + Number(m.quantity || 0) * Number(m.material_unit_cost || 0),
+			0,
+		)
+
+		const parts: string[] = [`Base: ${money(service.base_price)}`]
+		for (const t of setVehiclePrices) {
+			parts.push(`${t.label}: ${money(service[t.priceField])}`)
+		}
+		if (totalMaterialCost > 0) {
+			parts.push(`Mat: ${money(totalMaterialCost)}`)
+		}
+
+		return <div className="record-prices">{parts.join(' · ')}</div>
+	}
+
 	function sectorLabel(service: AnyRecord): string {
 		const sectorId = service.sector
 		if (sectorId != null && sectorId !== '') {
@@ -512,7 +535,6 @@ export function ServicesPanel({
 										title={serviceDisplayName(item)}
 										subtitle={joinDisplayParts([
 											sectorLabel(item),
-											money(item.base_price),
 											formatDurationLabel(item.estimated_duration_minutes),
 										])}
 										primaryAction={{
@@ -539,7 +561,9 @@ export function ServicesPanel({
 												</>
 											) : undefined
 										}
-									/>
+									>
+										{renderServicePriceRow(item)}
+									</RecordCardHeader>
 								</MotionFlashSurface>
 							)
 						})
