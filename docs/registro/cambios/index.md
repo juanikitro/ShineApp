@@ -9,9 +9,12 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [regen-docs: PR en lugar de push directo a main](2026-06-12-regen-docs-via-pr.md)
 - [Turnera: precios mostrados segun el tipo de vehiculo seleccionado](2026-06-11-turnera-precio-por-tipo-de-vehiculo.md)
+- [Turnera: el logo del header entra completo, sin recorte cuadrado](2026-06-11-turnera-logo-sin-recorte.md)
 - [Turnera: logo del negocio en el header](2026-06-11-turnera-logo-en-header.md)
 - [Servicios y precios visibles para empleados; sin acciones de escritura](2026-06-11-servicios-visibles-para-empleados.md)
+- [CI: actions de GitHub actualizadas a majors con runtime Node 24](2026-06-11-ci-actions-node24.md)
 - [Buscador global integrado al SPA: seccion propia, dropdown lateral y apertura en modales](2026-06-11-buscador-global-integrado-al-spa.md)
 - [Turnera: atajos para abrir la landing publica desde la app](2026-06-10-turnera-atajos-de-acceso.md)
 - [Sectores fase 4 - Limpieza legacy: service_type y campos por tipo eliminados (2026-06-10)](2026-06-10-sectores-fase-4-limpieza-legacy.md)

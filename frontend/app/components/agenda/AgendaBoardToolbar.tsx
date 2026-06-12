@@ -10,17 +10,21 @@ import {
 type AgendaBoardToolbarProps = {
 	startLabel: string
 	endLabel: string
+	currentDay: string
 	visibleDays: number
 	onMove: (offset: number) => void
 	onToday: () => void
+	onGoToDate: (isoDate: string) => void
 }
 
 export function AgendaBoardToolbar({
 	startLabel,
 	endLabel,
+	currentDay,
 	visibleDays,
 	onMove,
 	onToday,
+	onGoToDate,
 }: AgendaBoardToolbarProps) {
 	return (
 		<div className="agenda-toolbar">
@@ -58,6 +62,14 @@ export function AgendaBoardToolbar({
 					>
 						Hoy
 					</button>
+					<input
+						type="date"
+						className="agenda-date-picker"
+						aria-label="Ir a fecha"
+						title="Ir a fecha"
+						value={currentDay}
+						onChange={(e) => e.target.value && onGoToDate(e.target.value)}
+					/>
 					<button
 						type="button"
 						className="ghost icon-button"
