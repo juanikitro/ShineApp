@@ -4,6 +4,7 @@ import { CalendarClock, CreditCard, Eye, RefreshCw, RotateCcw } from 'lucide-rea
 
 import { FinanceRecordCard } from '@/app/components/finance/FinanceRecordCard'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
+import { SkeletonList } from '@/app/components/ui/Skeleton'
 import { Field } from '@/app/components/ui/Field'
 import { joinDisplayParts } from '@/lib/display-text'
 import { type ApiErrorNotice } from '@/lib/api-errors'
@@ -119,10 +120,7 @@ export function FixedExpensePanel({
 					/>
 				) : null}
 				{!loadBlocked && loading && !fixedExpenses.length && !occurrences.length ? (
-					<LoadingState
-						text="Cargando gastos fijos..."
-						hint="Preparando plantillas y periodos por pagar."
-					/>
+					<SkeletonList rows={6} columns={4} label="Cargando gastos fijos" />
 				) : null}
 				{!loadBlocked && (!loading || fixedExpenses.length || occurrences.length) ? (
 					<>

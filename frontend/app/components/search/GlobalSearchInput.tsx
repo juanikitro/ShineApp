@@ -11,7 +11,7 @@ import {
 import { createPortal } from 'react-dom'
 import { apiFetch } from '@/lib/api'
 
-const DEBOUNCE_MS = 300
+const DEBOUNCE_MS = 250
 const MIN_QUERY_LEN = 2
 const DROPDOWN_WIDTH = 300
 const DROPDOWN_GAP = 10
