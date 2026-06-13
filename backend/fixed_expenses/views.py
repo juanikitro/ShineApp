@@ -1,3 +1,5 @@
+from django.db.models import Q
+from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -22,8 +24,19 @@ VALID_METHODS = set(PaymentMethod.values)
 
 
 def _materialize_for(view, request):
+    business = view.get_business()
+    today = timezone.localdate()
+    # Skip the per-plan loop if every active plan was already generated today.
+    has_pending = FixedExpense.objects.filter(
+        business=business,
+        is_active=True,
+    ).filter(
+        Q(last_generated_for__isnull=True) | Q(last_generated_for__lt=today)
+    ).exists()
+    if not has_pending:
+        return
     materialize_due(
-        business=view.get_business(),
+        business=business,
         user=request.user if request.user.is_authenticated else None,
     )
 
