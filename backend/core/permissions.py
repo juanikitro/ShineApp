@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework import permissions, serializers
 
 from core.models import BusinessProfile, UserProfile
+from core.request_context import set_actor
 
 
 EMPLOYER_ROLE = "empleador"
@@ -23,7 +24,10 @@ def business_for_user(user, *, create_missing=True):
         if not create_missing:
             return None
         profile = UserProfile.for_user(user)
-    return profile.business
+    business = profile.business
+    # Enriquece los logs/errores del request con quien lo hace (ver core.middleware).
+    set_actor(business_id=getattr(business, "id", "") or "", user_id=getattr(user, "id", "") or "")
+    return business
 
 
 def business_from_request(request):

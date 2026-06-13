@@ -1706,7 +1706,9 @@ def test_delete_canceled_reservation_with_payment_closed_cash_returns_400(api_cl
     assert payment_response.status_code == 201
     payment_id = payment_response.data["id"]
     payment = Payment.objects.get(pk=payment_id)
-    closed_day = payment.paid_at.date() if hasattr(payment.paid_at, "date") else payment.paid_at
+    # Cerrar el dia de caja real del pago (hora local), igual que cash_day() en el
+    # codigo. Usar .date() en UTC hacia flaky el test entre 00:00-03:00 UTC.
+    closed_day = timezone.localtime(payment.paid_at).date()
     CashClosure.objects.create(
         day=closed_day,
         total_income=Decimal("5000.00"),

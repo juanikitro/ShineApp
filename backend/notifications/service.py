@@ -1,39 +1,61 @@
+"""Servicio de notificaciones (email + web push).
+
+Los emails ya no se mandan con `send_mail` directo: se encolan en la
+`NotificationOutbox` (`enqueue_email`), que persiste el aviso, lo intenta enviar
+best-effort inline con timeout y lo reintenta via el job de mantenimiento si
+falla. Asi ningun mail al cliente se pierde en silencio.
+
+El web push sigue siendo inline y best-effort (re-entregar un push viejo no
+aporta), pero ahora con timeout explicito y limpieza de suscripciones muertas
+(el navegador devuelve 404/410 cuando la suscripcion ya no existe).
+"""
+
 import json
 import logging
 
 from django.conf import settings
-from django.core.mail import send_mail
 
-logger = logging.getLogger(__name__)
+from .outbox import enqueue_email
+
+logger = logging.getLogger("shineapp.notifications")
 
 
-def _send_customer_email(customer, subject, body):
+def _frontend_url(path: str = "") -> str:
+    base = getattr(settings, "FRONTEND_BASE_URL", "https://shineapp-web.vercel.app")
+    if not path:
+        return base
+    return f"{base}/{path.lstrip('/')}"
+
+
+def _send_customer_email(customer, subject, body, *, event=""):
     if not customer.email:
         return False
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [customer.email], fail_silently=True)
+    enqueue_email(
+        recipient=customer.email,
+        subject=subject,
+        body=body,
+        event=event,
+        business=getattr(customer, "business", None),
+    )
     return True
 
 
 def send_trial_welcome_email(owner_email, business_name):
-    """Envia email de bienvenida al owner al completar el trial signup.
-
-    No lanza excepcion si el envio falla; el error se registra en el logger.
-    Devuelve True si el envio fue exitoso, False en caso contrario.
-    """
+    """Encola el email de bienvenida al owner tras el trial signup."""
     subject = "Bienvenido a ShineApp — tu prueba gratuita est\xe1 lista"
     body = (
         f"Hola,\n\n"
         f"Tu negocio \"{business_name}\" ya est\xe1 listo en ShineApp.\n\n"
-        f"Accede aqu\xed: https://shineapp-web.vercel.app\n\n"
+        f"Accede aqu\xed: {_frontend_url()}\n\n"
         f"Si ten\xe9s alguna duda, escrib\xednos a soporte@shineapp.com.ar\n\n"
         f"Bienvenido al equipo ShineApp."
     )
-    try:
-        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [owner_email], fail_silently=False)
-        return True
-    except Exception:
-        logger.exception("No se pudo enviar el email de bienvenida a %s", owner_email)
-        return False
+    return enqueue_email(
+        recipient=owner_email,
+        subject=subject,
+        body=body,
+        event="trial_welcome",
+    )
 
 
 def send_reservation_confirmation(reservation):
@@ -41,7 +63,12 @@ def send_reservation_confirmation(reservation):
         f"Hola {reservation.customer.name}, confirmamos tu reserva para el "
         f"{reservation.day:%d/%m/%Y} por el servicio {reservation.service.name}."
     )
-    return _send_customer_email(reservation.customer, "Reserva confirmada", body)
+    return _send_customer_email(
+        reservation.customer,
+        "Reserva confirmada",
+        body,
+        event="reservation_confirmation",
+    )
 
 
 def send_work_order_ready(work_order):
@@ -49,7 +76,12 @@ def send_work_order_ready(work_order):
         f"Hola {work_order.customer.name}, tu {work_order.vehicle} ya esta listo "
         f"para retirar. Servicio: {work_order.service.name}."
     )
-    return _send_customer_email(work_order.customer, "Tu vehiculo esta listo", body)
+    return _send_customer_email(
+        work_order.customer,
+        "Tu vehiculo esta listo",
+        body,
+        event="work_order_ready",
+    )
 
 
 def send_task_assignment_email(task, assignee):
@@ -64,46 +96,34 @@ def send_task_assignment_email(task, assignee):
     ]
     if task.description:
         body_lines.extend(["", task.description.strip()])
-    body_lines.extend([
-        "",
-        "Podes verla en ShineApp.",
-    ])
+    body_lines.extend(["", "Podes verla en ShineApp."])
     body = "\n".join(body_lines)
     subject = f"Nueva tarea asignada: {task.title}"
-    try:
-        send_mail(
-            subject,
-            body,
-            settings.DEFAULT_FROM_EMAIL,
-            [email],
-            fail_silently=True,
-        )
-        return True
-    except Exception:
-        logger.exception("No se pudo enviar el email de asignacion de tarea a %s", email)
-        return False
+    return enqueue_email(
+        recipient=email,
+        subject=subject,
+        body=body,
+        event="task_assignment",
+        business=getattr(task, "business", None),
+    )
 
 
 def send_new_public_request_notification(public_request):
-    """Notifica por email a los usuarios del negocio cuando llega una nueva solicitud pública.
-
-    No lanza excepcion si el envio falla; el error se registra en el logger.
-    Devuelve True si se envio al menos un email, False en caso contrario.
-    """
+    """Encola un email por cada usuario del negocio al llegar una solicitud publica."""
     emails = list(
-        public_request.business.user_profiles
-        .select_related("user")
-        .values_list("user__email", flat=True)
+        public_request.business.user_profiles.select_related("user").values_list(
+            "user__email", flat=True
+        )
     )
-    emails = [e for e in emails if e]
+    emails = [email for email in emails if email]
     if not emails:
         return False
 
-    request_type_label = (
-        "turno" if public_request.request_type == "booking" else "cotizacion"
-    )
+    request_type_label = "turno" if public_request.request_type == "booking" else "cotizacion"
     service_names = ", ".join(
-        item.service.name for item in public_request.items.select_related("service").all()
+        item.service.name
+        for item in public_request.items.select_related("service").all()
+        if item.service
     )
     day_part = (
         f" para el {public_request.preferred_day:%d/%m/%Y}" if public_request.preferred_day else ""
@@ -126,105 +146,101 @@ def send_new_public_request_notification(public_request):
     )
     if public_request.message:
         body += f"Mensaje: {public_request.message}\n"
-    body += (
-        f"\nPodés gestionarla desde tu bandeja en ShineApp:\n"
-        f"https://shineapp-web.vercel.app\n\n"
-        f"El equipo ShineApp."
-    )
+    body += f"\nPod\xe9s gestionarla desde tu bandeja en ShineApp:\n{_frontend_url()}\n\nEl equipo ShineApp."
 
+    queued = 0
+    for email in emails:
+        if enqueue_email(
+            recipient=email,
+            subject=subject,
+            body=body,
+            event="public_request_new",
+            business=public_request.business,
+        ):
+            queued += 1
+    return queued > 0
+
+
+def _webpush(subscription_info, payload):
+    """Envia un push con timeout. Devuelve (enviado, suscripcion_muerta)."""
+    private_key = getattr(settings, "VAPID_PRIVATE_KEY", "")
+    if not private_key or not subscription_info:
+        return False, False
+    vapid_claims = {"sub": getattr(settings, "VAPID_CLAIMS_EMAIL", "mailto:no-reply@shineapp.local")}
+    timeout = getattr(settings, "PUSH_TIMEOUT_SECONDS", 10)
     try:
-        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, emails, fail_silently=False)
-        return True
-    except Exception:
-        logger.exception(
-            "No se pudo enviar notificacion de nueva solicitud %s al negocio %s",
-            public_request.id,
-            public_request.business_id,
+        from pywebpush import webpush  # noqa: PLC0415
+
+        webpush(
+            subscription_info=subscription_info,
+            data=payload,
+            vapid_private_key=private_key,
+            vapid_claims=vapid_claims,
+            timeout=timeout,
         )
-        return False
+        return True, False
+    except Exception as exc:  # noqa: BLE001
+        status_code = getattr(getattr(exc, "response", None), "status_code", None)
+        dead = status_code in (404, 410)
+        logger.warning("push fallo (status=%s, dead=%s): %s", status_code, dead, exc)
+        return False, dead
 
 
 def send_business_push_notification(public_request):
-    """Envía una push notification a los usuarios del negocio cuando llega una nueva solicitud pública.
+    """Push a los usuarios del negocio al llegar una solicitud publica.
 
-    Itera sobre todos los UserProfile del negocio que tengan push_subscription guardada.
-    Devuelve True si se envió al menos una notificación, False en caso contrario.
+    Limpia las suscripciones que el navegador reporta como muertas (404/410)
+    para no reintentarlas indefinidamente.
     """
-    private_key = getattr(settings, "VAPID_PRIVATE_KEY", "")
-    if not private_key:
+    if not getattr(settings, "VAPID_PRIVATE_KEY", ""):
         return False
 
-    subscriptions = list(
-        public_request.business.user_profiles
-        .exclude(push_subscription__isnull=True)
-        .values_list("push_subscription", flat=True)
+    from core.models import UserProfile  # noqa: PLC0415
+
+    profiles = list(
+        public_request.business.user_profiles.exclude(push_subscription__isnull=True).only(
+            "id", "push_subscription"
+        )
     )
-    if not subscriptions:
+    if not profiles:
         return False
 
     request_type_label = "turno" if public_request.request_type == "booking" else "cotizacion"
-    payload = json.dumps({
-        "title": f"Nueva solicitud de {request_type_label}",
-        "body": f"{public_request.customer_name} pidió un {request_type_label}.",
-    })
-    vapid_claims = {"sub": getattr(settings, "VAPID_CLAIMS_EMAIL", "mailto:no-reply@shineapp.local")}
+    payload = json.dumps(
+        {
+            "title": f"Nueva solicitud de {request_type_label}",
+            "body": f"{public_request.customer_name} pidi\xf3 un {request_type_label}.",
+        }
+    )
 
     sent_any = False
-    for subscription in subscriptions:
-        try:
-            from pywebpush import webpush  # noqa: PLC0415
-            webpush(
-                subscription_info=subscription,
-                data=payload,
-                vapid_private_key=private_key,
-                vapid_claims=vapid_claims,
-            )
-            sent_any = True
-        except Exception:
-            logger.exception(
-                "No se pudo enviar push al negocio %s para solicitud %s",
-                public_request.business_id,
-                public_request.id,
-            )
+    for profile in profiles:
+        sent, dead = _webpush(profile.push_subscription, payload)
+        sent_any = sent_any or sent
+        if dead:
+            UserProfile.objects.filter(pk=profile.id).update(push_subscription=None)
     return sent_any
 
 
 def send_public_request_push(public_request):
-    """Envía una push notification al cliente cuando el negocio confirma el turno.
-
-    Requiere que `public_request.push_subscription` esté cargado y que las VAPID keys
-    estén configuradas via env vars. Devuelve True si el envío fue exitoso, False en
-    cualquier otro caso (suscripción ausente, VAPID no configurado, error de red).
-    """
+    """Push al cliente cuando el negocio confirma el turno."""
     if not public_request.push_subscription:
         return False
-    private_key = getattr(settings, "VAPID_PRIVATE_KEY", "")
-    if not private_key:
-        return False
-    try:
-        from pywebpush import webpush  # noqa: PLC0415
-        webpush(
-            subscription_info=public_request.push_subscription,
-            data=json.dumps({
-                "title": "Turno confirmado",
-                "body": f"Hola {public_request.customer_name}, tu turno fue confirmado.",
-            }),
-            vapid_private_key=private_key,
-            vapid_claims={"sub": getattr(settings, "VAPID_CLAIMS_EMAIL", "mailto:no-reply@shineapp.local")},
-        )
-        return True
-    except Exception:
-        logger.exception("No se pudo enviar push notification a public_request %s", public_request.id)
-        return False
+    payload = json.dumps(
+        {
+            "title": "Turno confirmado",
+            "body": f"Hola {public_request.customer_name}, tu turno fue confirmado.",
+        }
+    )
+    sent, dead = _webpush(public_request.push_subscription, payload)
+    if dead:
+        type(public_request).objects.filter(pk=public_request.id).update(push_subscription=None)
+    return sent
 
 
 def send_password_reset_email(user_email, reset_token):
-    """Envia el link de reset de contrasena al usuario.
-
-    No lanza excepcion si el envio falla; el error se registra en el logger.
-    Devuelve True si el envio fue exitoso, False en caso contrario.
-    """
-    reset_url = f"https://shineapp-web.vercel.app/reset-password?token={reset_token}"
+    """Encola el link de reset de contrasena al usuario."""
+    reset_url = _frontend_url(f"reset-password?token={reset_token}")
     subject = "ShineApp — Recuperaci\xf3n de contrase\xf1a"
     body = (
         f"Hola,\n\n"
@@ -234,9 +250,9 @@ def send_password_reset_email(user_email, reset_token):
         f"Si no solicitaste este cambio, ignor\xe1 este email.\n\n"
         f"El equipo ShineApp."
     )
-    try:
-        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user_email], fail_silently=False)
-        return True
-    except Exception:
-        logger.exception("No se pudo enviar el email de reset de contrasena a %s", user_email)
-        return False
+    return enqueue_email(
+        recipient=user_email,
+        subject=subject,
+        body=body,
+        event="password_reset",
+    )

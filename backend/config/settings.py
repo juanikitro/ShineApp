@@ -9,6 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-shineapp-secret")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,backend").split(",")
+APP_ENVIRONMENT = os.getenv("APP_ENVIRONMENT", "local")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -37,6 +38,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "core.middleware.RequestIDMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -81,6 +83,9 @@ elif os.getenv("POSTGRES_DB"):
             "PASSWORD": os.getenv("POSTGRES_PASSWORD", "shineapp"),
             "HOST": os.getenv("POSTGRES_HOST", "localhost"),
             "PORT": os.getenv("POSTGRES_PORT", "5432"),
+            "OPTIONS": {
+                "connect_timeout": int(os.getenv("DATABASE_CONNECT_TIMEOUT", "10")),
+            },
         }
     }
 else:
@@ -133,6 +138,7 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": ["core.permissions.ActiveBusinessUser"],
+    "EXCEPTION_HANDLER": "core.exceptions.api_exception_handler",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 100,
 }
@@ -151,3 +157,48 @@ BUSINESS_NAME = os.getenv("BUSINESS_NAME", "ShineApp")
 VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "")
 VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "")
 VAPID_CLAIMS_EMAIL = os.getenv("VAPID_CLAIMS_EMAIL", "mailto:no-reply@shineapp.local")
+
+# Base publica del frontend para links en emails/notificaciones (evita hardcode).
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "https://shineapp-web.vercel.app").rstrip("/")
+
+# Timeouts de dependencias externas (segundos). Evitan requests colgados.
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+PUSH_TIMEOUT_SECONDS = int(os.getenv("PUSH_TIMEOUT_SECONDS", "10"))
+
+# Secret compartido para el endpoint interno de mantenimiento (cron de GitHub
+# Actions). Vacio = endpoint deshabilitado (responde 503).
+CRON_SECRET = os.getenv("CRON_SECRET", "")
+
+# Retencion de papelera (soft-delete) en dias, usada por purge_trash/mantenimiento.
+TRASH_RETENTION_DAYS = int(os.getenv("TRASH_RETENTION_DAYS", "90"))
+# El mantenimiento solo purga de verdad si esto esta activado; si no, solo reporta.
+MAINTENANCE_PURGE_ENABLED = os.getenv("MAINTENANCE_PURGE_ENABLED", "0") == "1"
+
+# Logging estructurado. LOG_FORMAT=json en prod; texto plano legible en local.
+LOG_FORMAT = os.getenv("LOG_FORMAT", "plain").strip().lower()
+LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "WARNING").strip().upper()
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "request_context": {"()": "core.logging.RequestContextFilter"},
+    },
+    "formatters": {
+        "json": {"()": "core.logging.JsonFormatter"},
+        "plain": {"format": "%(levelname)s %(name)s [rid=%(request_id)s]: %(message)s"},
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
+            "filters": ["request_context"],
+            "formatter": "json" if LOG_FORMAT == "json" else "plain",
+        },
+    },
+    "root": {"handlers": ["console"], "level": LOG_LEVEL},
+    "loggers": {
+        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+        "django.security": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+    },
+}

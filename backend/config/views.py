@@ -205,14 +205,18 @@ class HealthCheckView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
-    def get(self, _request):
+    def get(self, request):
         import logging as _logging
         import os as _os
         from django.conf import settings as _settings
+
+        logger = _logging.getLogger("shineapp.health")
         storage_backend = _settings.STORAGES["default"]["BACKEND"]
         supabase_enabled_env = _os.environ.get("SUPABASE_STORAGE_ENABLED", "(not set)")
-        _logging.getLogger("shineapp.health").warning(
-            "[shineapp:health] storage_backend=%r supabase_enabled_env=%r",
+        # DEBUG, no WARNING: el endpoint lo golpean los uptime monitors y antes
+        # inundaba los logs con un WARNING por request.
+        logger.debug(
+            "health storage_backend=%r supabase_enabled_env=%r",
             storage_backend,
             supabase_enabled_env,
         )
@@ -222,15 +226,80 @@ class HealthCheckView(APIView):
             "storage_backend": storage_backend,
             "supabase_enabled_env": supabase_enabled_env,
         }
+        healthy = True
         try:
             connection.ensure_connection()
         except Exception:
             checks["database"] = "error"
+            healthy = False
+            logger.exception("health: conexion a la base de datos fallo")
+
+        # ?deep=1 verifica tambien el storage (Supabase). Es mas caro, asi que
+        # el default (uptime ping) sigue siendo solo-DB y barato.
+        deep = str(request.query_params.get("deep", "")).strip().lower() in {"1", "true", "yes"}
+        if deep:
+            checks["storage"] = self._check_storage(logger)
+            if checks["storage"] != "ok":
+                healthy = False
+
+        return Response(
+            {"status": "ok" if healthy else "error", "checks": checks},
+            status=status.HTTP_200_OK if healthy else status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    @staticmethod
+    def _check_storage(logger):
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+
+        name = "healthcheck/canary.txt"
+        try:
+            saved_path = default_storage.save(name, ContentFile(b"ok"))
+            try:
+                with default_storage.open(saved_path) as handle:
+                    handle.read()
+            finally:
+                default_storage.delete(saved_path)
+            return "ok"
+        except Exception:
+            logger.exception("health: verificacion de storage fallo")
+            return "error"
+
+
+class MaintenanceView(APIView):
+    """Endpoint interno para el cron de mantenimiento (GitHub Actions schedule).
+
+    Protegido por el header `X-Cron-Token` == `settings.CRON_SECRET` (comparacion
+    en tiempo constante). Sin CRON_SECRET configurado queda deshabilitado (503).
+    Corre los jobs idempotentes de `core.maintenance`.
+    """
+
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        import secrets as _secrets
+        from django.conf import settings as _settings
+
+        from core.maintenance import run_all
+
+        secret = (getattr(_settings, "CRON_SECRET", "") or "").strip()
+        if not secret:
             return Response(
-                {"status": "error", "checks": checks},
+                {
+                    "detail": "Mantenimiento deshabilitado (sin CRON_SECRET).",
+                    "error_code": "maintenance_disabled",
+                },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-        return Response({"status": "ok", "checks": checks})
+        provided = (request.headers.get("X-Cron-Token") or "").strip()
+        if not provided or not _secrets.compare_digest(provided, secret):
+            return Response(
+                {"detail": "No autorizado.", "error_code": "unauthorized"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        results = run_all(purge_apply=getattr(_settings, "MAINTENANCE_PURGE_ENABLED", False))
+        return Response({"status": "ok", "results": results})
 
 
 class PasswordResetRequestView(APIView):

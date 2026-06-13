@@ -112,7 +112,7 @@ def test_password_reset_request_smtp_failure_still_returns_200():
     user = make_user("smtp@shineapp.test")
     client = APIClient()
 
-    with patch("notifications.service.send_mail", side_effect=Exception("SMTP error")):
+    with patch("notifications.outbox.send_mail", side_effect=Exception("SMTP error")):
         response = client.post(RESET_URL, {"email": user.email}, format="json")
 
     assert response.status_code == 200

@@ -646,7 +646,14 @@ class StockMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSe
         elif movement_type == StockMovement.MovementType.PURCHASE:
             attrs.setdefault("products_received", getattr(self.instance, "products_received", False))
         else:
-            raise serializers.ValidationError({"movement_type": "Tipo de movimiento invalido."})
+            raise serializers.ValidationError(
+                {
+                    "movement_type": (
+                        "Tipo de movimiento invalido. Opciones validas: "
+                        f"{', '.join(StockMovement.MovementType.values)}."
+                    )
+                }
+            )
 
         return attrs
 

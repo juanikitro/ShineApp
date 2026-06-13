@@ -34,6 +34,18 @@ class Material(SoftDeleteMixin):
                 condition=~models.Q(sku="") & models.Q(deleted_at__isnull=True),
                 name="unique_material_sku_per_business_when_present",
             ),
+            models.CheckConstraint(
+                condition=models.Q(stock_quantity__gte=0),
+                name="material_stock_quantity_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(minimum_stock__gte=0),
+                name="material_minimum_stock_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(estimated_unit_cost__gte=0),
+                name="material_estimated_unit_cost_non_negative",
+            ),
         ]
 
     def __str__(self):
@@ -272,6 +284,16 @@ class MaterialPurchase(models.Model):
 
     class Meta:
         ordering = ["-purchased_at", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0),
+                name="materialpurchase_quantity_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(total_cost__gte=0),
+                name="materialpurchase_total_cost_non_negative",
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         if self.material_id and not self.business_id:
@@ -312,6 +334,14 @@ class MaterialConsumption(models.Model):
             models.Index(
                 fields=["business", "-consumed_at"],
                 name="mc_biz_consumed_at_idx",
+            ),
+        ]
+        constraints = [
+            # >= 0 (no > 0): los consumos por unidad abierta registran quantity=0
+            # porque el descuento de stock ocurre al abrir/cerrar la unidad.
+            models.CheckConstraint(
+                condition=models.Q(quantity__gte=0),
+                name="materialconsumption_quantity_non_negative",
             ),
         ]
 

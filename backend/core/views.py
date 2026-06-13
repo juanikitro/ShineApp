@@ -1,3 +1,5 @@
+import logging
+
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -10,6 +12,8 @@ from .models import AuditLog
 from .permissions import EmployerOnly, business_from_request, scope_queryset_to_business
 from .serializers import AuditLogSerializer
 from .trash import get_trash_entry, get_trash_registry
+
+logger = logging.getLogger("shineapp.trash")
 
 
 class AuditLogView(generics.ListAPIView):
@@ -178,11 +182,18 @@ class TrashPurgeView(TrashItemBaseView):
         label = entry.render_label(instance)
         try:
             instance.hard_delete()
-        except Exception as exc:
+        except Exception:
+            # El detalle tecnico (constraint/tabla) se loguea server-side con
+            # request_id; al cliente solo le llega un mensaje humano + el id.
+            logger.exception(
+                "purge bloqueado por registros relacionados: %s#%s",
+                entity["entity_type"],
+                entity["entity_id"],
+            )
             return Response(
                 {
                     "detail": "No se puede eliminar definitivamente: existen registros relacionados.",
-                    "error": str(exc),
+                    "error_code": "protected_relation",
                 },
                 status=status.HTTP_409_CONFLICT,
             )

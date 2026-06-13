@@ -43,6 +43,12 @@ class Debt(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-origin_date", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(principal_amount__gt=0),
+                name="debt_principal_amount_positive",
+            ),
+        ]
 
     def __str__(self):
         return self.concept
@@ -122,6 +128,12 @@ class DebtPayment(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-paid_at", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0),
+                name="debtpayment_amount_positive",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.debt_id} - {self.amount}"

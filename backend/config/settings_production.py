@@ -88,6 +88,11 @@ DATABASES = {
         ssl_require=env_bool("DATABASE_SSL_REQUIRE", True),
     )
 }
+# Timeout explicito de conexion para que un Postgres lento no cuelgue la funcion.
+DATABASES["default"].setdefault("OPTIONS", {})
+DATABASES["default"]["OPTIONS"].setdefault(
+    "connect_timeout", env_int("DATABASE_CONNECT_TIMEOUT", 10)
+)
 
 REST_FRAMEWORK = dict(REST_FRAMEWORK)  # noqa: F405
 throttle_classes = list(REST_FRAMEWORK.get("DEFAULT_THROTTLE_CLASSES", []))
@@ -167,40 +172,11 @@ if SUPABASE_STORAGE_ENABLED:
     MEDIA_URL = f"{SUPABASE_STORAGE_PUBLIC_URL}/" if SUPABASE_STORAGE_PUBLIC_URL else "/media/"
 
 # ---------------------------------------------------------------------------
-# Logging — sends Django error tracebacks to stdout (captured by Vercel)
+# Logging — JSON estructurado a stdout (capturado por Vercel) con request_id.
+# Reusa la config base (formatters/filtros de core.logging) y fuerza JSON + INFO.
 # ---------------------------------------------------------------------------
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {
-            "format": "%(levelname)s %(name)s: %(message)s",
-        },
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "stream": "ext://sys.stdout",
-            "formatter": "verbose",
-        },
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "WARNING",
-    },
-    "loggers": {
-        "django.request": {
-            "handlers": ["console"],
-            "level": "ERROR",
-            "propagate": False,
-        },
-        "django.security": {
-            "handlers": ["console"],
-            "level": "ERROR",
-            "propagate": False,
-        },
-    },
-}
+LOGGING["handlers"]["console"]["formatter"] = "json"  # noqa: F405
+LOGGING["root"]["level"] = os.getenv("DJANGO_LOG_LEVEL", "INFO").strip().upper()  # noqa: F405
 
 # Startup diagnostic — visible on every cold start in Vercel runtime logs.
 print(
