@@ -1,6 +1,6 @@
 'use client'
 
-import { type ChangeEvent, useEffect, useMemo, useState } from 'react'
+import { type ChangeEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
 	CalendarClock,
@@ -19,6 +19,9 @@ import {
 import { Button } from '@/app/components/ui/Button'
 import { Empty } from '@/app/components/ui/Empty'
 import { SkeletonList } from '@/app/components/ui/Skeleton'
+import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
+import { useConfirmDialog } from '@/lib/use-confirm-dialog'
+
 
 import { TaskForm, type TaskRecord } from './TaskForm'
 
@@ -86,8 +89,8 @@ type TasksPanelProps = {
 	vehicles?: VehicleOption[]
 	currentUser: Record<string, any> | null
 	canViewEconomy: boolean
-	onCreate: (payload: TaskFormPayload) => Promise<void>
-	onUpdate: (id: number, payload: Partial<TaskFormPayload>) => Promise<void>
+	onCreate: (payload: TaskFormPayload) => Promise<unknown>
+	onUpdate: (id: number, payload: Partial<TaskFormPayload>) => Promise<unknown>
 	onDelete: (id: number) => Promise<void>
 	onComplete: (id: number) => Promise<void>
 	onReopen: (id: number) => Promise<void>
@@ -231,6 +234,8 @@ export function TasksPanel({
 	const [showDone, setShowDone] = useState(false)
 	const [busyTaskId, setBusyTaskId] = useState<number | null>(null)
 	const [openMenu, setOpenMenu] = useState<{ id: number; field: 'priority' | 'assignee' | 'due' } | null>(null)
+	const { requestConfirm, ConfirmDialog } = useConfirmDialog()
+	const popoverRef = useRef<HTMLDivElement>(null)
 
 	const currentUserId = currentUser?.id != null ? Number(currentUser.id) : null
 	const todayTs = useMemo(() => startOfToday(), [])
@@ -243,7 +248,12 @@ export function TasksPanel({
 			setOpenMenu(null)
 		}
 		function handleKey(event: globalThis.KeyboardEvent) {
-			if (event.key === 'Escape') setOpenMenu(null)
+			if (event.key === 'Escape') {
+				const trigger =
+					popoverRef.current?.parentElement?.querySelector<HTMLElement>('button')
+				setOpenMenu(null)
+				trigger?.focus()
+			}
 		}
 		window.addEventListener('mousedown', handlePointer)
 		window.addEventListener('keydown', handleKey)
@@ -252,6 +262,24 @@ export function TasksPanel({
 			window.removeEventListener('keydown', handleKey)
 		}
 	}, [openMenu])
+
+	// Al abrir un popover, llevamos el foco a la opción activa (o al primer
+	// control) para que teclado y lector de pantalla entren al menú.
+	useEffect(() => {
+		if (openMenu == null) return
+		const raf = window.requestAnimationFrame(() => {
+			const popover = popoverRef.current
+			if (!popover) return
+			const target =
+				popover.querySelector<HTMLElement>('[role="option"][aria-selected="true"]') ??
+				popover.querySelector<HTMLElement>('[role="option"]') ??
+				popover.querySelector<HTMLElement>('input, button, select, textarea')
+			target?.focus()
+		})
+		return () => window.cancelAnimationFrame(raf)
+	}, [openMenu])
+
+
 
 	const employeeOptions = useMemo<EmployeeOption[]>(
 		() =>
@@ -347,14 +375,14 @@ export function TasksPanel({
 	}
 
 	async function handleSubmitCreate(payload: TaskFormPayload) {
-		await onCreate(payload)
-		setCreating(false)
+		const ok = await onCreate(payload)
+		if (ok) setCreating(false)
 	}
 
 	async function handleSubmitEdit(payload: TaskFormPayload) {
 		if (!editing) return
-		await onUpdate(Number(editing.id), payload)
-		setEditing(null)
+		const ok = await onUpdate(Number(editing.id), payload)
+		if (ok) setEditing(null)
 	}
 
 	async function handleInlineUpdate(task: EnrichedTask, patch: Partial<TaskFormPayload>) {
@@ -380,6 +408,28 @@ export function TasksPanel({
 		}
 	}
 
+	function handlePopoverKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+		const key = event.key
+		if (key === 'Tab') { setOpenMenu(null); return }
+		if (key !== 'ArrowDown' && key !== 'ArrowUp' && key !== 'Home' && key !== 'End') return
+		const container = event.currentTarget
+		const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('button[role="option"]'))
+		if (!buttons.length) return
+		event.preventDefault()
+		const currentIndex = buttons.findIndex((btn) => btn === document.activeElement)
+		if (key === 'Home') {
+			buttons[0]?.focus()
+		} else if (key === 'End') {
+			buttons[buttons.length - 1]?.focus()
+		} else if (key === 'ArrowDown') {
+			const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % buttons.length
+			buttons[nextIndex]?.focus()
+		} else if (key === 'ArrowUp') {
+			const nextIndex = currentIndex === -1 ? buttons.length - 1 : (currentIndex - 1 + buttons.length) % buttons.length
+			buttons[nextIndex]?.focus()
+		}
+	}
+
 	function renderTaskRow(task: EnrichedTask) {
 		const done = task.status === 'done'
 		const overdue = task.__bucket === 'overdue'
@@ -400,7 +450,7 @@ export function TasksPanel({
 					aria-label={done ? 'Reabrir tarea' : 'Marcar como completada'}
 					disabled={busy}
 				>
-					{done ? <RotateCcw size={14} /> : <CheckCircle2 size={14} />}
+					{done ? <RotateCcw size={16} /> : <CheckCircle2 size={16} />}
 				</button>
 				<div className="task-main">
 					<div className="task-title-row">
@@ -428,7 +478,7 @@ export function TasksPanel({
 									{PRIORITY_LABEL[task.priority]}
 								</button>
 								{openMenu?.id === task.id && openMenu.field === 'priority' ? (
-									<div className="task-popover" role="listbox">
+									<div className="task-popover" role="listbox" ref={popoverRef} onKeyDown={handlePopoverKeyDown}>
 										{(Object.keys(PRIORITY_LABEL) as TaskPriority[]).map((value) => (
 											<button
 												key={value}
@@ -475,15 +525,18 @@ export function TasksPanel({
 												: { id: task.id, field: 'due' },
 										)
 									}
+									aria-haspopup="dialog"
+									aria-expanded={openMenu?.id === task.id && openMenu.field === 'due'}
 									title="Cambiar vencimiento"
 								>
 									<CalendarClock size={12} />
 									{formatDateLabel(task.due_date)}
 								</button>
 								{openMenu?.id === task.id && openMenu.field === 'due' ? (
-									<div className="task-popover task-popover--wide">
+									<div className="task-popover task-popover--wide" ref={popoverRef}>
 										<input
 											type="date"
+											aria-label="Fecha de vencimiento"
 											defaultValue={task.due_date ?? ''}
 											onChange={(event: ChangeEvent<HTMLInputElement>) =>
 												void handleInlineUpdate(task, {
@@ -524,6 +577,8 @@ export function TasksPanel({
 												: { id: task.id, field: 'assignee' },
 										)
 									}
+									aria-haspopup="listbox"
+									aria-expanded={openMenu?.id === task.id && openMenu.field === 'assignee'}
 									title="Reasignar tarea"
 								>
 									{task.__assigneeLabel ? (
@@ -541,7 +596,7 @@ export function TasksPanel({
 									)}
 								</button>
 								{openMenu?.id === task.id && openMenu.field === 'assignee' ? (
-									<div className="task-popover task-popover--wide" role="listbox">
+									<div className="task-popover task-popover--wide" role="listbox" ref={popoverRef} onKeyDown={handlePopoverKeyDown}>
 										<button
 											type="button"
 											role="option"
@@ -624,17 +679,25 @@ export function TasksPanel({
 								aria-label="Editar tarea"
 								title="Editar"
 							>
-								<Pencil size={14} />
+								<Pencil size={16} />
 							</Button>
 							<Button
 								type="button"
 								variant="ghost"
 								className="icon-button task-delete"
-								onClick={() => void onDelete(task.id)}
+								onClick={async () => {
+									const confirmed = await requestConfirm({
+										title: 'Eliminar tarea',
+										message: `¿Eliminar la tarea "${task.title}"?`,
+										confirmLabel: 'Eliminar',
+										tone: 'danger',
+									})
+									if (confirmed) void onDelete(task.id)
+								}}
 								aria-label="Eliminar tarea"
 								title="Eliminar"
 							>
-								<Trash2 size={14} />
+								<Trash2 size={16} />
 							</Button>
 						</>
 					) : null}
@@ -694,51 +757,28 @@ export function TasksPanel({
 				</div>
 				<div className="tasks-filters">
 					{canViewEconomy ? (
-						<div className="tasks-tabs" role="tablist" aria-label="Tipo de tareas">
-							{(['all', 'assigned', 'unassigned'] as EmployerScope[]).map(
-								(value) => (
-									<button
-										key={value}
-										type="button"
-										role="tab"
-										aria-selected={scope === value}
-										aria-controls="tasks-panel-content"
-										id={`tasks-tab-${value}`}
-										className={`tasks-tab${scope === value ? ' tasks-tab--active' : ''}`}
-										onClick={() => setScope(value)}
-									>
-										{value === 'assigned'
-											? 'Asignadas'
-											: value === 'unassigned'
-												? 'Sin asignar'
-												: 'Todas'}
-									</button>
-								),
-							)}
-						</div>
+						<SegmentedControl
+							selectionMode="tabs"
+							options={[
+								{ value: 'all', label: 'Todas' },
+								{ value: 'assigned', label: 'Asignadas' },
+								{ value: 'unassigned', label: 'Sin asignar' },
+							]}
+							value={scope}
+							onChange={(value) => setScope(value as EmployerScope)}
+							ariaLabel="Tipo de tareas"
+						/>
 					) : (
-						<div
-							className="tasks-tabs"
-							role="tablist"
-							aria-label="Estado de tareas"
-						>
-							{(['pending', 'done'] as EmployeeView[]).map((value) => (
-								<button
-									key={value}
-									type="button"
-									role="tab"
-									aria-selected={employeeView === value}
-									aria-controls="tasks-panel-content"
-									id={`tasks-tab-${value}`}
-									className={`tasks-tab${employeeView === value ? ' tasks-tab--active' : ''}`}
-									onClick={() => setEmployeeView(value)}
-								>
-									{value === 'pending'
-										? `Pendientes (${pendingTasks.length})`
-										: `Completadas (${doneTasks.length})`}
-								</button>
-							))}
-						</div>
+						<SegmentedControl
+							selectionMode="tabs"
+							options={[
+								{ value: 'pending', label: `Pendientes (${pendingTasks.length})` },
+								{ value: 'done', label: `Completadas (${doneTasks.length})` },
+							]}
+							value={employeeView}
+							onChange={(value) => setEmployeeView(value as EmployeeView)}
+							ariaLabel="Estado de tareas"
+						/>
 					)}
 					<div className="tasks-search">
 						<Search size={14} aria-hidden />
@@ -797,9 +837,6 @@ export function TasksPanel({
 				<div
 					id="tasks-panel-content"
 					role="tabpanel"
-					aria-labelledby={
-						canViewEconomy ? `tasks-tab-${scope}` : `tasks-tab-${employeeView}`
-					}
 				>
 					{loading && !tasks.length ? (
 						<SkeletonList rows={5} columns={3} label="Cargando tareas" />
@@ -858,6 +895,7 @@ export function TasksPanel({
 					onClose={() => setEditing(null)}
 				/>
 			) : null}
+		<ConfirmDialog />
 		</div>
 	)
 }

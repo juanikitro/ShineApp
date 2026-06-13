@@ -2,7 +2,7 @@
 
 import { type MouseEvent } from 'react'
 
-import { Eye, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Eye, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
 import { Button } from '@/app/components/ui/Button'
@@ -203,6 +203,7 @@ export function CustomerListPanel({
 			</div>
 			<div className="customer-list-toolbar">
 				<input
+					type="search"
 					aria-label="Buscar clientes"
 					name="customer_search"
 					placeholder="Buscar por nombre, telefono, email, patente o modelo"
@@ -348,7 +349,7 @@ export function CustomerListPanel({
 										aria-label={`Abrir ${primaryActionLabel.toLowerCase()} de ${customerName}`}
 										onClick={() => onOpenDashboard(customer)}
 									>
-										<Eye size={15} />
+										<Eye size={16} />
 										{primaryActionLabel}
 									</Button>
 									<div className="customer-secondary-actions">
@@ -358,7 +359,7 @@ export function CustomerListPanel({
 											aria-label={`Editar cliente ${customerName}`}
 											onClick={() => onEdit(customer)}
 										>
-											<Pencil size={15} />
+											<Pencil size={16} />
 											Editar
 										</Button>
 										<Button
@@ -367,9 +368,21 @@ export function CustomerListPanel({
 											aria-label={`Dar de baja cliente ${customerName}`}
 											onClick={() => onDelete(customer)}
 										>
-											<Trash2 size={15} />
+											<Trash2 size={16} />
 											Baja
 										</Button>
+										{onOpenQuickActions ? (
+											<Button
+												variant="ghost"
+												type="button"
+												className="icon-button"
+												aria-label={`Mas acciones de ${customerName}`}
+												title="Mas acciones"
+												onClick={(event) => onOpenQuickActions(event, customer)}
+											>
+												<MoreHorizontal size={16} />
+											</Button>
+										) : null}
 									</div>
 								</div>
 							</MotionFlashSurface>

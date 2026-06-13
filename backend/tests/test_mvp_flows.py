@@ -18,6 +18,7 @@ from core.models import BusinessProfile
 from customers.models import Customer, Vehicle
 from customers.serializers import VehicleSerializer
 from debts.models import Debt
+from finance.cash import cash_day
 from finance.models import CashClosure, CashMovement, Payment
 from inventory.models import Material, MaterialConsumption, MaterialOpenUnit, MaterialPurchase
 from quotes.models import Quote, QuoteItem
@@ -1706,7 +1707,7 @@ def test_delete_canceled_reservation_with_payment_closed_cash_returns_400(api_cl
     assert payment_response.status_code == 201
     payment_id = payment_response.data["id"]
     payment = Payment.objects.get(pk=payment_id)
-    closed_day = payment.paid_at.date() if hasattr(payment.paid_at, "date") else payment.paid_at
+    closed_day = cash_day(payment.paid_at)
     CashClosure.objects.create(
         day=closed_day,
         total_income=Decimal("5000.00"),

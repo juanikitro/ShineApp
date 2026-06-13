@@ -726,6 +726,7 @@ export default function Home() {
 		'replaceState',
 	)
 	const [bootLoading, setBootLoading] = useState(false)
+	const [sessionExpired, setSessionExpired] = useState(false)
 	const [loadingDataSets, setLoadingDataSets] = useState<ReadonlySet<DataSetKey>>(
 		() => new Set(),
 	)
@@ -2365,6 +2366,7 @@ export default function Home() {
 				if (!ignore) {
 					setToken(null)
 					setCurrentUser(null)
+					setSessionExpired(true)
 				}
 			})
 			.finally(() => {
@@ -4377,6 +4379,7 @@ export default function Home() {
 
 	function handleLogin(nextToken: string, user: AnyRecord) {
 		setCurrentUser(null)
+		setSessionExpired(false)
 		setToken(nextToken)
 		if (!user.can_view_economy && sectionRequiresEmployer(active)) {
 			navigationHistoryModeRef.current = 'replaceState'
@@ -4895,7 +4898,7 @@ export default function Home() {
 	)
 
 	if (!token) {
-		return <LoginScreen onLogin={handleLogin} />
+		return <LoginScreen onLogin={handleLogin} sessionExpired={sessionExpired} />
 	}
 
 	if (!currentUser) {
@@ -8487,6 +8490,9 @@ export default function Home() {
 						</Field>
 						<Field label="Telefono">
 							<input
+								type="tel"
+								inputMode="tel"
+								autoComplete="tel"
 								value={data.phone ?? ''}
 								onChange={(event) =>
 									updateDetailEdit({ phone: event.target.value })
@@ -8498,6 +8504,7 @@ export default function Home() {
 						<Field label="Email">
 							<input
 								type="email"
+								autoComplete="email"
 								value={data.email ?? ''}
 								onChange={(event) =>
 									updateDetailEdit({ email: event.target.value })
@@ -13848,7 +13855,7 @@ export default function Home() {
 						currentUser={currentUser}
 						canViewEconomy={canViewEconomy}
 						onCreate={async (payload) => {
-							await runAction(
+							return await runAction(
 								() =>
 									apiFetch('/tasks/', {
 										method: 'POST',
@@ -13858,7 +13865,7 @@ export default function Home() {
 							)
 						}}
 						onUpdate={async (id, payload) => {
-							await runAction(
+							return await runAction(
 								() =>
 									apiFetch(`/tasks/${id}/`, {
 										method: 'PATCH',
