@@ -16,7 +16,12 @@
     "test:api-errors": "vitest run lib/api-errors.test.mjs",
     "validate": "npm run test && npm run build",
     "build": "node ./node_modules/next/dist/bin/next build",
-    "start": "next start --port 9000"
+    "start": "next start --port 9000",
+    "lint": "eslint .",
+    "pretypecheck": "npm run generate:changelog",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --check .",
+    "format:write": "prettier --write ."
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -32,6 +37,7 @@
     "postcss": "^8.5.10"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
@@ -40,7 +46,11 @@
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^6.0.2",
     "@vitest/coverage-v8": "^4.1.6",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "^15.5.18",
+    "eslint-config-prettier": "^9.1.0",
     "jsdom": "^29.1.1",
+    "prettier": "^3.4.2",
     "typescript": "^5.7.2",
     "vitest": "^4.1.6"
   }
