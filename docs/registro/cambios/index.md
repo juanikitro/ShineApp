@@ -23,6 +23,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Buscador global ahora cubre tareas y se documenta la regla para modulos nuevos](2026-06-12-buscador-global-cubre-tareas.md)
 - [Agenda: toolbar de navegacion horizontal y altura de cards ajustada](2026-06-12-agenda-toolbar-y-altura-card.md)
 - [Agenda: cards de reservas más compactas](2026-06-12-agenda-cards-compactas.md)
+- [A11y: remediacion WCAG 2.1 AA del frontend (2026-06-12)](2026-06-12-a11y-wcag-aa.md)
 - [Turnera: precios mostrados segun el tipo de vehiculo seleccionado](2026-06-11-turnera-precio-por-tipo-de-vehiculo.md)
 - [Turnera: el logo del header entra completo, sin recorte cuadrado](2026-06-11-turnera-logo-sin-recorte.md)
 - [Turnera: logo del negocio en el header](2026-06-11-turnera-logo-en-header.md)

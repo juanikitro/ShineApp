@@ -101,7 +101,7 @@ test('SidebarNav chevron toggles a group without navigating, while the item navi
 })
 
 test('AppShell and PageHeader render structured workspace regions', () => {
-	render(
+	const { container } = render(
 		<AppShell sidebar={<aside>Menu</aside>} sidebarOverlay={<button>Overlay</button>} theme="dark">
 			<PageHeader
 				title="Agenda"
@@ -112,7 +112,14 @@ test('AppShell and PageHeader render structured workspace regions', () => {
 		</AppShell>,
 	)
 
-	assert.equal(screen.getByRole('main').getAttribute('data-theme'), 'dark')
+	// El tema vive en el contenedor .app-shell; <main> es solo la región de contenido.
+	assert.equal(container.querySelector('.app-shell')?.getAttribute('data-theme'), 'dark')
+	const main = screen.getByRole('main')
+	assert.equal(main.getAttribute('id'), 'main-content')
+	assert.ok(main.classList.contains('workspace'))
+	// El skip link es el primer enlace, apuntando al contenido principal.
+	const skip = screen.getByRole('link', { name: 'Saltar al contenido' })
+	assert.equal(skip.getAttribute('href'), '#main-content')
 	assert.ok(screen.getByText('Menu'))
 	assert.ok(screen.getByRole('button', { name: 'Overlay' }))
 	assert.ok(screen.getByRole('heading', { name: 'Agenda' }))

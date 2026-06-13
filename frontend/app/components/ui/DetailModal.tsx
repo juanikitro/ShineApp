@@ -33,16 +33,16 @@ export function DetailModal({
 			{editing && editForm ? (
 				editForm
 			) : (
-				<div className="detail-grid">
+				<dl className="detail-grid">
 					{Object.entries(data)
 						.filter(([key]) => !key.startsWith('_'))
 						.map(([key, value]) => (
 							<div className="detail-row" key={key}>
-								<span>{key.replaceAll('_', ' ')}</span>
-								<strong>{formatDetailValue(value)}</strong>
+								<dt>{key.replaceAll('_', ' ')}</dt>
+								<dd>{formatDetailValue(value)}</dd>
 							</div>
 						))}
-				</div>
+				</dl>
 			)}
 		</ModalFrame>
 	)

@@ -27,6 +27,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Buscador global ahora cubre tareas y se documenta la regla para modulos nuevos](docs/registro/cambios/2026-06-12-buscador-global-cubre-tareas.md)
 - [Agenda: toolbar de navegacion horizontal y altura de cards ajustada](docs/registro/cambios/2026-06-12-agenda-toolbar-y-altura-card.md)
 - [Agenda: cards de reservas más compactas](docs/registro/cambios/2026-06-12-agenda-cards-compactas.md)
+- [A11y: remediacion WCAG 2.1 AA del frontend (2026-06-12)](docs/registro/cambios/2026-06-12-a11y-wcag-aa.md)
 
 ## 2026-06-11
 - [Turnera: precios mostrados segun el tipo de vehiculo seleccionado](docs/registro/cambios/2026-06-11-turnera-precio-por-tipo-de-vehiculo.md)
