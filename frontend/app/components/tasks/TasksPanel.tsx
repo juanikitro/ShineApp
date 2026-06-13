@@ -1,6 +1,6 @@
 'use client'
 
-import { type ChangeEvent, type KeyboardEvent, useEffect, useMemo, useState } from 'react'
+import { type ChangeEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
 	CalendarClock,
@@ -231,6 +231,7 @@ export function TasksPanel({
 	const [busyTaskId, setBusyTaskId] = useState<number | null>(null)
 	const [openMenu, setOpenMenu] = useState<{ id: number; field: 'priority' | 'assignee' | 'due' } | null>(null)
 	const { requestConfirm, ConfirmDialog } = useConfirmDialog()
+	const popoverRef = useRef<HTMLDivElement>(null)
 
 	const currentUserId = currentUser?.id != null ? Number(currentUser.id) : null
 	const todayTs = useMemo(() => startOfToday(), [])
@@ -243,7 +244,12 @@ export function TasksPanel({
 			setOpenMenu(null)
 		}
 		function handleKey(event: globalThis.KeyboardEvent) {
-			if (event.key === 'Escape') setOpenMenu(null)
+			if (event.key === 'Escape') {
+				const trigger =
+					popoverRef.current?.parentElement?.querySelector<HTMLElement>('button')
+				setOpenMenu(null)
+				trigger?.focus()
+			}
 		}
 		window.addEventListener('mousedown', handlePointer)
 		window.addEventListener('keydown', handleKey)
@@ -252,6 +258,24 @@ export function TasksPanel({
 			window.removeEventListener('keydown', handleKey)
 		}
 	}, [openMenu])
+
+	// Al abrir un popover, llevamos el foco a la opción activa (o al primer
+	// control) para que teclado y lector de pantalla entren al menú.
+	useEffect(() => {
+		if (openMenu == null) return
+		const raf = window.requestAnimationFrame(() => {
+			const popover = popoverRef.current
+			if (!popover) return
+			const target =
+				popover.querySelector<HTMLElement>('[role="option"][aria-selected="true"]') ??
+				popover.querySelector<HTMLElement>('[role="option"]') ??
+				popover.querySelector<HTMLElement>('input, button, select, textarea')
+			target?.focus()
+		})
+		return () => window.cancelAnimationFrame(raf)
+	}, [openMenu])
+
+
 
 	const employeeOptions = useMemo<EmployeeOption[]>(
 		() =>
@@ -382,6 +406,7 @@ export function TasksPanel({
 
 	function handlePopoverKeyDown(event: KeyboardEvent<HTMLDivElement>) {
 		const key = event.key
+		if (key === 'Tab') { setOpenMenu(null); return }
 		if (key !== 'ArrowDown' && key !== 'ArrowUp' && key !== 'Home' && key !== 'End') return
 		const container = event.currentTarget
 		const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('button[role="option"]'))
@@ -449,7 +474,7 @@ export function TasksPanel({
 									{PRIORITY_LABEL[task.priority]}
 								</button>
 								{openMenu?.id === task.id && openMenu.field === 'priority' ? (
-									<div className="task-popover" role="listbox" onKeyDown={handlePopoverKeyDown}>
+									<div className="task-popover" role="listbox" ref={popoverRef} onKeyDown={handlePopoverKeyDown}>
 										{(Object.keys(PRIORITY_LABEL) as TaskPriority[]).map((value) => (
 											<button
 												key={value}
@@ -496,15 +521,18 @@ export function TasksPanel({
 												: { id: task.id, field: 'due' },
 										)
 									}
+									aria-haspopup="dialog"
+									aria-expanded={openMenu?.id === task.id && openMenu.field === 'due'}
 									title="Cambiar vencimiento"
 								>
 									<CalendarClock size={12} />
 									{formatDateLabel(task.due_date)}
 								</button>
 								{openMenu?.id === task.id && openMenu.field === 'due' ? (
-									<div className="task-popover task-popover--wide" onKeyDown={handlePopoverKeyDown}>
+									<div className="task-popover task-popover--wide" ref={popoverRef}>
 										<input
 											type="date"
+											aria-label="Fecha de vencimiento"
 											defaultValue={task.due_date ?? ''}
 											onChange={(event: ChangeEvent<HTMLInputElement>) =>
 												void handleInlineUpdate(task, {
@@ -545,6 +573,8 @@ export function TasksPanel({
 												: { id: task.id, field: 'assignee' },
 										)
 									}
+									aria-haspopup="listbox"
+									aria-expanded={openMenu?.id === task.id && openMenu.field === 'assignee'}
 									title="Reasignar tarea"
 								>
 									{task.__assigneeLabel ? (
@@ -562,7 +592,7 @@ export function TasksPanel({
 									)}
 								</button>
 								{openMenu?.id === task.id && openMenu.field === 'assignee' ? (
-									<div className="task-popover task-popover--wide" role="listbox" onKeyDown={handlePopoverKeyDown}>
+									<div className="task-popover task-popover--wide" role="listbox" ref={popoverRef} onKeyDown={handlePopoverKeyDown}>
 										<button
 											type="button"
 											role="option"

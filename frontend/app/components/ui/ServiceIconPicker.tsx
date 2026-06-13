@@ -52,10 +52,15 @@ export function ServiceIconPicker({
 }: ServiceIconPickerProps) {
 	const id = useId()
 	const rootRef = useRef<HTMLDivElement>(null)
+	const triggerRef = useRef<HTMLButtonElement>(null)
+	const dialogRef = useRef<HTMLDivElement>(null)
 	const [open, setOpen] = useState(false)
 
 	useEffect(() => {
 		if (!open) return
+
+		// Al abrir, el foco entra al popover; al cerrar con Escape vuelve al trigger.
+		const raf = window.requestAnimationFrame(() => dialogRef.current?.focus())
 
 		function handlePointerDown(event: PointerEvent) {
 			if (!rootRef.current?.contains(event.target as Node)) {
@@ -64,12 +69,16 @@ export function ServiceIconPicker({
 		}
 
 		function handleEscape(event: KeyboardEvent) {
-			if (event.key === 'Escape') setOpen(false)
+			if (event.key === 'Escape') {
+				setOpen(false)
+				triggerRef.current?.focus()
+			}
 		}
 
 		document.addEventListener('pointerdown', handlePointerDown, true)
 		document.addEventListener('keydown', handleEscape)
 		return () => {
+			window.cancelAnimationFrame(raf)
 			document.removeEventListener('pointerdown', handlePointerDown, true)
 			document.removeEventListener('keydown', handleEscape)
 		}
@@ -82,6 +91,7 @@ export function ServiceIconPicker({
 	function selectIcon(nextValue: string) {
 		commitIcon(nextValue)
 		setOpen(false)
+		triggerRef.current?.focus()
 	}
 
 	return (
@@ -94,7 +104,9 @@ export function ServiceIconPicker({
 			</span>
 			<div className="emoji-picker-control">
 				<button
+					ref={triggerRef}
 					aria-expanded={open}
+					aria-haspopup="dialog"
 					aria-label={
 						value
 							? `Emoji seleccionado ${value}. Abrir selector de emojis`
@@ -127,7 +139,14 @@ export function ServiceIconPicker({
 				) : null}
 			</div>
 			{open ? (
-				<div className="service-emoji-picker" role="dialog" aria-label="Selector de emojis">
+				<div
+					className="service-emoji-picker"
+					role="dialog"
+					aria-modal="false"
+					aria-label="Selector de emojis"
+					tabIndex={-1}
+					ref={dialogRef}
+				>
 					<EmojiPicker
 						autoFocusSearch={false}
 						categories={emojiCategories}

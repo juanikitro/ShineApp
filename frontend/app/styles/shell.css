@@ -2082,6 +2082,7 @@
   border: 1px solid var(--shop-border);
   border-radius: var(--radius-md);
   display: grid;
+  margin: 0;
   overflow: hidden;
 }
 
@@ -2102,7 +2103,8 @@
   border-top: 1px solid var(--shop-border);
 }
 
-.detail-row span {
+.detail-row span,
+.detail-row dt {
   color: var(--shop-ink-muted);
   font-size: var(--text-sm);
   font-weight: 700;
@@ -2110,9 +2112,11 @@
   text-transform: capitalize;
 }
 
-.detail-row strong {
+.detail-row strong,
+.detail-row dd {
   color: var(--shop-ink);
   font-weight: 650;
+  margin: 0;
   overflow-wrap: anywhere;
 }
 
@@ -3704,8 +3708,31 @@
   gap: 10px;
   grid-template-columns: 22px minmax(0, 1fr) auto auto;
   padding: 8px 10px;
+  position: relative;
   transition: background 0.12s ease, border-color 0.12s ease;
   min-height: 52px;
+}
+
+/* Botón que cubre toda la fila para abrir el detalle (acción primaria). Va
+   como hermano de las acciones rápidas para no anidar elementos interactivos. */
+.cash-entry-row__open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cash-entry-row__open:hover:not(:disabled),
+.cash-entry-row__open:active:not(:disabled) {
+  background: transparent;
+  transform: none;
 }
 
 .cash-entry-row:hover {
@@ -3939,6 +3966,8 @@
 .cash-entry-row__actions {
   align-items: center;
   display: inline-flex;
+  position: relative;
+  z-index: 2;
 }
 
 .cash-term.income {
@@ -5433,7 +5462,8 @@
 }
 
 .global-search-result:hover:not(:disabled),
-.global-search-result:focus-visible {
+.global-search-result:focus-visible,
+.global-search-result--active {
   background: var(--color-surface-interactive);
   outline: none;
 }
