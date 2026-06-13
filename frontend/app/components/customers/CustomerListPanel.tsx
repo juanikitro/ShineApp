@@ -7,6 +7,7 @@ import { Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
 import { Button } from '@/app/components/ui/Button'
 import { Empty } from '@/app/components/ui/Empty'
+import { SkeletonList } from '@/app/components/ui/Skeleton'
 import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
 import { cx } from '@/app/components/utils'
 import { joinDisplayParts } from '@/lib/display-text'
@@ -31,6 +32,7 @@ type CustomerFilterOption = {
 
 type CustomerListPanelProps = {
 	customers: AnyRecord[]
+	loading: boolean
 	totalCustomers: number
 	search: string
 	filter: CustomerCardFilter
@@ -159,6 +161,7 @@ function customerContextChips(customer: AnyRecord) {
 
 export function CustomerListPanel({
 	customers,
+	loading,
 	totalCustomers,
 	search,
 	filter,
@@ -230,7 +233,9 @@ export function CustomerListPanel({
 				</div>
 			) : null}
 			<div className="records customer-records">
-				{customers.length ? (
+				{loading && !customers.length ? (
+					<SkeletonList rows={5} columns={3} label="Cargando clientes" />
+				) : customers.length ? (
 					customers.map((customer) => {
 						const insights = customerListInsights(customer)
 						const customerName = serviceDisplayName(customer)

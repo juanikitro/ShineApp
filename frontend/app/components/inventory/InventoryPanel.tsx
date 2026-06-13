@@ -6,6 +6,7 @@ import { Package } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
 import { Empty } from '@/app/components/ui/Empty'
+import { SkeletonList } from '@/app/components/ui/Skeleton'
 import { type QuickAction } from '@/app/components/ui/QuickActionsMenu'
 import { Button } from '@/app/components/ui/Button'
 import { joinDisplayParts } from '@/lib/display-text'
@@ -24,6 +25,7 @@ type MaterialUsageSummary = {
 
 type InventoryPanelProps = {
 	inventorySummary: AnyRecord
+	loading?: boolean
 	stockMovements: AnyRecord[]
 	stockMovementTypeLabels: Record<string, string>
 	suppliers: AnyRecord[]
@@ -67,6 +69,7 @@ type InventoryPanelProps = {
 
 export function InventoryPanel({
 	inventorySummary,
+	loading = false,
 	stockMovements,
 	stockMovementTypeLabels,
 	suppliers,
@@ -147,6 +150,9 @@ export function InventoryPanel({
 					</div>
 				</div>
 				<div className="records">
+					{loading && !materials.length && !stockMovements.length ? (
+						<SkeletonList rows={6} columns={4} label="Cargando inventario" />
+					) : null}
 					{stockMovements.slice(0, 8).map((item) => (
 						<MotionFlashSurface
 							className={recordClass('stock-movement', item.id)}

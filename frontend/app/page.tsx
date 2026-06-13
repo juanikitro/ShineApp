@@ -13008,6 +13008,7 @@ export default function Home() {
 					<div className="grid">
 						<CustomerListPanel
 							customers={filteredCustomers}
+							loading={isDataSetLoading('customers')}
 							totalCustomers={customers.length}
 							search={search}
 							filter={customerCardFilter}
@@ -13729,6 +13730,7 @@ export default function Home() {
 					</div>
 				) : displayedActive === 'inventory' ? (
 					<InventoryPanel
+						loading={isDataSetLoading('materials')}
 						availableQuickActions={availableQuickActions}
 						consumptions={consumptions}
 						detailRecordProps={detailRecordProps}
@@ -13816,6 +13818,7 @@ export default function Home() {
 				) : displayedActive === 'tasks' ? (
 					<TasksPanel
 						tasks={tasks as any}
+						loading={isDataSetLoading('tasks')}
 						employees={employees as any}
 						customers={customers.map((item) => ({
 							id: Number(item.id),
