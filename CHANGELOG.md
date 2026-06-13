@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-06-13
+- [Tareas: accesibilidad, primitives y mobile (2026-06-13)](docs/registro/cambios/2026-06-13-tareas-accesibilidad-y-primitives.md)
+
 ## 2026-06-12
 - [UX: bloqueo de botones, loaders globales y confirmaciones in-app](docs/registro/cambios/2026-06-12-ux-loading-y-bloqueo-de-botones.md)
 - [UI/UX: pasada de consistencia, a11y y estados (2026-06-12)](docs/registro/cambios/2026-06-12-ui-audit-fixes.md)
