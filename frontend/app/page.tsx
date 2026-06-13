@@ -813,7 +813,11 @@ export default function Home() {
 	const [employeeAuditLogsLoading, setEmployeeAuditLogsLoading] = useState(false)
 	const [employeeAuditLogsError, setEmployeeAuditLogsError] = useState<string | null>(null)
 	const [auditLogs, setAuditLogs] = useState<AnyRecord[]>([])
-	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>({})
+	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>(() => {
+		const d = new Date()
+		d.setDate(d.getDate() - 90)
+		return { from: d.toISOString().slice(0, 10) }
+	})
 	const auditLogsLoadedRef = useRef(false)
 	const loadedDataCacheRef = useRef<Set<string>>(new Set())
 	const [expandedAuditLogId, setExpandedAuditLogId] = useState<string | null>(
