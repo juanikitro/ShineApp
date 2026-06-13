@@ -92,6 +92,12 @@ class Debt(SoftDeleteMixin):
 
     @property
     def total_paid(self):
+        # Si el queryset anoto `total_paid_amount` (DebtViewSet / dashboard) se usa esa
+        # lectura en memoria y se evita un aggregate por deuda (N+1). Fuera de ese
+        # contexto (tests, admin, create) cae al aggregate normal.
+        annotated = getattr(self, "total_paid_amount", None)
+        if annotated is not None:
+            return annotated
         return self.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
 
     @property
