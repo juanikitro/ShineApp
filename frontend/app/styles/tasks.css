@@ -342,7 +342,7 @@ button.task-meta-chip:hover {
 }
 
 .task-meta-chip--user {
-	background: rgba(37, 99, 235, 0.1);
+	background: color-mix(in srgb, var(--color-primary) 10%, transparent);
 	color: var(--status-completed-text);
 }
 
@@ -530,5 +530,26 @@ button.task-meta-chip:hover {
 	}
 	.task-form-row {
 		grid-template-columns: 1fr;
+	}
+}
+
+/* Mobile: targets tactiles 44px, apilado de filtros y popovers acotados */
+@media (max-width: 620px) {
+	.tasks-filter-row {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.task-check {
+		min-height: 44px;
+		min-width: 44px;
+	}
+
+	button.task-meta-chip {
+		min-height: 36px;
+	}
+
+	.task-popover {
+		max-width: calc(100vw - 32px);
 	}
 }
