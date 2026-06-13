@@ -67,6 +67,27 @@ No hay Vercel Pro/WAF en este proyecto, así que el rate-limit vive en Django
 (Fase 2). Si en el futuro se habilita Vercel Firewall, agregar reglas para
 `/api/auth/login/`, `/api/auth/password-reset/` y `/api/public/landing/*`.
 
+## 5. Dependencias (recomendaciones, no se cambian pins en este PR)
+
+Para no arriesgar el build de producción, los pins de dependencias **no** se
+modificaron en el código. Recomendado como tarea aparte, con validación:
+
+- Generar un `requirements.lock` con hashes (pip-tools) e instalarlo desde
+  `vercel.json`/CI, para frenar releases maliciosas dentro de los rangos.
+- Migrar de `psycopg2-binary` a `psycopg[binary]` (psycopg3) o `psycopg2`
+  contra una libpq parcheada.
+- Fijar `next`/`react` a versiones exactas (hoy usan caret `^`).
+- Mantener al día los parsers de archivos subidos (`PyMuPDF`, `pdfjs-dist`).
+- CI ya corre `pip-audit` y `npm audit --omit=dev` en cada deploy.
+
+## 6. Higiene de identificadores en docs (follow-up)
+
+Los docs de deployment contienen identificadores reales (project-ref de Supabase,
+host de DB, IDs de Vercel `team_/prj_/dpl_`). No son secretos pero son objetivos
+directos y ya están en el historial de git. La mitigación efectiva es la
+**rotación de secretos** (paso 2). Como follow-up opcional: reemplazarlos por
+placeholders en los docs actuales.
+
 ## Checklist de validación final
 
 - [ ] `GET /api/health/` responde `ok` en producción.

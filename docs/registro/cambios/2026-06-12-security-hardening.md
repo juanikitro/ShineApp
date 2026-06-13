@@ -122,3 +122,38 @@ Acciones de operador (variables de entorno y rotación de secretos) en
   rechazo de precios/totales negativos.
 - Actualizados en `test_mvp_flows.py` los dos tests de `/me` + subscription_type
   para reflejar que ahora se ignora (no es 403, no persiste).
+
+## Fase 4 — Hardening / disclosure / dependencias
+
+- **Web Push anti-SSRF** (`notifications/service.py`): `_is_public_https_endpoint`
+  exige endpoints https a hosts públicos; rechaza localhost, IPs privadas/loopback
+  y metadata (169.254.169.254). El endpoint lo provee el cliente vía
+  `push_subscription`, así que se valida antes de hacer `webpush`.
+- **Sin PII en logs** (`notifications/service.py`): los `logger.exception` de
+  fallo de email dejaron de incluir la dirección del destinatario (se usa id de
+  tarea / contexto en su lugar).
+- **Papelera sin filtración de detalles** (`core/views.py`): el 409 de
+  `TrashPurgeView` ya no devuelve `str(exc)` (que podía exponer nombres de
+  tablas/constraints); el detalle se loguea server-side.
+- **Postgres de dev no expuesto a la LAN** (`docker-compose.yml`): el puerto de
+  la DB se bindea a `127.0.0.1`; se marcó el compose como solo dev-local.
+- **Dependencias**: recomendaciones (lockfile con hashes, psycopg3, pins exactos)
+  documentadas en `docs/deployment/security-runbook.md` sin cambiar pins (para no
+  arriesgar el build de producción). CI ya corre `pip-audit`/`npm audit`.
+- **Aceptados como INFO** (sin cambio): el health check expone backend de storage
+  (diagnóstico intencional, cubierto por test); el `print` de cold-start en
+  `settings_production` (solo nombres de env, sin secretos).
+
+### Tests Fase 4
+
+- `backend/tests/test_security_phase4.py`: allowlist de endpoints de push
+  (acepta FCM/Mozilla/Apple https; rechaza http, localhost, IP privada/metadata,
+  vacíos).
+
+## Runbook de operador (Fase 0)
+
+`docs/deployment/security-runbook.md` — pasos que ejecuta una persona en Vercel y
+Supabase: confirmar `DJANGO_SETTINGS_MODULE=config.settings_production` en
+Production y Preview, completar variables requeridas, rotar `DJANGO_SECRET_KEY` +
+claves S3 (tarea #96), bucket privado (`SUPABASE_STORAGE_QUERYSTRING_AUTH=1`), y
+endurecer la DB. Incluye recomendaciones de dependencias e higiene de IDs.
