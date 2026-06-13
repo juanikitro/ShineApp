@@ -1,5 +1,7 @@
 'use client'
 
+import { useMemo } from 'react'
+
 import { CalendarClock, CreditCard, Eye, RefreshCw, RotateCcw } from 'lucide-react'
 
 import { FinanceRecordCard } from '@/app/components/finance/FinanceRecordCard'
@@ -70,19 +72,46 @@ export function FixedExpensePanel({
 	onDeleteFixedExpense,
 	onRefresh,
 }: FixedExpensePanelProps) {
-	const pending = occurrences.filter((item) => item.status === 'pending')
-	const paid = occurrences.filter((item) => item.status === 'paid')
-	const pendingTotal = pending.reduce((sum, item) => sum + numberValue(item.amount), 0)
-	const activeCount = fixedExpenses.filter((item) => item.is_active).length
-	const monthlyEstimate = fixedExpenses
-		.filter((item) => item.is_active)
-		.reduce((sum, item) => sum + monthlyEquivalent(item), 0)
-
-	const filteredPlans = fixedExpenses.filter((plan) =>
-		matchesSearch(joinDisplayParts([plan.concept, plan.supplier_name]) || '', search),
+	// Derivaciones independientes del buscador: solo recomputan cuando cambian los
+	// datos, no en cada keystroke.
+	const pending = useMemo(
+		() => occurrences.filter((item) => item.status === 'pending'),
+		[occurrences],
 	)
-	const filteredPending = pending.filter((item) =>
-		matchesSearch(String(item.fixed_expense_concept ?? ''), search),
+	const paid = useMemo(
+		() => occurrences.filter((item) => item.status === 'paid'),
+		[occurrences],
+	)
+	const pendingTotal = useMemo(
+		() => pending.reduce((sum, item) => sum + numberValue(item.amount), 0),
+		[pending],
+	)
+	const activeCount = useMemo(
+		() => fixedExpenses.filter((item) => item.is_active).length,
+		[fixedExpenses],
+	)
+	const monthlyEstimate = useMemo(
+		() =>
+			fixedExpenses
+				.filter((item) => item.is_active)
+				.reduce((sum, item) => sum + monthlyEquivalent(item), 0),
+		[fixedExpenses],
+	)
+
+	// Filtros que dependen del buscador: lo unico que recomputa al tipear.
+	const filteredPlans = useMemo(
+		() =>
+			fixedExpenses.filter((plan) =>
+				matchesSearch(joinDisplayParts([plan.concept, plan.supplier_name]) || '', search),
+			),
+		[fixedExpenses, search],
+	)
+	const filteredPending = useMemo(
+		() =>
+			pending.filter((item) =>
+				matchesSearch(String(item.fixed_expense_concept ?? ''), search),
+			),
+		[pending, search],
 	)
 
 	return (
