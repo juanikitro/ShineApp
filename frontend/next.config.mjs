@@ -12,6 +12,12 @@ const nextConfig = {
     cpus: 1,
     webpackBuildWorker: false,
     staticGenerationMaxConcurrency: 1,
+    optimizePackageImports: [
+      "lucide-react",
+      "motion",
+      "emoji-picker-react",
+      "@dnd-kit/core",
+    ],
   },
 };
 

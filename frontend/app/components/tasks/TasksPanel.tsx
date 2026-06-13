@@ -18,8 +18,10 @@ import {
 
 import { Button } from '@/app/components/ui/Button'
 import { Empty } from '@/app/components/ui/Empty'
+import { SkeletonList } from '@/app/components/ui/Skeleton'
 import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
 import { useConfirmDialog } from '@/lib/use-confirm-dialog'
+
 
 import { TaskForm, type TaskRecord } from './TaskForm'
 
@@ -81,6 +83,7 @@ export type TaskFormPayload = {
 
 type TasksPanelProps = {
 	tasks: Task[]
+	loading?: boolean
 	employees: EmployeeOption[]
 	customers?: CustomerOption[]
 	vehicles?: VehicleOption[]
@@ -208,6 +211,7 @@ function compareEnriched(a: EnrichedTask, b: EnrichedTask): number {
 
 export function TasksPanel({
 	tasks,
+	loading = false,
 	employees,
 	customers,
 	vehicles,
@@ -834,7 +838,10 @@ export function TasksPanel({
 					id="tasks-panel-content"
 					role="tabpanel"
 				>
-					{canViewEconomy ? (
+					{loading && !tasks.length ? (
+						<SkeletonList rows={5} columns={3} label="Cargando tareas" />
+					) : null}
+					{!loading || tasks.length ? (canViewEconomy ? (
 						<>
 							{renderBuckets()}
 							<div className="tasks-section-head">
@@ -863,7 +870,7 @@ export function TasksPanel({
 						<ul className="tasks-list">{employeeFacingTasks.map(renderTaskRow)}</ul>
 					) : (
 						<Empty text="Sin tareas completadas todavia." />
-					)}
+					)) : null}
 				</div>
 			</section>
 

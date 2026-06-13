@@ -1,5 +1,7 @@
 'use client'
 
+import { memo } from 'react'
+
 import { Eye } from 'lucide-react'
 
 import { RecordCard, RecordCardHeader } from '@/app/components/ui/RecordCard'
@@ -19,7 +21,7 @@ function auditFieldLabel(field: string) {
 	return field.replaceAll('_', ' ')
 }
 
-export function AuditLogCard({
+export const AuditLogCard = memo(function AuditLogCard({
 	item,
 	expanded,
 	currentUserId,
@@ -86,4 +88,4 @@ export function AuditLogCard({
 			) : null}
 		</RecordCard>
 	)
-}
+})

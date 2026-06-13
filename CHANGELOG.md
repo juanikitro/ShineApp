@@ -12,12 +12,25 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-13
 - [Tareas: accesibilidad, primitives y mobile (2026-06-13)](docs/registro/cambios/2026-06-13-tareas-accesibilidad-y-primitives.md)
+- [Performance Capa 2: useMemo en derivaciones caras](docs/registro/cambios/2026-06-13-perf-capa2-usememo-derivaciones.md)
+- [Performance Capa 2: Skeletons de carga en paneles faltantes](docs/registro/cambios/2026-06-13-perf-capa2-skeletons.md)
+- [Performance Capa 2: MutationObserver acotado al subárbol mutado](docs/registro/cambios/2026-06-13-perf-capa2-mutation-observer-acotado.md)
+- [Performance Capa 2: React.memo en AuditLogCard + useCallback para label mappers](docs/registro/cambios/2026-06-13-perf-capa2-memo-auditlog.md)
+- [Performance Capa 2: Gate en materialize_due por list GET](docs/registro/cambios/2026-06-13-perf-capa2-materialize-gate.md)
+- [Performance Capa 2: lookups O(1) en render (Map en vez de find)](docs/registro/cambios/2026-06-13-perf-capa2-map-lookups.md)
+- [Performance Capa 2: formatters Intl cacheados](docs/registro/cambios/2026-06-13-perf-capa2-intl-singletons.md)
+- [Performance Capa 2: Filtro de fecha por defecto en el historial de auditoría](docs/registro/cambios/2026-06-13-perf-capa2-audit-log-default-filter.md)
+- [Performance Capa 1: N+1 en viewsets (catalog, finance, customers, inventory)](docs/registro/cambios/2026-06-13-perf-capa1-nplus1-viewsets.md)
+- [Performance Capa 1: dashboard (periodo previo scalar-only + today aggregate)](docs/registro/cambios/2026-06-13-perf-capa1-dashboard.md)
 
 ## 2026-06-12
 - [UX: bloqueo de botones, loaders globales y confirmaciones in-app](docs/registro/cambios/2026-06-12-ux-loading-y-bloqueo-de-botones.md)
 - [UI/UX: pasada de consistencia, a11y y estados (2026-06-12)](docs/registro/cambios/2026-06-12-ui-audit-fixes.md)
 - [Mejoras al modulo de tareas (UI, interaccion y negocio)](docs/registro/cambios/2026-06-12-tareas-mejoras-ui-y-negocio.md)
 - [regen-docs: PR en lugar de push directo a main](docs/registro/cambios/2026-06-12-regen-docs-via-pr.md)
+- [Performance Capa 1: indices compuestos (business, ...)](docs/registro/cambios/2026-06-12-perf-capa1-indices-compuestos.md)
+- [Performance Capa 1: N+1 de Debt (annotate)](docs/registro/cambios/2026-06-12-perf-capa1-debt-nplus1.md)
+- [Performance Capa 0: bundle frontend + gzip de API](docs/registro/cambios/2026-06-12-perf-capa0-bundle-gzip.md)
 - [Papelera: ver, restaurar y purgar registros borrados](docs/registro/cambios/2026-06-12-papelera-restore-borrado-logico.md)
 - [Modulo de tareas para empleadores y empleados](docs/registro/cambios/2026-06-12-modulo-tareas.md)
 - [Clientes: badge único de reserva y columnas alineadas](docs/registro/cambios/2026-06-12-clientes-listado-badge-y-columnas.md)

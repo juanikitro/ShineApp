@@ -28,6 +28,15 @@ import { createPortal } from 'react-dom'
 import { AppBrand } from '@/app/components/layout/AppBrand'
 import { Field } from '@/app/components/ui/Field'
 import { apiFetch, publicApiFetch, setStoredToken } from '@/lib/api'
+import {
+	currencyArsFormatter,
+	dateFormatter,
+	dateTimeFormatter,
+	dayMonthFormatter,
+	decimalFormatter,
+	fullDateFormatter,
+	weekdayShortFormatter,
+} from '@/lib/intl-format'
 import { type ApiErrorNotice, formatApiError } from '@/lib/api-errors'
 import { type AgendaOperationalPhase } from '@/lib/agenda'
 import { toastIconVariants, toastVariants } from '@/lib/motion-spec'
@@ -135,23 +144,15 @@ function monthRange(value: string, offset = 0) {
 }
 
 function formatDayName(value: string) {
-	return parseIsoDate(value).toLocaleDateString('es-AR', { weekday: 'short' })
+	return weekdayShortFormatter.format(parseIsoDate(value))
 }
 
 function formatDayLabel(value: string) {
-	return parseIsoDate(value).toLocaleDateString('es-AR', {
-		day: '2-digit',
-		month: '2-digit',
-	})
+	return dayMonthFormatter.format(parseIsoDate(value))
 }
 
 function formatFullDateLabel(value: string) {
-	return parseIsoDate(value).toLocaleDateString('es-AR', {
-		weekday: 'long',
-		day: '2-digit',
-		month: 'long',
-		year: 'numeric',
-	})
+	return fullDateFormatter.format(parseIsoDate(value))
 }
 
 function formatDateTimeLabel(value: any) {
@@ -160,12 +161,7 @@ function formatDateTimeLabel(value: any) {
 	if (Number.isNaN(date.getTime())) {
 		return String(value)
 	}
-	return date.toLocaleString('es-AR', {
-		day: '2-digit',
-		month: '2-digit',
-		hour: '2-digit',
-		minute: '2-digit',
-	})
+	return dateTimeFormatter.format(date)
 }
 
 function formatDateLabel(value: any) {
@@ -179,11 +175,7 @@ function formatDateLabel(value: any) {
 	if (Number.isNaN(date.getTime())) {
 		return String(value)
 	}
-	return date.toLocaleDateString('es-AR', {
-		day: '2-digit',
-		month: '2-digit',
-		year: 'numeric',
-	})
+	return dateFormatter.format(date)
 }
 
 function birthdayText(customer: AnyRecord) {
@@ -1057,12 +1049,7 @@ const serviceTypeLabels: Record<string, string> = {
 }
 
 function money(value: any) {
-	const number = Number(value ?? 0)
-	return number.toLocaleString('es-AR', {
-		style: 'currency',
-		currency: 'ARS',
-		maximumFractionDigits: 0,
-	})
+	return currencyArsFormatter.format(Number(value ?? 0))
 }
 
 function numberValue(value: any) {
@@ -1071,9 +1058,7 @@ function numberValue(value: any) {
 }
 
 function quantity(value: any, unit = '') {
-	const formatted = numberValue(value).toLocaleString('es-AR', {
-		maximumFractionDigits: 2,
-	})
+	const formatted = decimalFormatter.format(numberValue(value))
 	return unit ? `${formatted} ${unit}` : formatted
 }
 
@@ -1427,7 +1412,27 @@ function useButtonHoverTitles() {
 		}
 
 		scheduleApply()
-		const observer = new MutationObserver(scheduleApply)
+		const observer = new MutationObserver((mutations) => {
+			window.cancelAnimationFrame(frameId)
+			frameId = window.requestAnimationFrame(() => {
+				if (activeButton && document.body.contains(activeButton)) {
+					// Tooltip is visible — only reposition. showTooltip() applies titles
+					// lazily on hover, so no full sweep needed while a button is active.
+					positionButtonHoverTooltip(tooltip, activeButton)
+					return
+				}
+				// Sweep only the subtrees that actually mutated, not the whole document.
+				const seen = new Set<ParentNode>()
+				for (const m of mutations) {
+					const el =
+						m.target instanceof Element ? m.target : m.target.parentElement
+					if (el && !seen.has(el)) {
+						seen.add(el)
+						applyButtonHoverTitles(el)
+					}
+				}
+			})
+		})
 		observer.observe(document.body, {
 			attributeFilter: ['aria-label', 'class', 'data-collapsed', 'title'],
 			attributes: true,

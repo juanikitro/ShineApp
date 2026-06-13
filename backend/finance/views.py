@@ -100,14 +100,21 @@ def debt_payment_entry(payment):
     }
 
 
+# select_related profundo que cubre todos los FKs que recorren los method-fields
+# de CashMovementSerializer (counterparty/reference/payment_method/created_by).
+CASH_MOVEMENT_SELECT_RELATED = (
+    "payment__work_order__customer",
+    "material_purchase__material",
+    "stock_movement__supplier",
+    "stock_movement__customer",
+    "debt__supplier",
+    "created_by",
+)
+
+
 def cash_entries_for_day(day, request=None, business=None):
     movements = CashMovement.objects.select_related(
-        "payment__work_order__customer",
-        "material_purchase__material",
-        "stock_movement__supplier",
-        "stock_movement__customer",
-        "debt__supplier",
-        "created_by",
+        *CASH_MOVEMENT_SELECT_RELATED
     ).filter(business=business, occurred_at__date=day)
     movement_entries = CashMovementSerializer(movements, many=True, context={"request": request}).data
     debt_entries = [
@@ -177,7 +184,7 @@ class PaymentViewSet(
 
 class CashMovementViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     audit_side_effects = ("category_suggestions",)
-    queryset = CashMovement.objects.select_related("payment", "material_purchase", "stock_movement", "debt").all()
+    queryset = CashMovement.objects.select_related(*CASH_MOVEMENT_SELECT_RELATED).all()
     serializer_class = CashMovementSerializer
     permission_classes = [CanViewEconomy]
 
@@ -199,7 +206,7 @@ class CashDailyView(APIView):
         income = economic_totals["income"]
         expense = economic_totals["expense"]
         balance = economic_totals["balance"]
-        movements = CashMovement.objects.select_related("payment", "material_purchase", "stock_movement", "debt").filter(
+        movements = CashMovement.objects.select_related(*CASH_MOVEMENT_SELECT_RELATED).filter(
             business=business,
             occurred_at__date=day
         )

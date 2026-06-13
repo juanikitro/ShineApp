@@ -464,6 +464,11 @@ class AuditLog(models.Model):
             models.Index(fields=["actor", "-created_at"], name="core_auditl_actor_i_010a7d_idx"),
             models.Index(fields=["module", "-created_at"], name="core_auditl_module_709697_idx"),
             models.Index(fields=["action", "-created_at"], name="core_auditl_action_bcd443_idx"),
+            # business-led: AuditLogView filtra business= y luego ordena -created_at.
+            models.Index(fields=["business", "-created_at"], name="audit_biz_created_idx"),
+            models.Index(fields=["business", "module", "-created_at"], name="audit_biz_module_idx"),
+            models.Index(fields=["business", "action", "-created_at"], name="audit_biz_action_idx"),
+            models.Index(fields=["business", "entity_type", "entity_id"], name="audit_biz_entity_idx"),
         ]
 
     def __str__(self):

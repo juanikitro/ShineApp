@@ -520,8 +520,8 @@ class StockMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSe
 class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     material_name = serializers.CharField(source="material.name", read_only=True)
     opened_by_work_order_label = serializers.SerializerMethodField()
-    work_orders_count = serializers.IntegerField(read_only=True)
-    consumptions_count = serializers.IntegerField(read_only=True)
+    work_orders_count = serializers.SerializerMethodField()
+    consumptions_count = serializers.SerializerMethodField()
     duration_days = serializers.IntegerField(read_only=True, allow_null=True)
     consumptions = serializers.SerializerMethodField()
 
@@ -562,7 +562,31 @@ class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.Mode
     def get_opened_by_work_order_label(self, obj):
         return str(obj.opened_by_work_order) if obj.opened_by_work_order else None
 
+    def _prefetched_consumptions(self, obj):
+        # Reusa el prefetch consumptions__work_order del viewset (0 queries por unidad
+        # en el listado). Fuera de ese contexto retorna None para caer al fallback.
+        cache = getattr(obj, "_prefetched_objects_cache", None)
+        if cache is not None and "consumptions" in cache:
+            return list(obj.consumptions.all())
+        return None
+
+    def get_work_orders_count(self, obj):
+        consumptions = self._prefetched_consumptions(obj)
+        if consumptions is not None:
+            return len({consumption.work_order_id for consumption in consumptions})
+        return obj.work_orders_count
+
+    def get_consumptions_count(self, obj):
+        consumptions = self._prefetched_consumptions(obj)
+        if consumptions is not None:
+            return len(consumptions)
+        return obj.consumptions_count
+
     def get_consumptions(self, obj):
+        consumptions = self._prefetched_consumptions(obj)
+        if consumptions is None:
+            consumptions = obj.consumptions.select_related("work_order").all()
+        consumptions = sorted(consumptions, key=lambda consumption: (consumption.consumed_at, consumption.id))
         return [
             {
                 "id": consumption.id,
@@ -573,7 +597,7 @@ class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.Mode
                 "estimated_total_cost": consumption.estimated_total_cost,
                 "observations": consumption.observations,
             }
-            for consumption in obj.consumptions.select_related("work_order").order_by("consumed_at", "id")
+            for consumption in consumptions
         ]
 
     def validate_stock_quantity_to_decrement(self, value):

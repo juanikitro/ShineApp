@@ -126,7 +126,9 @@ def service_history_quote_row(quote):
 
 class ServiceViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     serializer_class = ServiceSerializer
-    queryset = Service.objects.all()
+    # prefetch de la receta de materiales: ServiceSerializer anida
+    # ServiceMaterialSerializer (lee material.name/unit/estimated_unit_cost).
+    queryset = Service.objects.prefetch_related("materials__material")
     permission_classes = [permissions.IsAuthenticated, EmployerRequiredForUnsafe]
 
     def get_queryset(self):

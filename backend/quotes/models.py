@@ -89,6 +89,10 @@ class Quote(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-quote_date", "-id"]
+        indexes = [
+            models.Index(fields=["business", "-quote_date"], name="quote_biz_qdate_idx"),
+            models.Index(fields=["business", "status"], name="quote_biz_status_idx"),
+        ]
 
     def recalculate(self):
         subtotal = quantize_money(sum((item.line_total for item in self.items.all()), Decimal("0.00")))
