@@ -13845,7 +13845,7 @@ export default function Home() {
 						currentUser={currentUser}
 						canViewEconomy={canViewEconomy}
 						onCreate={async (payload) => {
-							await runAction(
+							return await runAction(
 								() =>
 									apiFetch('/tasks/', {
 										method: 'POST',
@@ -13855,7 +13855,7 @@ export default function Home() {
 							)
 						}}
 						onUpdate={async (id, payload) => {
-							await runAction(
+							return await runAction(
 								() =>
 									apiFetch(`/tasks/${id}/`, {
 										method: 'PATCH',
