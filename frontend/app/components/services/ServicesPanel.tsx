@@ -1,6 +1,6 @@
 'use client'
 
-import { type ReactNode } from 'react'
+import { type ReactNode, useMemo } from 'react'
 
 import { ChevronLeft, Plus } from 'lucide-react'
 
@@ -96,10 +96,34 @@ export function ServicesPanel({
 	onOpenServiceDetail,
 	onOpenWorkOrderDetail,
 }: ServicesPanelProps) {
-	const sectorNameById = sectors.reduce<Record<string, string>>((acc, s) => {
-		if (s.id != null) acc[String(s.id)] = String(s.name ?? '')
-		return acc
-	}, {})
+	const sectorNameById = useMemo(
+		() =>
+			sectors.reduce<Record<string, string>>((acc, s) => {
+				if (s.id != null) acc[String(s.id)] = String(s.name ?? '')
+				return acc
+			}, {}),
+		[sectors],
+	)
+
+	// Maps id -> registro memoizados para lookups O(1) en los detalles del servicio
+	// (antes .find() por fila sobre el dataset completo = O(filas x dataset)).
+	const reservationsById = useMemo(() => {
+		const map = new Map<string, AnyRecord>()
+		for (const item of reservations) map.set(String(item.id), item)
+		return map
+	}, [reservations])
+
+	const workOrdersById = useMemo(() => {
+		const map = new Map<string, AnyRecord>()
+		for (const item of workOrders) map.set(String(item.id), item)
+		return map
+	}, [workOrders])
+
+	const quotesById = useMemo(() => {
+		const map = new Map<string, AnyRecord>()
+		for (const item of quotes) map.set(String(item.id), item)
+		return map
+	}, [quotes])
 
 	function renderServicePriceRow(service: AnyRecord) {
 		const setVehiclePrices = VEHICLE_TYPES.filter((t) => {
@@ -221,9 +245,7 @@ export function ServicesPanel({
 					{reservationsRows.length ? (
 						reservationsRows.map((reservation: AnyRecord) => {
 							const detailReservation =
-								reservations.find(
-									(item) => String(item.id) === String(reservation.id),
-								) ?? reservation
+								reservationsById.get(String(reservation.id)) ?? reservation
 							return (
 								<button
 									className="record compact"
@@ -269,9 +291,7 @@ export function ServicesPanel({
 					{orders.length ? (
 						orders.map((order: AnyRecord) => {
 							const detailOrder =
-								workOrders.find(
-									(item) => String(item.id) === String(order.id),
-								) ?? order
+								workOrdersById.get(String(order.id)) ?? order
 							return (
 								<button
 									className="record compact"
@@ -319,8 +339,7 @@ export function ServicesPanel({
 					{quotesRows.length ? (
 						quotesRows.map((quote: AnyRecord) => {
 							const detailQuote =
-								quotes.find((item) => String(item.id) === String(quote.id)) ??
-								quote
+								quotesById.get(String(quote.id)) ?? quote
 							return (
 								<button
 									className="record compact"

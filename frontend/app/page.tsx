@@ -55,6 +55,7 @@ import {
 	type KeyboardEvent,
 	type MouseEvent,
 	type ReactNode,
+	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
@@ -813,7 +814,11 @@ export default function Home() {
 	const [employeeAuditLogsLoading, setEmployeeAuditLogsLoading] = useState(false)
 	const [employeeAuditLogsError, setEmployeeAuditLogsError] = useState<string | null>(null)
 	const [auditLogs, setAuditLogs] = useState<AnyRecord[]>([])
-	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>({})
+	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>(() => {
+		const d = new Date()
+		d.setDate(d.getDate() - 90)
+		return { from: d.toISOString().slice(0, 10) }
+	})
 	const auditLogsLoadedRef = useRef(false)
 	const loadedDataCacheRef = useRef<Set<string>>(new Set())
 	const [expandedAuditLogId, setExpandedAuditLogId] = useState<string | null>(
@@ -2169,13 +2174,15 @@ export default function Home() {
 		String(value ?? '').trim(),
 	)
 
-	function auditActionLabel(action: string) {
-		return auditActionLabels[action] ?? action
-	}
+	const auditActionLabel = useCallback(
+		(action: string) => auditActionLabels[action] ?? action,
+		[],
+	)
 
-	function auditModuleLabel(module: string) {
-		return auditModuleLabels[module] ?? module
-	}
+	const auditModuleLabel = useCallback(
+		(module: string) => auditModuleLabels[module] ?? module,
+		[],
+	)
 
 	function updateAuditFilter(key: keyof AuditLogFilters, value: string) {
 		setAuditFilters((current) => ({
@@ -13011,6 +13018,7 @@ export default function Home() {
 					<div className="grid">
 						<CustomerListPanel
 							customers={filteredCustomers}
+							loading={isDataSetLoading('customers')}
 							totalCustomers={customers.length}
 							search={search}
 							filter={customerCardFilter}
@@ -13732,6 +13740,7 @@ export default function Home() {
 					</div>
 				) : displayedActive === 'inventory' ? (
 					<InventoryPanel
+						loading={isDataSetLoading('materials')}
 						availableQuickActions={availableQuickActions}
 						consumptions={consumptions}
 						detailRecordProps={detailRecordProps}
@@ -13819,6 +13828,7 @@ export default function Home() {
 				) : displayedActive === 'tasks' ? (
 					<TasksPanel
 						tasks={tasks as any}
+						loading={isDataSetLoading('tasks')}
 						employees={employees as any}
 						customers={customers.map((item) => ({
 							id: Number(item.id),

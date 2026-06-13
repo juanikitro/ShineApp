@@ -31,6 +31,9 @@ class Sector(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["order", "name"]
+        indexes = [
+            models.Index(fields=["business", "is_active"], name="sector_biz_active_idx"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["business", "key"],
@@ -92,6 +95,9 @@ class Service(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["sector__order", "name"]
+        indexes = [
+            models.Index(fields=["business", "is_active"], name="service_biz_active_idx"),
+        ]
 
     def __str__(self):
         return self.name

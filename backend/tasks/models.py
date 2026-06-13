@@ -112,6 +112,10 @@ class Task(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-id"]
+        indexes = [
+            models.Index(fields=["business", "status"], name="task_biz_status_idx"),
+            models.Index(fields=["business", "assignee"], name="task_biz_assignee_idx"),
+        ]
 
     def __str__(self):
         return self.title

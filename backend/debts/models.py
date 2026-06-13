@@ -43,6 +43,10 @@ class Debt(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-origin_date", "-id"]
+        indexes = [
+            models.Index(fields=["business", "-origin_date"], name="debt_biz_origin_idx"),
+            models.Index(fields=["business", "due_date"], name="debt_biz_due_idx"),
+        ]
 
     def __str__(self):
         return self.concept
@@ -88,6 +92,12 @@ class Debt(SoftDeleteMixin):
 
     @property
     def total_paid(self):
+        # Si el queryset anoto `total_paid_amount` (DebtViewSet / dashboard) se usa esa
+        # lectura en memoria y se evita un aggregate por deuda (N+1). Fuera de ese
+        # contexto (tests, admin, create) cae al aggregate normal.
+        annotated = getattr(self, "total_paid_amount", None)
+        if annotated is not None:
+            return annotated
         return self.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
 
     @property
@@ -122,6 +132,9 @@ class DebtPayment(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-paid_at", "-id"]
+        indexes = [
+            models.Index(fields=["business", "-paid_at"], name="debtpay_biz_paid_idx"),
+        ]
 
     def __str__(self):
         return f"{self.debt_id} - {self.amount}"

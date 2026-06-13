@@ -207,6 +207,50 @@ No agregar el `DJANGO_SECRET_KEY` real, claves Supabase S3 ni secretos SMTP a Gi
 
 Migraciones forward-compatible son aceptables para el camino de release demo automatizado. Migraciones destructivas necesitan un plan manual de rollout y no deben mergearse a `main` como deploy demo rutinario.
 
+## 14.1 Aplicar Indices De Performance Sin Lock (CREATE INDEX CONCURRENTLY)
+
+- Que: las migraciones de indices de performance (auditoria 2026-06-12) usan la
+  operacion `AddIndexConcurrentlyIfPostgres` (`backend/core/migration_operations.py`)
+  con `atomic = False`. En PostgreSQL crean el indice con `CREATE INDEX CONCURRENTLY`
+  (no toma lock ACCESS EXCLUSIVE: la tabla sigue aceptando escrituras durante el
+  build). En SQLite (tests/dev) caen a un `CREATE INDEX` normal.
+- Migraciones afectadas:
+  - `core/0025_auditlog_audit_biz_created_idx_and_more` (AuditLog: 4 indices)
+  - `inventory/0012_materialpurchase_matpur_biz_purchased_idx_and_more` (StockMovement, MaterialPurchase)
+  - `debts/0007_debt_debt_biz_origin_idx_debt_debt_biz_due_idx_and_more` (Debt, DebtPayment)
+  - `fixed_expenses/0002_fixedexpense_fixexp_biz_active_idx_and_more`
+  - `quotes/0006_quote_quote_biz_qdate_idx_quote_quote_biz_status_idx`
+  - `tasks/0003_task_task_biz_status_idx_task_task_biz_assignee_idx`
+  - `catalog/0011_sector_sector_biz_active_idx_and_more`
+- Donde: el deploy automatizado de GitHub Actions corre `migrate --noinput` (ver
+  seccion 14). Con CONCURRENTLY el migrate no bloquea escrituras, asi que es seguro
+  por el camino normal.
+- Caveat de pooler (IMPORTANTE): `CREATE INDEX CONCURRENTLY` necesita una conexion
+  de SESION, no el transaction pooler de Supabase (pgBouncer en modo transaction;
+  ver seccion 2, el `DATABASE_URL` usa transaction pooler para Vercel). Si el
+  `migrate` de CI corre contra el transaction pooler, estas migraciones pueden
+  fallar. Opciones: (a) apuntar el `DATABASE_URL` de migracion al endpoint de
+  sesion/directo de Supabase (puerto 5432, no el pooler 6543), o (b) correr estas
+  migraciones a mano desde un shell confiable con la conexion directa.
+- Recuperacion si se interrumpe: una creacion CONCURRENTLY abortada deja un indice
+  INVALID que NO se usa y bloquea reintentos con el mismo nombre. Detectar y limpiar:
+
+  ```sql
+  -- indices invalidos
+  SELECT c.relname FROM pg_class c JOIN pg_index i ON i.indexrelid = c.oid
+  WHERE NOT i.indisvalid;
+  -- dropear el invalido (reemplazar <name>) antes de reintentar el migrate
+  DROP INDEX CONCURRENTLY IF EXISTS <name>;
+  ```
+
+- Validar: tras el migrate, `https://shineapp-api.vercel.app/api/health/` retorna
+  `database=ok`; y en la DB, `\d+ core_auditlog` (o el `pg_index` query de arriba sin
+  el filtro `NOT indisvalid`) muestra los indices `audit_biz_*`, `stockmv_biz_*`,
+  `debt_biz_*`, etc. como validos.
+- Riesgo si se omite el caveat de pooler: el paso de migracion del deploy puede
+  fallar y abortar el release, o (peor) si se quitara CONCURRENTLY, un `CREATE INDEX`
+  normal lockearia AuditLog/StockMovement durante el build con datos reales.
+
 ## 15. Separar Staging Y Produccion Real
 
 - Que: crear proyectos web/API Vercel, proyectos Supabase, buckets Storage, entornos Sentry y entornos GitHub separados para `staging` y `production`.

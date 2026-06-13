@@ -55,6 +55,9 @@ class FixedExpense(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-is_active", "concept", "-id"]
+        indexes = [
+            models.Index(fields=["business", "is_active"], name="fixexp_biz_active_idx"),
+        ]
 
     def __str__(self):
         return f"{self.concept} (cada {self.interval_count} {self.interval_unit})"
@@ -131,6 +134,9 @@ class FixedExpenseOccurrence(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-period_date", "-id"]
+        indexes = [
+            models.Index(fields=["business", "status", "period_date"], name="fixocc_biz_status_dt_idx"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["fixed_expense", "period_date"],
