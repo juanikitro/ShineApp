@@ -147,7 +147,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.TokenAuthentication",
+        "core.authentication.ExpiringTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": ["core.permissions.ActiveBusinessUser"],
@@ -157,6 +157,14 @@ REST_FRAMEWORK = {
     # contando proxies desde la derecha del X-Forwarded-For (Vercel = 1).
     "NUM_PROXIES": TRUSTED_PROXY_COUNT,
 }
+
+# Expiracion absoluta del token DRF (mitigacion del token en localStorage).
+# 0 = sin expiracion. Default 30 dias, alineado con el TTL del cliente.
+AUTH_TOKEN_TTL_SECONDS = int(os.getenv("DJANGO_AUTH_TOKEN_TTL_SECONDS", str(30 * 24 * 60 * 60)))
+
+# Lockout de cuenta por intentos fallidos de login (cache). 0 = desactivado.
+LOGIN_LOCKOUT_THRESHOLD = int(os.getenv("DJANGO_LOGIN_LOCKOUT_THRESHOLD", "8"))
+LOGIN_LOCKOUT_WINDOW_SECONDS = int(os.getenv("DJANGO_LOGIN_LOCKOUT_WINDOW_SECONDS", "900"))
 
 DEFAULT_DAILY_CAPACITY = int(os.getenv("DEFAULT_DAILY_CAPACITY", "8"))
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@shineapp.local")

@@ -1706,8 +1706,13 @@ def test_delete_canceled_reservation_with_payment_closed_cash_returns_400(api_cl
     assert payment_response.status_code == 201
     payment_id = payment_response.data["id"]
     payment = Payment.objects.get(pk=payment_id)
-    closed_day = payment.paid_at.date() if hasattr(payment.paid_at, "date") else payment.paid_at
+    # Usar cash_day (fecha local, igual que el guard) en vez de .date() (UTC):
+    # cerca de la medianoche UTC ambas difieren y el test era no-determinista.
+    from finance.cash import cash_day
+
+    closed_day = cash_day(payment.paid_at)
     CashClosure.objects.create(
+        business=payment.business,
         day=closed_day,
         total_income=Decimal("5000.00"),
         total_expense=Decimal("0.00"),

@@ -3,9 +3,11 @@ import secrets
 from datetime import timedelta
 from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group, update_last_login
 from django.contrib.auth.password_validation import validate_password
+from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import connection, transaction
 from django.utils import timezone
@@ -278,6 +280,7 @@ class HealthCheckView(APIView):
 class PasswordResetRequestView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
+    throttle_scope = "password_reset"
 
     def post(self, request):
         email = str(request.data.get("email", "")).strip().lower()
@@ -306,6 +309,7 @@ class PasswordResetRequestView(APIView):
 class PasswordResetConfirmView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
+    throttle_scope = "password_reset"
 
     def post(self, request):
         token_value = str(request.data.get("token", "")).strip()
@@ -344,6 +348,9 @@ class PasswordResetConfirmView(APIView):
         user.save(update_fields=["password"])
         reset_token.used = True
         reset_token.save(update_fields=["used"])
+        # Invalida tokens de API existentes: si la cuenta estaba comprometida, el
+        # reset expulsa al atacante (antes el token robado seguia siendo valido).
+        Token.objects.filter(user=user).delete()
         return Response({"detail": "Contraseña actualizada."}, status=status.HTTP_200_OK)
 
 
@@ -614,17 +621,37 @@ class MeUpdateSerializer(serializers.Serializer):
         return value
 
 
+def login_lockout_key(username):
+    return f"login_fail_{str(username).strip().lower()}"
+
+
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope = "login"
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = authenticate(
-            username=serializer.validated_data["username"],
-            password=serializer.validated_data["password"],
-        )
+        username = serializer.validated_data["username"]
+        password = serializer.validated_data["password"]
+
+        threshold = getattr(settings, "LOGIN_LOCKOUT_THRESHOLD", 0)
+        window = getattr(settings, "LOGIN_LOCKOUT_WINDOW_SECONDS", 900)
+        lock_key = login_lockout_key(username)
+        if threshold and cache.get(lock_key, 0) >= threshold:
+            return Response(
+                {"detail": "Demasiados intentos fallidos. Proba de nuevo en unos minutos."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        user = authenticate(username=username, password=password)
         if user is None:
+            # Cuenta solo credenciales invalidas (no el rechazo por negocio inactivo).
+            if threshold:
+                try:
+                    cache.incr(lock_key)
+                except ValueError:
+                    cache.set(lock_key, 1, timeout=window)
             return Response({"detail": "Credenciales invalidas."}, status=status.HTTP_400_BAD_REQUEST)
         if user.is_staff or user.is_superuser:
             return Response(
@@ -637,8 +664,14 @@ class LoginView(APIView):
                 {"detail": "El negocio no esta activo."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        cache.delete(lock_key)
         update_last_login(None, user)
-        token, _ = Token.objects.get_or_create(user=user)
+        token, created = Token.objects.get_or_create(user=user)
+        if not created:
+            # Refresca el reloj del token para alinear su expiracion con el TTL
+            # del cliente en cada login (ver core/authentication.py).
+            Token.objects.filter(pk=token.pk).update(created=timezone.now())
+            token.refresh_from_db()
         return Response(
             {
                 "token": token.key,
@@ -650,6 +683,7 @@ class LoginView(APIView):
 class TrialSignupView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
+    throttle_scope = "signup"
 
     def post(self, request):
         serializer = TrialSignupSerializer(data=request.data)
