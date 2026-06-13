@@ -71,8 +71,11 @@ export async function loadAppDataSet(
 			return loaders.apiList<AnyRecord>('/materials/')
 		case 'suppliers':
 			return loaders.apiList<AnyRecord>('/suppliers/')
-		case 'stockMovements':
-			return loaders.apiList<AnyRecord>('/stock-movements/')
+		case 'stockMovements': {
+			const d = new Date()
+			d.setDate(d.getDate() - 90)
+			return loaders.apiList<AnyRecord>(`/stock-movements/?from=${d.toISOString().slice(0, 10)}`)
+		}
 		case 'materialOpenUnits':
 			return loaders.apiList<AnyRecord>('/material-open-units/')
 		case 'purchases':
