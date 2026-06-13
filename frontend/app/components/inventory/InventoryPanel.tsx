@@ -1,6 +1,6 @@
 'use client'
 
-import { type ReactNode } from 'react'
+import { type ReactNode, useMemo } from 'react'
 
 import { Package } from 'lucide-react'
 
@@ -99,6 +99,14 @@ export function InventoryPanel({
 	onOpenSupplierForm,
 	onOpenUnitForMaterial,
 }: InventoryPanelProps) {
+	// Map id -> material memoizado para el lookup O(1) de unidades abiertas
+	// (antes .find() por unidad sobre todo el dataset de materiales).
+	const materialsById = useMemo(() => {
+		const map = new Map<string, AnyRecord>()
+		for (const item of materials) map.set(String(item.id), item)
+		return map
+	}, [materials])
+
 	return (
 		<div className="grid">
 			<section className="panel">
@@ -297,10 +305,7 @@ export function InventoryPanel({
 						<Empty text="Sin materiales." />
 					)}
 					{materialOpenUnits.slice(0, 8).map((item) => {
-						const material = materials.find(
-							(materialItem) =>
-								String(materialItem.id) === String(item.material),
-						)
+						const material = materialsById.get(String(item.material))
 						const quickActions = materialOpenUnitQuickActions(item)
 						return (
 							<MotionFlashSurface
