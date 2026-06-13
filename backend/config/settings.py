@@ -166,6 +166,11 @@ AUTH_TOKEN_TTL_SECONDS = int(os.getenv("DJANGO_AUTH_TOKEN_TTL_SECONDS", str(30 *
 LOGIN_LOCKOUT_THRESHOLD = int(os.getenv("DJANGO_LOGIN_LOCKOUT_THRESHOLD", "8"))
 LOGIN_LOCKOUT_WINDOW_SECONDS = int(os.getenv("DJANGO_LOGIN_LOCKOUT_WINDOW_SECONDS", "900"))
 
+# Enforcement de suscripcion/trial vencido como gate de acceso a la API.
+# Default OFF: se activa cuando billing y los datos de plan esten listos, sin
+# riesgo de bloquear clientes reales. Solo bloquea negocios en TRIAL vencido.
+ENFORCE_SUBSCRIPTION_ACCESS = os.getenv("DJANGO_ENFORCE_SUBSCRIPTION_ACCESS", "0") == "1"
+
 DEFAULT_DAILY_CAPACITY = int(os.getenv("DEFAULT_DAILY_CAPACITY", "8"))
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@shineapp.local")
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")

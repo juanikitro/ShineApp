@@ -161,30 +161,16 @@ export function ProfileModal({
 					<span>Acceso</span>
 					<strong>{lastLoginText}</strong>
 				</div>
-				<label className="detail-row" htmlFor="profile-subscription-type">
+				<div className="detail-row">
 					<span>Plan interno</span>
-					<div className="profile-detail-control">
-						<select
-							id="profile-subscription-type"
-							name="profile_subscription_type"
-							className="profile-detail-input"
-							value={profileForm.subscription_type}
-							onChange={(event) =>
-								setProfileForm({
-									...profileForm,
-									subscription_type: event.target.value,
-								})
-							}
-							disabled={!canViewEconomy}
-						>
-							{subscriptionTypeOptions.map((option) => (
-								<option key={option.value} value={option.value}>
-									{option.label}
-								</option>
-							))}
-						</select>
-					</div>
-				</label>
+					{/* Solo lectura: el plan lo gestiona facturacion/admin del lado servidor,
+					    no es auto-asignable desde el perfil. */}
+					<strong>
+						{subscriptionTypeOptions.find(
+							(option) => option.value === profileForm.subscription_type,
+						)?.label ?? profileForm.subscription_type}
+					</strong>
+				</div>
 				<div className="detail-row">
 					<span id="profile-phone-label">Celular</span>
 					<div className="profile-detail-control">

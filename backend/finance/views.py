@@ -182,7 +182,11 @@ class CashMovementViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     permission_classes = [CanViewEconomy]
 
     def perform_destroy(self, instance):
-        ensure_cash_day_open(instance.occurred_at.date(), field="occurred_at")
+        ensure_cash_day_open(
+            cash_day(instance.occurred_at),
+            field="occurred_at",
+            business=instance.business,
+        )
         super().perform_destroy(instance)
 
 

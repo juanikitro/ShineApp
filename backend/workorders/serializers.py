@@ -99,6 +99,13 @@ class WorkOrderSerializer(BusinessScopedSerializerMixin, EconomyFieldsMixin, ser
             raise serializers.ValidationError("Estado invalido.")
         return value
 
+    def validate_total_amount(self, value):
+        # El empleador/empleado puede ajustar el precio de la orden (intencional),
+        # pero nunca a un valor negativo.
+        if value is not None and value < 0:
+            raise serializers.ValidationError("El total no puede ser negativo.")
+        return value
+
     def validate(self, attrs):
         reservation = attrs.get("reservation") or getattr(self.instance, "reservation", None)
         customer = attrs.get("customer") or getattr(self.instance, "customer", None)

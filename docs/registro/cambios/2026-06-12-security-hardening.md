@@ -92,3 +92,33 @@ Acciones de operador (variables de entorno y rotación de secretos) en
   era no-determinista (usaba `paid_at.date()` UTC en vez de `cash_day()` local);
   fallaba cerca de la medianoche UTC. No es un cambio de comportamiento del
   producto, solo del test.
+
+## Fase 3 — Lógica de negocio e integridad multi-tenant
+
+- **`subscription_type` no auto-asignable** (`config/views.py`,
+  `frontend`): el endpoint `/me` ya no acepta `subscription_type` (lo controla
+  facturación/admin del lado servidor). En el frontend el selector "Plan interno"
+  pasó a ser de solo lectura y `page.tsx` dejó de enviarlo en el PATCH de perfil.
+- **Enforcement de trial detrás de feature flag** (`core/permissions.py`):
+  `subscription_allows_access` + `ActiveBusinessUser` bloquean el acceso cuando el
+  negocio está en TRIAL vencido, **solo** si `DJANGO_ENFORCE_SUBSCRIPTION_ACCESS=1`
+  (default OFF, sin riesgo de bloquear clientes reales). Los planes pagos nunca se
+  bloquean.
+- **Guard de caja cerrada scopeado por negocio** (`finance/views.py`,
+  `debts/views.py`, `inventory/serializers.py`): los `perform_destroy` y la
+  validación de stock pasan `business=instance.business` a `ensure_cash_day_open`.
+  Antes consultaban `CashClosure` global, mezclando tenants. Además
+  `CashMovementViewSet.perform_destroy` usa `cash_day()` (fecha local) en vez de
+  `.date()` (UTC), igual que el resto.
+- **Precios/totales no negativos** (`workorders/`, `scheduling/`, `quotes/`
+  serializers): se preserva la edición de precio de órdenes/reservas (intencional),
+  pero se rechazan `unit_price`/`total_amount` negativos.
+
+### Tests Fase 3
+
+- `backend/tests/test_security_phase3.py`: `/me` no cambia `subscription_type`;
+  gate de trial (off por default, bloquea TRIAL vencido con flag on, permite plan
+  pago vencido y trial activo); `is_cash_day_closed` scopeado por negocio;
+  rechazo de precios/totales negativos.
+- Actualizados en `test_mvp_flows.py` los dos tests de `/me` + subscription_type
+  para reflejar que ahora se ignora (no es 403, no persiste).

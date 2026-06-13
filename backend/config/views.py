@@ -598,10 +598,8 @@ class MeUpdateSerializer(serializers.Serializer):
         allow_blank=True,
         max_length=32,
     )
-    subscription_type = serializers.ChoiceField(
-        choices=BusinessProfile.SubscriptionType.choices,
-        required=False,
-    )
+    # subscription_type NO se acepta aca: el plan lo controla facturacion/admin
+    # del lado servidor, no es auto-asignable por el usuario desde /me.
     push_subscription = serializers.JSONField(required=False, allow_null=True)
 
     def validate_avatar(self, value):
@@ -727,12 +725,6 @@ class MeView(APIView):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        if "subscription_type" in validated_data and not can_view_economy(request.user):
-            return Response(
-                {"detail": EmployerOnly.message},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         before = user_account_audit_snapshot(request.user)
         with transaction.atomic():
             profile = UserProfile.for_user(request.user)
@@ -748,11 +740,6 @@ class MeView(APIView):
             if "push_subscription" in validated_data:
                 profile.push_subscription = validated_data["push_subscription"]
             profile.save()
-
-            if "subscription_type" in validated_data:
-                business_profile = BusinessProfile.get_solo(business=profile.business)
-                business_profile.subscription_type = validated_data["subscription_type"]
-                business_profile.save()
 
         record_audit_event(
             request=request,

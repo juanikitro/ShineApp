@@ -6878,12 +6878,8 @@ export default function Home() {
 		if (profileAvatarFile) {
 			payload.append('avatar', profileAvatarFile)
 		}
-		if (canViewEconomy) {
-			payload.append(
-				'subscription_type',
-				String(profileForm.subscription_type ?? 'trial'),
-			)
-		}
+		// subscription_type es de solo lectura: lo controla facturacion/admin del
+		// lado servidor (el endpoint /me ya no lo acepta).
 		pendingActions.begin('save:profile')
 		try {
 			const saved = await apiFetch<AnyRecord>('/auth/me/', {
