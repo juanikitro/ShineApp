@@ -4,6 +4,7 @@ import { test } from 'vitest'
 import {
 	mapsUrlIsUsable,
 	normalizeWhatsappDigits,
+	safeHttpUrl,
 	whatsappUrl,
 } from './contact-links'
 
@@ -36,4 +37,24 @@ test('mapsUrlIsUsable distingue link cargado de vacio', () => {
 	assert.equal(mapsUrlIsUsable(''), false)
 	assert.equal(mapsUrlIsUsable(null), false)
 	assert.equal(mapsUrlIsUsable(undefined), false)
+})
+
+test('safeHttpUrl rechaza esquemas peligrosos y normaliza http(s)', () => {
+	// XSS: ningun esquema peligroso debe pasar.
+	assert.equal(safeHttpUrl('javascript:alert(1)'), null)
+	assert.equal(safeHttpUrl('JavaScript:alert(1)'), null)
+	assert.equal(safeHttpUrl('java\tscript:alert(1)'), null)
+	assert.equal(safeHttpUrl('data:text/html,<script>alert(1)</script>'), null)
+	assert.equal(safeHttpUrl('vbscript:msgbox(1)'), null)
+	// http(s) validos pasan tal cual.
+	assert.equal(safeHttpUrl('https://maps.google.com/x'), 'https://maps.google.com/x')
+	assert.equal(safeHttpUrl('http://example.com'), 'http://example.com')
+	// Sin esquema => se asume https.
+	assert.equal(safeHttpUrl('maps.google.com/x'), 'https://maps.google.com/x')
+	// Relativo same-origin: permitido.
+	assert.equal(safeHttpUrl('/media/doc.pdf'), '/media/doc.pdf')
+	// Vacios => null.
+	assert.equal(safeHttpUrl(''), null)
+	assert.equal(safeHttpUrl(null), null)
+	assert.equal(safeHttpUrl(undefined), null)
 })

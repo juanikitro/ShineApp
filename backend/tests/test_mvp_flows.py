@@ -336,6 +336,8 @@ def test_auth_me_exposes_role_and_can_view_economy(api_client, employee_client):
 
 @pytest.mark.django_db
 def test_employer_can_update_own_profile_and_subscription_type(api_client, tmp_path):
+    # subscription_type ya NO es auto-asignable desde /me (lo controla
+    # facturacion/admin): enviarlo se ignora y el plan queda en el default.
     with override_settings(MEDIA_ROOT=tmp_path):
         logo = SimpleUploadedFile(
             "avatar.png",
@@ -360,8 +362,7 @@ def test_employer_can_update_own_profile_and_subscription_type(api_client, tmp_p
         assert response.data["phone_country_code"] == "+598"
         assert response.data["phone_number"] == "987654321"
         assert response.data["phone_display"] == "+598 987654321"
-        assert response.data["subscription_type"] == "premium"
-        assert response.data["subscription_type_label"] == "Premium"
+        assert response.data["subscription_type"] == "trial"
         assert "/media/user-profiles/" in response.data["avatar_url"]
 
 
@@ -406,7 +407,9 @@ def test_employee_can_update_profile_but_cannot_change_subscription_type(employe
     assert response.data["phone_display"] == "+56 123456789"
     assert response.data["subscription_type"] == "trial"
 
-    forbidden = employee_client.patch(
+    # Enviar subscription_type ahora se ignora (campo de solo lectura en /me):
+    # no es 403, simplemente no persiste el cambio de plan.
+    ignored = employee_client.patch(
         reverse("auth-me"),
         {
             "subscription_type": "premium",
@@ -414,8 +417,8 @@ def test_employee_can_update_profile_but_cannot_change_subscription_type(employe
         format="json",
     )
 
-    assert forbidden.status_code == 403
-    assert "permis" in str(forbidden.data).lower()
+    assert ignored.status_code == 200
+    assert ignored.data["subscription_type"] == "trial"
 
 
 @pytest.mark.django_db
@@ -1709,6 +1712,7 @@ def test_delete_canceled_reservation_with_payment_closed_cash_returns_400(api_cl
     payment = Payment.objects.get(pk=payment_id)
     closed_day = cash_day(payment.paid_at)
     CashClosure.objects.create(
+        business=payment.business,
         day=closed_day,
         total_income=Decimal("5000.00"),
         total_expense=Decimal("0.00"),

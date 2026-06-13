@@ -27,23 +27,55 @@ from core.models import (
 )
 from core.permissions import EMPLOYEE_ROLE, EMPLOYER_ROLE, file_url
 
-ALLOWED_PROFILE_ASSET_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg", "pdf"}
-
-
+ALLOWED_PROFILE_ASSET_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "pdf"}
 ALLOWED_PROFILE_ASSET_CONTENT_TYPES = {"application/pdf"}
+ALLOWED_PROFILE_IMAGE_CONTENT_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
+MAX_PROFILE_ASSET_BYTES = 5 * 1024 * 1024  # 5 MB
+_ACTIVE_MARKUP_MARKERS = (b"<svg", b"<?xml", b"<!doctype html", b"<html", b"<script")
+
+
+def _read_upload_head(value, size=1024):
+    try:
+        value.seek(0)
+        head = value.read(size) or b""
+    except (AttributeError, OSError, ValueError):
+        head = b""
+    finally:
+        try:
+            value.seek(0)
+        except (AttributeError, OSError, ValueError):
+            pass
+    if isinstance(head, str):
+        head = head.encode("utf-8", "ignore")
+    return head
+
+
+def _looks_like_active_markup(value):
+    head = _read_upload_head(value).lstrip().lower()
+    return any(marker in head for marker in _ACTIVE_MARKUP_MARKERS)
 
 
 def validate_profile_asset_upload(value):
+    size = getattr(value, "size", None)
+    if size is not None and size > MAX_PROFILE_ASSET_BYTES:
+        raise serializers.ValidationError(
+            "El archivo supera el tamano maximo permitido (5 MB).",
+        )
     content_type = (getattr(value, "content_type", "") or "").lower()
     extension = Path(getattr(value, "name", "")).suffix.lower().lstrip(".")
-    if content_type.startswith("image/"):
-        return value
-    if content_type in ALLOWED_PROFILE_ASSET_CONTENT_TYPES:
-        return value
-    if extension in ALLOWED_PROFILE_ASSET_EXTENSIONS:
+    if extension == "svg" or content_type == "image/svg+xml" or _looks_like_active_markup(value):
+        raise serializers.ValidationError(
+            "No se permiten archivos SVG ni HTML.",
+        )
+    is_pdf = extension == "pdf" or content_type in ALLOWED_PROFILE_ASSET_CONTENT_TYPES
+    is_image = (
+        extension in {"png", "jpg", "jpeg", "webp"}
+        or content_type in ALLOWED_PROFILE_IMAGE_CONTENT_TYPES
+    )
+    if is_pdf or is_image:
         return value
     raise serializers.ValidationError(
-        "El archivo debe ser una imagen o PDF valido.",
+        "El archivo debe ser una imagen (PNG/JPG/WEBP) o PDF valido.",
     )
 
 
@@ -429,10 +461,8 @@ class MeUpdateSerializer(serializers.Serializer):
         allow_blank=True,
         max_length=32,
     )
-    subscription_type = serializers.ChoiceField(
-        choices=BusinessProfile.SubscriptionType.choices,
-        required=False,
-    )
+    # subscription_type NO se acepta aca: el plan lo controla facturacion/admin
+    # del lado servidor, no es auto-asignable por el usuario desde /me.
     push_subscription = serializers.JSONField(required=False, allow_null=True)
 
     def validate_avatar(self, value):

@@ -833,7 +833,10 @@ def clear_recall_cache():
 
 
 @pytest.mark.django_db
-def test_public_landing_recall_returns_customer_and_vehicles_by_phone(clear_recall_cache):
+def test_public_landing_recall_never_returns_pii_even_on_phone_match(clear_recall_cache):
+    # Seguridad: el endpoint publico NO debe revelar datos del cliente ni sus
+    # vehiculos aunque el telefono coincida (antes filtraba PII y permitia
+    # enumeracion sin autenticacion).
     business = create_business()
     customer = Customer.objects.create(
         business=business,
@@ -855,17 +858,15 @@ def test_public_landing_recall_returns_customer_and_vehicles_by_phone(clear_reca
     resp = client.post(url, {"phone": "1164321234"}, format="json")
 
     assert resp.status_code == 200
-    assert resp.data["customer_name"] == "Ana Garcia"
-    assert resp.data["customer_phone"] == "11 6432-1234"
-    assert resp.data["customer_email"] == "ana@example.com"
-    assert len(resp.data["vehicles"]) == 1
-    assert resp.data["vehicles"][0]["license_plate"] == "ABC123"
-    assert resp.data["vehicles"][0]["brand"] == "Toyota"
-    assert resp.data["vehicles"][0]["vehicle_type"] == "auto"
+    assert resp.data["customer_name"] is None
+    assert resp.data["customer_phone"] is None
+    assert resp.data["customer_email"] is None
+    assert resp.data["vehicles"] == []
 
 
 @pytest.mark.django_db
-def test_public_landing_recall_returns_customer_by_email(clear_recall_cache):
+def test_public_landing_recall_does_not_confirm_customer_by_email(clear_recall_cache):
+    # Seguridad: tampoco confirma existencia por email (sin oraculo de enumeracion).
     business = create_business()
     Customer.objects.create(
         business=business,
@@ -879,7 +880,7 @@ def test_public_landing_recall_returns_customer_by_email(clear_recall_cache):
     resp = client.post(url, {"email": "Luis@EXAMPLE.COM"}, format="json")
 
     assert resp.status_code == 200
-    assert resp.data["customer_name"] == "Luis Torres"
+    assert resp.data["customer_name"] is None
     assert resp.data["vehicles"] == []
 
 

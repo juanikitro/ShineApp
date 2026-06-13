@@ -94,6 +94,11 @@ throttle_classes = list(REST_FRAMEWORK.get("DEFAULT_THROTTLE_CLASSES", []))
 for throttle_class in (
     "rest_framework.throttling.AnonRateThrottle",
     "rest_framework.throttling.UserRateThrottle",
+    # Throttles estrictos por scope para endpoints sensibles (se autodesactivan
+    # en las vistas que no declaran el scope).
+    "core.throttling.LoginRateThrottle",
+    "core.throttling.PasswordResetRateThrottle",
+    "core.throttling.SignupRateThrottle",
 ):
     if throttle_class not in throttle_classes:
         throttle_classes.append(throttle_class)
@@ -102,6 +107,9 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = throttle_classes
 throttle_rates = dict(REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {}))
 throttle_rates["anon"] = os.getenv("DJANGO_THROTTLE_ANON_RATE", "60/min")
 throttle_rates["user"] = os.getenv("DJANGO_THROTTLE_USER_RATE", "600/min")
+throttle_rates["login"] = os.getenv("DJANGO_THROTTLE_LOGIN_RATE", "10/min")
+throttle_rates["password_reset"] = os.getenv("DJANGO_THROTTLE_PASSWORD_RESET_RATE", "5/min")
+throttle_rates["signup"] = os.getenv("DJANGO_THROTTLE_SIGNUP_RATE", "5/min")
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = throttle_rates
 
 SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", True)

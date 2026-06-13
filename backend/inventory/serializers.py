@@ -448,11 +448,12 @@ class StockMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSe
         supplier = attrs.get("supplier", getattr(self.instance, "supplier", None))
         self.validate_same_business(supplier, customer, reservation)
 
+        business = self.get_business()
         if self.instance and stock_movement_affects_cash(self.instance.movement_type, self.instance.affects_cash):
-            ensure_cash_day_open(self.instance.occurred_on, field="occurred_on")
+            ensure_cash_day_open(self.instance.occurred_on, field="occurred_on", business=business)
 
         if stock_movement_affects_cash(movement_type, affects_cash):
-            ensure_cash_day_open(occurred_on, field="occurred_on")
+            ensure_cash_day_open(occurred_on, field="occurred_on", business=business)
 
         if movement_type == StockMovement.MovementType.CONSUMPTION:
             if not reservation:

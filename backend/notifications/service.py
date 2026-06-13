@@ -1,10 +1,41 @@
+import ipaddress
 import json
 import logging
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.core.mail import send_mail
 
 logger = logging.getLogger(__name__)
+
+
+def _is_public_https_endpoint(endpoint):
+    """True si el endpoint de push es https y apunta a un host publico.
+
+    Defensa anti-SSRF: el endpoint lo provee el cliente (push_subscription). Se
+    rechazan esquemas no-https, localhost e IPs privadas/loopback/link-local
+    (p.ej. 169.254.169.254). Los servicios reales (FCM, Mozilla, WNS, Apple) son
+    dominios https publicos, asi que no se ven afectados.
+    """
+    try:
+        parsed = urlparse(endpoint or "")
+    except Exception:
+        return False
+    if parsed.scheme != "https" or not parsed.hostname:
+        return False
+    host = parsed.hostname.lower()
+    if host == "localhost" or host.endswith(".local"):
+        return False
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return True  # es un dominio https publico
+    return not (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved)
+
+
+def _push_subscription_allowed(subscription):
+    endpoint = subscription.get("endpoint", "") if isinstance(subscription, dict) else ""
+    return _is_public_https_endpoint(endpoint)
 
 
 def _send_customer_email(customer, subject, body):
@@ -32,7 +63,7 @@ def send_trial_welcome_email(owner_email, business_name):
         send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [owner_email], fail_silently=False)
         return True
     except Exception:
-        logger.exception("No se pudo enviar el email de bienvenida a %s", owner_email)
+        logger.exception("No se pudo enviar el email de bienvenida del trial signup")
         return False
 
 
@@ -80,7 +111,7 @@ def send_task_assignment_email(task, assignee):
         )
         return True
     except Exception:
-        logger.exception("No se pudo enviar el email de asignacion de tarea a %s", email)
+        logger.exception("No se pudo enviar el email de asignacion de la tarea %s", task.id)
         return False
 
 
@@ -171,6 +202,13 @@ def send_business_push_notification(public_request):
 
     sent_any = False
     for subscription in subscriptions:
+        if not _push_subscription_allowed(subscription):
+            logger.warning(
+                "Push omitido: endpoint no permitido para solicitud %s del negocio %s",
+                public_request.id,
+                public_request.business_id,
+            )
+            continue
         try:
             from pywebpush import webpush  # noqa: PLC0415
             webpush(
@@ -197,6 +235,9 @@ def send_public_request_push(public_request):
     cualquier otro caso (suscripción ausente, VAPID no configurado, error de red).
     """
     if not public_request.push_subscription:
+        return False
+    if not _push_subscription_allowed(public_request.push_subscription):
+        logger.warning("Push omitido: endpoint no permitido para public_request %s", public_request.id)
         return False
     private_key = getattr(settings, "VAPID_PRIVATE_KEY", "")
     if not private_key:
@@ -238,5 +279,5 @@ def send_password_reset_email(user_email, reset_token):
         send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user_email], fail_silently=False)
         return True
     except Exception:
-        logger.exception("No se pudo enviar el email de reset de contrasena a %s", user_email)
+        logger.exception("No se pudo enviar el email de reset de contrasena")
         return False

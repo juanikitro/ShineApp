@@ -39,6 +39,11 @@ class QuoteItemSerializer(BusinessScopedSerializerMixin, serializers.ModelSerial
             raise serializers.ValidationError("La cantidad debe ser mayor a cero.")
         return value
 
+    def validate_unit_price(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("El precio no puede ser negativo.")
+        return value
+
 
 class QuoteSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.name", read_only=True)

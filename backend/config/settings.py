@@ -10,6 +10,24 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-shineapp-secret")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,backend").split(",")
 
+# Fail-secure: nunca arrancar en una plataforma gestionada (Vercel) con la
+# SECRET_KEY publica de desarrollo. Convierte una mala config (correr los
+# settings de dev en produccion) en un fallo ruidoso en vez de un servidor
+# inseguro silencioso. No afecta tests ni dev local (sin VERCEL en el entorno).
+if os.getenv("VERCEL") and SECRET_KEY == "dev-only-shineapp-secret":
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured(
+        "Negandose a arrancar en Vercel con la SECRET_KEY publica de desarrollo. "
+        "Configura DJANGO_SETTINGS_MODULE=config.settings_production y un "
+        "DJANGO_SECRET_KEY real."
+    )
+
+# Cantidad de proxies de confianza por delante (Vercel = 1). Lo usa el helper
+# core.request_ip.get_client_ip y el throttling de DRF (NUM_PROXIES) para tomar
+# la IP real del cliente y no un X-Forwarded-For falsificado.
+TRUSTED_PROXY_COUNT = int(os.getenv("DJANGO_NUM_PROXIES", "1"))
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -133,12 +151,13 @@ CORS_ALLOW_CREDENTIALS = True
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.TokenAuthentication",
+        "core.authentication.ExpiringTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": ["core.permissions.ActiveBusinessUser"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 100,
+    "NUM_PROXIES": TRUSTED_PROXY_COUNT,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
@@ -156,6 +175,19 @@ SPECTACULAR_SETTINGS = {
     "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAuthenticated"],
     "COMPONENT_SPLIT_REQUEST": True,
 }
+
+# Expiracion absoluta del token DRF (mitigacion del token en localStorage).
+# 0 = sin expiracion. Default 30 dias, alineado con el TTL del cliente.
+AUTH_TOKEN_TTL_SECONDS = int(os.getenv("DJANGO_AUTH_TOKEN_TTL_SECONDS", str(30 * 24 * 60 * 60)))
+
+# Lockout de cuenta por intentos fallidos de login (cache). 0 = desactivado.
+LOGIN_LOCKOUT_THRESHOLD = int(os.getenv("DJANGO_LOGIN_LOCKOUT_THRESHOLD", "8"))
+LOGIN_LOCKOUT_WINDOW_SECONDS = int(os.getenv("DJANGO_LOGIN_LOCKOUT_WINDOW_SECONDS", "900"))
+
+# Enforcement de suscripcion/trial vencido como gate de acceso a la API.
+# Default OFF: se activa cuando billing y los datos de plan esten listos, sin
+# riesgo de bloquear clientes reales. Solo bloquea negocios en TRIAL vencido.
+ENFORCE_SUBSCRIPTION_ACCESS = os.getenv("DJANGO_ENFORCE_SUBSCRIPTION_ACCESS", "0") == "1"
 
 DEFAULT_DAILY_CAPACITY = int(os.getenv("DEFAULT_DAILY_CAPACITY", "8"))
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@shineapp.local")

@@ -56,7 +56,7 @@ class SectorSerializer(BusinessScopedSerializerMixin, serializers.ModelSerialize
         return attrs
 
 
-class ServiceMaterialSerializer(serializers.ModelSerializer):
+class ServiceMaterialSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     material_name = serializers.CharField(source="material.name", read_only=True)
     material_unit = serializers.CharField(source="material.unit", read_only=True)
     material_unit_cost = serializers.DecimalField(
@@ -72,6 +72,18 @@ class ServiceMaterialSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("La cantidad debe ser mayor a cero.")
         return value
+
+    def validate(self, attrs):
+        # Evita FK injection cross-tenant: service y material deben pertenecer al
+        # negocio del usuario. BusinessScopedSerializerMixin ya acota los querysets
+        # de los FK, pero validamos explicitamente (defensa en profundidad y PATCH).
+        service = attrs.get("service")
+        material = attrs.get("material")
+        if self.instance is not None:
+            service = service or self.instance.service
+            material = material or self.instance.material
+        self.validate_same_business(service, material)
+        return attrs
 
 
 class ServiceSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):

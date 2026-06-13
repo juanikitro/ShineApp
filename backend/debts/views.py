@@ -44,7 +44,11 @@ class DebtViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             raise serializers.ValidationError("No se puede eliminar una deuda con pagos registrados.")
         movement = instance.cash_movement
         if movement:
-            ensure_cash_day_open(cash_day(movement.occurred_at), field="origin_date")
+            ensure_cash_day_open(
+                cash_day(movement.occurred_at),
+                field="origin_date",
+                business=instance.business,
+            )
         instance.delete()
 
 
@@ -71,5 +75,5 @@ class DebtPaymentViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     permission_classes = [CanViewEconomy]
 
     def perform_destroy(self, instance):
-        ensure_cash_day_open(instance.paid_at, field="paid_at")
+        ensure_cash_day_open(instance.paid_at, field="paid_at", business=instance.business)
         super().perform_destroy(instance)
