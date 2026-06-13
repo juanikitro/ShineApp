@@ -2,7 +2,10 @@
 
 import { type FormEvent, useMemo, useState } from 'react'
 
+import { Button } from '@/app/components/ui/Button'
+import { Field } from '@/app/components/ui/Field'
 import { ModalFrame } from '@/app/components/ui/ModalFrame'
+import { SearchSelect } from '@/app/components/ui/SearchSelect'
 
 export type TaskRecurrence = 'none' | 'daily' | 'weekly' | 'monthly'
 
@@ -94,6 +97,7 @@ export function TaskForm({
 		(initial?.recurrence as TaskRecurrence) ?? 'none',
 	)
 	const [submitting, setSubmitting] = useState(false)
+	const [titleError, setTitleError] = useState<string | undefined>(undefined)
 	const [error, setError] = useState<string | null>(null)
 
 	const customerOptions = customers ?? []
@@ -111,9 +115,10 @@ export function TaskForm({
 		event.preventDefault()
 		const cleanTitle = title.trim()
 		if (!cleanTitle) {
-			setError('El titulo es obligatorio.')
+			setTitleError('El titulo es obligatorio.')
 			return
 		}
+		setTitleError(undefined)
 		setSubmitting(true)
 		setError(null)
 		try {
@@ -142,8 +147,7 @@ export function TaskForm({
 			onClose={onClose}
 		>
 			<form className="task-form" onSubmit={handleSubmit}>
-				<label>
-					Titulo
+				<Field label="Titulo" error={titleError}>
 					<input
 						type="text"
 						value={title}
@@ -152,27 +156,24 @@ export function TaskForm({
 						required
 						autoFocus
 					/>
-				</label>
-				<label>
-					Descripcion
+				</Field>
+				<Field label="Descripcion">
 					<textarea
 						value={description ?? ''}
 						onChange={(event) => setDescription(event.target.value)}
 						rows={3}
 						placeholder="Opcional"
 					/>
-				</label>
+				</Field>
 				<div className="task-form-row">
-					<label>
-						Fecha de vencimiento
+					<Field label="Fecha de vencimiento">
 						<input
 							type="date"
 							value={dueDate ?? ''}
 							onChange={(event) => setDueDate(event.target.value)}
 						/>
-					</label>
-					<label>
-						Prioridad
+					</Field>
+					<Field label="Prioridad">
 						<select
 							value={priority}
 							onChange={(event) =>
@@ -185,65 +186,52 @@ export function TaskForm({
 								</option>
 							))}
 						</select>
-					</label>
+					</Field>
 				</div>
 				{canAssign ? (
-					<label>
-						Asignar a
-						<select
-							value={assignee}
-							onChange={(event) => setAssignee(event.target.value)}
-						>
-							<option value="">Sin asignar (recordatorio del negocio)</option>
-							{employees.map((employee) => (
-								<option key={employee.id} value={String(employee.id)}>
-									{employee.username}
-								</option>
-							))}
-						</select>
-					</label>
+					<SearchSelect
+						label="Asignar a"
+						value={assignee}
+						options={employees.map((employee) => ({
+							value: String(employee.id),
+							label: employee.username,
+						}))}
+						placeholder="Sin asignar (recordatorio del negocio)"
+						onChange={setAssignee}
+					/>
 				) : null}
 				{customerOptions.length > 0 || vehicleOptions.length > 0 ? (
 					<div className="task-form-row">
 						{customerOptions.length > 0 ? (
-							<label>
-								Cliente
-								<select
-									value={customer}
-									onChange={(event) => {
-										setCustomer(event.target.value)
-										setVehicle('')
-									}}
-								>
-									<option value="">Sin cliente</option>
-									{customerOptions.map((item) => (
-										<option key={item.id} value={String(item.id)}>
-											{item.name}
-										</option>
-									))}
-								</select>
-							</label>
+							<SearchSelect
+								label="Cliente"
+								value={customer}
+								options={customerOptions.map((item) => ({
+									value: String(item.id),
+									label: item.name,
+								}))}
+								placeholder="Sin cliente"
+								onChange={(value) => {
+									setCustomer(value)
+									setVehicle('')
+								}}
+							/>
 						) : null}
 						{vehicleOptions.length > 0 ? (
-							<label>
-								Vehiculo
-								<select
-									value={vehicle}
-									onChange={(event) => setVehicle(event.target.value)}
-								>
-									<option value="">Sin vehiculo</option>
-									{filteredVehicles.map((item) => (
-										<option key={item.id} value={String(item.id)}>
-											{item.label}
-										</option>
-									))}
-								</select>
-							</label>
+							<SearchSelect
+								label="Vehiculo"
+								value={vehicle}
+								options={filteredVehicles.map((item) => ({
+									value: String(item.id),
+									label: item.label,
+								}))}
+								placeholder="Sin vehiculo"
+								onChange={setVehicle}
+							/>
 						) : null}
 					</div>
 				) : null}
-				<label>
-					Repeticion
+				<Field label="Repeticion">
 					<select
 						value={recurrence}
 						onChange={(event) => setRecurrence(event.target.value as TaskRecurrence)}
@@ -254,24 +242,15 @@ export function TaskForm({
 							</option>
 						))}
 					</select>
-				</label>
+				</Field>
 				{error ? <p className="task-form-error">{error}</p> : null}
 				<div className="task-form-actions">
-					<button
-						type="button"
-						className="ghost"
-						onClick={onClose}
-						disabled={submitting}
-					>
+					<Button variant="ghost" type="button" disabled={submitting} onClick={onClose}>
 						Cancelar
-					</button>
-					<button type="submit" className="primary" disabled={submitting}>
-						{submitting
-							? 'Guardando...'
-							: editing
-								? 'Guardar cambios'
-								: 'Crear tarea'}
-					</button>
+					</Button>
+					<Button type="submit" variant="primary" loading={submitting}>
+						{editing ? 'Guardar cambios' : 'Crear tarea'}
+					</Button>
 				</div>
 			</form>
 		</ModalFrame>

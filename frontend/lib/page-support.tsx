@@ -1538,40 +1538,19 @@ function usePendingActions(): PendingActionsApi {
 function useNoticeToasts() {
 	const [toasts, setToasts] = useState<ToastNotice[]>([])
 	const nextIdRef = useRef(0)
-	const timersRef = useRef<Record<number, number>>({})
 
 	function dismissToast(id: number) {
-		const timer = timersRef.current[id]
-		if (timer) {
-			window.clearTimeout(timer)
-			delete timersRef.current[id]
-		}
 		setToasts((current) => current.filter((toast) => toast.id !== id))
 	}
 
+	// El auto-cierre se delega en cada NoticeToast para poder pausarlo con hover
+	// o foco (WCAG 2.2.1). El hook solo administra la cola de notificaciones.
 	function showToast(notice: ToastDraft) {
 		const id = nextIdRef.current + 1
 		nextIdRef.current = id
-		const visibleMs =
-			notice.visibleMs ??
-			(notice.tone === 'error' ? TOAST_ERROR_VISIBLE_MS : TOAST_VISIBLE_MS)
 		setToasts((current) => [...current.slice(-2), { id, ...notice }])
-		timersRef.current[id] = window.setTimeout(
-			() => dismissToast(id),
-			visibleMs,
-		)
 		return id
 	}
-
-	useEffect(
-		() => () => {
-			Object.values(timersRef.current).forEach((timer) =>
-				window.clearTimeout(timer),
-			)
-			timersRef.current = {}
-		},
-		[],
-	)
 
 	return { toasts, showToast, dismissToast }
 }
@@ -1585,6 +1564,23 @@ function NoticeToast({
 }) {
 	const Icon = toast.tone === 'success' ? CheckCircle2 : CircleAlert
 	const role = toast.tone === 'error' ? 'alert' : 'status'
+	const [paused, setPaused] = useState(false)
+	const dismissRef = useRef(onDismiss)
+	dismissRef.current = onDismiss
+	const visibleMs =
+		toast.visibleMs ??
+		(toast.tone === 'error' ? TOAST_ERROR_VISIBLE_MS : TOAST_VISIBLE_MS)
+
+	// Auto-cierre que se pausa con hover o con foco dentro del toast: evita que
+	// desaparezca mientras se lee o se usa "Deshacer" (WCAG 2.2.1 / 2.4.3).
+	useEffect(() => {
+		if (paused) return
+		const timer = window.setTimeout(
+			() => dismissRef.current(toast.id),
+			visibleMs,
+		)
+		return () => window.clearTimeout(timer)
+	}, [paused, visibleMs, toast.id])
 
 	return (
 		<m.div
@@ -1597,6 +1593,14 @@ function NoticeToast({
 			initial="initial"
 			animate="animate"
 			exit="exit"
+			onMouseEnter={() => setPaused(true)}
+			onMouseLeave={() => setPaused(false)}
+			onFocusCapture={() => setPaused(true)}
+			onBlurCapture={(event) => {
+				if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+					setPaused(false)
+				}
+			}}
 		>
 			<m.span
 				className="toast-icon"
@@ -1700,8 +1704,10 @@ function trialSignupInitialForm() {
 
 function LoginScreen({
 	onLogin,
+	sessionExpired = false,
 }: {
 	onLogin: (token: string, user: AnyRecord) => void
+	sessionExpired?: boolean
 }) {
 	const [mode, setMode] = useState<'login' | 'trial' | 'forgot-password' | 'forgot-password-sent'>('login')
 	const [form, setForm] = useState(loginInitialCredentials)
@@ -1861,6 +1867,11 @@ function LoginScreen({
 						subtitle={signupMode ? 'Prueba gratuita por 30 dias' : 'Acceso operativo'}
 						titleAs="h1"
 					/>
+					{sessionExpired && !signupMode ? (
+						<div className="alert-notice" role="alert">
+							<p>Tu sesion expiro. Volve a iniciar sesion para continuar.</p>
+						</div>
+					) : null}
 					{signupMode ? (
 						<div className="form-grid login-trial-grid">
 							<p className="login-trial-note">

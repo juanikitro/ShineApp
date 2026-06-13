@@ -151,6 +151,7 @@ export function SidebarNav({
 										type="button"
 										aria-label={`${expanded ? 'Contraer' : 'Expandir'} ${item.label}`}
 										aria-expanded={expanded}
+										aria-controls={`nav-children-${item.key}`}
 										title={`${expanded ? 'Contraer' : 'Expandir'} ${item.label}`}
 									>
 										<ChevronDown
@@ -165,7 +166,11 @@ export function SidebarNav({
 								) : null}
 							</div>
 							{expanded ? (
-								<div className="nav-children" role="group">
+								<div
+									className="nav-children"
+									role="group"
+									id={`nav-children-${item.key}`}
+								>
 									{item.children!.map((child) => {
 										const ChildIcon = child.icon
 										const isChildActive = active === child.key

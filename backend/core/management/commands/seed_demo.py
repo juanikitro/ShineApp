@@ -35,7 +35,7 @@ from inventory.models import (
     Supplier,
     Tool,
 )
-from inventory.serializers import (
+from inventory.stock import (
     refresh_material_cost,
     sync_purchase_cash_movement,
     sync_stock_movement_cash_movement,

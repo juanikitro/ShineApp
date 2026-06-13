@@ -123,9 +123,10 @@ button.primary:hover:not(:disabled) {
 }
 
 button.primary:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-  box-shadow: none;
+  box-shadow:
+    0 0 0 2px var(--color-surface),
+    0 0 0 4px var(--color-focus-ring);
+  outline: none;
 }
 
 button.ghost {
@@ -280,7 +281,9 @@ textarea:focus-visible,
 .day-row-head:focus-visible,
 .day-pill:focus-visible,
 .inline-link-button:focus-visible {
-  box-shadow: 0 0 0 4px var(--color-focus-ring);
+  box-shadow:
+    0 0 0 2px var(--color-surface),
+    0 0 0 4px var(--color-focus-ring);
   outline: none;
 }
 
@@ -292,6 +295,53 @@ a:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   .button-hover-tooltip {
+    transition: none;
+  }
+}
+
+/* Texto solo para lectores de pantalla (sin impacto visual). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip link: oculto hasta recibir foco con teclado, luego visible arriba. */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 10000;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-160%);
+  transition: transform var(--motion-duration-fast, 160ms)
+    var(--motion-ease-standard, ease);
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-surface),
+    0 0 0 4px var(--color-focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
     transition: none;
   }
 }
@@ -321,7 +371,9 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   border-color: var(--color-border-focus);
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  box-shadow:
+    0 0 0 2px var(--color-surface),
+    0 0 0 4px var(--color-focus-ring);
   outline: none;
 }
 
@@ -392,7 +444,33 @@ label {
 .field--error select:focus-visible,
 .field--error textarea:focus-visible {
   border-color: var(--color-danger);
-  box-shadow: 0 0 0 3px var(--color-danger-bg);
+  box-shadow:
+    0 0 0 2px var(--color-surface),
+    0 0 0 4px var(--color-danger);
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field-label-text {
+  color: var(--shop-ink-soft);
+}
+
+/* Indicador visual de requerido. La semántica la lleva aria-required en el
+   control; el asterisco es decorativo (no entra en el nombre accesible ni en
+   el textContent de la etiqueta). */
+.field-label-text--required::after {
+  content: ' *';
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.field-hint {
+  color: var(--shop-ink-muted);
+  font-size: var(--text-sm);
+  line-height: 1.35;
 }
 
 .field-error {
@@ -793,6 +871,14 @@ td.numeric {
   }
   100% {
     background-position: -200% 0;
+  }
+}
+
+/* Sin movimiento: el shimmer es decorativo, lo detenemos. El spinner de
+   feedback (button-spin) se mantiene por ser estado esencial. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
   }
 }
 

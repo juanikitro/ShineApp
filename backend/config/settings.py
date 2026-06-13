@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework.authtoken",
+    "drf_spectacular",
     "corsheaders",
     "core",
     "customers",
@@ -153,9 +154,23 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["core.permissions.ActiveBusinessUser"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 100,
-    # DRF usa NUM_PROXIES para resolver la IP del cliente en el throttling,
-    # contando proxies desde la derecha del X-Forwarded-For (Vercel = 1).
     "NUM_PROXIES": TRUSTED_PROXY_COUNT,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# OpenAPI schema (drf-spectacular). Es la fuente del contrato para generar los
+# tipos del frontend con openapi-typescript.
+# Ver docs/registro/decisiones/2026-06-12-tipos-desde-openapi.md
+SPECTACULAR_SETTINGS = {
+    "TITLE": "ShineApp API",
+    "DESCRIPTION": (
+        "API de ShineApp (Django + DRF). Contrato fuente para generar los "
+        "tipos del frontend."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAuthenticated"],
+    "COMPONENT_SPLIT_REQUEST": True,
 }
 
 # Expiracion absoluta del token DRF (mitigacion del token en localStorage).

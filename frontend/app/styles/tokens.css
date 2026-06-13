@@ -9,7 +9,7 @@
   --color-secondary-foreground: #111827;
   --color-accent: #0ea5e9;
   --color-accent-foreground: #ffffff;
-  --color-focus-ring: rgba(14, 165, 233, 0.28);
+  --color-focus-ring: #1D4ED8;
   --color-link: var(--color-primary);
   --color-link-hover: var(--color-primary-hover);
 
@@ -26,7 +26,7 @@
   --color-surface-soft: #f3f4f6;
   --color-text: #0F172A;
   --color-text-soft: #475569;
-  --color-text-muted: #64748B;
+  --color-text-muted: #5B6677;
   --color-text-disabled: #CBD5E1;
   --color-border: rgba(17, 24, 39, 0.1);
   --color-border-strong: rgba(17, 24, 39, 0.16);
@@ -40,19 +40,19 @@
   --tooltip-foreground: #ffffff;
   --tooltip-border: rgba(255, 255, 255, 0.12);
   --tooltip-shadow: rgba(37, 99, 235, 0.28);
-  --color-success: #16a34a;
+  --color-success: #15803D;
   --color-success-bg: #ecfdf3;
-  --color-warning: #D97706;
+  --color-warning: #B45309;
   --color-warning-bg: #FFFBEB;
   --color-warning-border: rgba(217, 119, 6, 0.2);
   --color-danger: #DC2626;
   --color-danger-bg: #FEF2F2;
   --color-danger-border: rgba(220, 38, 38, 0.2);
   --color-danger-hover: #B91C1C;
-  --color-ready: #0284c7;
+  --color-ready: #0369A1;
   --color-ready-bg: #eff6ff;
   --color-success-border: rgba(22, 163, 74, 0.2);
-  --color-info: #0284C7;
+  --color-info: #0369A1;
   --color-info-bg: #EFF6FF;
   --color-info-border: rgba(2, 132, 199, 0.2);
   --color-violet: #7C3AED;
@@ -191,7 +191,7 @@
   --color-secondary-foreground: #ffffff;
   --color-accent: #a5d7e8;
   --color-accent-foreground: #0b2447;
-  --color-focus-ring: rgba(165, 215, 232, 0.48);
+  --color-focus-ring: #A5D7E8;
 
   --color-canvas: #071A33;
   --color-canvas-deep: #051428;

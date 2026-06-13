@@ -173,7 +173,7 @@ def test_service_material_allows_same_tenant(default_business):
 # Upload de assets: rechazar SVG y markup activo, aceptar imagenes reales.
 # ---------------------------------------------------------------------------
 def test_validate_profile_asset_rejects_svg():
-    from config.views import validate_profile_asset_upload
+    from config.serializers import validate_profile_asset_upload
 
     svg = SimpleUploadedFile(
         "logo.svg",
@@ -185,7 +185,7 @@ def test_validate_profile_asset_rejects_svg():
 
 
 def test_validate_profile_asset_rejects_svg_disguised_as_png():
-    from config.views import validate_profile_asset_upload
+    from config.serializers import validate_profile_asset_upload
 
     disguised = SimpleUploadedFile(
         "logo.png",
@@ -197,7 +197,7 @@ def test_validate_profile_asset_rejects_svg_disguised_as_png():
 
 
 def test_validate_profile_asset_accepts_real_png():
-    from config.views import validate_profile_asset_upload
+    from config.serializers import validate_profile_asset_upload
 
     png = SimpleUploadedFile("logo.png", PNG_BYTES, content_type="image/png")
     assert validate_profile_asset_upload(png) is png
