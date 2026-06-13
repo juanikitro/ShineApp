@@ -1412,7 +1412,27 @@ function useButtonHoverTitles() {
 		}
 
 		scheduleApply()
-		const observer = new MutationObserver(scheduleApply)
+		const observer = new MutationObserver((mutations) => {
+			window.cancelAnimationFrame(frameId)
+			frameId = window.requestAnimationFrame(() => {
+				if (activeButton && document.body.contains(activeButton)) {
+					// Tooltip is visible — only reposition. showTooltip() applies titles
+					// lazily on hover, so no full sweep needed while a button is active.
+					positionButtonHoverTooltip(tooltip, activeButton)
+					return
+				}
+				// Sweep only the subtrees that actually mutated, not the whole document.
+				const seen = new Set<ParentNode>()
+				for (const m of mutations) {
+					const el =
+						m.target instanceof Element ? m.target : m.target.parentElement
+					if (el && !seen.has(el)) {
+						seen.add(el)
+						applyButtonHoverTitles(el)
+					}
+				}
+			})
+		})
 		observer.observe(document.body, {
 			attributeFilter: ['aria-label', 'class', 'data-collapsed', 'title'],
 			attributes: true,
