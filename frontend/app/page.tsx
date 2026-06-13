@@ -55,6 +55,7 @@ import {
 	type KeyboardEvent,
 	type MouseEvent,
 	type ReactNode,
+	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
@@ -2168,13 +2169,15 @@ export default function Home() {
 		String(value ?? '').trim(),
 	)
 
-	function auditActionLabel(action: string) {
-		return auditActionLabels[action] ?? action
-	}
+	const auditActionLabel = useCallback(
+		(action: string) => auditActionLabels[action] ?? action,
+		[],
+	)
 
-	function auditModuleLabel(module: string) {
-		return auditModuleLabels[module] ?? module
-	}
+	const auditModuleLabel = useCallback(
+		(module: string) => auditModuleLabels[module] ?? module,
+		[],
+	)
 
 	function updateAuditFilter(key: keyof AuditLogFilters, value: string) {
 		setAuditFilters((current) => ({
