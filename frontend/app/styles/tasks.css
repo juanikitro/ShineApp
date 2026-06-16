@@ -269,18 +269,18 @@ button.task-priority {
 }
 
 .task-priority--high {
-	background: rgba(220, 38, 38, 0.12);
+	background: color-mix(in srgb, var(--color-danger) 12%, transparent);
 	color: var(--color-danger-hover);
 }
 
 .task-priority--medium {
-	background: rgba(202, 138, 4, 0.12);
-	color: #a16207;
+	background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+	color: var(--status-pending-text);
 }
 
 .task-priority--low {
-	background: rgba(34, 197, 94, 0.12);
-	color: #15803d;
+	background: color-mix(in srgb, var(--color-success) 12%, transparent);
+	color: var(--status-success-text);
 }
 
 .task-meta {
@@ -329,7 +329,7 @@ button.task-meta-chip:hover {
 }
 
 .task-meta-chip--danger {
-	background: rgba(220, 38, 38, 0.1);
+	background: color-mix(in srgb, var(--color-danger) 10%, transparent);
 	color: var(--color-danger-hover);
 	font-weight: 600;
 }
