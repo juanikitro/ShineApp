@@ -55,6 +55,7 @@ import {
 	type KeyboardEvent,
 	type MouseEvent,
 	type ReactNode,
+	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
@@ -725,6 +726,7 @@ export default function Home() {
 		'replaceState',
 	)
 	const [bootLoading, setBootLoading] = useState(false)
+	const [sessionExpired, setSessionExpired] = useState(false)
 	const [loadingDataSets, setLoadingDataSets] = useState<ReadonlySet<DataSetKey>>(
 		() => new Set(),
 	)
@@ -812,7 +814,11 @@ export default function Home() {
 	const [employeeAuditLogsLoading, setEmployeeAuditLogsLoading] = useState(false)
 	const [employeeAuditLogsError, setEmployeeAuditLogsError] = useState<string | null>(null)
 	const [auditLogs, setAuditLogs] = useState<AnyRecord[]>([])
-	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>({})
+	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>(() => {
+		const d = new Date()
+		d.setDate(d.getDate() - 90)
+		return { from: d.toISOString().slice(0, 10) }
+	})
 	const auditLogsLoadedRef = useRef(false)
 	const loadedDataCacheRef = useRef<Set<string>>(new Set())
 	const [expandedAuditLogId, setExpandedAuditLogId] = useState<string | null>(
@@ -2168,13 +2174,15 @@ export default function Home() {
 		String(value ?? '').trim(),
 	)
 
-	function auditActionLabel(action: string) {
-		return auditActionLabels[action] ?? action
-	}
+	const auditActionLabel = useCallback(
+		(action: string) => auditActionLabels[action] ?? action,
+		[],
+	)
 
-	function auditModuleLabel(module: string) {
-		return auditModuleLabels[module] ?? module
-	}
+	const auditModuleLabel = useCallback(
+		(module: string) => auditModuleLabels[module] ?? module,
+		[],
+	)
 
 	function updateAuditFilter(key: keyof AuditLogFilters, value: string) {
 		setAuditFilters((current) => ({
@@ -2358,6 +2366,7 @@ export default function Home() {
 				if (!ignore) {
 					setToken(null)
 					setCurrentUser(null)
+					setSessionExpired(true)
 				}
 			})
 			.finally(() => {
@@ -4370,6 +4379,7 @@ export default function Home() {
 
 	function handleLogin(nextToken: string, user: AnyRecord) {
 		setCurrentUser(null)
+		setSessionExpired(false)
 		setToken(nextToken)
 		if (!user.can_view_economy && sectionRequiresEmployer(active)) {
 			navigationHistoryModeRef.current = 'replaceState'
@@ -4888,7 +4898,7 @@ export default function Home() {
 	)
 
 	if (!token) {
-		return <LoginScreen onLogin={handleLogin} />
+		return <LoginScreen onLogin={handleLogin} sessionExpired={sessionExpired} />
 	}
 
 	if (!currentUser) {
@@ -6878,12 +6888,8 @@ export default function Home() {
 		if (profileAvatarFile) {
 			payload.append('avatar', profileAvatarFile)
 		}
-		if (canViewEconomy) {
-			payload.append(
-				'subscription_type',
-				String(profileForm.subscription_type ?? 'trial'),
-			)
-		}
+		// subscription_type es de solo lectura: lo controla facturacion/admin del
+		// lado servidor (el endpoint /me ya no lo acepta).
 		pendingActions.begin('save:profile')
 		try {
 			const saved = await apiFetch<AnyRecord>('/auth/me/', {
@@ -8480,6 +8486,9 @@ export default function Home() {
 						</Field>
 						<Field label="Telefono">
 							<input
+								type="tel"
+								inputMode="tel"
+								autoComplete="tel"
 								value={data.phone ?? ''}
 								onChange={(event) =>
 									updateDetailEdit({ phone: event.target.value })
@@ -8491,6 +8500,7 @@ export default function Home() {
 						<Field label="Email">
 							<input
 								type="email"
+								autoComplete="email"
 								value={data.email ?? ''}
 								onChange={(event) =>
 									updateDetailEdit({ email: event.target.value })
@@ -13008,6 +13018,7 @@ export default function Home() {
 					<div className="grid">
 						<CustomerListPanel
 							customers={filteredCustomers}
+							loading={isDataSetLoading('customers')}
 							totalCustomers={customers.length}
 							search={search}
 							filter={customerCardFilter}
@@ -13729,6 +13740,7 @@ export default function Home() {
 					</div>
 				) : displayedActive === 'inventory' ? (
 					<InventoryPanel
+						loading={isDataSetLoading('materials')}
 						availableQuickActions={availableQuickActions}
 						consumptions={consumptions}
 						detailRecordProps={detailRecordProps}
@@ -13816,6 +13828,7 @@ export default function Home() {
 				) : displayedActive === 'tasks' ? (
 					<TasksPanel
 						tasks={tasks as any}
+						loading={isDataSetLoading('tasks')}
 						employees={employees as any}
 						customers={customers.map((item) => ({
 							id: Number(item.id),
@@ -13838,7 +13851,7 @@ export default function Home() {
 						currentUser={currentUser}
 						canViewEconomy={canViewEconomy}
 						onCreate={async (payload) => {
-							await runAction(
+							return await runAction(
 								() =>
 									apiFetch('/tasks/', {
 										method: 'POST',
@@ -13848,7 +13861,7 @@ export default function Home() {
 							)
 						}}
 						onUpdate={async (id, payload) => {
-							await runAction(
+							return await runAction(
 								() =>
 									apiFetch(`/tasks/${id}/`, {
 										method: 'PATCH',

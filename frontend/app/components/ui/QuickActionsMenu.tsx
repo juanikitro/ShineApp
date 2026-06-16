@@ -150,6 +150,14 @@ export function QuickActionsMenu({
 			return
 		}
 
+		// Tab cierra el menú (patrón APG) y devuelve el foco al disparador.
+		if (event.key === 'Tab') {
+			if (localRunningId) return
+			event.preventDefault()
+			closeMenu()
+			return
+		}
+
 		if (
 			event.key !== 'ArrowDown' &&
 			event.key !== 'ArrowUp' &&

@@ -41,6 +41,9 @@ export default function ResetPasswordPage() {
 			setMode('invalid')
 		} else {
 			setToken(t)
+			// Saca el token de la URL para que no quede en el historial ni se
+			// filtre por Referer hacia recursos de terceros.
+			window.history.replaceState(null, '', window.location.pathname)
 		}
 	}, [])
 

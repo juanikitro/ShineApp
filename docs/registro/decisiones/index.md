@@ -21,4 +21,8 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Soft delete homogeneo con `SoftDeleteMixin` y convivencia con `is_active`](2026-06-08-soft-delete-mixin-global.md)
 - [Gastos fijos: egresos reales con auto-pago](2026-06-10-gastos-fijos-egresos-reales.md)
 - [Sectores configurables por negocio](2026-06-10-sectores-configurables-por-negocio.md)
+- [Estado del frontend con TanStack Query (server-state) + Context (UI)](2026-06-12-estado-frontend-tanstack-query.md)
+- [Logica de dominio en modulos de app; serializers solo orquestan](2026-06-12-modulos-dominio-vs-serializers.md)
+- [Red de seguridad E2E con Playwright antes del refactor del god component](2026-06-12-red-e2e-playwright.md)
 - [Regla: toda feature nueva con entidad propia debe estar en el buscador global](2026-06-12-regla-feature-nueva-buscador-global.md)
+- [Tipos del dominio generados desde OpenAPI (drf-spectacular -> openapi-typescript)](2026-06-12-tipos-desde-openapi.md)

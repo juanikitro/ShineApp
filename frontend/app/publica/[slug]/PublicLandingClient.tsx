@@ -22,7 +22,7 @@ import { type FormEvent, useEffect, useMemo, useState } from 'react'
 
 import { cx } from '@/app/components/utils'
 import { publicApiFetch } from '@/lib/api'
-import { mapsUrlIsUsable, whatsappUrl } from '@/lib/contact-links'
+import { safeHttpUrl, whatsappUrl } from '@/lib/contact-links'
 import {
 	type ApiErrorNotice,
 	createValidationNotice,
@@ -736,10 +736,8 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 					: null
 
 	const phoneWhatsappUrl = whatsappUrl(business.contact_phone)
-	const addressMapsUrl =
-		business.maps_url && mapsUrlIsUsable(business.maps_url)
-			? business.maps_url
-			: null
+	// Solo http(s): evita esquemas peligrosos (javascript:, data:) en el href.
+	const addressMapsUrl = safeHttpUrl(business.maps_url)
 	const contact = [
 		business.contact_phone
 			? {

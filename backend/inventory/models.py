@@ -294,6 +294,9 @@ class MaterialPurchase(models.Model):
                 name="materialpurchase_total_cost_non_negative",
             ),
         ]
+        indexes = [
+            models.Index(fields=["business", "-purchased_at"], name="matpur_biz_purchased_idx"),
+        ]
 
     def save(self, *args, **kwargs):
         if self.material_id and not self.business_id:
@@ -424,6 +427,10 @@ class StockMovement(models.Model):
 
     class Meta:
         ordering = ["-occurred_on", "-id"]
+        indexes = [
+            models.Index(fields=["business", "-occurred_on"], name="stockmv_biz_occurred_idx"),
+            models.Index(fields=["business", "movement_type", "occurred_on"], name="stockmv_biz_type_occ_idx"),
+        ]
 
     def __str__(self):
         return f"{self.get_movement_type_display()} #{self.id or '-'}"

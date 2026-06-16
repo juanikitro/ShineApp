@@ -51,7 +51,7 @@ export function AgendaBoardToolbar({
 							title={`Retroceder ${visibleDays} dias`}
 							onClick={() => onMove(-visibleDays)}
 						>
-							<ChevronsLeft size={17} />
+							<ChevronsLeft size={18} />
 						</button>
 						<button
 							type="button"
@@ -60,7 +60,7 @@ export function AgendaBoardToolbar({
 							title="Retroceder 1 dia"
 							onClick={() => onMove(-1)}
 						>
-							<ChevronLeft size={17} />
+							<ChevronLeft size={18} />
 						</button>
 						<button
 							type="button"
@@ -78,7 +78,7 @@ export function AgendaBoardToolbar({
 							title="Adelantar 1 dia"
 							onClick={() => onMove(1)}
 						>
-							<ChevronRight size={17} />
+							<ChevronRight size={18} />
 						</button>
 						<button
 							type="button"
@@ -87,7 +87,7 @@ export function AgendaBoardToolbar({
 							title={`Adelantar ${visibleDays} dias`}
 							onClick={() => onMove(visibleDays)}
 						>
-							<ChevronsRight size={17} />
+							<ChevronsRight size={18} />
 						</button>
 					</div>
 				</div>

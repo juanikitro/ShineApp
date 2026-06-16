@@ -1,0 +1,34 @@
+# Configuracion de herramientas del backend.
+# Solo config de tooling (ruff). El proyecto NO se instala como paquete:
+# no hay [build-system] a proposito; CI instala via requirements*.txt.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["migrations", "**/migrations/**"]
+
+[tool.ruff.lint]
+# Baseline conservadora y de alta senal. Se endurece en el Track H del
+# refactor (ver docs/plans/2026-06-12-refactor-mantenibilidad.md).
+select = ["E", "F", "I", "B", "UP"]
+# E501 (largo de linea) lo maneja el formateo; no rompe el lint por ahora.
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+  "core",
+  "catalog",
+  "customers",
+  "dashboard",
+  "debts",
+  "finance",
+  "fixed_expenses",
+  "inventory",
+  "notifications",
+  "quotes",
+  "scheduling",
+  "search",
+  "tasks",
+  "workorders",
+  "config",
+]

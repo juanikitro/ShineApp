@@ -5,11 +5,14 @@ import {
 	type CSSProperties,
 	useCallback,
 	useEffect,
+	useId,
+	useMemo,
 	useRef,
 	useState,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { apiFetch } from '@/lib/api'
+import { cx } from '../utils'
 
 const DEBOUNCE_MS = 250
 const MIN_QUERY_LEN = 2
@@ -57,11 +60,34 @@ export function GlobalSearchInput({
 	const [open, setOpen] = useState(false)
 	const [loading, setLoading] = useState(false)
 	const [position, setPosition] = useState<DropdownPosition | null>(null)
+	const [activeIndex, setActiveIndex] = useState(-1)
 	const containerRef = useRef<HTMLDivElement>(null)
 	const dropdownRef = useRef<HTMLDivElement>(null)
 	const inputRef = useRef<HTMLInputElement>(null)
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 	const requestSeqRef = useRef(0)
+	const listboxId = useId()
+	const optionId = (index: number) => `${listboxId}-opt-${index}`
+
+	// Lista plana de opciones (en orden de render) para navegar con flechas y
+	// resolver la opción activa via aria-activedescendant sin mover el foco real.
+	const flatOptions = useMemo(
+		() =>
+			groups.flatMap((group) =>
+				group.items.map((item) => ({ groupType: group.type, item })),
+			),
+		[groups],
+	)
+	const groupOffsets = useMemo(() => {
+		const offsets: number[] = []
+		let running = 0
+		for (const group of groups) {
+			offsets.push(running)
+			running += group.items.length
+		}
+		return offsets
+	}, [groups])
+	const totalOptions = flatOptions.length
 
 	// El dropdown vive en un portal con position fixed: asi queda por encima de
 	// todo y se abre hacia la derecha del input sin que el sidebar (overflow
@@ -106,6 +132,21 @@ export function GlobalSearchInput({
 			})
 	}, [])
 
+	// Cada vez que cambian los resultados, la opción activa vuelve a "ninguna":
+	// asi Enter envía la búsqueda completa hasta que el usuario navega con flechas.
+	useEffect(() => {
+		setActiveIndex(-1)
+	}, [groups])
+
+	// Mantener la opción activa visible al navegar con teclado.
+	useEffect(() => {
+		if (!open || activeIndex < 0) return
+		dropdownRef.current
+			?.querySelector(`#${CSS.escape(optionId(activeIndex))}`)
+			?.scrollIntoView({ block: 'nearest' })
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [activeIndex, open])
+
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = e.target.value
 		setQuery(val)
@@ -118,13 +159,58 @@ export function GlobalSearchInput({
 		onSubmitQuery(q)
 	}
 
+	const chooseOption = (index: number) => {
+		const option = flatOptions[index]
+		if (!option) return
+		setOpen(false)
+		onOpenResult(option.groupType, option.item)
+	}
+
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		if (e.key === 'Enter' && query.trim().length >= MIN_QUERY_LEN) {
-			submitQuery(query.trim())
+		if (e.key === 'ArrowDown') {
+			e.preventDefault()
+			if (!open && groups.length > 0) {
+				setOpen(true)
+				setActiveIndex(0)
+				return
+			}
+			if (!totalOptions) return
+			setActiveIndex((i) => (i + 1) % totalOptions)
+			return
+		}
+		if (e.key === 'ArrowUp') {
+			e.preventDefault()
+			if (!open || !totalOptions) return
+			setActiveIndex((i) => (i <= 0 ? totalOptions - 1 : i - 1))
+			return
+		}
+		if (e.key === 'Home' && open && totalOptions) {
+			e.preventDefault()
+			setActiveIndex(0)
+			return
+		}
+		if (e.key === 'End' && open && totalOptions) {
+			e.preventDefault()
+			setActiveIndex(totalOptions - 1)
+			return
+		}
+		if (e.key === 'Enter') {
+			if (open && activeIndex >= 0 && activeIndex < totalOptions) {
+				e.preventDefault()
+				chooseOption(activeIndex)
+				return
+			}
+			if (query.trim().length >= MIN_QUERY_LEN) {
+				submitQuery(query.trim())
+			}
+			return
 		}
 		if (e.key === 'Escape') {
-			setOpen(false)
-			inputRef.current?.blur()
+			if (open) {
+				e.preventDefault()
+				setOpen(false)
+				setActiveIndex(-1)
+			}
 		}
 	}
 
@@ -183,6 +269,7 @@ export function GlobalSearchInput({
 			? createPortal(
 					<div
 						ref={dropdownRef}
+						id={listboxId}
 						className="global-search-dropdown"
 						role="listbox"
 						aria-label="Resultados de búsqueda"
@@ -194,33 +281,40 @@ export function GlobalSearchInput({
 							} as CSSProperties
 						}
 					>
-						{groups.map((group) => (
+						{groups.map((group, groupIndex) => (
 							<div key={group.type} className="global-search-group">
 								<p className="global-search-group-label">{group.label}</p>
-								{group.items.map((item) => (
-									<button
-										key={item.id}
-										type="button"
-										className="global-search-result"
-										role="option"
-										aria-selected="false"
-										onClick={() => {
-											setOpen(false)
-											onOpenResult(group.type, item)
-										}}
-									>
-										<span className="global-search-result-label">{item.label}</span>
-										{item.sublabel ? (
-											<span className="global-search-result-sub">{item.sublabel}</span>
-										) : null}
-									</button>
-								))}
+								{group.items.map((item, itemIndex) => {
+									const index = groupOffsets[groupIndex] + itemIndex
+									return (
+										<button
+											key={`${group.type}-${item.id}`}
+											id={optionId(index)}
+											type="button"
+											className={cx(
+												'global-search-result',
+												index === activeIndex && 'global-search-result--active',
+											)}
+											role="option"
+											aria-selected={index === activeIndex}
+											tabIndex={-1}
+											onMouseMove={() => setActiveIndex(index)}
+											onClick={() => chooseOption(index)}
+										>
+											<span className="global-search-result-label">{item.label}</span>
+											{item.sublabel ? (
+												<span className="global-search-result-sub">{item.sublabel}</span>
+											) : null}
+										</button>
+									)
+								})}
 							</div>
 						))}
 						<div className="global-search-footer">
 							<button
 								type="button"
 								className="global-search-see-all"
+								tabIndex={-1}
 								onClick={() => submitQuery(query.trim())}
 							>
 								Ver todos los resultados
@@ -238,6 +332,13 @@ export function GlobalSearchInput({
 				<input
 					ref={inputRef}
 					type="search"
+					role="combobox"
+					aria-expanded={open}
+					aria-controls={open ? listboxId : undefined}
+					aria-activedescendant={
+						open && activeIndex >= 0 ? optionId(activeIndex) : undefined
+					}
+					aria-autocomplete="list"
 					className="global-search-input"
 					placeholder="Buscar..."
 					value={query}

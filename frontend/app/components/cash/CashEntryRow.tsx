@@ -77,16 +77,13 @@ export function CashEntryRow({
 				className,
 			)}
 			onContextMenu={onContextMenu}
-			role="button"
-			tabIndex={0}
-			onClick={onClick}
-			onKeyDown={(event) => {
-				if (event.key === 'Enter' || event.key === ' ') {
-					event.preventDefault()
-					onClick()
-				}
-			}}
 		>
+			<button
+				type="button"
+				className="cash-entry-row__open"
+				onClick={onClick}
+				aria-label={`Ver detalle del movimiento: ${classification}, ${formattedAmount}`}
+			/>
 			<span className="cash-entry-row__direction" aria-hidden="true">
 				{isIncome ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
 			</span>

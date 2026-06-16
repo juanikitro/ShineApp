@@ -176,7 +176,7 @@
   background: var(--color-workspace-surface);
   border: 1px solid var(--color-workspace-border);
   border-radius: var(--radius-md);
-  box-shadow: 0 10px 24px var(--color-shadow-soft);
+  box-shadow: var(--shadow-raise);
   display: grid;
   grid-template-rows: auto minmax(360px, 1fr);
   min-width: 0;
@@ -189,13 +189,13 @@
 .quote-lane--draft {
   box-shadow:
     inset 4px 0 0 var(--shop-ink-soft),
-    0 10px 24px var(--color-shadow-soft);
+    var(--shadow-raise);
 }
 
 .quote-lane--sent {
   box-shadow:
     inset 4px 0 0 var(--color-primary),
-    0 10px 24px var(--color-shadow-soft);
+    var(--shadow-raise);
 }
 
 .quote-lane--drop-target {
@@ -203,7 +203,7 @@
   box-shadow:
     inset 4px 0 0 var(--color-primary),
     0 0 0 4px var(--color-focus-ring),
-    0 10px 24px var(--color-shadow-soft);
+    var(--shadow-raise);
 }
 
 .quote-lane-head {

@@ -14,12 +14,15 @@ export function AppShell({
 	theme = 'light',
 }: AppShellProps) {
 	return (
-		<main className="app-shell" data-theme={theme}>
+		<div className="app-shell" data-theme={theme}>
+			<a className="skip-link" href="#main-content">
+				Saltar al contenido
+			</a>
 			{sidebar}
-			<section className="workspace">
+			<main id="main-content" tabIndex={-1} className="workspace">
 				{sidebarOverlay}
 				{children}
-			</section>
-		</main>
+			</main>
+		</div>
 	)
 }

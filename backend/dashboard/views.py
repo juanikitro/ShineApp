@@ -2,7 +2,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from django.db.models import Count, DecimalField, Sum, Value
+from django.db.models import Count, DecimalField, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework import permissions
@@ -521,7 +521,7 @@ def material_cost_rankings_for_period(business, date_from, date_to):
     )[:5]
 
 
-def dashboard_period_summary(business, date_from, date_to):
+def dashboard_period_summary(business, date_from, date_to, with_rankings=True):
     payments = Payment.objects.filter(
         business=business,
         paid_at__date__gte=date_from,
@@ -536,11 +536,18 @@ def dashboard_period_summary(business, date_from, date_to):
     financials = work_order_financials(work_orders)
     material_cost_total = material_cost_total_for_period(business, date_from, date_to)
     cashflow_totals = cashflow_totals_for_period(business, date_from, date_to)
-    fixed_pending = fixed_expenses_pending_for_period(business, date_from, date_to)
-    rankings = {
-        **financials["rankings"],
-        "top_materials_by_cost": material_cost_rankings_for_period(business, date_from, date_to),
-    }
+    # El periodo previo (with_rankings=False) solo aporta escalares para la
+    # comparacion e insights; se saltean los rankings de materiales y el detalle de
+    # gastos fijos pendientes (queries y CPU que nadie lee para ese periodo).
+    if with_rankings:
+        fixed_pending = fixed_expenses_pending_for_period(business, date_from, date_to)
+        rankings = {
+            **financials["rankings"],
+            "top_materials_by_cost": material_cost_rankings_for_period(business, date_from, date_to),
+        }
+    else:
+        fixed_pending = {"fixed_expenses_pending_total": ZERO, "fixed_expenses_pending_count": 0}
+        rankings = {}
     return {
         **financials,
         "collected_total": decimal_sum(payments, "amount"),
@@ -1003,7 +1010,9 @@ class DashboardSummaryView(APIView):
 
         summary = dashboard_period_summary(business, date_from, date_to)
         previous_from, previous_to = previous_period_for(date_from, date_to)
-        previous_summary = dashboard_period_summary(business, previous_from, previous_to)
+        previous_summary = dashboard_period_summary(
+            business, previous_from, previous_to, with_rankings=False
+        )
         debt_summary = debt_timing_summary(business, today)
         current_has_activity = dashboard_summary_has_activity(summary)
         previous_has_activity = dashboard_summary_has_activity(previous_summary)
@@ -1019,15 +1028,15 @@ class DashboardSummaryView(APIView):
             row["reservation__status"]: row["count"]
             for row in work_orders.values("reservation__status").annotate(count=Count("id"))
         }
-        today_movements = CashMovement.objects.filter(business=business, occurred_at__date=today)
-        today_income = (
-            today_movements.filter(movement_type=CashMovement.MovementType.INCOME).aggregate(total=Sum("amount"))["total"]
-            or Decimal("0.00")
+        # Un solo aggregate condicional en lugar de dos queries separadas.
+        today_totals = CashMovement.objects.filter(
+            business=business, occurred_at__date=today
+        ).aggregate(
+            income=Sum("amount", filter=Q(movement_type=CashMovement.MovementType.INCOME)),
+            expense=Sum("amount", filter=Q(movement_type=CashMovement.MovementType.EXPENSE)),
         )
-        today_expense = (
-            today_movements.filter(movement_type=CashMovement.MovementType.EXPENSE).aggregate(total=Sum("amount"))["total"]
-            or Decimal("0.00")
-        )
+        today_income = today_totals["income"] or Decimal("0.00")
+        today_expense = today_totals["expense"] or Decimal("0.00")
 
         payload.update(
             {

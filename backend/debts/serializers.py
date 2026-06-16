@@ -59,6 +59,12 @@ class DebtPaymentSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
         read_only_fields = ["id", "debt_concept", "debt_balance_due", "created_at"]
 
     def get_debt_balance_due(self, obj):
+        # Standalone (DebtPaymentViewSet anota debt_total_paid): saldo sin un aggregate
+        # por pago; obj.debt es select_related, principal sin query extra.
+        debt_total_paid = getattr(obj, "debt_total_paid", None)
+        if debt_total_paid is not None:
+            return max(obj.debt.principal_amount - debt_total_paid, Decimal("0.00"))
+        # Nested en DebtSerializer: obj.debt quedo linkeado a la deuda padre anotada.
         return obj.debt.balance_due
 
     def validate_amount(self, value):
@@ -126,6 +132,17 @@ class DebtSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer)
             "created_at",
             "updated_at",
         ]
+
+    def to_representation(self, instance):
+        # Linkea la deuda padre (con total_paid_amount anotado) en cada pago ya
+        # prefetcheado, para que DebtPaymentSerializer.get_debt_balance_due no dispare
+        # FK + aggregate por pago en el listado de deudas. Solo cuando hay prefetch
+        # (listado); en create/update single el campo anidado consulta una vez.
+        prefetched = getattr(instance, "_prefetched_objects_cache", None)
+        if prefetched and "payments" in prefetched:
+            for payment in prefetched["payments"]:
+                payment.debt = instance
+        return super().to_representation(instance)
 
     def validate_principal_amount(self, value):
         if value <= 0:

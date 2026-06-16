@@ -6,12 +6,15 @@ best-effort inline con timeout y lo reintenta via el job de mantenimiento si
 falla. Asi ningun mail al cliente se pierde en silencio.
 
 El web push sigue siendo inline y best-effort (re-entregar un push viejo no
-aporta), pero ahora con timeout explicito y limpieza de suscripciones muertas
-(el navegador devuelve 404/410 cuando la suscripcion ya no existe).
+aporta), pero con timeout explicito, limpieza de suscripciones muertas (404/410)
+y defensa anti-SSRF: solo se manda a endpoints https publicos (el endpoint lo
+provee el cliente via push_subscription).
 """
 
+import ipaddress
 import json
 import logging
+from urllib.parse import urlparse
 
 from django.conf import settings
 
@@ -25,6 +28,35 @@ def _frontend_url(path: str = "") -> str:
     if not path:
         return base
     return f"{base}/{path.lstrip('/')}"
+
+
+def _is_public_https_endpoint(endpoint):
+    """True si el endpoint de push es https y apunta a un host publico.
+
+    Defensa anti-SSRF: el endpoint lo provee el cliente (push_subscription). Se
+    rechazan esquemas no-https, localhost e IPs privadas/loopback/link-local
+    (p.ej. 169.254.169.254). Los servicios reales (FCM, Mozilla, WNS, Apple) son
+    dominios https publicos, asi que no se ven afectados.
+    """
+    try:
+        parsed = urlparse(endpoint or "")
+    except Exception:
+        return False
+    if parsed.scheme != "https" or not parsed.hostname:
+        return False
+    host = parsed.hostname.lower()
+    if host == "localhost" or host.endswith(".local"):
+        return False
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return True  # es un dominio https publico
+    return not (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved)
+
+
+def _push_subscription_allowed(subscription):
+    endpoint = subscription.get("endpoint", "") if isinstance(subscription, dict) else ""
+    return _is_public_https_endpoint(endpoint)
 
 
 def _send_customer_email(customer, subject, body, *, event=""):
@@ -162,9 +194,16 @@ def send_new_public_request_notification(public_request):
 
 
 def _webpush(subscription_info, payload):
-    """Envia un push con timeout. Devuelve (enviado, suscripcion_muerta)."""
+    """Envia un push con timeout. Devuelve (enviado, suscripcion_muerta).
+
+    Aplica la defensa anti-SSRF (`_push_subscription_allowed`): un endpoint no
+    permitido se trata como no-enviado (sin marcarlo muerto).
+    """
     private_key = getattr(settings, "VAPID_PRIVATE_KEY", "")
     if not private_key or not subscription_info:
+        return False, False
+    if not _push_subscription_allowed(subscription_info):
+        logger.warning("push omitido: endpoint no permitido (anti-SSRF)")
         return False, False
     vapid_claims = {"sub": getattr(settings, "VAPID_CLAIMS_EMAIL", "mailto:no-reply@shineapp.local")}
     timeout = getattr(settings, "PUSH_TIMEOUT_SECONDS", 10)
@@ -189,8 +228,8 @@ def _webpush(subscription_info, payload):
 def send_business_push_notification(public_request):
     """Push a los usuarios del negocio al llegar una solicitud publica.
 
-    Limpia las suscripciones que el navegador reporta como muertas (404/410)
-    para no reintentarlas indefinidamente.
+    Limpia las suscripciones que el navegador reporta como muertas (404/410) para
+    no reintentarlas indefinidamente. El filtrado anti-SSRF ocurre en `_webpush`.
     """
     if not getattr(settings, "VAPID_PRIVATE_KEY", ""):
         return False

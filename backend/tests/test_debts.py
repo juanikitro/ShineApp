@@ -1,8 +1,11 @@
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
 from django.contrib.auth.models import Group
+from django.db import connection
 from django.db.models import Sum
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -31,7 +34,9 @@ def test_debt_creation_registers_original_expense_and_exposes_balance(api_client
             "concept": "Pulidora",
             "principal_amount": "120000.00",
             "origin_date": "2026-05-07",
-            "due_date": "2026-06-15",
+            # Fecha futura relativa: con un literal pasado el status pasaba a
+            # OVERDUE cuando el reloj cruzaba la fecha y el test se volvia flaky.
+            "due_date": (timezone.localdate() + timedelta(days=30)).isoformat(),
             "notes": "Compra financiada",
         },
         format="json",
@@ -295,3 +300,56 @@ def test_debt_payment_destroy_respects_closed_cash_day(api_client):
 
     assert response.status_code == 400
     assert "paid_at" in str(response.data)
+
+
+@pytest.mark.django_db
+def test_debt_list_query_count_is_independent_of_payments(api_client):
+    """Regresion N+1: el listado de deudas no debe sumar queries por pago.
+
+    Antes, DebtSerializer recalculaba total_paid/balance_due/status via aggregate
+    por deuda y get_debt_balance_due hacia FK + aggregate por pago. Ahora el
+    queryset anota total_paid_amount y linkea la deuda padre en los pagos
+    prefetcheados, asi que la cantidad de queries es constante.
+    """
+
+    def make_debt(concept, payment_amounts):
+        created = api_client.post(
+            reverse("debt-list"),
+            {"concept": concept, "principal_amount": "100000.00", "origin_date": "2026-05-07"},
+            format="json",
+        )
+        assert created.status_code == 201, created.data
+        for amount in payment_amounts:
+            paid = api_client.post(
+                reverse("debtpayment-list"),
+                {"debt": created.data["id"], "amount": amount, "paid_at": "2026-05-10"},
+                format="json",
+            )
+            assert paid.status_code == 201, paid.data
+        return created.data["id"]
+
+    make_debt("Deuda A", ["10000.00"])
+    with CaptureQueriesContext(connection) as ctx_few:
+        first = api_client.get(reverse("debt-list"))
+    assert first.status_code == 200
+    queries_few = len(ctx_few)
+
+    # Segunda deuda con muchos mas pagos: no debe multiplicar queries por pago.
+    make_debt("Deuda B", ["10000.00", "20000.00", "5000.00", "1000.00", "2000.00"])
+    with CaptureQueriesContext(connection) as ctx_many:
+        second = api_client.get(reverse("debt-list"))
+    assert second.status_code == 200
+    queries_many = len(ctx_many)
+
+    assert queries_many <= queries_few + 1, (
+        f"posible N+1 en el listado de deudas: {queries_few} -> {queries_many} queries"
+    )
+
+    results = second.data["results"] if isinstance(second.data, dict) else second.data
+    by_concept = {row["concept"]: row for row in results}
+    deuda_b = by_concept["Deuda B"]
+    assert Decimal(deuda_b["total_paid"]) == Decimal("38000.00")
+    assert Decimal(deuda_b["balance_due"]) == Decimal("62000.00")
+    assert len(deuda_b["payments"]) == 5
+    for payment in deuda_b["payments"]:
+        assert Decimal(payment["debt_balance_due"]) == Decimal("62000.00")

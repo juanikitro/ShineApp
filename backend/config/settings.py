@@ -11,6 +11,24 @@ DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,backend").split(",")
 APP_ENVIRONMENT = os.getenv("APP_ENVIRONMENT", "local")
 
+# Fail-secure: nunca arrancar en una plataforma gestionada (Vercel) con la
+# SECRET_KEY publica de desarrollo. Convierte una mala config (correr los
+# settings de dev en produccion) en un fallo ruidoso en vez de un servidor
+# inseguro silencioso. No afecta tests ni dev local (sin VERCEL en el entorno).
+if os.getenv("VERCEL") and SECRET_KEY == "dev-only-shineapp-secret":
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured(
+        "Negandose a arrancar en Vercel con la SECRET_KEY publica de desarrollo. "
+        "Configura DJANGO_SETTINGS_MODULE=config.settings_production y un "
+        "DJANGO_SECRET_KEY real."
+    )
+
+# Cantidad de proxies de confianza por delante (Vercel = 1). Lo usa el helper
+# core.request_ip.get_client_ip y el throttling de DRF (NUM_PROXIES) para tomar
+# la IP real del cliente y no un X-Forwarded-For falsificado.
+TRUSTED_PROXY_COUNT = int(os.getenv("DJANGO_NUM_PROXIES", "1"))
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -20,6 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework.authtoken",
+    "drf_spectacular",
     "corsheaders",
     "core",
     "customers",
@@ -41,6 +60,9 @@ MIDDLEWARE = [
     "core.middleware.RequestIDMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # Comprime respuestas JSON de la API (el frontend baja datasets grandes via
+    # apiList). Va arriba para que la compresion ocurra despues del resto.
+    "django.middleware.gzip.GZipMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -134,14 +156,44 @@ CORS_ALLOW_CREDENTIALS = True
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.TokenAuthentication",
+        "core.authentication.ExpiringTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": ["core.permissions.ActiveBusinessUser"],
     "EXCEPTION_HANDLER": "core.exceptions.api_exception_handler",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 100,
+    "NUM_PROXIES": TRUSTED_PROXY_COUNT,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
+
+# OpenAPI schema (drf-spectacular). Es la fuente del contrato para generar los
+# tipos del frontend con openapi-typescript.
+# Ver docs/registro/decisiones/2026-06-12-tipos-desde-openapi.md
+SPECTACULAR_SETTINGS = {
+    "TITLE": "ShineApp API",
+    "DESCRIPTION": (
+        "API de ShineApp (Django + DRF). Contrato fuente para generar los "
+        "tipos del frontend."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAuthenticated"],
+    "COMPONENT_SPLIT_REQUEST": True,
+}
+
+# Expiracion absoluta del token DRF (mitigacion del token en localStorage).
+# 0 = sin expiracion. Default 30 dias, alineado con el TTL del cliente.
+AUTH_TOKEN_TTL_SECONDS = int(os.getenv("DJANGO_AUTH_TOKEN_TTL_SECONDS", str(30 * 24 * 60 * 60)))
+
+# Lockout de cuenta por intentos fallidos de login (cache). 0 = desactivado.
+LOGIN_LOCKOUT_THRESHOLD = int(os.getenv("DJANGO_LOGIN_LOCKOUT_THRESHOLD", "8"))
+LOGIN_LOCKOUT_WINDOW_SECONDS = int(os.getenv("DJANGO_LOGIN_LOCKOUT_WINDOW_SECONDS", "900"))
+
+# Enforcement de suscripcion/trial vencido como gate de acceso a la API.
+# Default OFF: se activa cuando billing y los datos de plan esten listos, sin
+# riesgo de bloquear clientes reales. Solo bloquea negocios en TRIAL vencido.
+ENFORCE_SUBSCRIPTION_ACCESS = os.getenv("DJANGO_ENFORCE_SUBSCRIPTION_ACCESS", "0") == "1"
 
 DEFAULT_DAILY_CAPACITY = int(os.getenv("DEFAULT_DAILY_CAPACITY", "8"))
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@shineapp.local")

@@ -10,6 +10,7 @@ from catalog.models import Sector, Service
 from core.audit import audit_snapshot, record_audit_event
 from core.models import BusinessAccount, BusinessProfile
 from core.permissions import EmployerOnly, business_from_request, file_url
+from core.request_ip import get_client_ip
 from scheduling.models import Reservation
 
 from .models import PublicRequest
@@ -33,10 +34,10 @@ def recall_cache_key(ip):
 
 
 def client_ip(request):
-    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR", "")
+    # Delega en el helper central que cuenta saltos de proxy desde la derecha,
+    # resistente a X-Forwarded-For falsificado (ver core/request_ip.py). Tomar el
+    # primer valor del header permitia evadir el rate-limit y falsear la IP.
+    return get_client_ip(request)
 
 
 def public_business_or_404(slug):
@@ -263,7 +264,8 @@ class PublicLandingRecallView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, slug):
-        business, _ = public_business_or_404(slug)
+        # Valida que el negocio exista y tenga el landing publico activo (404 si no).
+        public_business_or_404(slug)
         ip_address = client_ip(request)
         if ip_address:
             key = recall_cache_key(ip_address)
@@ -283,52 +285,17 @@ class PublicLandingRecallView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        customer = self._find_customer(business, phone, email)
-        vehicles = []
-        if customer:
-            from customers.models import Vehicle
-
-            vehicles = list(
-                Vehicle.objects.filter(
-                    business=business,
-                    customer=customer,
-                    is_active=True,
-                ).order_by("license_plate")[:5]
-            )
-
+        # Seguridad: endpoint publico sin autenticacion. NO devuelve datos de
+        # clientes (nombre/email/telefono/patentes) ni confirma si un contacto
+        # existe, para no exponer PII ni permitir enumeracion. El visitante
+        # completa sus datos manualmente. Se mantiene la forma de respuesta para
+        # compatibilidad con el frontend del landing.
         return response.Response({
-            "customer_name": customer.name if customer else None,
-            "customer_phone": customer.phone if customer else None,
-            "customer_email": customer.email if customer else None,
-            "vehicles": [
-                {
-                    "license_plate": v.license_plate,
-                    "brand": v.brand,
-                    "model": v.model,
-                    "vehicle_type": v.vehicle_type,
-                }
-                for v in vehicles
-            ],
+            "customer_name": None,
+            "customer_phone": None,
+            "customer_email": None,
+            "vehicles": [],
         })
-
-    @staticmethod
-    def _find_customer(business, phone, email):
-        from customers.models import Customer
-
-        qs = Customer.objects.filter(business=business, is_active=True)
-
-        if email:
-            customer = qs.filter(email__iexact=email).first()
-            if customer:
-                return customer
-
-        phone_digits = "".join(c for c in phone if c.isdigit())
-        if phone_digits:
-            for customer in qs.exclude(phone="").only("id", "name", "phone", "email"):
-                if "".join(c for c in customer.phone if c.isdigit()) == phone_digits:
-                    return customer
-
-        return None
 
 
 class PublicRequestViewSet(

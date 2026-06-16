@@ -35,6 +35,8 @@ from .serializers import (
     SupplierListSerializer,
     SupplierSerializer,
     ToolSerializer,
+)
+from .stock import (
     refresh_material_cost,
     reverse_stock_movement_effects,
     stock_movement_affects_cash,
@@ -476,10 +478,13 @@ class StockMovementViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         queryset = self.queryset
         movement_type = self.request.query_params.get("movement_type")
         material = self.request.query_params.get("material")
+        date_from = parse_date(self.request.query_params.get("from") or "")
         if movement_type:
             queryset = queryset.filter(movement_type=movement_type)
         if material:
             queryset = queryset.filter(lines__material_id=material).distinct()
+        if date_from:
+            queryset = queryset.filter(occurred_on__gte=date_from)
         return queryset
 
     @transaction.atomic

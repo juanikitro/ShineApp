@@ -28,6 +28,15 @@ import { createPortal } from 'react-dom'
 import { AppBrand } from '@/app/components/layout/AppBrand'
 import { Field } from '@/app/components/ui/Field'
 import { apiFetch, publicApiFetch, setStoredToken } from '@/lib/api'
+import {
+	currencyArsFormatter,
+	dateFormatter,
+	dateTimeFormatter,
+	dayMonthFormatter,
+	decimalFormatter,
+	fullDateFormatter,
+	weekdayShortFormatter,
+} from '@/lib/intl-format'
 import { type ApiErrorNotice, formatApiError } from '@/lib/api-errors'
 import { type AgendaOperationalPhase } from '@/lib/agenda'
 import { toastIconVariants, toastVariants } from '@/lib/motion-spec'
@@ -135,23 +144,15 @@ function monthRange(value: string, offset = 0) {
 }
 
 function formatDayName(value: string) {
-	return parseIsoDate(value).toLocaleDateString('es-AR', { weekday: 'short' })
+	return weekdayShortFormatter.format(parseIsoDate(value))
 }
 
 function formatDayLabel(value: string) {
-	return parseIsoDate(value).toLocaleDateString('es-AR', {
-		day: '2-digit',
-		month: '2-digit',
-	})
+	return dayMonthFormatter.format(parseIsoDate(value))
 }
 
 function formatFullDateLabel(value: string) {
-	return parseIsoDate(value).toLocaleDateString('es-AR', {
-		weekday: 'long',
-		day: '2-digit',
-		month: 'long',
-		year: 'numeric',
-	})
+	return fullDateFormatter.format(parseIsoDate(value))
 }
 
 function formatDateTimeLabel(value: any) {
@@ -160,12 +161,7 @@ function formatDateTimeLabel(value: any) {
 	if (Number.isNaN(date.getTime())) {
 		return String(value)
 	}
-	return date.toLocaleString('es-AR', {
-		day: '2-digit',
-		month: '2-digit',
-		hour: '2-digit',
-		minute: '2-digit',
-	})
+	return dateTimeFormatter.format(date)
 }
 
 function formatDateLabel(value: any) {
@@ -179,11 +175,7 @@ function formatDateLabel(value: any) {
 	if (Number.isNaN(date.getTime())) {
 		return String(value)
 	}
-	return date.toLocaleDateString('es-AR', {
-		day: '2-digit',
-		month: '2-digit',
-		year: 'numeric',
-	})
+	return dateFormatter.format(date)
 }
 
 function birthdayText(customer: AnyRecord) {
@@ -1057,12 +1049,7 @@ const serviceTypeLabels: Record<string, string> = {
 }
 
 function money(value: any) {
-	const number = Number(value ?? 0)
-	return number.toLocaleString('es-AR', {
-		style: 'currency',
-		currency: 'ARS',
-		maximumFractionDigits: 0,
-	})
+	return currencyArsFormatter.format(Number(value ?? 0))
 }
 
 function numberValue(value: any) {
@@ -1071,9 +1058,7 @@ function numberValue(value: any) {
 }
 
 function quantity(value: any, unit = '') {
-	const formatted = numberValue(value).toLocaleString('es-AR', {
-		maximumFractionDigits: 2,
-	})
+	const formatted = decimalFormatter.format(numberValue(value))
 	return unit ? `${formatted} ${unit}` : formatted
 }
 
@@ -1427,7 +1412,27 @@ function useButtonHoverTitles() {
 		}
 
 		scheduleApply()
-		const observer = new MutationObserver(scheduleApply)
+		const observer = new MutationObserver((mutations) => {
+			window.cancelAnimationFrame(frameId)
+			frameId = window.requestAnimationFrame(() => {
+				if (activeButton && document.body.contains(activeButton)) {
+					// Tooltip is visible — only reposition. showTooltip() applies titles
+					// lazily on hover, so no full sweep needed while a button is active.
+					positionButtonHoverTooltip(tooltip, activeButton)
+					return
+				}
+				// Sweep only the subtrees that actually mutated, not the whole document.
+				const seen = new Set<ParentNode>()
+				for (const m of mutations) {
+					const el =
+						m.target instanceof Element ? m.target : m.target.parentElement
+					if (el && !seen.has(el)) {
+						seen.add(el)
+						applyButtonHoverTitles(el)
+					}
+				}
+			})
+		})
 		observer.observe(document.body, {
 			attributeFilter: ['aria-label', 'class', 'data-collapsed', 'title'],
 			attributes: true,
@@ -1538,40 +1543,19 @@ function usePendingActions(): PendingActionsApi {
 function useNoticeToasts() {
 	const [toasts, setToasts] = useState<ToastNotice[]>([])
 	const nextIdRef = useRef(0)
-	const timersRef = useRef<Record<number, number>>({})
 
 	function dismissToast(id: number) {
-		const timer = timersRef.current[id]
-		if (timer) {
-			window.clearTimeout(timer)
-			delete timersRef.current[id]
-		}
 		setToasts((current) => current.filter((toast) => toast.id !== id))
 	}
 
+	// El auto-cierre se delega en cada NoticeToast para poder pausarlo con hover
+	// o foco (WCAG 2.2.1). El hook solo administra la cola de notificaciones.
 	function showToast(notice: ToastDraft) {
 		const id = nextIdRef.current + 1
 		nextIdRef.current = id
-		const visibleMs =
-			notice.visibleMs ??
-			(notice.tone === 'error' ? TOAST_ERROR_VISIBLE_MS : TOAST_VISIBLE_MS)
 		setToasts((current) => [...current.slice(-2), { id, ...notice }])
-		timersRef.current[id] = window.setTimeout(
-			() => dismissToast(id),
-			visibleMs,
-		)
 		return id
 	}
-
-	useEffect(
-		() => () => {
-			Object.values(timersRef.current).forEach((timer) =>
-				window.clearTimeout(timer),
-			)
-			timersRef.current = {}
-		},
-		[],
-	)
 
 	return { toasts, showToast, dismissToast }
 }
@@ -1585,6 +1569,23 @@ function NoticeToast({
 }) {
 	const Icon = toast.tone === 'success' ? CheckCircle2 : CircleAlert
 	const role = toast.tone === 'error' ? 'alert' : 'status'
+	const [paused, setPaused] = useState(false)
+	const dismissRef = useRef(onDismiss)
+	dismissRef.current = onDismiss
+	const visibleMs =
+		toast.visibleMs ??
+		(toast.tone === 'error' ? TOAST_ERROR_VISIBLE_MS : TOAST_VISIBLE_MS)
+
+	// Auto-cierre que se pausa con hover o con foco dentro del toast: evita que
+	// desaparezca mientras se lee o se usa "Deshacer" (WCAG 2.2.1 / 2.4.3).
+	useEffect(() => {
+		if (paused) return
+		const timer = window.setTimeout(
+			() => dismissRef.current(toast.id),
+			visibleMs,
+		)
+		return () => window.clearTimeout(timer)
+	}, [paused, visibleMs, toast.id])
 
 	return (
 		<m.div
@@ -1597,6 +1598,14 @@ function NoticeToast({
 			initial="initial"
 			animate="animate"
 			exit="exit"
+			onMouseEnter={() => setPaused(true)}
+			onMouseLeave={() => setPaused(false)}
+			onFocusCapture={() => setPaused(true)}
+			onBlurCapture={(event) => {
+				if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+					setPaused(false)
+				}
+			}}
 		>
 			<m.span
 				className="toast-icon"
@@ -1700,8 +1709,10 @@ function trialSignupInitialForm() {
 
 function LoginScreen({
 	onLogin,
+	sessionExpired = false,
 }: {
 	onLogin: (token: string, user: AnyRecord) => void
+	sessionExpired?: boolean
 }) {
 	const [mode, setMode] = useState<'login' | 'trial' | 'forgot-password' | 'forgot-password-sent'>('login')
 	const [form, setForm] = useState(loginInitialCredentials)
@@ -1861,6 +1872,11 @@ function LoginScreen({
 						subtitle={signupMode ? 'Prueba gratuita por 30 dias' : 'Acceso operativo'}
 						titleAs="h1"
 					/>
+					{sessionExpired && !signupMode ? (
+						<div className="alert-notice" role="alert">
+							<p>Tu sesion expiro. Volve a iniciar sesion para continuar.</p>
+						</div>
+					) : null}
 					{signupMode ? (
 						<div className="form-grid login-trial-grid">
 							<p className="login-trial-note">

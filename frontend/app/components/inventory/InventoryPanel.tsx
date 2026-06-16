@@ -1,11 +1,12 @@
 'use client'
 
-import { type ReactNode } from 'react'
+import { type ReactNode, useMemo } from 'react'
 
 import { Package } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
 import { Empty } from '@/app/components/ui/Empty'
+import { SkeletonList } from '@/app/components/ui/Skeleton'
 import { type QuickAction } from '@/app/components/ui/QuickActionsMenu'
 import { Button } from '@/app/components/ui/Button'
 import { joinDisplayParts } from '@/lib/display-text'
@@ -24,6 +25,7 @@ type MaterialUsageSummary = {
 
 type InventoryPanelProps = {
 	inventorySummary: AnyRecord
+	loading?: boolean
 	stockMovements: AnyRecord[]
 	stockMovementTypeLabels: Record<string, string>
 	suppliers: AnyRecord[]
@@ -67,6 +69,7 @@ type InventoryPanelProps = {
 
 export function InventoryPanel({
 	inventorySummary,
+	loading = false,
 	stockMovements,
 	stockMovementTypeLabels,
 	suppliers,
@@ -99,6 +102,14 @@ export function InventoryPanel({
 	onOpenSupplierForm,
 	onOpenUnitForMaterial,
 }: InventoryPanelProps) {
+	// Map id -> material memoizado para el lookup O(1) de unidades abiertas
+	// (antes .find() por unidad sobre todo el dataset de materiales).
+	const materialsById = useMemo(() => {
+		const map = new Map<string, AnyRecord>()
+		for (const item of materials) map.set(String(item.id), item)
+		return map
+	}, [materials])
+
 	return (
 		<div className="grid">
 			<section className="panel">
@@ -139,6 +150,9 @@ export function InventoryPanel({
 					</div>
 				</div>
 				<div className="records">
+					{loading && !materials.length && !stockMovements.length ? (
+						<SkeletonList rows={6} columns={4} label="Cargando inventario" />
+					) : null}
 					{stockMovements.slice(0, 8).map((item) => (
 						<MotionFlashSurface
 							className={recordClass('stock-movement', item.id)}
@@ -297,10 +311,7 @@ export function InventoryPanel({
 						<Empty text="Sin materiales." />
 					)}
 					{materialOpenUnits.slice(0, 8).map((item) => {
-						const material = materials.find(
-							(materialItem) =>
-								String(materialItem.id) === String(item.material),
-						)
+						const material = materialsById.get(String(item.material))
 						const quickActions = materialOpenUnitQuickActions(item)
 						return (
 							<MotionFlashSurface

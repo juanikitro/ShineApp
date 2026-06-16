@@ -6,6 +6,7 @@ import { Button } from '@/app/components/ui/Button'
 import { Empty, LoadingState } from '@/app/components/ui/Empty'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { Panel } from '@/app/components/ui/Panel'
+import { safeHttpUrl } from '@/lib/contact-links'
 import {
 	type AnyRecord,
 	debtStatusLabels,
@@ -220,10 +221,10 @@ export function SupplierDashboardPanel({
 										</div>
 									</div>
 									<div className="record-actions">
-										{item.document_file_url ? (
+										{safeHttpUrl(item.document_file_url) ? (
 											<a
 												className="ghost inline-link-button"
-												href={item.document_file_url}
+												href={safeHttpUrl(item.document_file_url) as string}
 												rel="noreferrer"
 												target="_blank"
 											>

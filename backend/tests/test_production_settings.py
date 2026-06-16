@@ -60,11 +60,16 @@ def test_production_settings_configures_default_throttling(monkeypatch):
     assert rest_framework["DEFAULT_THROTTLE_CLASSES"] == [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
+        "core.throttling.LoginRateThrottle",
+        "core.throttling.PasswordResetRateThrottle",
+        "core.throttling.SignupRateThrottle",
     ]
-    assert rest_framework["DEFAULT_THROTTLE_RATES"] == {
-        "anon": "60/min",
-        "user": "600/min",
-    }
+    rates = rest_framework["DEFAULT_THROTTLE_RATES"]
+    assert rates["anon"] == "60/min"
+    assert rates["user"] == "600/min"
+    assert rates["login"] == "10/min"
+    assert rates["password_reset"] == "5/min"
+    assert rates["signup"] == "5/min"
 
 
 def test_production_settings_allows_throttle_rates_from_env(monkeypatch):
@@ -72,12 +77,13 @@ def test_production_settings_allows_throttle_rates_from_env(monkeypatch):
         monkeypatch,
         DJANGO_THROTTLE_ANON_RATE="10/min",
         DJANGO_THROTTLE_USER_RATE="100/min",
+        DJANGO_THROTTLE_LOGIN_RATE="3/min",
     )
 
-    assert settings_module.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] == {
-        "anon": "10/min",
-        "user": "100/min",
-    }
+    rates = settings_module.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
+    assert rates["anon"] == "10/min"
+    assert rates["user"] == "100/min"
+    assert rates["login"] == "3/min"
 
 
 def test_production_settings_initializes_sentry_when_dsn_is_configured(monkeypatch):
