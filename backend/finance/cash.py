@@ -7,7 +7,6 @@ from rest_framework import serializers
 
 from .models import CashClosure, CashMovement
 
-
 ZERO = Decimal("0.00")
 CLOSED_DAY_MESSAGE = (
     "La caja del dia {day} esta cerrada. Registra un ajuste compensatorio en el dia actual."

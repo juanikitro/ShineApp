@@ -432,10 +432,10 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
         for raw in value:
             try:
                 identifier = int(raw)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError) as e:
                 raise serializers.ValidationError(
                     "Solo se aceptan IDs numericos de servicios."
-                )
+                ) from e
             if identifier <= 0 or identifier in seen:
                 continue
             seen.add(identifier)

@@ -60,6 +60,8 @@ class PublicRequest(models.Model):
 
     class Meta:
         ordering = ["-created_at", "-id"]
+        verbose_name = "solicitud pública"
+        verbose_name_plural = "solicitudes públicas"
         indexes = [
             models.Index(
                 fields=["business", "status", "-created_at"],
@@ -116,6 +118,8 @@ class PublicRequestItem(models.Model):
 
     class Meta:
         ordering = ["id"]
+        verbose_name = "ítem de solicitud"
+        verbose_name_plural = "ítems de solicitud"
 
     def save(self, *args, **kwargs):
         if not self.description and self.service_id:

@@ -120,7 +120,6 @@ class VehicleSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializ
         license_plate = value.strip().upper()
         if not license_plate:
             return ""
-        customer = self.initial_data.get("customer") if hasattr(self, "initial_data") else None
         business = self.get_business()
         if self.instance is not None:
             business = self.instance.business

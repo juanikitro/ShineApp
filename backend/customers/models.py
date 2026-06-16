@@ -38,6 +38,8 @@ class Customer(SoftDeleteMixin, TimeStampedModel):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["name"]
+        verbose_name = "cliente"
+        verbose_name_plural = "clientes"
         indexes = [
             models.Index(fields=["business", "name"], name="customer_biz_name_idx"),
         ]
@@ -116,6 +118,8 @@ class Vehicle(SoftDeleteMixin, TimeStampedModel):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["license_plate"]
+        verbose_name = "vehículo"
+        verbose_name_plural = "vehículos"
         indexes = [
             models.Index(fields=["business", "license_plate"], name="vehicle_biz_lp_idx"),
         ]

@@ -55,6 +55,8 @@ class FixedExpense(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-is_active", "concept", "-id"]
+        verbose_name = "gasto fijo"
+        verbose_name_plural = "gastos fijos"
         indexes = [
             models.Index(fields=["business", "is_active"], name="fixexp_biz_active_idx"),
         ]
@@ -134,6 +136,8 @@ class FixedExpenseOccurrence(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-period_date", "-id"]
+        verbose_name = "ocurrencia de gasto fijo"
+        verbose_name_plural = "ocurrencias de gasto fijo"
         indexes = [
             models.Index(fields=["business", "status", "period_date"], name="fixocc_biz_status_dt_idx"),
         ]

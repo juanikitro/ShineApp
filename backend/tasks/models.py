@@ -112,6 +112,8 @@ class Task(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-id"]
+        verbose_name = "tarea"
+        verbose_name_plural = "tareas"
         indexes = [
             models.Index(fields=["business", "status"], name="task_biz_status_idx"),
             models.Index(fields=["business", "assignee"], name="task_biz_assignee_idx"),

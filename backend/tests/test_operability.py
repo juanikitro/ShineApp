@@ -11,7 +11,6 @@ from django.test import override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-
 HEALTH_URL = "/api/health/"
 MAINTENANCE_URL = "/api/internal/maintenance/"
 

@@ -45,7 +45,6 @@ from quotes.models import Quote, QuoteItem
 from scheduling.models import Reservation, ReservationItem
 from scheduling.services import ensure_reservation_work_order
 
-
 DEFAULT_ADMIN_PASSWORD = "admin123"
 DEFAULT_EMPLOYEE_PASSWORD = "empleado123"
 DEFAULT_SUPERADMIN_PASSWORD = "admin123"

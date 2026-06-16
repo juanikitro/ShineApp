@@ -5,7 +5,6 @@ from django.db.models import Sum
 from finance.models import Payment
 from inventory.models import MaterialConsumption, StockMovement
 
-
 ZERO = Decimal("0.00")
 
 

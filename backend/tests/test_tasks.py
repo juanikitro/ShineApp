@@ -7,7 +7,7 @@ from rest_framework.test import APIClient
 
 from core.models import BusinessAccount, UserProfile
 from customers.models import Customer, Vehicle
-from tasks.models import Task, TaskPriority, TaskRecurrence, TaskStatus
+from tasks.models import Task, TaskRecurrence, TaskStatus
 
 
 def _ensure_groups():

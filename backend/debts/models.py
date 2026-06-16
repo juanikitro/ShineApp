@@ -43,6 +43,8 @@ class Debt(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-origin_date", "-id"]
+        verbose_name = "deuda"
+        verbose_name_plural = "deudas"
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(principal_amount__gt=0),
@@ -138,6 +140,8 @@ class DebtPayment(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-paid_at", "-id"]
+        verbose_name = "pago de deuda"
+        verbose_name_plural = "pagos de deuda"
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(amount__gt=0),

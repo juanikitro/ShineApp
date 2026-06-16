@@ -8,8 +8,6 @@ from django.utils import timezone
 from core.soft_delete import SoftDeleteMixin
 
 
-
-
 class Reservation(SoftDeleteMixin):
     class Status(models.TextChoices):
         PENDING = "pending", "Pendiente"
@@ -40,6 +38,8 @@ class Reservation(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["day", "start_time", "id"]
+        verbose_name = "reserva"
+        verbose_name_plural = "reservas"
         indexes = [
             models.Index(
                 fields=["business", "day", "status"],
@@ -237,6 +237,8 @@ class ReservationItem(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["id"]
+        verbose_name = "ítem de reserva"
+        verbose_name_plural = "ítems de reserva"
 
     def save(self, *args, **kwargs):
         self.line_total = self.quantity * self.unit_price

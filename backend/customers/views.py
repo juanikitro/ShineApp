@@ -6,7 +6,12 @@ from django.utils import timezone
 from rest_framework import decorators, response, viewsets
 
 from core.audit import AuditedModelViewSetMixin
-from core.permissions import CanViewEconomy, business_from_request, can_view_economy, scope_queryset_to_business
+from core.permissions import (
+    CanViewEconomy,
+    business_from_request,
+    can_view_economy,
+    scope_queryset_to_business,
+)
 from finance.models import Payment
 from quotes.models import Quote
 from scheduling.models import Reservation

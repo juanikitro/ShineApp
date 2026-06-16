@@ -10,7 +10,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.permissions import business_from_request, can_view_economy
-
 from customers.birthdays import upcoming_birthday_customers
 from customers.models import Customer
 from customers.serializers import CustomerSerializer

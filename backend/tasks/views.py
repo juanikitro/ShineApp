@@ -1,5 +1,6 @@
 from django.db.models import Case, F, IntegerField, Value, When
-from rest_framework import status as http_status, viewsets
+from rest_framework import status as http_status
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -10,7 +11,6 @@ from notifications.service import send_task_assignment_email
 
 from .models import Task, TaskPriority, TaskStatus
 from .serializers import TaskSerializer
-
 
 PRIORITY_ORDER = Case(
     When(priority=TaskPriority.HIGH, then=Value(0)),

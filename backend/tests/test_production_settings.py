@@ -2,7 +2,6 @@ import importlib
 import sys
 import types
 
-
 BASE_PRODUCTION_ENV = {
     "DJANGO_SECRET_KEY": "x" * 64,
     "DJANGO_ALLOWED_HOSTS": "api.shineapp.example",

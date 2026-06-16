@@ -1,7 +1,6 @@
 import logging
 
 from django.db.models import Q
-from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework import generics, status
 from rest_framework.response import Response

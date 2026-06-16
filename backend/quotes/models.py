@@ -1,5 +1,5 @@
 from datetime import timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
@@ -7,7 +7,6 @@ from django.utils import timezone
 
 from core.models import BusinessProfile
 from core.soft_delete import SoftDeleteMixin
-
 
 MONEY_QUANT = Decimal("0.01")
 
@@ -89,6 +88,8 @@ class Quote(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-quote_date", "-id"]
+        verbose_name = "cotización"
+        verbose_name_plural = "cotizaciones"
         indexes = [
             models.Index(fields=["business", "-quote_date"], name="quote_biz_qdate_idx"),
             models.Index(fields=["business", "status"], name="quote_biz_status_idx"),
@@ -218,6 +219,8 @@ class QuoteItem(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["id"]
+        verbose_name = "ítem de cotización"
+        verbose_name_plural = "ítems de cotización"
 
     def save(self, *args, **kwargs):
         self.line_total = quantize_money(self.quantity * self.unit_price)

@@ -14,7 +14,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from catalog.models import Sector, Service
-from catalog.sector_defaults import ensure_default_sectors, SERVICE_TYPE_TO_SECTOR_KEY
+from catalog.sector_defaults import SERVICE_TYPE_TO_SECTOR_KEY, ensure_default_sectors
 from core.models import BusinessAccount, BusinessProfile, UserProfile
 from customers.models import Customer, Vehicle
 from notifications.models import PublicRequest
@@ -719,6 +719,7 @@ def _make_pywebpush_mock():
 @pytest.mark.django_db
 def test_public_request_create_sends_push_to_business_users_with_subscription():
     from django.test import override_settings
+
     from core.models import UserProfile
 
     business = create_business()

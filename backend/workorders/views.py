@@ -10,8 +10,8 @@ from notifications.service import send_work_order_ready
 from scheduling.models import Reservation
 from scheduling.services import ensure_reservation_work_order
 
-from .models import WorkOrder
 from .metrics import build_work_order_financial_metrics
+from .models import WorkOrder
 from .serializers import WorkOrderSerializer
 
 

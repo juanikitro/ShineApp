@@ -24,7 +24,6 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 
 from core.models import BusinessProfile
 
-
 INK = colors.HexColor("#111827")
 MUTED = colors.HexColor("#5f6673")
 LINE = colors.HexColor("#d9dee8")

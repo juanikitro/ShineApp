@@ -39,6 +39,8 @@ class WorkOrder(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-created_at"]
+        verbose_name = "orden de trabajo"
+        verbose_name_plural = "órdenes de trabajo"
         indexes = [
             models.Index(
                 fields=["business", "-created_at"],

@@ -25,7 +25,6 @@ from core.permissions import (
     EmployerOnly,
     business_for_user,
     business_from_request,
-    can_view_economy,
     user_context_payload,
 )
 from notifications.service import send_password_reset_email, send_trial_welcome_email
@@ -135,6 +134,7 @@ class MaintenanceView(APIView):
 
     def post(self, request):
         import secrets as _secrets
+
         from django.conf import settings as _settings
 
         from core.maintenance import run_all
