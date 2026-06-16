@@ -755,6 +755,8 @@ export default function Home() {
 		useState<WorkOrderViewMode>('agenda')
 	const [selectedDay, setSelectedDay] = useState(today)
 	const prevSelectedDayRef = useRef(today)
+	const [cashViewMode, setCashViewMode] = useState<'day' | 'week'>('day')
+	const prevCashViewModeRef = useRef<'day' | 'week'>('day')
 	const [cashSummaryMode, setCashSummaryMode] =
 		useState<CashSummaryMode>('cashflow')
 	const [cashFilters, setCashFilters] =
@@ -2266,7 +2268,7 @@ export default function Home() {
 	}
 
 	async function loadData(options: LoadDataOptions = {}) {
-		const dataScope = { period: options.period ?? period, selectedDay }
+		const dataScope = { period: options.period ?? period, selectedDay, cashViewMode }
 		const keys = dataSetKeysForSection({
 			section: options.section ?? displayedActive,
 			settingsSection: options.settingsSection ?? settingsSection,
@@ -2382,15 +2384,16 @@ export default function Home() {
 
 	useEffect(() => {
 		if (token && currentUser) {
-			if (prevSelectedDayRef.current !== selectedDay) {
+			if (prevSelectedDayRef.current !== selectedDay || prevCashViewModeRef.current !== cashViewMode) {
 				for (const key of [...loadedDataCacheRef.current]) {
 					if (key.startsWith('cash:')) loadedDataCacheRef.current.delete(key)
 				}
 				prevSelectedDayRef.current = selectedDay
+				prevCashViewModeRef.current = cashViewMode
 			}
 			loadData()
 		}
-	}, [currentUser, displayedActive, selectedDay, settingsSection, token])
+	}, [currentUser, displayedActive, selectedDay, cashViewMode, settingsSection, token])
 
 	const prefetchedSectionsRef = useRef<Set<Section>>(new Set())
 	function prefetchSection(section: Section) {
@@ -13653,11 +13656,13 @@ export default function Home() {
 						loadErrorNotice={loadErrorNotice}
 						recordClass={recordClass}
 						renderQuickActionsTrigger={renderQuickActionsTrigger}
+						cashViewMode={cashViewMode}
 						selectedDay={selectedDay}
 						onCashFilterChange={updateCashFilter}
 						onCashQuickFilterChange={setCashQuickFilter}
 						onCashSortChange={setCashSortKey}
 						onCashSummaryModeChange={setCashSummaryMode}
+						onCashViewModeChange={setCashViewMode}
 						onClearCashFilters={() => {
 							setCashFilters(CASH_FILTER_DEFAULTS)
 							setCashQuickFilter('all')

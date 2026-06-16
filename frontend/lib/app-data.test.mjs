@@ -17,7 +17,7 @@ test('dataSetCacheKey scopes dashboard and cash by active date filters', () => {
 		dataSetCacheKey('dashboard', scope),
 		'dashboard:2026-05-01:2026-05-31',
 	)
-	assert.equal(dataSetCacheKey('cash', scope), 'cash:2026-05-20')
+	assert.equal(dataSetCacheKey('cash', scope), 'cash:2026-05-20:day')
 	assert.equal(dataSetCacheKey('customers', scope), 'customers')
 })
 

@@ -15,6 +15,7 @@ from finance.views import (
     CashDailyView,
     CashMovementViewSet,
     CashReopenView,
+    CashWeeklyView,
     PaymentViewSet,
 )
 from fixed_expenses.views import FixedExpenseOccurrenceViewSet, FixedExpenseViewSet
@@ -110,6 +111,7 @@ urlpatterns = [
     ),
     path("api/agenda/daily/", DailyAgendaView.as_view(), name="agenda-daily"),
     path("api/cash/daily/", CashDailyView.as_view(), name="cash-daily"),
+    path("api/cash/weekly/", CashWeeklyView.as_view(), name="cash-weekly"),
     path("api/cash/close/", CashCloseView.as_view(), name="cash-close"),
     path("api/cash/reopen/", CashReopenView.as_view(), name="cash-reopen"),
     path("api/dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
