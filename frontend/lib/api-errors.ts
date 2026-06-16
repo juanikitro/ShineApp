@@ -19,6 +19,7 @@ type NormalizeOptions = {
 type ApiResponseErrorOptions = {
 	status?: number
 	payload?: unknown
+	requestId?: string
 }
 
 const GENERIC_TITLE = 'No se pudo completar la accion'
@@ -97,6 +98,7 @@ const FIELD_LABELS: Record<string, string> = {
 export class ApiResponseError extends Error {
 	status?: number
 	payload?: unknown
+	requestId?: string
 	notice: ApiErrorNotice
 
 	constructor(notice: ApiErrorNotice, options: ApiResponseErrorOptions = {}) {
@@ -105,6 +107,7 @@ export class ApiResponseError extends Error {
 		this.notice = notice
 		this.status = options.status
 		this.payload = options.payload
+		this.requestId = options.requestId
 	}
 }
 

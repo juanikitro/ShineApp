@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Tareas: CSS muerto, tints a tokens y errores inline (2026-06-16)](2026-06-16-tareas-css-muerto-tints-tokens-y-errores-inline.md)
 - [Tareas: accesibilidad, primitives y mobile (2026-06-13)](2026-06-13-tareas-accesibilidad-y-primitives.md)
 - [Performance Capa 2: useMemo en derivaciones caras](2026-06-13-perf-capa2-usememo-derivaciones.md)
 - [Performance Capa 2: Skeletons de carga en paneles faltantes](2026-06-13-perf-capa2-skeletons.md)
@@ -23,12 +24,14 @@ py -3 scripts/check_docs.py --write --skip-build
 - [UX: bloqueo de botones, loaders globales y confirmaciones in-app](2026-06-12-ux-loading-y-bloqueo-de-botones.md)
 - [UI/UX: pasada de consistencia, a11y y estados (2026-06-12)](2026-06-12-ui-audit-fixes.md)
 - [Mejoras al modulo de tareas (UI, interaccion y negocio)](2026-06-12-tareas-mejoras-ui-y-negocio.md)
+- [Endurecimiento de seguridad (auditoría completa, por fases)](2026-06-12-security-hardening.md)
 - [regen-docs: PR en lugar de push directo a main](2026-06-12-regen-docs-via-pr.md)
 - [Performance Capa 1: indices compuestos (business, ...)](2026-06-12-perf-capa1-indices-compuestos.md)
 - [Performance Capa 1: N+1 de Debt (annotate)](2026-06-12-perf-capa1-debt-nplus1.md)
 - [Performance Capa 0: bundle frontend + gzip de API](2026-06-12-perf-capa0-bundle-gzip.md)
 - [Papelera: ver, restaurar y purgar registros borrados](2026-06-12-papelera-restore-borrado-logico.md)
 - [Modulo de tareas para empleadores y empleados](2026-06-12-modulo-tareas.md)
+- [Endurecimiento de operabilidad (observabilidad, async/cron, consistencia)](2026-06-12-endurecimiento-operabilidad.md)
 - [Clientes: badge único de reserva y columnas alineadas](2026-06-12-clientes-listado-badge-y-columnas.md)
 - [UI: card de cliente accesible, sesion expirada y refactor de tokens (2026-06-12)](2026-06-12-card-cliente-accesibilidad-y-tokens.md)
 - [Caja: rediseno de KPIs y metricas consolidadas en dos columnas](2026-06-12-caja-rediseno-kpis-y-metricas-consolidadas.md)

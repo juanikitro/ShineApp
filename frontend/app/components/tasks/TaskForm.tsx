@@ -54,6 +54,7 @@ type TaskFormProps = {
 		recurrence: TaskRecurrence
 	}) => Promise<void> | void
 	onClose: () => void
+	fieldErrors?: Record<string, string>
 }
 
 const PRIORITY_OPTIONS = [
@@ -77,6 +78,7 @@ export function TaskForm({
 	vehicles,
 	onSubmit,
 	onClose,
+	fieldErrors,
 }: TaskFormProps) {
 	const [title, setTitle] = useState(initial?.title ?? '')
 	const [description, setDescription] = useState(initial?.description ?? '')
@@ -147,7 +149,7 @@ export function TaskForm({
 			onClose={onClose}
 		>
 			<form className="task-form" onSubmit={handleSubmit}>
-				<Field label="Titulo" error={titleError}>
+				<Field label="Titulo" error={titleError ?? fieldErrors?.['title']}>
 					<input
 						type="text"
 						value={title}
@@ -157,7 +159,7 @@ export function TaskForm({
 						autoFocus
 					/>
 				</Field>
-				<Field label="Descripcion">
+				<Field label="Descripcion" error={fieldErrors?.['description']}>
 					<textarea
 						value={description ?? ''}
 						onChange={(event) => setDescription(event.target.value)}
@@ -166,14 +168,14 @@ export function TaskForm({
 					/>
 				</Field>
 				<div className="task-form-row">
-					<Field label="Fecha de vencimiento">
+					<Field label="Fecha de vencimiento" error={fieldErrors?.['due_date']}>
 						<input
 							type="date"
 							value={dueDate ?? ''}
 							onChange={(event) => setDueDate(event.target.value)}
 						/>
 					</Field>
-					<Field label="Prioridad">
+					<Field label="Prioridad" error={fieldErrors?.['priority']}>
 						<select
 							value={priority}
 							onChange={(event) =>
@@ -231,7 +233,7 @@ export function TaskForm({
 						) : null}
 					</div>
 				) : null}
-				<Field label="Repeticion">
+				<Field label="Repeticion" error={fieldErrors?.['recurrence']}>
 					<select
 						value={recurrence}
 						onChange={(event) => setRecurrence(event.target.value as TaskRecurrence)}
