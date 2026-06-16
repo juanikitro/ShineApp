@@ -43,6 +43,12 @@ class Debt(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-origin_date", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(principal_amount__gt=0),
+                name="debt_principal_amount_positive",
+            ),
+        ]
         indexes = [
             models.Index(fields=["business", "-origin_date"], name="debt_biz_origin_idx"),
             models.Index(fields=["business", "due_date"], name="debt_biz_due_idx"),
@@ -132,6 +138,12 @@ class DebtPayment(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-paid_at", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0),
+                name="debtpayment_amount_positive",
+            ),
+        ]
         indexes = [
             models.Index(fields=["business", "-paid_at"], name="debtpay_biz_paid_idx"),
         ]

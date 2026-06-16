@@ -19,3 +19,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Plan De Implementacion: Colapsar Sidebar](2026-05-08-sidebar-collapse-implementation-plan.md)
 - [Roadmap SaaS Profesional ShineApp](2026-05-20-roadmap-saas-shineapp.md)
 - [Plan De Implementacion: UX Para Infraestructura Lenta](2026-06-05-ux-infra-lenta-implementation-plan.md)
+- [Plan de refactor de mantenibilidad (2026-06)](2026-06-12-refactor-mantenibilidad.md)

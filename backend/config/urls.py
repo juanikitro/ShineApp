@@ -43,6 +43,7 @@ from .views import (
     HealthCheckView,
     LoginView,
     LogoutView,
+    MaintenanceView,
     MeView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
@@ -77,6 +78,7 @@ router.register("public-requests", PublicRequestViewSet, basename="publicrequest
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", HealthCheckView.as_view(), name="health-check"),
+    path("api/internal/maintenance/", MaintenanceView.as_view(), name="maintenance"),
     path("api/auth/login/", LoginView.as_view(), name="auth-login"),
     path("api/auth/trial-signup/", TrialSignupView.as_view(), name="auth-trial-signup"),
     path("api/auth/logout/", LogoutView.as_view(), name="auth-logout"),

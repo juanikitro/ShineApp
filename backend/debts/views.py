@@ -74,6 +74,21 @@ class DebtPaymentViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     serializer_class = DebtPaymentSerializer
     permission_classes = [CanViewEconomy]
 
+    def perform_create(self, serializer):
+        # Lock de la deuda + revalidacion del saldo bajo lock: evita que dos
+        # pagos concurrentes a la misma deuda superen el saldo (TOCTOU).
+        debt = serializer.validated_data.get("debt")
+        amount = serializer.validated_data.get("amount")
+        with transaction.atomic():
+            if debt is not None:
+                locked = Debt.objects.select_for_update().get(pk=debt.pk)
+                if amount is not None and amount > locked.balance_due:
+                    raise serializers.ValidationError(
+                        {"amount": "El pago no puede superar el saldo pendiente."}
+                    )
+            super().perform_create(serializer)
+
+    @transaction.atomic
     def perform_destroy(self, instance):
         ensure_cash_day_open(instance.paid_at, field="paid_at", business=instance.business)
         super().perform_destroy(instance)

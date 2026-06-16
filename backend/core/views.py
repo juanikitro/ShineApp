@@ -13,7 +13,7 @@ from .permissions import EmployerOnly, business_from_request, scope_queryset_to_
 from .serializers import AuditLogSerializer
 from .trash import get_trash_entry, get_trash_registry
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("shineapp.trash")
 
 
 class AuditLogView(generics.ListAPIView):
@@ -183,11 +183,17 @@ class TrashPurgeView(TrashItemBaseView):
         try:
             instance.hard_delete()
         except Exception:
-            # No exponer str(exc) (puede filtrar nombres de tablas/constraints).
-            logger.warning("Hard delete bloqueado para %s pk=%s", entry_key, pk, exc_info=True)
+            # El detalle tecnico (constraint/tabla) se loguea server-side con
+            # request_id; al cliente solo le llega un mensaje humano + el id.
+            logger.exception(
+                "purge bloqueado por registros relacionados: %s#%s",
+                entity["entity_type"],
+                entity["entity_id"],
+            )
             return Response(
                 {
                     "detail": "No se puede eliminar definitivamente: existen registros relacionados.",
+                    "error_code": "protected_relation",
                 },
                 status=status.HTTP_409_CONFLICT,
             )

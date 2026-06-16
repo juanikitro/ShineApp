@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils import timezone
 
-from .models import PublicRequest, PublicRequestItem
+from .models import NotificationOutbox, PublicRequest, PublicRequestItem
 
 
 class PublicRequestItemInline(admin.TabularInline):
@@ -58,3 +58,39 @@ class PublicRequestAdmin(admin.ModelAdmin):
             updated_at=now,
         )
         self.message_user(request, f"{updated} solicitud(es) archivada(s).")
+
+
+@admin.register(NotificationOutbox)
+class NotificationOutboxAdmin(admin.ModelAdmin):
+    list_display = [
+        "id", "kind", "event", "recipient", "status", "attempts",
+        "business", "created_at", "sent_at",
+    ]
+    list_filter = ["status", "kind", "event", "created_at"]
+    search_fields = ["recipient", "subject", "event", "last_error"]
+    date_hierarchy = "created_at"
+    ordering = ["-created_at", "-id"]
+    list_per_page = 50
+    list_select_related = ["business"]
+    readonly_fields = [
+        "kind", "event", "recipient", "subject", "body", "business",
+        "attempts", "max_attempts", "last_error", "created_at", "updated_at", "sent_at",
+    ]
+    actions = ["retry_selected"]
+
+    def has_add_permission(self, request):
+        return False
+
+    @admin.action(description="Reintentar envio de las notificaciones seleccionadas")
+    def retry_selected(self, request, queryset):
+        from .outbox import _attempt
+
+        sent = 0
+        for entry in queryset.exclude(status=NotificationOutbox.Status.SENT):
+            # Reset de intentos para darle una chance fresca al reintento manual.
+            entry.attempts = 0
+            entry.status = NotificationOutbox.Status.PENDING
+            entry.save(update_fields=["attempts", "status", "updated_at"])
+            if _attempt(entry):
+                sent += 1
+        self.message_user(request, f"{sent} notificacion(es) enviada(s).")

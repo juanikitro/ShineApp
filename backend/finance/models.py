@@ -35,6 +35,12 @@ class Payment(SoftDeleteMixin):
                 name="pay_biz_paid_at_idx",
             ),
         ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0),
+                name="payment_amount_positive",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.work_order_id} - {self.amount}"
@@ -110,6 +116,12 @@ class CashMovement(SoftDeleteMixin):
             models.Index(
                 fields=["business", "-occurred_at"],
                 name="cm_biz_occurred_at_idx",
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gte=0),
+                name="cashmovement_amount_non_negative",
             ),
         ]
 

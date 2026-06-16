@@ -166,7 +166,7 @@ def test_trial_signup_sends_welcome_email_with_correct_data(mailoutbox):
 @pytest.mark.django_db
 def test_trial_signup_returns_201_even_if_smtp_fails():
     """Si el envio del email falla, el signup igual retorna 201 con el token."""
-    with patch("notifications.service.send_mail", side_effect=Exception("SMTP error")):
+    with patch("notifications.outbox.send_mail", side_effect=Exception("SMTP error")):
         response = APIClient().post(
             reverse("auth-trial-signup"),
             trial_payload(email="smtp-fail@kingshine.test"),

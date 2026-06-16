@@ -270,7 +270,9 @@ class CashReopenView(APIView):
     def post(self, request):
         day = date.fromisoformat(request.data.get("date")) if request.data.get("date") else date.today()
         business = business_from_request(request)
-        closure = CashClosure.objects.filter(business=business, day=day).first()
+        # select_for_update evita que dos reaperturas concurrentes borren el
+        # mismo cierre (el bloque ya corre dentro de @transaction.atomic).
+        closure = CashClosure.objects.select_for_update().filter(business=business, day=day).first()
         if not closure:
             raise serializers.ValidationError({"date": "La caja de este dia no esta cerrada."})
         record_audit_event(
