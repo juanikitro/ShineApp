@@ -3106,6 +3106,15 @@
   font-weight: 600;
 }
 
+.date-stepper-week-label {
+  align-items: center;
+  display: flex;
+  font-size: 0.875rem;
+  justify-content: center;
+  min-width: 0;
+  white-space: nowrap;
+}
+
 .cash-status {
   border: 1px solid var(--shop-border);
   border-radius: var(--radius-sm);
