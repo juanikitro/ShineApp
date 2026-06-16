@@ -29,6 +29,8 @@ class Payment(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-paid_at", "-id"]
+        verbose_name = "pago"
+        verbose_name_plural = "pagos"
         indexes = [
             models.Index(
                 fields=["business", "-paid_at"],
@@ -106,6 +108,8 @@ class CashMovement(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-occurred_at", "-id"]
+        verbose_name = "movimiento de caja"
+        verbose_name_plural = "movimientos de caja"
         indexes = [
             models.Index(
                 fields=["business", "-occurred_at"],
@@ -153,6 +157,8 @@ class CashClosure(models.Model):
 
     class Meta:
         ordering = ["-day"]
+        verbose_name = "cierre de caja"
+        verbose_name_plural = "cierres de caja"
         constraints = [
             models.UniqueConstraint(fields=["business", "day"], name="unique_cash_closure_per_business_day"),
         ]

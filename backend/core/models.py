@@ -459,6 +459,8 @@ class AuditLog(models.Model):
 
     class Meta:
         ordering = ["-created_at", "-id"]
+        verbose_name = "registro de auditoría"
+        verbose_name_plural = "registros de auditoría"
         indexes = [
             models.Index(fields=["-created_at"], name="core_auditl_created_49a799_idx"),
             models.Index(fields=["actor", "-created_at"], name="core_auditl_actor_i_010a7d_idx"),
@@ -488,6 +490,8 @@ class PasswordResetToken(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        verbose_name = "token de restablecimiento"
+        verbose_name_plural = "tokens de restablecimiento"
 
     def is_valid(self):
         return not self.used and self.expires_at > timezone.now()

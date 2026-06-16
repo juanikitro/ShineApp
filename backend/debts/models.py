@@ -43,6 +43,8 @@ class Debt(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-origin_date", "-id"]
+        verbose_name = "deuda"
+        verbose_name_plural = "deudas"
         indexes = [
             models.Index(fields=["business", "-origin_date"], name="debt_biz_origin_idx"),
             models.Index(fields=["business", "due_date"], name="debt_biz_due_idx"),
@@ -132,6 +134,8 @@ class DebtPayment(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-paid_at", "-id"]
+        verbose_name = "pago de deuda"
+        verbose_name_plural = "pagos de deuda"
         indexes = [
             models.Index(fields=["business", "-paid_at"], name="debtpay_biz_paid_idx"),
         ]

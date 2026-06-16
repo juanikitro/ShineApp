@@ -89,6 +89,8 @@ class Quote(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-quote_date", "-id"]
+        verbose_name = "cotización"
+        verbose_name_plural = "cotizaciones"
         indexes = [
             models.Index(fields=["business", "-quote_date"], name="quote_biz_qdate_idx"),
             models.Index(fields=["business", "status"], name="quote_biz_status_idx"),
@@ -218,6 +220,8 @@ class QuoteItem(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["id"]
+        verbose_name = "ítem de cotización"
+        verbose_name_plural = "ítems de cotización"
 
     def save(self, *args, **kwargs):
         self.line_total = quantize_money(self.quantity * self.unit_price)

@@ -31,6 +31,8 @@ class Sector(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["order", "name"]
+        verbose_name = "sector"
+        verbose_name_plural = "sectores"
         indexes = [
             models.Index(fields=["business", "is_active"], name="sector_biz_active_idx"),
         ]
@@ -95,6 +97,8 @@ class Service(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["sector__order", "name"]
+        verbose_name = "servicio"
+        verbose_name_plural = "servicios"
         indexes = [
             models.Index(fields=["business", "is_active"], name="service_biz_active_idx"),
         ]
@@ -136,6 +140,8 @@ class ServiceMaterial(models.Model):
 
     class Meta:
         ordering = ["id"]
+        verbose_name = "receta de material"
+        verbose_name_plural = "recetas de materiales"
         unique_together = [("service", "material")]
 
     def __str__(self):

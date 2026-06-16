@@ -25,6 +25,8 @@ class Material(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["name"]
+        verbose_name = "material"
+        verbose_name_plural = "materiales"
         indexes = [
             models.Index(fields=["business", "name"], name="material_biz_name_idx"),
         ]
@@ -143,6 +145,8 @@ class Supplier(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["name"]
+        verbose_name = "proveedor"
+        verbose_name_plural = "proveedores"
 
     def __str__(self):
         return self.name
@@ -192,6 +196,8 @@ class MaterialOpenUnit(models.Model):
 
     class Meta:
         ordering = ["-opened_at", "-id"]
+        verbose_name = "unidad abierta"
+        verbose_name_plural = "unidades abiertas"
 
     def __str__(self):
         return f"{self.material} - unidad {self.id or '-'}"
@@ -239,6 +245,8 @@ class Tool(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["name"]
+        verbose_name = "herramienta"
+        verbose_name_plural = "herramientas"
 
     def __str__(self):
         return self.name
@@ -272,6 +280,8 @@ class MaterialPurchase(models.Model):
 
     class Meta:
         ordering = ["-purchased_at", "-id"]
+        verbose_name = "compra de material"
+        verbose_name_plural = "compras de material"
         indexes = [
             models.Index(fields=["business", "-purchased_at"], name="matpur_biz_purchased_idx"),
         ]
@@ -311,6 +321,8 @@ class MaterialConsumption(models.Model):
 
     class Meta:
         ordering = ["-consumed_at", "-id"]
+        verbose_name = "consumo de material"
+        verbose_name_plural = "consumos de material"
         indexes = [
             models.Index(
                 fields=["business", "-consumed_at"],
@@ -397,6 +409,8 @@ class StockMovement(models.Model):
 
     class Meta:
         ordering = ["-occurred_on", "-id"]
+        verbose_name = "movimiento de stock"
+        verbose_name_plural = "movimientos de stock"
         indexes = [
             models.Index(fields=["business", "-occurred_on"], name="stockmv_biz_occurred_idx"),
             models.Index(fields=["business", "movement_type", "occurred_on"], name="stockmv_biz_type_occ_idx"),
@@ -432,6 +446,8 @@ class StockMovementLine(models.Model):
 
     class Meta:
         ordering = ["id"]
+        verbose_name = "línea de movimiento"
+        verbose_name_plural = "líneas de movimiento"
 
     def __str__(self):
         return f"{self.material} x {self.quantity}"
