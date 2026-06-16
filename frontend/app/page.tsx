@@ -13855,6 +13855,8 @@ export default function Home() {
 						})}
 						currentUser={currentUser}
 						canViewEconomy={canViewEconomy}
+						fieldErrors={formFieldErrors}
+						onFormOpen={() => setError(null)}
 						onCreate={async (payload) => {
 							return await runAction(
 								() =>

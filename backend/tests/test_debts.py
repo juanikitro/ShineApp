@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
@@ -33,7 +34,7 @@ def test_debt_creation_registers_original_expense_and_exposes_balance(api_client
             "concept": "Pulidora",
             "principal_amount": "120000.00",
             "origin_date": "2026-05-07",
-            "due_date": "2026-06-15",
+            "due_date": (timezone.now().date() + timedelta(days=30)).isoformat(),
             "notes": "Compra financiada",
         },
         format="json",

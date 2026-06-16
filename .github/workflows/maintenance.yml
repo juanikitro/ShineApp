@@ -1,0 +1,47 @@
+name: Maintenance
+
+# Dispara el endpoint interno de mantenimiento del backend (jobs idempotentes:
+# flush de la outbox de notificaciones, materializacion de gastos fijos, limpieza
+# de tokens vencidos, reporte/purga de papelera). Reemplaza la falta de workers
+# persistentes en Vercel serverless: la recurrencia y los reintentos corren aca.
+#
+# Requiere el secret de repositorio `CRON_SECRET` (mismo valor que la env var
+# `CRON_SECRET` del proyecto Vercel API). Sin el, el job no hace nada (no falla).
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: shineapp-maintenance
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  run-maintenance:
+    name: Run maintenance jobs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger maintenance endpoint
+        env:
+          API_BASE: ${{ vars.SHINEAPP_API_BASE || 'https://shineapp-api.vercel.app' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "CRON_SECRET no configurado en GitHub; salteando mantenimiento."
+            exit 0
+          fi
+          code=$(curl -sS -o /tmp/maintenance.json -w "%{http_code}" -X POST \
+            -H "X-Cron-Token: ${CRON_SECRET}" \
+            "${API_BASE}/api/internal/maintenance/")
+          echo "HTTP ${code}"
+          cat /tmp/maintenance.json || true
+          echo
+          if [ "${code}" != "200" ]; then
+            echo "::error::El mantenimiento fallo (HTTP ${code})"
+            exit 1
+          fi

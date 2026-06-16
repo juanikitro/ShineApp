@@ -82,15 +82,21 @@ class WorkOrderViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         new_status = "delivered" if request.data.get("status") == "completed" else request.data.get("status")
         allowed = [choice[0] for choice in Reservation.Status.choices]
         if new_status not in allowed:
-            return response.Response({"status": "Estado invalido."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response(
+                {"status": f"Estado invalido. Opciones validas: {', '.join(allowed)}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         before = {"status": order.status}
-        order.reservation.status = new_status
-        order.reservation.save(update_fields=["status", "updated_at"])
-        order.refresh_from_db()
-        if new_status == Reservation.Status.READY:
-            send_work_order_ready(order)
-        if new_status == Reservation.Status.DELIVERED:
-            _apply_service_materials(order)
+        with transaction.atomic():
+            order.reservation.status = new_status
+            order.reservation.save(update_fields=["status", "updated_at"])
+            order.refresh_from_db()
+            if new_status == Reservation.Status.DELIVERED:
+                _apply_service_materials(order)
+            if new_status == Reservation.Status.READY:
+                # El aviso al cliente se encola/envia recien si la transicion
+                # commitea: nunca "listo" en la DB sin haber intentado el email.
+                transaction.on_commit(lambda: send_work_order_ready(order))
         record_audit_event(
             request=request,
             action="status",
