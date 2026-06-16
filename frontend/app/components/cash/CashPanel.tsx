@@ -121,11 +121,13 @@ type CashPanelProps = {
 		actions: QuickAction[],
 		ariaLabel: string,
 	) => ReactNode
+	cashViewMode: 'day' | 'week'
 	selectedDay: string
 	onCashFilterChange: (key: keyof CashFilterState, value: string) => void
 	onCashQuickFilterChange: (value: CashQuickFilter) => void
 	onCashSortChange: (value: CashSortKey) => void
 	onCashSummaryModeChange: (value: CashSummaryMode) => void
+	onCashViewModeChange: (value: 'day' | 'week') => void
 	onClearCashFilters: () => void
 	onCloseDay: () => void
 	onReopenDay: () => void
@@ -152,6 +154,27 @@ const cashSummaryModeOptions: Array<{
 	{ value: 'cashflow', label: 'Flujo de caja' },
 	{ value: 'economic', label: 'Resultado del dia' },
 ]
+
+const cashViewModeOptions: Array<{ value: 'day' | 'week'; label: string }> = [
+	{ value: 'day', label: 'Día' },
+	{ value: 'week', label: 'Semana' },
+]
+
+function weekBounds(day: string): { start: Date; end: Date } {
+	const d = new Date(day + 'T12:00')
+	const start = new Date(d)
+	start.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+	const end = new Date(start)
+	end.setDate(start.getDate() + 6)
+	return { start, end }
+}
+
+function formatWeekLabel(day: string): string {
+	const { start, end } = weekBounds(day)
+	const fmt = (d: Date) =>
+		d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
+	return `${fmt(start)} – ${fmt(end)}`
+}
 
 const cashMovementTypeOptions = [
 	{ value: 'income', label: 'Ingresos' },
@@ -212,11 +235,13 @@ export function CashPanel({
 	loadErrorNotice,
 	recordClass,
 	renderQuickActionsTrigger,
+	cashViewMode,
 	selectedDay,
 	onCashFilterChange,
 	onCashQuickFilterChange,
 	onCashSortChange,
 	onCashSummaryModeChange,
+	onCashViewModeChange,
 	onClearCashFilters,
 	onCloseDay,
 	onReopenDay,
@@ -340,31 +365,43 @@ export function CashPanel({
 		<div className="grid">
 			<section
 				className="panel finance-panel cash-panel"
-				aria-label="Caja diaria"
+				aria-label={cashViewMode === 'week' ? 'Caja semanal' : 'Caja diaria'}
 			>
 				<div className="toolbar toolbar-spaced cash-toolbar">
-					<Field label="Dia">
+					<SegmentedControl
+						ariaLabel="Vista de caja"
+						options={cashViewModeOptions}
+						value={cashViewMode}
+						onChange={onCashViewModeChange}
+					/>
+					<Field label={cashViewMode === 'week' ? 'Semana' : 'Dia'}>
 						<div className="date-stepper">
 							<Button
 								variant="ghost"
 								className="date-stepper-button"
-								onClick={() => onMoveSelectedDay(-1)}
-								aria-label="Ver dia anterior"
+								onClick={() => onMoveSelectedDay(cashViewMode === 'week' ? -7 : -1)}
+								aria-label={cashViewMode === 'week' ? 'Ver semana anterior' : 'Ver dia anterior'}
 							>
 								<ChevronLeft size={16} />
 							</Button>
-							<input
-								type="date"
-								aria-label="Dia de caja"
-								name="cash_day"
-								value={selectedDay}
-								onChange={(event) => onSelectedDayChange(event.target.value)}
-							/>
+							{cashViewMode === 'week' ? (
+								<output className="date-stepper-week-label">
+									{formatWeekLabel(selectedDay)}
+								</output>
+							) : (
+								<input
+									type="date"
+									aria-label="Dia de caja"
+									name="cash_day"
+									value={selectedDay}
+									onChange={(event) => onSelectedDayChange(event.target.value)}
+								/>
+							)}
 							<Button
 								variant="ghost"
 								className="date-stepper-button"
-								onClick={() => onMoveSelectedDay(1)}
-								aria-label="Ver dia siguiente"
+								onClick={() => onMoveSelectedDay(cashViewMode === 'week' ? 7 : 1)}
+								aria-label={cashViewMode === 'week' ? 'Ver semana siguiente' : 'Ver dia siguiente'}
 							>
 								<ChevronRight size={16} />
 							</Button>
@@ -374,50 +411,56 @@ export function CashPanel({
 								onClick={() => onSelectedDayChange(todayStr)}
 								aria-pressed={selectedDay === todayStr}
 							>
-								Hoy
+								{cashViewMode === 'week' ? 'Esta sem.' : 'Hoy'}
 							</Button>
 						</div>
 					</Field>
-					<span
-						className={`cash-status ${cashStatusClass}`}
-						role="status"
-						aria-label={`Caja ${cashStatusLabel.toLowerCase()}`}
-					>
-						{cashStatusLabel}
-					</span>
+					{cashViewMode === 'day' ? (
+						<span
+							className={`cash-status ${cashStatusClass}`}
+							role="status"
+							aria-label={`Caja ${cashStatusLabel.toLowerCase()}`}
+						>
+							{cashStatusLabel}
+						</span>
+					) : null}
 					<div className="finance-action-rail cash-action-rail">
 						<Button
 							variant="primary"
-							disabled={cashIsClosed}
+							disabled={cashViewMode === 'day' && cashIsClosed}
 							onClick={onCreateMovement}
 						>
 							<Plus size={16} />
 							Cargar movimiento
 						</Button>
-						<Button
-							variant="ghost"
-							disabled={cashIsClosed}
-							onClick={onCloseDay}
-						>
-							<LockKeyhole size={16} />
-							Cerrar dia
-						</Button>
-						{cashIsClosed ? (
+						{cashViewMode === 'day' ? (
 							<>
 								<Button
 									variant="ghost"
-									onClick={onRegisterAdjustment}
+									disabled={cashIsClosed}
+									onClick={onCloseDay}
 								>
-									<ReceiptText size={16} />
-									Registrar ajuste hoy
+									<LockKeyhole size={16} />
+									Cerrar dia
 								</Button>
-								<Button
-									variant="ghost"
-									onClick={onReopenDay}
-								>
-									<LockOpen size={16} />
-									Reabrir caja
-								</Button>
+								{cashIsClosed ? (
+									<>
+										<Button
+											variant="ghost"
+											onClick={onRegisterAdjustment}
+										>
+											<ReceiptText size={16} />
+											Registrar ajuste hoy
+										</Button>
+										<Button
+											variant="ghost"
+											onClick={onReopenDay}
+										>
+											<LockOpen size={16} />
+											Reabrir caja
+										</Button>
+									</>
+								) : null}
 							</>
 						) : null}
 					</div>
@@ -438,18 +481,22 @@ export function CashPanel({
 					/>
 				) : null}
 				{!loadBlocked && loading && !cashEntries.length ? (
-					<SkeletonList rows={6} columns={4} label="Cargando caja del dia" />
+					<SkeletonList rows={6} columns={4} label={cashViewMode === 'week' ? 'Cargando caja de la semana' : 'Cargando caja del dia'} />
 				) : null}
 				{!loadBlocked && (!loading || cashEntries.length) ? (
 					<>
 						<div className="info-note">
-							Flujo de caja muestra el dinero que entro o salio hoy: cobros,
-							pagos de deuda, compras, movimientos manuales y ajustes.
-							Resultado del dia cuenta ingresos y gastos sin duplicar pagos de
-							deudas.
-							{cashClosure
-								? ` Cierre guardado: flujo de caja ${money(cashClosure.cashflow_balance ?? cashClosure.balance)}.`
-								: ''}
+							{cashViewMode === 'week'
+								? 'Flujo de caja muestra el dinero que entro o salio en la semana. Resultado de la semana cuenta ingresos y gastos sin duplicar pagos de deudas.'
+								: <>
+									Flujo de caja muestra el dinero que entro o salio hoy: cobros,
+									pagos de deuda, compras, movimientos manuales y ajustes.
+									Resultado del dia cuenta ingresos y gastos sin duplicar pagos de
+									deudas.
+									{cashClosure
+										? ` Cierre guardado: flujo de caja ${money(cashClosure.cashflow_balance ?? cashClosure.balance)}.`
+										: ''}
+								</>}
 						</div>
 						<section className="grid three section-block-end cash-metrics-primary">
 							<div className="metric cash-metric cash-metric--income">
@@ -508,11 +555,11 @@ export function CashPanel({
 								<div className="cash-flow-head">
 									<div>
 										<h3>
-											Flujo de dinero del dia
+											{cashViewMode === 'week' ? 'Flujo de dinero de la semana' : 'Flujo de dinero del dia'}
 											<Info size={16} aria-hidden="true" />
 										</h3>
 										<p>
-											Resumen completo del dia en modo {cashSummaryModeLabel}.
+											Resumen completo {cashViewMode === 'week' ? 'de la semana' : 'del dia'} en modo {cashSummaryModeLabel}.
 											Los filtros de abajo no alteran estos totales.
 										</p>
 									</div>
@@ -785,14 +832,18 @@ export function CashPanel({
 									text={
 										cashEntries.length
 											? 'Sin entradas para los filtros aplicados.'
-											: 'Sin movimientos para el dia.'
+											: cashViewMode === 'week'
+												? 'Sin movimientos en la semana.'
+												: 'Sin movimientos para el dia.'
 									}
 									hint={
 										cashEntries.length
 											? 'Ajusta busqueda, origen, categoria o montos.'
-											: cashIsClosed
-												? 'La caja esta cerrada; si falta un movimiento, registra un ajuste para este dia.'
-												: 'Registra un cobro, pago de deuda o movimiento manual para comenzar.'
+											: cashViewMode === 'week'
+												? 'Registra cobros, pagos de deuda o movimientos manuales para comenzar.'
+												: cashIsClosed
+													? 'La caja esta cerrada; si falta un movimiento, registra un ajuste para este dia.'
+													: 'Registra un cobro, pago de deuda o movimiento manual para comenzar.'
 									}
 									action={
 										cashEntries.length ? undefined : cashIsClosed ? (

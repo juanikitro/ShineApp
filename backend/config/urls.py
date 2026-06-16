@@ -13,7 +13,7 @@ from core.views import AuditLogView, TrashPurgeView, TrashRestoreView, TrashView
 from customers.views import CustomerViewSet, VehicleViewSet
 from dashboard.views import DashboardSummaryView
 from debts.views import DebtPaymentViewSet, DebtViewSet
-from finance.views import CashCloseView, CashDailyView, CashMovementViewSet, CashReopenView, PaymentViewSet
+from finance.views import CashCloseView, CashDailyView, CashMovementViewSet, CashReopenView, CashWeeklyView, PaymentViewSet
 from fixed_expenses.views import FixedExpenseOccurrenceViewSet, FixedExpenseViewSet
 from inventory.views import (
     MaterialConsumptionViewSet,
@@ -104,6 +104,7 @@ urlpatterns = [
     ),
     path("api/agenda/daily/", DailyAgendaView.as_view(), name="agenda-daily"),
     path("api/cash/daily/", CashDailyView.as_view(), name="cash-daily"),
+    path("api/cash/weekly/", CashWeeklyView.as_view(), name="cash-weekly"),
     path("api/cash/close/", CashCloseView.as_view(), name="cash-close"),
     path("api/cash/reopen/", CashReopenView.as_view(), name="cash-reopen"),
     path("api/dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db import transaction
@@ -52,6 +52,34 @@ def cashflow_totals_for_day(day, business):
         Decimal("0.00"),
     )
     debt_payments = DebtPayment.objects.filter(business=business, paid_at=day)
+    expense += decimal_total(debt_payments)
+    return totals_payload(income, expense)
+
+
+def economic_totals_for_range(start, end, business):
+    movements = CashMovement.objects.filter(business=business, occurred_at__date__range=(start, end))
+    income = decimal_total(movements.filter(movement_type=CashMovement.MovementType.INCOME))
+    expense = decimal_total(movements.filter(movement_type=CashMovement.MovementType.EXPENSE))
+    return totals_payload(income, expense)
+
+
+def cashflow_totals_for_range(start, end, business):
+    movements = CashMovement.objects.select_related("payment", "material_purchase", "stock_movement", "debt").filter(
+        business=business,
+        occurred_at__date__range=(start, end),
+    )
+    cash_movements = [
+        movement for movement in movements if CashMovementSerializer().get_cashflow_effect(movement)
+    ]
+    income = sum(
+        (movement.amount for movement in cash_movements if movement.movement_type == CashMovement.MovementType.INCOME),
+        Decimal("0.00"),
+    )
+    expense = sum(
+        (movement.amount for movement in cash_movements if movement.movement_type == CashMovement.MovementType.EXPENSE),
+        Decimal("0.00"),
+    )
+    debt_payments = DebtPayment.objects.filter(business=business, paid_at__range=(start, end))
     expense += decimal_total(debt_payments)
     return totals_payload(income, expense)
 
@@ -120,6 +148,24 @@ def cash_entries_for_day(day, request=None, business=None):
     debt_entries = [
         debt_payment_entry(payment)
         for payment in DebtPayment.objects.select_related("debt__supplier").filter(business=business, paid_at=day)
+    ]
+    return sorted(
+        [*movement_entries, *debt_entries],
+        key=lambda item: str(item.get("occurred_at") or ""),
+        reverse=True,
+    )
+
+
+def cash_entries_for_range(start, end, request=None, business=None):
+    movements = CashMovement.objects.select_related(
+        *CASH_MOVEMENT_SELECT_RELATED
+    ).filter(business=business, occurred_at__date__range=(start, end))
+    movement_entries = CashMovementSerializer(movements, many=True, context={"request": request}).data
+    debt_entries = [
+        debt_payment_entry(payment)
+        for payment in DebtPayment.objects.select_related("debt__supplier").filter(
+            business=business, paid_at__range=(start, end)
+        )
     ]
     return sorted(
         [*movement_entries, *debt_entries],
@@ -236,6 +282,40 @@ class CashDailyView(APIView):
                 "expense_category_tree": expense_category_tree,
             }
         )
+
+
+class CashWeeklyView(APIView):
+    permission_classes = [CanViewEconomy]
+
+    def get(self, request):
+        day = date.fromisoformat(request.query_params.get("date")) if request.query_params.get("date") else date.today()
+        business = business_from_request(request)
+        monday = day - timedelta(days=day.weekday())
+        sunday = monday + timedelta(days=6)
+        sync_past_cash_closures(reference_day=day, user=request.user if request.user.is_authenticated else None, business=business)
+        economic_totals = economic_totals_for_range(monday, sunday, business)
+        cashflow_totals = cashflow_totals_for_range(monday, sunday, business)
+        expense_category_tree = expense_category_tree_for_profile(business)
+        income_category_tree = income_category_tree_for_profile(business)
+        return response.Response({
+            "week_start": monday.isoformat(),
+            "week_end": sunday.isoformat(),
+            "date": day.isoformat(),
+            "income": economic_totals["income"],
+            "expense": economic_totals["expense"],
+            "balance": economic_totals["balance"],
+            "is_closed": False,
+            "closure": None,
+            "entries": cash_entries_for_range(monday, sunday, request=request, business=business),
+            "economic_totals": economic_totals,
+            "cashflow_totals": cashflow_totals,
+            "category_options": {
+                CashMovement.MovementType.INCOME: list(income_category_tree.keys()),
+                CashMovement.MovementType.EXPENSE: list(expense_category_tree.keys()),
+            },
+            "income_category_tree": income_category_tree,
+            "expense_category_tree": expense_category_tree,
+        })
 
 
 class CashCloseView(APIView):

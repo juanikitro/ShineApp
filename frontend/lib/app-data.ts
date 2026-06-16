@@ -8,6 +8,7 @@ export type AppDataScope = {
 		to: string
 	}
 	selectedDay: string
+	cashViewMode?: 'day' | 'week'
 }
 
 export type AppDataLoaders = {
@@ -23,7 +24,7 @@ export function dataSetCacheKey(key: DataSetKey, scope: AppDataScope) {
 	if (key === 'dashboard') {
 		return `${key}:${scope.period.from}:${scope.period.to}`
 	}
-	if (key === 'cash') return `${key}:${scope.selectedDay}`
+	if (key === 'cash') return `${key}:${scope.selectedDay}:${scope.cashViewMode ?? 'day'}`
 	return key
 }
 
@@ -39,7 +40,9 @@ export async function loadAppDataSet(
 			)
 		case 'cash':
 			return loaders.apiFetch<AnyRecord>(
-				`/cash/daily/?date=${scope.selectedDay}`,
+				scope.cashViewMode === 'week'
+					? `/cash/weekly/?date=${scope.selectedDay}`
+					: `/cash/daily/?date=${scope.selectedDay}`,
 			)
 		case 'tasks':
 			return loaders.apiList<AnyRecord>('/tasks/')
