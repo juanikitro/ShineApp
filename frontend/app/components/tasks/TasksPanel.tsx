@@ -94,6 +94,8 @@ type TasksPanelProps = {
 	onDelete: (id: number) => Promise<void>
 	onComplete: (id: number) => Promise<void>
 	onReopen: (id: number) => Promise<void>
+	fieldErrors?: Record<string, string>
+	onFormOpen?: () => void
 }
 
 type EmployerScope = 'assigned' | 'unassigned' | 'all'
@@ -222,6 +224,8 @@ export function TasksPanel({
 	onDelete,
 	onComplete,
 	onReopen,
+	fieldErrors,
+	onFormOpen,
 }: TasksPanelProps) {
 	const [scope, setScope] = useState<EmployerScope>('all')
 	const [employeeView, setEmployeeView] = useState<EmployeeView>('pending')
@@ -675,7 +679,10 @@ export function TasksPanel({
 								type="button"
 								variant="ghost"
 								className="icon-button"
-								onClick={() => setEditing(task)}
+								onClick={() => {
+									onFormOpen?.()
+									setEditing(task)
+								}}
 								aria-label="Editar tarea"
 								title="Editar"
 							>
@@ -749,7 +756,10 @@ export function TasksPanel({
 					<Button
 						type="button"
 						variant="primary"
-						onClick={() => setCreating(true)}
+						onClick={() => {
+							onFormOpen?.()
+							setCreating(true)
+						}}
 					>
 						<Plus size={16} />
 						Nueva tarea
@@ -880,6 +890,7 @@ export function TasksPanel({
 					employees={employeeOptions}
 					customers={customerOptions}
 					vehicles={vehicleOptions}
+					fieldErrors={fieldErrors}
 					onSubmit={handleSubmitCreate}
 					onClose={() => setCreating(false)}
 				/>
@@ -891,6 +902,7 @@ export function TasksPanel({
 					employees={employeeOptions}
 					customers={customerOptions}
 					vehicles={vehicleOptions}
+					fieldErrors={fieldErrors}
 					onSubmit={handleSubmitEdit}
 					onClose={() => setEditing(null)}
 				/>
