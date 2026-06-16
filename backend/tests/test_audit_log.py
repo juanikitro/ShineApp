@@ -10,7 +10,6 @@ from core.models import AuditLog
 from customers.models import Customer, Vehicle
 from scheduling.models import Reservation
 
-
 pytestmark = pytest.mark.django_db(transaction=True)
 
 

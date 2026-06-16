@@ -12,7 +12,6 @@ se asignan a Lavadero para preservar el comportamiento de capacidad actual
 
 from .models import Sector
 
-
 # Sectores que se crean por defecto para cada negocio nuevo.
 DEFAULT_SECTORS = [
     {"key": "lavadero", "name": "Lavadero", "order": 0},

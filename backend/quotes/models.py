@@ -1,5 +1,5 @@
 from datetime import timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
@@ -7,7 +7,6 @@ from django.utils import timezone
 
 from core.models import BusinessProfile
 from core.soft_delete import SoftDeleteMixin
-
 
 MONEY_QUANT = Decimal("0.01")
 

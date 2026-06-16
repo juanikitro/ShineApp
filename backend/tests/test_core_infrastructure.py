@@ -1,14 +1,13 @@
 import pytest
-from django.contrib.auth.models import AnonymousUser, Group
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser, Group
 from django.core.exceptions import DisallowedHost
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import serializers
 
-from core.models import AuditLog
-from core.models import BusinessAccount, UserProfile
+from core.models import AuditLog, BusinessAccount, UserProfile
 from core.permissions import (
     ActiveBusinessUser,
     business_for_user,

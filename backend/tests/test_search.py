@@ -1,15 +1,10 @@
 import pytest
+
 from catalog.models import Service
 from customers.models import Customer, Vehicle
-from debts.models import Debt
 from finance.models import CashMovement
-from fixed_expenses.models import FixedExpense
-from inventory.models import Material, Supplier, Tool
-from quotes.models import Quote
 from scheduling.models import Reservation
 from tasks.models import Task, TaskPriority
-from workorders.models import WorkOrder
-
 
 URL = "/api/search/"
 

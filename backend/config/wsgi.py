@@ -2,7 +2,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-
 # Entrypoint de produccion (Vercel/gunicorn): por defecto usa los settings de
 # produccion. Si DJANGO_SETTINGS_MODULE ya esta seteado, ese valor gana
 # (setdefault). Asi se evita arrancar el servidor productivo con los settings de

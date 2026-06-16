@@ -13,7 +13,6 @@ from inventory.models import Supplier
 from scheduling.models import Reservation
 from workorders.models import WorkOrder
 
-
 pytestmark = pytest.mark.django_db(transaction=True)
 
 

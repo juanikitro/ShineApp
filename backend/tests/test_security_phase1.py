@@ -21,7 +21,6 @@ from core.models import BusinessAccount, BusinessProfile, UserProfile
 from customers.models import Customer, Vehicle
 from inventory.models import Material
 
-
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
 
 

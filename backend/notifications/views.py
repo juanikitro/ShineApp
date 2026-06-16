@@ -14,15 +14,14 @@ from core.request_ip import get_client_ip
 from scheduling.models import Reservation
 
 from .models import PublicRequest
-from .service import send_business_push_notification, send_new_public_request_notification
 from .serializers import (
-    build_public_request_suggestions_map,
     PublicLandingRequestSerializer,
     PublicLandingServiceSerializer,
     PublicRequestConvertSerializer,
     PublicRequestSerializer,
+    build_public_request_suggestions_map,
 )
-
+from .service import send_business_push_notification, send_new_public_request_notification
 
 PUBLIC_REQUESTS_PER_IP_PER_HOUR = 5
 PUBLIC_RECALL_PER_IP = 3

@@ -19,7 +19,6 @@ from .serializers import (
     PayOccurrenceInputSerializer,
 )
 
-
 VALID_METHODS = set(PaymentMethod.values)
 
 

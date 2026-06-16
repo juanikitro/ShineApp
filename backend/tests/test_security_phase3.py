@@ -9,15 +9,12 @@ from datetime import timedelta
 from decimal import Decimal
 
 import pytest
-from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import serializers
-from rest_framework.test import APIClient
 
-from core.models import BusinessAccount, BusinessProfile, UserProfile
+from core.models import BusinessAccount, BusinessProfile
 
 
 def create_business(name, slug):

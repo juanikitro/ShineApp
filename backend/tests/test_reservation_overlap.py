@@ -7,8 +7,8 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from catalog.models import Sector, Service
-from catalog.sector_defaults import ensure_default_sectors, SERVICE_TYPE_TO_SECTOR_KEY
-from core.models import BusinessAccount, BusinessProfile, UserProfile
+from catalog.sector_defaults import SERVICE_TYPE_TO_SECTOR_KEY, ensure_default_sectors
+from core.models import BusinessAccount, BusinessProfile
 from customers.models import Customer, Vehicle
 from scheduling.models import Reservation
 

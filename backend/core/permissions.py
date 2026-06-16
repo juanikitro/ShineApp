@@ -8,7 +8,6 @@ from rest_framework import permissions, serializers
 from core.models import BusinessProfile, UserProfile
 from core.request_context import set_actor
 
-
 EMPLOYER_ROLE = "empleador"
 EMPLOYEE_ROLE = "empleado"
 ROLE_GROUPS = [EMPLOYER_ROLE, EMPLOYEE_ROLE]
@@ -75,7 +74,7 @@ def can_view_economy(user):
     if cached is not None:
         return cached
     allowed = user.groups.filter(name=EMPLOYER_ROLE).exists()
-    setattr(user, "_shineapp_can_view_economy", allowed)
+    user._shineapp_can_view_economy = allowed
     return allowed
 
 

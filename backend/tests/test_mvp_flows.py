@@ -1,11 +1,11 @@
 import base64
+import re
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from io import BytesIO
-import re
 
-import pytest
 import fitz
+import pytest
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings

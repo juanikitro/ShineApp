@@ -2,18 +2,21 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-
 from catalog.views import SectorViewSet, ServiceMaterialViewSet, ServiceViewSet
-from search.views import GlobalSearchView
-
 from core.views import AuditLogView, TrashPurgeView, TrashRestoreView, TrashView
 from customers.views import CustomerViewSet, VehicleViewSet
 from dashboard.views import DashboardSummaryView
 from debts.views import DebtPaymentViewSet, DebtViewSet
-from finance.views import CashCloseView, CashDailyView, CashMovementViewSet, CashReopenView, PaymentViewSet
+from finance.views import (
+    CashCloseView,
+    CashDailyView,
+    CashMovementViewSet,
+    CashReopenView,
+    PaymentViewSet,
+)
 from fixed_expenses.views import FixedExpenseOccurrenceViewSet, FixedExpenseViewSet
 from inventory.views import (
     MaterialConsumptionViewSet,
@@ -24,10 +27,6 @@ from inventory.views import (
     SupplierViewSet,
     ToolViewSet,
 )
-from quotes.views import QuoteViewSet
-from scheduling.views import DailyAgendaView, ReservationViewSet
-from tasks.views import TaskViewSet
-from workorders.views import WorkOrderViewSet
 from notifications.views import (
     PublicLandingAvailabilityView,
     PublicLandingRecallView,
@@ -35,6 +34,11 @@ from notifications.views import (
     PublicLandingView,
     PublicRequestViewSet,
 )
+from quotes.views import QuoteViewSet
+from scheduling.views import DailyAgendaView, ReservationViewSet
+from search.views import GlobalSearchView
+from tasks.views import TaskViewSet
+from workorders.views import WorkOrderViewSet
 
 from .views import (
     BusinessProfileView,

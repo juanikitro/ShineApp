@@ -8,8 +8,6 @@ from django.utils import timezone
 from core.soft_delete import SoftDeleteMixin
 
 
-
-
 class Reservation(SoftDeleteMixin):
     class Status(models.TextChoices):
         PENDING = "pending", "Pendiente"

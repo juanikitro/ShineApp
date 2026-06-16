@@ -1,6 +1,5 @@
 from importlib import import_module
 
-
 BUSINESS_BACKFILL_MIGRATIONS = [
     "core.migrations.0010_businessaccount_multitenancy",
     "catalog.migrations.0003_service_business",

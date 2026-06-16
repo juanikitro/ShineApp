@@ -12,8 +12,7 @@ from rest_framework.test import APIClient
 
 from debts.models import Debt, DebtPayment
 from debts.serializers import DebtPaymentSerializer, DebtSerializer
-from finance.models import CashClosure
-from finance.models import CashMovement
+from finance.models import CashClosure, CashMovement
 
 
 @pytest.fixture

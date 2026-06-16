@@ -4,7 +4,7 @@ import pytest
 from django.urls import reverse
 
 from catalog.models import Service
-from core.models import BusinessAccount, BusinessProfile
+from core.models import BusinessProfile
 from customers.models import Customer, Vehicle
 from scheduling.models import Reservation
 

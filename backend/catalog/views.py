@@ -11,6 +11,7 @@ from core.permissions import CanViewEconomy, EmployerRequiredForUnsafe, business
 from quotes.models import Quote, QuoteItem
 from scheduling.models import Reservation, ReservationItem
 from workorders.models import WorkOrder
+
 from .models import Sector, Service, ServiceMaterial
 from .serializers import SectorSerializer, ServiceMaterialSerializer, ServiceSerializer
 

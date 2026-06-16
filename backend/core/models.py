@@ -1,10 +1,8 @@
 from django.conf import settings
-from django.core.validators import FileExtensionValidator
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
-
 
 PROFILE_ASSET_FILE_VALIDATOR = FileExtensionValidator(
     allowed_extensions=["png", "jpg", "jpeg", "webp", "svg", "pdf"],
