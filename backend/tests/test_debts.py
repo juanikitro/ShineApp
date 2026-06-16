@@ -34,9 +34,7 @@ def test_debt_creation_registers_original_expense_and_exposes_balance(api_client
             "concept": "Pulidora",
             "principal_amount": "120000.00",
             "origin_date": "2026-05-07",
-            # Fecha futura relativa: con un literal pasado el status pasaba a
-            # OVERDUE cuando el reloj cruzaba la fecha y el test se volvia flaky.
-            "due_date": (timezone.localdate() + timedelta(days=30)).isoformat(),
+            "due_date": (timezone.now().date() + timedelta(days=30)).isoformat(),
             "notes": "Compra financiada",
         },
         format="json",

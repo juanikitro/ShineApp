@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-06-16
+- [Tareas: CSS muerto, tints a tokens y errores inline (2026-06-16)](docs/registro/cambios/2026-06-16-tareas-css-muerto-tints-tokens-y-errores-inline.md)
+
 ## 2026-06-13
 - [Tareas: accesibilidad, primitives y mobile (2026-06-13)](docs/registro/cambios/2026-06-13-tareas-accesibilidad-y-primitives.md)
 - [Performance Capa 2: useMemo en derivaciones caras](docs/registro/cambios/2026-06-13-perf-capa2-usememo-derivaciones.md)
