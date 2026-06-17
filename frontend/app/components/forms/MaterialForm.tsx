@@ -6,6 +6,10 @@ import { Package } from 'lucide-react'
 
 import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
+import {
+	SearchSelect,
+	type SelectOption,
+} from '@/app/components/ui/SearchSelect'
 import { type AnyRecord, money } from '@/lib/page-support'
 
 type MaterialFormProps = {
@@ -16,6 +20,7 @@ type MaterialFormProps = {
 	focusNextOnEnter: (
 		key: string,
 	) => (event: KeyboardEvent<HTMLElement>) => void
+	sectors?: AnyRecord[]
 	submitting?: boolean
 	fieldErrors?: Record<string, string>
 }
@@ -26,9 +31,17 @@ export function MaterialForm({
 	setMaterialForm,
 	onSubmit,
 	focusNextOnEnter,
+	sectors = [],
 	submitting = false,
 	fieldErrors,
 }: MaterialFormProps) {
+	const sectorOptions: SelectOption[] = [
+		{ value: '', label: 'Sin sector' },
+		...sectors
+			.filter((s) => s.is_active !== false)
+			.map((s) => ({ value: String(s.id), label: String(s.name ?? '') })),
+	]
+
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
 			<Field label="Nombre" error={fieldErrors?.['name']}>
@@ -46,6 +59,20 @@ export function MaterialForm({
 					onKeyDown={focusNextOnEnter('material.unit')}
 				/>
 			</Field>
+			{sectors.length > 0 && (
+				<SearchSelect
+					label="Sector"
+					value={String(materialForm.sector ?? '')}
+					options={sectorOptions}
+					focusKey="material.sector"
+					onChange={(value) =>
+						setMaterialForm({
+							...materialForm,
+							sector: value ? Number(value) : null,
+						})
+					}
+				/>
+			)}
 			<div className="form-row">
 				<Field label="Unidad" error={fieldErrors?.['unit']}>
 					<input

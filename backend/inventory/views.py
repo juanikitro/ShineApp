@@ -184,6 +184,11 @@ class MaterialViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         search = self.request.query_params.get("search")
         if search:
             queryset = queryset.filter(Q(name__icontains=search) | Q(unit__icontains=search))
+        sector = self.request.query_params.get("sector")
+        if sector == "none":
+            queryset = queryset.filter(sector__isnull=True)
+        elif sector:
+            queryset = queryset.filter(sector_id=sector)
         return queryset
 
     def list(self, request, *args, **kwargs):

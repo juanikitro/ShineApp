@@ -10,6 +10,13 @@ from core.soft_delete import SoftDeleteMixin
 
 class Material(SoftDeleteMixin):
     business = models.ForeignKey("core.BusinessAccount", related_name="materials", on_delete=models.PROTECT)
+    sector = models.ForeignKey(
+        "catalog.Sector",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="materials",
+    )
     name = models.CharField(max_length=140)
     unit = models.CharField(max_length=30)
     category = models.CharField(max_length=80, blank=True)
