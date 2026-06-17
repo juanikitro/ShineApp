@@ -20,8 +20,10 @@ from rest_framework import serializers
 from catalog.sector_defaults import ensure_default_sectors
 from core.models import (
     BusinessAccount,
+    BusinessHours,
     BusinessProfile,
     UserProfile,
+    ensure_business_hours,
     normalize_expense_category_tree,
     normalize_income_category_tree,
 )
@@ -200,6 +202,7 @@ class TrialSignupSerializer(serializers.Serializer):
                 trial_ends_at=trial_ends_at,
             )
             ensure_default_sectors(business)
+            ensure_business_hours(business)
             user = user_model.objects.create_user(
                 username=unique_username_from_email(validated_data["email"]),
                 email=validated_data["email"],
@@ -312,6 +315,12 @@ def validate_category_tree_payload(value, normalizer):
     return normalized
 
 
+class BusinessHoursSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusinessHours
+        fields = ["day_of_week", "is_open", "opening_time", "closing_time"]
+
+
 class BusinessProfileSerializer(serializers.ModelSerializer):
     cuit = serializers.CharField(required=False, allow_blank=True, max_length=32)
     income_category_tree = serializers.JSONField(required=False)
@@ -328,6 +337,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
         source="get_vat_condition_display",
         read_only=True,
     )
+    working_hours = serializers.SerializerMethodField()
 
     class Meta:
         model = BusinessProfile
@@ -373,10 +383,15 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "public_show_service_price",
             "income_category_tree",
             "expense_category_tree",
+            "working_hours",
         ]
 
     def get_logo_url(self, obj):
         return file_url(obj.logo, request=self.context.get("request"))
+
+    def get_working_hours(self, obj):
+        qs = BusinessHours.objects.filter(business=obj.business).order_by("day_of_week")
+        return BusinessHoursSerializer(qs, many=True).data
 
     def validate_logo(self, value):
         return validate_profile_asset_upload(value)

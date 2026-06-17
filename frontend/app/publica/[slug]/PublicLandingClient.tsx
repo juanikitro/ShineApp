@@ -42,6 +42,9 @@ import {
 
 type PublicAvailabilityPayload = {
 	date: string
+	is_working_day: boolean
+	day_opening_time: string | null
+	day_closing_time: string | null
 	allow_overlapping: boolean
 	capacity_enforced: boolean
 	sectors: Array<{
@@ -415,10 +418,11 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 
 	const timeSlots = useMemo(() => {
 		if (!form.preferred_day || form.preferred_day < today) return []
+		if (availability && availability.is_working_day === false) return []
 		const allowOverlap = availability?.allow_overlapping ?? false
 		return buildTimeSlots({
-			openingTime: landing?.business.opening_time ?? null,
-			closingTime: landing?.business.closing_time ?? null,
+			openingTime: availability?.day_opening_time ?? landing?.business.opening_time ?? null,
+			closingTime: availability?.day_closing_time ?? landing?.business.closing_time ?? null,
 			occupied: availability?.occupied ?? [],
 			durationMinutes: selectedServiceDuration,
 			allowOverlap,
@@ -457,7 +461,8 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 		}
 		return issues.length ? issues.join(' ') : null
 	}, [availability, selectedSectors])
-	const blockSubmit = Boolean(capacityWarning) || isPastPreferredDay
+	const isClosedDay = Boolean(form.preferred_day && availability && availability.is_working_day === false)
+	const blockSubmit = Boolean(capacityWarning) || isPastPreferredDay || isClosedDay
 
 	function patchForm(patch: Partial<PublicRequestForm>) {
 		setSuccess(false)
@@ -610,6 +615,11 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 			setErrorNotice(
 				localValidationNotice('La fecha elegida ya paso. Selecciona una fecha igual o posterior a hoy.'),
 			)
+			setSuccess(false)
+			return
+		}
+		if (isClosedDay) {
+			setErrorNotice(localValidationNotice('El negocio no atiende ese dia. Por favor selecciona otra fecha.'))
 			setSuccess(false)
 			return
 		}
@@ -978,6 +988,11 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 								<div className="public-form-error">
 									La fecha elegida ya paso. Selecciona una fecha igual o posterior a
 									hoy.
+								</div>
+							) : null}
+							{isClosedDay ? (
+								<div className="public-form-error">
+									El negocio no atiende ese dia. Por favor selecciona otra fecha.
 								</div>
 							) : null}
 							{availabilityLoading && !isPastPreferredDay ? (

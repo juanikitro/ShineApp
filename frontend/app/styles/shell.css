@@ -1052,6 +1052,62 @@
   margin: 0;
 }
 
+.working-hours-grid {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--shop-border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.working-hours-grid h3 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.working-hours-grid > p {
+  color: var(--shop-ink-muted);
+  font-size: var(--text-base);
+  margin: 0;
+}
+
+.working-hours-rows {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.working-hours-row {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  min-height: 36px;
+}
+
+.working-hours-row .toggle-label {
+  font-weight: 600;
+  min-width: 100px;
+}
+
+.working-hours-times {
+  align-items: flex-end;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.working-hours-times .field {
+  margin: 0;
+}
+
+.working-hours-times input[type="time"] {
+  width: 110px;
+}
+
+.working-hours-closed {
+  color: var(--shop-ink-muted);
+  font-size: var(--text-base);
+}
+
 .usage-reservation-list {
   display: grid;
   gap: 6px;

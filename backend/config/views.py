@@ -16,9 +16,11 @@ from rest_framework.views import APIView
 
 from core.audit import audit_snapshot, record_audit_event
 from core.models import (
+    BusinessHours,
     BusinessProfile,
     PasswordResetToken,
     UserProfile,
+    ensure_business_hours,
 )
 from core.permissions import (
     EMPLOYEE_ROLE,
@@ -30,6 +32,7 @@ from core.permissions import (
 from notifications.service import send_password_reset_email, send_trial_welcome_email
 
 from .serializers import (
+    BusinessHoursSerializer,
     BusinessProfileSerializer,
     EmployeeUserCreateSerializer,
     EmployeeUserSerializer,
@@ -494,6 +497,7 @@ class BusinessProfileView(APIView):
         from scheduling.services import realign_reservations_to_profile
 
         profile = self.get_profile()
+        business = profile.business
         before = audit_snapshot(profile)
         previous_flags = {
             "reservation_use_pending": profile.reservation_use_pending,
@@ -509,7 +513,30 @@ class BusinessProfileView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         profile = serializer.save()
-        realignment = realign_reservations_to_profile(profile.business, profile, previous_flags)
+
+        working_hours_data = request.data.get("working_hours")
+        if isinstance(working_hours_data, list):
+            ensure_business_hours(business)
+            for entry in working_hours_data:
+                day = entry.get("day_of_week")
+                if not isinstance(day, int) or day < 0 or day > 6:
+                    continue
+                hours_serializer = BusinessHoursSerializer(
+                    data={
+                        "day_of_week": day,
+                        "is_open": entry.get("is_open", True),
+                        "opening_time": entry.get("opening_time") or None,
+                        "closing_time": entry.get("closing_time") or None,
+                    }
+                )
+                if hours_serializer.is_valid():
+                    BusinessHours.objects.filter(business=business, day_of_week=day).update(
+                        is_open=hours_serializer.validated_data["is_open"],
+                        opening_time=hours_serializer.validated_data.get("opening_time"),
+                        closing_time=hours_serializer.validated_data.get("closing_time"),
+                    )
+
+        realignment = realign_reservations_to_profile(business, profile, previous_flags)
         record_audit_event(
             request=request,
             action="update",

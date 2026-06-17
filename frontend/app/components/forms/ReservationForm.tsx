@@ -16,9 +16,11 @@ import {
 import { type AnyRecord, money, formatDateLabel } from '@/lib/page-support'
 import {
 	type ScheduleAvailability,
+	type WorkingHoursEntry,
 	buildTimeSlots,
 	computeReservationFormItemsDuration,
 	formatCapacityLabel,
+	getHoursForDate,
 	scheduleAvailabilityForDay,
 	timeToMinutes,
 	todayIsoDate,
@@ -54,6 +56,7 @@ type ReservationFormProps = {
 	allowOverlap: boolean
 	openingTime?: string | null
 	closingTime?: string | null
+	workingHours?: WorkingHoursEntry[]
 	enforceCapacity: boolean
 	sectors: AnyRecord[]
 	services: AnyRecord[]
@@ -90,6 +93,7 @@ export function ReservationForm({
 	allowOverlap,
 	openingTime,
 	closingTime,
+	workingHours,
 	enforceCapacity,
 	sectors,
 	services,
@@ -111,6 +115,17 @@ export function ReservationForm({
 	const today = todayIsoDate()
 	const selectedDay =
 		typeof reservationForm.day === 'string' ? reservationForm.day : ''
+
+	const dayHours = useMemo(
+		() =>
+			selectedDay && workingHours?.length
+				? getHoursForDate(selectedDay, workingHours)
+				: null,
+		[selectedDay, workingHours],
+	)
+	const isNonWorkingDay = dayHours !== null && !dayHours.is_open
+	const effectiveOpeningTime = dayHours?.opening_time ?? openingTime ?? null
+	const effectiveClosingTime = dayHours?.closing_time ?? closingTime ?? null
 	const items = (reservationForm.items ?? []) as AnyRecord[]
 
 	const [reservationDismissed, setReservationDismissed] = useState(false)
@@ -160,13 +175,13 @@ export function ReservationForm({
 	const startTimeSlots = useMemo(
 		() =>
 			buildTimeSlots({
-				openingTime,
-				closingTime,
+				openingTime: effectiveOpeningTime,
+				closingTime: effectiveClosingTime,
 				occupied: availability?.occupied ?? [],
 				durationMinutes: itemsDuration || 60,
 				allowOverlap,
 			}),
-		[allowOverlap, availability, closingTime, itemsDuration, openingTime],
+		[allowOverlap, availability, effectiveClosingTime, effectiveOpeningTime, itemsDuration],
 	)
 	const startTimeMinutes = timeToMinutes(reservationForm.start_time)
 	const exitTimeSlots = useMemo(
@@ -175,12 +190,12 @@ export function ReservationForm({
 				openingTime:
 					startTimeMinutes !== null
 						? reservationForm.start_time
-						: openingTime,
-				closingTime,
+						: effectiveOpeningTime,
+				closingTime: effectiveClosingTime,
 				occupied: [],
 				allowOverlap: true,
 			}),
-		[closingTime, openingTime, reservationForm.start_time, startTimeMinutes],
+		[effectiveClosingTime, effectiveOpeningTime, reservationForm.start_time, startTimeMinutes],
 	)
 	const selectedSectors = useMemo(() => {
 		const sectorById = new Map<number, number>()
@@ -366,6 +381,11 @@ export function ReservationForm({
 					</strong>
 				</div>
 			</div>
+			{isNonWorkingDay ? (
+				<div className="form-notice form-notice--warn">
+					El dia seleccionado es no laborable segun la configuracion del negocio. Igual podes crear la reserva si es necesario.
+				</div>
+			) : null}
 			<div className="form-row">
 				<Field label="Fecha de ingreso (opcional)" error={fieldErrors?.['day']}>
 					<input
