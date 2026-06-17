@@ -12,8 +12,13 @@ from quotes.models import Quote, QuoteItem
 from scheduling.models import Reservation, ReservationItem
 from workorders.models import WorkOrder
 
-from .models import Sector, Service, ServiceMaterial
-from .serializers import SectorSerializer, ServiceMaterialSerializer, ServiceSerializer
+from .models import Sector, Service, ServiceMaterial, ServiceMaterialAlternative
+from .serializers import (
+    SectorSerializer,
+    ServiceMaterialAlternativeSerializer,
+    ServiceMaterialSerializer,
+    ServiceSerializer,
+)
 
 
 class SectorViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
@@ -129,7 +134,7 @@ class ServiceViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     serializer_class = ServiceSerializer
     # prefetch de la receta de materiales: ServiceSerializer anida
     # ServiceMaterialSerializer (lee material.name/unit/estimated_unit_cost).
-    queryset = Service.objects.prefetch_related("materials__material")
+    queryset = Service.objects.prefetch_related("materials__material", "materials__alternatives__alternative_material")
     permission_classes = [permissions.IsAuthenticated, EmployerRequiredForUnsafe]
 
     def get_queryset(self):
@@ -313,6 +318,23 @@ class ServiceViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
                 "recent_quotes": [service_history_quote_row(quote) for quote in recent_quotes],
             }
         )
+
+
+class ServiceMaterialAlternativeViewSet(viewsets.ModelViewSet):
+    serializer_class = ServiceMaterialAlternativeSerializer
+    permission_classes = [permissions.IsAuthenticated, EmployerRequiredForUnsafe]
+
+    def get_queryset(self):
+        business = business_from_request(self.request)
+        qs = ServiceMaterialAlternative.objects.select_related(
+            "alternative_material",
+            "service_material__material",
+            "service_material__service",
+        ).filter(service_material__service__business=business)
+        service_material_id = self.request.query_params.get("service_material")
+        if service_material_id:
+            qs = qs.filter(service_material_id=service_material_id)
+        return qs
 
 
 class ServiceMaterialViewSet(viewsets.ModelViewSet):

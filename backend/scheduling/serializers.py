@@ -9,6 +9,7 @@ from core.serializers import BusinessScopedSerializerMixin
 from .models import (
     Reservation,
     ReservationItem,
+    ReservationMaterialOverride,
 )
 from .services import ensure_reservation_work_order
 
@@ -48,6 +49,39 @@ class ReservationItemSerializer(BusinessScopedSerializerMixin, serializers.Model
         return value
 
 
+class ReservationMaterialOverrideSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
+    default_material_id = serializers.IntegerField(source="service_material.material_id", read_only=True)
+    default_material_name = serializers.CharField(source="service_material.material.name", read_only=True)
+    chosen_material_name = serializers.CharField(source="chosen_material.name", read_only=True)
+
+    class Meta:
+        model = ReservationMaterialOverride
+        fields = [
+            "id",
+            "reservation",
+            "service_material",
+            "default_material_id",
+            "default_material_name",
+            "chosen_material",
+            "chosen_material_name",
+        ]
+        read_only_fields = ["id", "default_material_id", "default_material_name", "chosen_material_name"]
+
+    def validate(self, attrs):
+        service_material = attrs.get("service_material") or getattr(self.instance, "service_material", None)
+        chosen_material = attrs.get("chosen_material") or getattr(self.instance, "chosen_material", None)
+        if service_material and chosen_material:
+            from catalog.models import ServiceMaterialAlternative
+            if not ServiceMaterialAlternative.objects.filter(
+                service_material=service_material,
+                alternative_material=chosen_material,
+            ).exists():
+                raise serializers.ValidationError(
+                    {"chosen_material": "El material elegido no está definido como alternativa del servicio."}
+                )
+        return attrs
+
+
 class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.name", read_only=True)
     vehicle_label = serializers.SerializerMethodField()
@@ -57,6 +91,7 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
     items = ReservationItemSerializer(many=True, required=False)
     work_order = serializers.SerializerMethodField()
     status = serializers.CharField(required=False)
+    material_overrides = ReservationMaterialOverrideSerializer(many=True, read_only=True)
 
     class Meta:
         model = Reservation
@@ -79,6 +114,7 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
             "status",
             "notes",
             "work_order",
+            "material_overrides",
             "created_at",
             "updated_at",
         ]
@@ -89,6 +125,7 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
             "service_name",
             "service_icon",
             "work_order",
+            "material_overrides",
             "created_at",
             "updated_at",
         ]
