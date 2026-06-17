@@ -7,6 +7,7 @@ import { CalendarClock } from 'lucide-react'
 import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { NumericInput } from '@/app/components/ui/NumericInput'
+import { Toggle } from '@/app/components/ui/Toggle'
 import {
 	SearchSelect,
 	type SelectOption,
@@ -226,19 +227,15 @@ export function FixedExpenseForm({
 					}
 				/>
 			</Field>
-			<label className="fixed-expense-toggle">
-				<input
-					type="checkbox"
-					checked={Boolean(fixedExpenseForm.auto_pay)}
-					onChange={(event) =>
-						setFixedExpenseForm({
-							...fixedExpenseForm,
-							auto_pay: event.target.checked,
-						})
-					}
-				/>
-				<span>Pago automatico (debito)</span>
-			</label>
+			<Toggle
+				className="fixed-expense-toggle"
+				checked={Boolean(fixedExpenseForm.auto_pay)}
+				onChange={(checked) =>
+					setFixedExpenseForm({ ...fixedExpenseForm, auto_pay: checked })
+				}
+			>
+				Pago automatico (debito)
+			</Toggle>
 			{fixedExpenseForm.auto_pay ? (
 				<SearchSelect
 					label="Metodo del pago"

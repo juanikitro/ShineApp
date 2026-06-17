@@ -6,6 +6,7 @@ import { Package, Plus, Trash2 } from 'lucide-react'
 
 import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
+import { Toggle } from '@/app/components/ui/Toggle'
 import {
 	SearchSelect,
 	type SelectOption,
@@ -284,32 +285,22 @@ export function StockMovementForm({
 			</div>
 			{stockMovementForm.movement_type === 'purchase' ? (
 				<div className="form-row">
-					<label>
-						<input
-							type="checkbox"
-							checked={stockMovementForm.products_received}
-							onChange={(event) =>
-								setStockMovementForm({
-									...stockMovementForm,
-									products_received: event.target.checked,
-								})
-							}
-						/>
+					<Toggle
+						checked={stockMovementForm.products_received}
+						onChange={(checked) =>
+							setStockMovementForm({ ...stockMovementForm, products_received: checked })
+						}
+					>
 						Productos recibidos
-					</label>
-					<label>
-						<input
-							type="checkbox"
-							checked={stockMovementForm.affects_cash}
-							onChange={(event) =>
-								setStockMovementForm({
-									...stockMovementForm,
-									affects_cash: event.target.checked,
-								})
-							}
-						/>
+					</Toggle>
+					<Toggle
+						checked={stockMovementForm.affects_cash}
+						onChange={(checked) =>
+							setStockMovementForm({ ...stockMovementForm, affects_cash: checked })
+						}
+					>
 						Impacta en caja
-					</label>
+					</Toggle>
 				</div>
 			) : null}
 			{stockMovementForm.movement_type === 'sale' ? (

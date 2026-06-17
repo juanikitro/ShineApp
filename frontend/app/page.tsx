@@ -141,6 +141,7 @@ import { DurationInput } from '@/app/components/ui/DurationInput'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
 import { BirthdayFields } from '@/app/components/ui/BirthdayFields'
 import { Field } from '@/app/components/ui/Field'
+import { Toggle } from '@/app/components/ui/Toggle'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { ModalFrame as Modal } from '@/app/components/ui/ModalFrame'
 import { Panel } from '@/app/components/ui/Panel'
@@ -8574,16 +8575,12 @@ export default function Home() {
 							}
 						/>
 					</Field>
-					<label>
-						<input
-							type="checkbox"
-							checked={data.is_active !== false}
-							onChange={(event) =>
-								updateDetailEdit({ is_active: event.target.checked })
-							}
-						/>
+					<Toggle
+						checked={data.is_active !== false}
+						onChange={(checked) => updateDetailEdit({ is_active: checked })}
+					>
 						Proveedor activo
-					</label>
+					</Toggle>
 					<Field label="Notas internas">
 						<textarea
 							value={data.notes ?? ''}
@@ -9628,18 +9625,12 @@ export default function Home() {
 							)}
 						</strong>
 					</div>
-					<label>
-						<input
-							type="checkbox"
-							checked={Boolean(data.affects_cash)}
-							onChange={(event) =>
-								updateDetailEdit({
-									affects_cash: event.target.checked,
-								})
-							}
-						/>
+					<Toggle
+						checked={Boolean(data.affects_cash)}
+						onChange={(checked) => updateDetailEdit({ affects_cash: checked })}
+					>
 						Impacta en caja
-					</label>
+					</Toggle>
 					<Field label="Observaciones">
 						<textarea
 							value={data.observations ?? ''}
@@ -10971,19 +10962,14 @@ export default function Home() {
 					</strong>
 					{selectedPurchaseMaterial ? ` por ${selectedPurchaseMaterial.unit}` : ''}
 				</div>
-				<label>
-					<input
-						type="checkbox"
-						checked={purchaseForm.affects_cash}
-						onChange={(event) =>
-							setPurchaseForm({
-								...purchaseForm,
-								affects_cash: event.target.checked,
-							})
-						}
-					/>
+				<Toggle
+					checked={purchaseForm.affects_cash}
+					onChange={(checked) =>
+						setPurchaseForm({ ...purchaseForm, affects_cash: checked })
+					}
+				>
 					Impacta en caja
-				</label>
+				</Toggle>
 				<Button type="submit" variant="primary" loading={pendingActions.pending}>
 					{submitLabel}
 				</Button>
@@ -11194,19 +11180,18 @@ export default function Home() {
 						{pastServiceReservations.length ? (
 							<div className="usage-reservation-list">
 								{pastServiceReservations.map((item) => (
-									<label key={item.id}>
-										<input
-											type="checkbox"
-											checked={selectedReservationIds.includes(String(item.id))}
-											onChange={() => toggleReservation(String(item.id))}
-										/>
+									<Toggle
+										key={item.id}
+										checked={selectedReservationIds.includes(String(item.id))}
+										onChange={() => toggleReservation(String(item.id))}
+									>
 										<span>
 											{item.day} - {item.customer_name}
 											{item.vehicle_label ? (
 												<small>{item.vehicle_label}</small>
 											) : null}
 										</span>
-									</label>
+									</Toggle>
 								))}
 							</div>
 						) : (
@@ -11274,19 +11259,14 @@ export default function Home() {
 						{unitCost > 0 ? ` (~${money(consumptionPerService * unitCost)})` : ''}.
 					</div>
 				) : null}
-				<label>
-					<input
-						type="checkbox"
-						checked={Boolean(historicalUsageForm.update_recipe)}
-						onChange={(event) =>
-							setHistoricalUsageForm({
-								...historicalUsageForm,
-								update_recipe: event.target.checked,
-							})
-						}
-					/>{' '}
+				<Toggle
+					checked={Boolean(historicalUsageForm.update_recipe)}
+					onChange={(checked) =>
+						setHistoricalUsageForm({ ...historicalUsageForm, update_recipe: checked })
+					}
+				>
 					Actualizar la receta del servicio con este consumo estimado
-				</label>
+				</Toggle>
 				<Field label="Observaciones">
 					<textarea
 						value={historicalUsageForm.observations}
@@ -12061,21 +12041,19 @@ export default function Home() {
 							{payOccurrenceForm.amount !== '' &&
 							Number(payOccurrenceForm.amount) !==
 								Number(payOccurrenceForm.original_amount) ? (
-								<label>
-									<input
-										type="checkbox"
-										checked={payOccurrenceForm.update_template}
-										onChange={(e) =>
-											setPayOccurrenceForm({
-												...payOccurrenceForm,
-												update_template: e.target.checked,
-											})
-										}
-									/>
-									{' '}Actualizar el monto estimado de la plantilla (
+								<Toggle
+									checked={payOccurrenceForm.update_template}
+									onChange={(checked) =>
+										setPayOccurrenceForm({
+											...payOccurrenceForm,
+											update_template: checked,
+										})
+									}
+								>
+									Actualizar el monto estimado de la plantilla (
 									{money(Number(payOccurrenceForm.original_amount))} →{' '}
 									{money(Number(payOccurrenceForm.amount))})
-								</label>
+								</Toggle>
 							) : null}
 							<Field label="Metodo de pago">
 								<select

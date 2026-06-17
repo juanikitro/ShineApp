@@ -1060,3 +1060,80 @@ td.numeric {
   transition: opacity 160ms ease, filter 160ms ease;
 }
 
+/* ---------- Toggle switch ---------- */
+
+:root {
+  --toggle-off-bg: rgba(17, 24, 39, 0.22);
+}
+
+:root[data-theme='dark'],
+.app-shell[data-theme='dark'] {
+  --toggle-off-bg: rgba(215, 227, 244, 0.28);
+}
+
+.toggle-label {
+  align-items: center;
+  cursor: pointer;
+  display: inline-flex;
+  gap: var(--space-3);
+  user-select: none;
+}
+
+.toggle-label:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.toggle-switch {
+  flex-shrink: 0;
+  position: relative;
+}
+
+.toggle-switch input[type='checkbox'] {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.toggle-track {
+  background: var(--toggle-off-bg);
+  border-radius: var(--radius-full);
+  display: block;
+  height: 22px;
+  position: relative;
+  transition: background 0.18s ease;
+  width: 40px;
+}
+
+.toggle-label:has(input:checked) .toggle-track {
+  background: var(--color-primary);
+}
+
+.toggle-thumb {
+  background: #fff;
+  border-radius: var(--radius-full);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+  height: 18px;
+  left: 2px;
+  position: absolute;
+  top: 2px;
+  transition: transform 0.18s ease;
+  width: 18px;
+}
+
+.toggle-label:has(input:checked) .toggle-thumb {
+  transform: translateX(18px);
+}
+
+.toggle-switch input:focus-visible + .toggle-track {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.toggle-text {
+  line-height: 1.4;
+}
+

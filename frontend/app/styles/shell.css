@@ -967,19 +967,10 @@
   padding: 14px;
 }
 
-.landing-config label:has(input[type='checkbox']) {
-  align-items: center;
+.landing-config .toggle-label {
   color: var(--shop-ink);
   display: flex;
-  flex-direction: row;
   font-weight: 700;
-  gap: 9px;
-}
-
-.landing-config input[type='checkbox'] {
-  height: 18px;
-  min-width: 18px;
-  width: 18px;
 }
 
 .landing-config-url {
@@ -1050,17 +1041,9 @@
   padding: 0;
 }
 
-.turnera-services-list label {
-  align-items: center;
+.turnera-services-list .toggle-label {
   display: flex;
   font-weight: 600;
-  gap: 9px;
-}
-
-.turnera-services-list input[type='checkbox'] {
-  height: 18px;
-  min-width: 18px;
-  width: 18px;
 }
 
 .turnera-services-empty {
@@ -1077,17 +1060,9 @@
   padding-right: 4px;
 }
 
-.usage-reservation-list label {
-  align-items: center;
+.usage-reservation-list .toggle-label {
   cursor: pointer;
   display: flex;
-  gap: 9px;
-}
-
-.usage-reservation-list input[type='checkbox'] {
-  height: 18px;
-  min-width: 18px;
-  width: 18px;
 }
 
 .usage-reservation-list span {
