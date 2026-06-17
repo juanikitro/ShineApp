@@ -4102,6 +4102,31 @@
   font-size: var(--text-xl);
 }
 
+.open-unit-material-info {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.open-unit-material-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.open-unit-material-stats span {
+  color: var(--shop-ink-soft);
+  font-size: var(--text-sm);
+}
+
+.open-unit-material-stats strong {
+  color: var(--shop-ink);
+}
+
+.open-unit-material-disclaimer {
+  color: var(--shop-ink-soft);
+  font-size: var(--text-sm);
+}
+
 .inventory-section-head {
   align-items: center;
   border-top: 1px solid var(--shop-border);
