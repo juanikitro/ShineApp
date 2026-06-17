@@ -4545,6 +4545,64 @@
   margin-bottom: var(--space-3);
 }
 
+.warn-note {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.warn-note__header {
+  align-items: center;
+  color: var(--color-warning);
+  display: flex;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  gap: 6px;
+}
+
+.warn-note__header > span {
+  flex: 1;
+}
+
+.warn-note__close {
+  background: none;
+  border: none;
+  color: var(--color-warning);
+  cursor: pointer;
+  display: flex;
+  padding: 0;
+}
+
+.warn-note__list {
+  display: grid;
+  font-size: var(--text-sm);
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.warn-note__list li {
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  color: var(--shop-ink);
+  padding: 6px 10px;
+}
+
+.warn-note__dismiss {
+  background: none;
+  border: none;
+  color: var(--color-warning);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  justify-self: end;
+  padding: 0;
+  text-decoration: underline;
+}
+
 .error {
   background: var(--color-danger-bg);
   border-color: var(--status-canceled-border);
