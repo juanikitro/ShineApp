@@ -168,3 +168,53 @@ def test_register_usage_requires_at_least_one_reservation(usage_setup):
     )
 
     assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_service_usage_estimates_consumption_per_service(usage_setup):
+    api_client, customer, vehicle, service = usage_setup
+    material = Material.objects.create(
+        name="Esmalte",
+        unit="frasco",
+        stock_quantity=Decimal("10.00"),
+        estimated_unit_cost=Decimal("8000.00"),
+    )
+    reservations = [make_reservation(customer, vehicle, service, date(2026, 5, day)) for day in (1, 2, 3, 4)]
+
+    registered = api_client.post(
+        reverse("materialopenunit-register-usage"),
+        {
+            "material": material.id,
+            "service": service.id,
+            "reservations": [reservation.id for reservation in reservations],
+        },
+        format="json",
+    )
+    assert registered.status_code == 201, registered.data
+
+    response = api_client.get(reverse("material-service-usage"))
+    assert response.status_code == 200
+    rows = response.data["results"]
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["material"] == material.id
+    assert row["service"] == service.id
+    assert row["service_name"] == "Esmaltado"
+    assert row["units_count"] == 1
+    assert row["total_jobs"] == 4
+    # 1 frasco cubrio 4 servicios -> 0,25 por servicio; costo 8000/4 = 2000.
+    assert Decimal(row["estimated_consumption_per_service"]) == Decimal("0.2500")
+    assert Decimal(row["estimated_cost_per_service"]) == Decimal("2000.00")
+    assert Decimal(row["avg_jobs_per_unit"]) == Decimal("4.00")
+    assert Decimal(row["avg_days_per_unit"]) == Decimal("4.00")
+
+
+@pytest.mark.django_db
+def test_service_usage_empty_without_historical_units(usage_setup):
+    api_client, customer, vehicle, service = usage_setup
+    Material.objects.create(name="Esmalte", unit="frasco", stock_quantity=Decimal("3.00"))
+
+    response = api_client.get(reverse("material-service-usage"))
+
+    assert response.status_code == 200
+    assert response.data["results"] == []

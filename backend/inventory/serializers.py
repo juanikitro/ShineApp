@@ -745,6 +745,23 @@ class MaterialUsageBackfillSerializer(BusinessScopedSerializerMixin, serializers
         return open_unit
 
 
+class ServiceUsageRowSerializer(serializers.Serializer):
+    """Consumo estimado de un material por servicio, derivado de las unidades
+    historicas finalizadas (material x servicio)."""
+
+    material = serializers.IntegerField()
+    material_name = serializers.CharField()
+    material_unit = serializers.CharField()
+    service = serializers.IntegerField()
+    service_name = serializers.CharField()
+    units_count = serializers.IntegerField()
+    total_jobs = serializers.IntegerField()
+    estimated_consumption_per_service = serializers.DecimalField(max_digits=12, decimal_places=4)
+    estimated_cost_per_service = serializers.DecimalField(max_digits=12, decimal_places=2)
+    avg_jobs_per_unit = serializers.DecimalField(max_digits=12, decimal_places=2)
+    avg_days_per_unit = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
 class MaterialPurchaseSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     material_name = serializers.CharField(source="material.name", read_only=True)
 
