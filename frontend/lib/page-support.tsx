@@ -81,6 +81,7 @@ type FormModalKind =
 	| 'stock-movement'
 	| 'material-purchase'
 	| 'material-open-unit'
+	| 'material-historical-usage'
 	| 'material-consumption'
 	| 'tool'
 	| 'employee'

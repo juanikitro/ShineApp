@@ -23,6 +23,17 @@ type MaterialUsageSummary = {
 	totalCost: number
 }
 
+type ServiceUsageBucket = {
+	key: string
+	materialName: string
+	materialUnit: string
+	unitCost: number
+	serviceName: string
+	unitsCount: number
+	totalJobs: number
+	totalQuantity: number
+}
+
 type InventoryPanelProps = {
 	inventorySummary: AnyRecord
 	loading?: boolean
@@ -65,6 +76,7 @@ type InventoryPanelProps = {
 	onOpenSupplierDashboard: (item: AnyRecord) => void
 	onOpenSupplierForm: () => void
 	onOpenUnitForMaterial: (item: AnyRecord) => void
+	onOpenHistoricalUsage: () => void
 }
 
 export function InventoryPanel({
@@ -101,6 +113,7 @@ export function InventoryPanel({
 	onOpenSupplierDashboard,
 	onOpenSupplierForm,
 	onOpenUnitForMaterial,
+	onOpenHistoricalUsage,
 }: InventoryPanelProps) {
 	// Map id -> material memoizado para el lookup O(1) de unidades abiertas
 	// (antes .find() por unidad sobre todo el dataset de materiales).
@@ -109,6 +122,45 @@ export function InventoryPanel({
 		for (const item of materials) map.set(String(item.id), item)
 		return map
 	}, [materials])
+
+	// Consumo estimado por servicio, derivado de las unidades historicas
+	// (is_historical) finalizadas: producto total / trabajos cubiertos.
+	const serviceUsageRows = useMemo(() => {
+		const grouped = new Map<string, ServiceUsageBucket>()
+		for (const unit of materialOpenUnits) {
+			if (!unit.is_historical || unit.status !== 'finished' || !unit.service) continue
+			const key = `${unit.material}:${unit.service}`
+			let bucket = grouped.get(key)
+			if (!bucket) {
+				const material = materialsById.get(String(unit.material))
+				bucket = {
+					key,
+					materialName: unit.material_name ?? material?.name ?? 'Material',
+					materialUnit: material?.unit ?? '',
+					unitCost: material ? numberValue(material.estimated_unit_cost) : 0,
+					serviceName: unit.service_name ?? 'Servicio',
+					unitsCount: 0,
+					totalJobs: 0,
+					totalQuantity: 0,
+				}
+				grouped.set(key, bucket)
+			}
+			bucket.unitsCount += 1
+			bucket.totalJobs += numberValue(unit.work_orders_count)
+			bucket.totalQuantity += numberValue(unit.stock_quantity_to_decrement)
+		}
+		return Array.from(grouped.values())
+			.map((bucket) => ({
+				...bucket,
+				consumptionPerService:
+					bucket.totalJobs > 0 ? bucket.totalQuantity / bucket.totalJobs : 0,
+			}))
+			.sort(
+				(a, b) =>
+					String(a.serviceName).localeCompare(String(b.serviceName)) ||
+					String(a.materialName).localeCompare(String(b.materialName)),
+			)
+	}, [materialOpenUnits, materialsById])
 
 	return (
 		<div className="grid">
@@ -128,6 +180,13 @@ export function InventoryPanel({
 						</Button>
 						<Button type="button" variant="ghost" onClick={onOpenSupplierForm}>
 							Proveedor
+						</Button>
+						<Button
+							type="button"
+							variant="ghost"
+							onClick={onOpenHistoricalUsage}
+						>
+							Consumo historico
 						</Button>
 					</div>
 				</div>
@@ -367,6 +426,32 @@ export function InventoryPanel({
 					{materialOpenUnits.length ? null : (
 						<Empty text="Sin unidades abiertas." />
 					)}
+					{serviceUsageRows.map((row) => (
+						<MotionFlashSurface className="record" key={`su-${row.key}`}>
+							<div className="record-head">
+								<div>
+									<div className="record-title">
+										Consumo por servicio - {row.serviceName}
+									</div>
+									<div className="record-sub">
+										{row.materialName}: ~
+										{row.consumptionPerService.toLocaleString('es-AR', {
+											maximumFractionDigits: 3,
+										})}{' '}
+										{row.materialUnit} por servicio
+										{row.unitCost > 0
+											? ` - ${money(row.consumptionPerService * row.unitCost)}`
+											: ''}
+									</div>
+									<div className="record-sub">
+										{row.totalJobs} servicios en {row.unitsCount} unidad
+										{row.unitsCount === 1 ? '' : 'es'} historica
+										{row.unitsCount === 1 ? '' : 's'}
+									</div>
+								</div>
+							</div>
+						</MotionFlashSurface>
+					))}
 					{purchases.slice(0, 5).map((item) => {
 						const quickActions = materialPurchaseQuickActions(item)
 						return (

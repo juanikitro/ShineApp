@@ -939,6 +939,16 @@ export default function Home() {
 		stock_quantity_to_decrement: '1',
 		observations: '',
 	})
+	const [historicalUsageForm, setHistoricalUsageForm] = useState<AnyRecord>({
+		material: '',
+		service: '',
+		reservations: [] as string[],
+		opened_at: '',
+		finished_at: '',
+		stock_quantity_to_decrement: '1',
+		observations: '',
+		update_recipe: false,
+	})
 	const [toolForm, setToolForm] = useState<AnyRecord>({
 		id: '',
 		name: '',
@@ -1622,6 +1632,7 @@ export default function Home() {
 			'stock-movement': 'stock-movement.type',
 			'material-purchase': 'material-purchase.material',
 			'material-open-unit': 'material-open-unit.material',
+			'material-historical-usage': 'material-historical-usage.material',
 			'material-consumption': 'material-consumption.work_order',
 			tool: 'tool.name',
 			employee: 'employee.username',
@@ -7122,6 +7133,20 @@ export default function Home() {
 		setFormModal({ kind: 'material-open-unit' })
 	}
 
+	function openHistoricalUsage(material?: AnyRecord) {
+		setHistoricalUsageForm({
+			material: material ? String(material.id) : '',
+			service: '',
+			reservations: [],
+			opened_at: '',
+			finished_at: '',
+			stock_quantity_to_decrement: '1',
+			observations: '',
+			update_recipe: false,
+		})
+		setFormModal({ kind: 'material-historical-usage' })
+	}
+
 	function customerForRecord(record: AnyRecord | null | undefined) {
 		const customerId =
 			record?.customer ?? record?.customer_id ?? record?.customerId ?? null
@@ -10539,6 +10564,55 @@ export default function Home() {
 		})
 	}
 
+	async function saveHistoricalUsage(event: FormEvent) {
+		event.preventDefault()
+		await runAction(async () => {
+			const payload: AnyRecord = {
+				material: historicalUsageForm.material,
+				service: historicalUsageForm.service,
+				reservations: historicalUsageForm.reservations,
+				stock_quantity_to_decrement:
+					historicalUsageForm.stock_quantity_to_decrement || '1',
+				observations: historicalUsageForm.observations,
+			}
+			if (historicalUsageForm.opened_at) payload.opened_at = historicalUsageForm.opened_at
+			if (historicalUsageForm.finished_at) payload.finished_at = historicalUsageForm.finished_at
+			const created = await apiFetch<AnyRecord>(
+				'/material-open-units/register-usage/',
+				{ method: 'POST', body: JSON.stringify(payload) },
+			)
+			// Volcado opcional a la receta: consumo estimado por servicio de esta unidad.
+			const jobs = numberValue(created?.work_orders_count)
+			const unitQuantity = numberValue(created?.stock_quantity_to_decrement)
+			if (historicalUsageForm.update_recipe && jobs > 0 && unitQuantity > 0) {
+				await apiFetch('/service-materials/upsert/', {
+					method: 'POST',
+					body: JSON.stringify({
+						service: historicalUsageForm.service,
+						material: historicalUsageForm.material,
+						quantity: (unitQuantity / jobs).toFixed(3),
+					}),
+				})
+			}
+			setHistoricalUsageForm({
+				material: '',
+				service: '',
+				reservations: [],
+				opened_at: '',
+				finished_at: '',
+				stock_quantity_to_decrement: '1',
+				observations: '',
+				update_recipe: false,
+			})
+			formModalExit.close()
+			return created
+		}, {
+			flashTarget: (created: AnyRecord) =>
+				recordFlashKey('material-open-unit', created?.id),
+			successTitle: 'Consumo historico registrado',
+		})
+	}
+
 	async function finishOpenUnit(openUnit: AnyRecord) {
 		await runAction(() =>
 			apiFetch(`/material-open-units/${openUnit.id}/finish/`, {
@@ -10995,6 +11069,206 @@ export default function Home() {
 					type="submit"
 					variant="primary"
 					loading={pendingActions.pending}
+					leadingIcon={<Package size={16} />}
+				>
+					{submitLabel}
+				</Button>
+			</form>
+		)
+	}
+
+	function renderHistoricalUsageForm(submitLabel: string) {
+		const selectedMaterial = materials.find(
+			(item) => String(item.id) === historicalUsageForm.material,
+		)
+		const selectedReservationIds: string[] = historicalUsageForm.reservations ?? []
+		const pastServiceReservations = historicalUsageForm.service
+			? reservations
+					.filter(
+						(item) =>
+							String(item.service) === String(historicalUsageForm.service) &&
+							item.status !== 'canceled' &&
+							String(item.day) <= today,
+					)
+					.sort((a, b) => String(b.day).localeCompare(String(a.day)))
+			: []
+		const selectedCount = selectedReservationIds.length
+		const unitQuantity =
+			numberValue(historicalUsageForm.stock_quantity_to_decrement) || 1
+		const consumptionPerService = selectedCount > 0 ? unitQuantity / selectedCount : 0
+		const unitCost = selectedMaterial
+			? numberValue(selectedMaterial.estimated_unit_cost)
+			: 0
+		const materialUnit = selectedMaterial?.unit ?? 'unidad'
+
+		function toggleReservation(id: string) {
+			const set = new Set(selectedReservationIds)
+			if (set.has(id)) set.delete(id)
+			else set.add(id)
+			const nextIds = Array.from(set)
+			const days = (nextIds
+				.map((rid) => reservations.find((item) => String(item.id) === rid)?.day)
+				.filter(Boolean) as string[]).sort()
+			setHistoricalUsageForm({
+				...historicalUsageForm,
+				reservations: nextIds,
+				opened_at: days.length ? days[0] : '',
+				finished_at: days.length ? days[days.length - 1] : '',
+			})
+		}
+
+		return (
+			<form className="form-grid" onSubmit={saveHistoricalUsage}>
+				<div className="info-note">
+					Registra una unidad ya consumida en el pasado: elegi el producto, el
+					servicio y las reservas donde lo usaste. Calcula el rendimiento por
+					servicio y no descuenta stock actual.
+				</div>
+				<SearchSelect
+					label="Producto"
+					value={historicalUsageForm.material}
+					options={materialOptions}
+					focusKey="material-historical-usage.material"
+					onChange={(value) =>
+						setHistoricalUsageForm({ ...historicalUsageForm, material: value })
+					}
+				/>
+				<SearchSelect
+					label="Servicio"
+					value={historicalUsageForm.service}
+					options={serviceOptions}
+					placeholder="Elegi un servicio"
+					focusKey="material-historical-usage.service"
+					onChange={(value) =>
+						setHistoricalUsageForm({
+							...historicalUsageForm,
+							service: value,
+							reservations: [],
+							opened_at: '',
+							finished_at: '',
+						})
+					}
+				/>
+				{historicalUsageForm.service ? (
+					<Field
+						label={`Reservas pasadas de este servicio (${selectedCount} elegidas)`}
+					>
+						{pastServiceReservations.length ? (
+							<div className="usage-reservation-list">
+								{pastServiceReservations.map((item) => (
+									<label key={item.id}>
+										<input
+											type="checkbox"
+											checked={selectedReservationIds.includes(String(item.id))}
+											onChange={() => toggleReservation(String(item.id))}
+										/>
+										<span>
+											{item.day} - {item.customer_name}
+											{item.vehicle_label ? (
+												<small>{item.vehicle_label}</small>
+											) : null}
+										</span>
+									</label>
+								))}
+							</div>
+						) : (
+							<div className="info-note">
+								No hay reservas pasadas de este servicio.
+							</div>
+						)}
+					</Field>
+				) : null}
+				<div className="form-row">
+					<Field label="Apertura">
+						<input
+							type="date"
+							value={historicalUsageForm.opened_at}
+							onChange={(event) =>
+								setHistoricalUsageForm({
+									...historicalUsageForm,
+									opened_at: event.target.value,
+								})
+							}
+						/>
+					</Field>
+					<Field label="Cierre">
+						<input
+							type="date"
+							value={historicalUsageForm.finished_at}
+							onChange={(event) =>
+								setHistoricalUsageForm({
+									...historicalUsageForm,
+									finished_at: event.target.value,
+								})
+							}
+						/>
+					</Field>
+				</div>
+				<Field label="Cantidad de producto usada (unidades)">
+					<input
+						type="number"
+						min="0"
+						step="0.01"
+						value={historicalUsageForm.stock_quantity_to_decrement}
+						onChange={(event) =>
+							setHistoricalUsageForm({
+								...historicalUsageForm,
+								stock_quantity_to_decrement: event.target.value,
+							})
+						}
+					/>
+				</Field>
+				{selectedCount > 0 ? (
+					<div className="info-note">
+						Rendimiento estimado:{' '}
+						<strong>
+							{unitQuantity.toLocaleString('es-AR', {
+								maximumFractionDigits: 2,
+							})}{' '}
+							{materialUnit} en {selectedCount} servicio
+							{selectedCount === 1 ? '' : 's'}
+						</strong>
+						. Cada servicio gasta ~
+						{consumptionPerService.toLocaleString('es-AR', {
+							maximumFractionDigits: 3,
+						})}{' '}
+						{materialUnit}
+						{unitCost > 0 ? ` (~${money(consumptionPerService * unitCost)})` : ''}.
+					</div>
+				) : null}
+				<label>
+					<input
+						type="checkbox"
+						checked={Boolean(historicalUsageForm.update_recipe)}
+						onChange={(event) =>
+							setHistoricalUsageForm({
+								...historicalUsageForm,
+								update_recipe: event.target.checked,
+							})
+						}
+					/>{' '}
+					Actualizar la receta del servicio con este consumo estimado
+				</label>
+				<Field label="Observaciones">
+					<textarea
+						value={historicalUsageForm.observations}
+						onChange={(event) =>
+							setHistoricalUsageForm({
+								...historicalUsageForm,
+								observations: event.target.value,
+							})
+						}
+					/>
+				</Field>
+				<Button
+					type="submit"
+					variant="primary"
+					loading={pendingActions.pending}
+					disabled={
+						!historicalUsageForm.material ||
+						!historicalUsageForm.service ||
+						selectedCount === 0
+					}
 					leadingIcon={<Package size={16} />}
 				>
 					{submitLabel}
@@ -11911,6 +12185,15 @@ export default function Home() {
 						onClose={formModalExit.close}
 					>
 						{renderOpenUnitForm('Abrir unidad')}
+					</Modal>
+				) : null}
+				{canViewEconomy && formModal?.kind === 'material-historical-usage' ? (
+					<Modal
+						key="form-material-historical-usage"
+						title="Registrar consumo historico"
+						onClose={formModalExit.close}
+					>
+						{renderHistoricalUsageForm('Registrar consumo')}
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'material-consumption' ? (
@@ -13789,6 +14072,7 @@ export default function Home() {
 						onOpenSupplierDashboard={openSupplierDashboard}
 						onOpenSupplierForm={() => openFormModal('supplier')}
 						onOpenUnitForMaterial={openUnitForMaterial}
+						onOpenHistoricalUsage={() => openHistoricalUsage()}
 					/>
 				) : null}
 
