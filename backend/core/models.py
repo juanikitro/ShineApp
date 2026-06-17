@@ -353,6 +353,47 @@ class BusinessProfile(models.Model):
         return getattr(settings, "BUSINESS_NAME", "ShineApp")
 
 
+class BusinessHours(models.Model):
+    DAY_CHOICES = [
+        (0, "Lunes"),
+        (1, "Martes"),
+        (2, "Miercoles"),
+        (3, "Jueves"),
+        (4, "Viernes"),
+        (5, "Sabado"),
+        (6, "Domingo"),
+    ]
+
+    business = models.ForeignKey(
+        BusinessAccount,
+        on_delete=models.CASCADE,
+        related_name="working_hours",
+    )
+    day_of_week = models.SmallIntegerField(choices=DAY_CHOICES)
+    is_open = models.BooleanField(default=True)
+    opening_time = models.TimeField(null=True, blank=True)
+    closing_time = models.TimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = [("business", "day_of_week")]
+        ordering = ["day_of_week"]
+        verbose_name = "horario del negocio"
+        verbose_name_plural = "horarios del negocio"
+
+    def __str__(self):
+        return f"{self.get_day_of_week_display()} - {'Abierto' if self.is_open else 'Cerrado'}"
+
+
+def ensure_business_hours(business):
+    """Create default working hours (Mon-Sat open, Sun closed) if not present."""
+    for day_of_week in range(7):
+        BusinessHours.objects.get_or_create(
+            business=business,
+            day_of_week=day_of_week,
+            defaults={"is_open": day_of_week < 6},
+        )
+
+
 class UserProfile(models.Model):
     class PhoneCountryCode(models.TextChoices):
         ARGENTINA = "+54", "Argentina (+54)"

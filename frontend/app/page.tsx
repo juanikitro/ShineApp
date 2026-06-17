@@ -211,6 +211,11 @@ import {
 	type AgendaReservationAction,
 } from '@/lib/reservation-actions'
 import {
+	type WorkingHoursEntry,
+	DEFAULT_WORKING_HOURS,
+	getHoursForDate,
+} from '@/lib/scheduling-availability'
+import {
 	buildWorkStatusColumns,
 	filterFreeQuotesBySector,
 	groupReservationsByEntryDate,
@@ -1508,6 +1513,9 @@ export default function Home() {
 					closing_time: profile.closing_time
 						? String(profile.closing_time)
 						: null,
+					working_hours: Array.isArray(profile.working_hours) && profile.working_hours.length === 7
+						? (profile.working_hours as WorkingHoursEntry[])
+						: DEFAULT_WORKING_HOURS,
 					income_category_tree: normalizeIncomeCategoryTree(
 						profile.income_category_tree,
 					),
@@ -3510,6 +3518,9 @@ export default function Home() {
 		const isToday = day === currentDay
 		const isSelected = selectedDay === day
 		const fullDateLabel = formatFullDateLabel(day)
+		const wh = businessForm.working_hours as WorkingHoursEntry[] | undefined
+		const dayHoursEntry = wh?.length ? getHoursForDate(day, wh) : null
+		const isNonWorkingDay = dayHoursEntry !== null && !dayHoursEntry?.is_open
 
 		return (
 			<button
@@ -3518,6 +3529,7 @@ export default function Home() {
 					'agenda-day-head',
 					isToday && 'agenda-day-head--today',
 					isSelected && 'agenda-day-head--active',
+					isNonWorkingDay && 'agenda-day-head--closed',
 					hiddenDuringEnter && 'agenda-entering-overlap-hidden',
 				)}
 				style={agendaColumnStyle(column)}
@@ -3534,6 +3546,9 @@ export default function Home() {
 							{formatDayName(day)} {formatDayLabel(day)}
 							{isToday ? (
 								<strong className="day-row-today-badge">Hoy</strong>
+							) : null}
+							{isNonWorkingDay ? (
+								<span className="agenda-day-closed-badge">Cerrado</span>
 							) : null}
 						</span>
 						<span className="agenda-day-count">
@@ -12344,6 +12359,7 @@ export default function Home() {
 							}
 							openingTime={businessForm.opening_time as string | null}
 							closingTime={businessForm.closing_time as string | null}
+							workingHours={businessForm.working_hours as WorkingHoursEntry[] | undefined}
 							enforceCapacity={
 								businessForm.enforce_capacity_limit !== false
 							}

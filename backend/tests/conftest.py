@@ -3,7 +3,7 @@ from django.contrib.auth.models import Group
 from rest_framework.test import APIClient
 
 from catalog.sector_defaults import ensure_default_sectors
-from core.models import BusinessAccount, BusinessProfile, UserProfile
+from core.models import BusinessAccount, BusinessProfile, UserProfile, ensure_business_hours
 
 
 @pytest.fixture
@@ -11,6 +11,7 @@ def default_business(db):
     business = BusinessAccount.get_default()
     BusinessProfile.get_solo(business=business)
     ensure_default_sectors(business)
+    ensure_business_hours(business)
     return business
 
 
