@@ -2,21 +2,21 @@ from datetime import date
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
-from rest_framework import decorators, response, status, viewsets
+from rest_framework import decorators, permissions, response, status, viewsets
 from rest_framework.views import APIView
 
 from catalog.models import Sector
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
 from core.models import BusinessHours, BusinessProfile
-from core.permissions import business_from_request
+from core.permissions import EmployerRequiredForUnsafe, business_from_request
 from finance.cash import cash_day, ensure_cash_day_open
 from notifications.service import send_public_request_push, send_reservation_confirmation
 from quotes.models import Quote, QuoteItem
 from quotes.serializers import QuoteSerializer
 from workorders.metrics import build_work_order_financial_metrics
 
-from .models import Reservation
-from .serializers import ReservationSerializer
+from .models import Reservation, ReservationMaterialOverride
+from .serializers import ReservationMaterialOverrideSerializer, ReservationSerializer
 from .services import ensure_reservation_work_order
 
 
@@ -30,6 +30,22 @@ def work_orders_for_reservations(reservations):
     return work_orders
 
 
+class ReservationMaterialOverrideViewSet(viewsets.ModelViewSet):
+    serializer_class = ReservationMaterialOverrideSerializer
+    permission_classes = [permissions.IsAuthenticated, EmployerRequiredForUnsafe]
+
+    def get_queryset(self):
+        business = business_from_request(self.request)
+        qs = ReservationMaterialOverride.objects.select_related(
+            "chosen_material",
+            "service_material__material",
+        ).filter(reservation__business=business)
+        reservation_id = self.request.query_params.get("reservation")
+        if reservation_id:
+            qs = qs.filter(reservation_id=reservation_id)
+        return qs
+
+
 class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     audit_side_effects = ("ensure_reservation_work_order",)
     queryset = Reservation.objects.select_related(
@@ -40,7 +56,12 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         "work_order__customer",
         "work_order__vehicle",
         "work_order__service",
-    ).prefetch_related("items", "items__service").all()
+    ).prefetch_related(
+        "items",
+        "items__service",
+        "material_overrides__service_material__material",
+        "material_overrides__chosen_material",
+    ).all()
     serializer_class = ReservationSerializer
 
     def get_serializer_context(self):

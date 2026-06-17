@@ -5,7 +5,12 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
-from catalog.views import SectorViewSet, ServiceMaterialViewSet, ServiceViewSet
+from catalog.views import (
+    SectorViewSet,
+    ServiceMaterialAlternativeViewSet,
+    ServiceMaterialViewSet,
+    ServiceViewSet,
+)
 from core.views import AuditLogView, TrashPurgeView, TrashRestoreView, TrashView
 from customers.views import CustomerViewSet, VehicleViewSet
 from dashboard.views import DashboardSummaryView
@@ -36,7 +41,7 @@ from notifications.views import (
     PublicRequestViewSet,
 )
 from quotes.views import QuoteViewSet
-from scheduling.views import DailyAgendaView, ReservationViewSet
+from scheduling.views import DailyAgendaView, ReservationMaterialOverrideViewSet, ReservationViewSet
 from search.views import GlobalSearchView
 from tasks.views import TaskViewSet
 from workorders.views import WorkOrderViewSet
@@ -60,8 +65,10 @@ router.register("customers", CustomerViewSet, basename="customer")
 router.register("vehicles", VehicleViewSet, basename="vehicle")
 router.register("services", ServiceViewSet, basename="service")
 router.register("service-materials", ServiceMaterialViewSet, basename="servicematerial")
+router.register("service-material-alternatives", ServiceMaterialAlternativeViewSet, basename="servicematerialalternative")
 router.register("sectors", SectorViewSet, basename="sector")
 router.register("reservations", ReservationViewSet, basename="reservation")
+router.register("reservation-material-overrides", ReservationMaterialOverrideViewSet, basename="reservationmaterialoverride")
 router.register("work-orders", WorkOrderViewSet, basename="workorder")
 router.register("payments", PaymentViewSet, basename="payment")
 router.register("cash-movements", CashMovementViewSet, basename="cashmovement")

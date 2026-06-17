@@ -227,6 +227,47 @@ class Reservation(SoftDeleteMixin):
         return queryset.count()
 
 
+class ReservationMaterialOverride(models.Model):
+    """Reemplazo de material para una reserva específica.
+
+    Permite usar un material alternativo (definido en ServiceMaterialAlternative)
+    en lugar del material por defecto del slot de la receta del servicio.
+    """
+
+    reservation = models.ForeignKey(
+        Reservation,
+        related_name="material_overrides",
+        on_delete=models.CASCADE,
+    )
+    service_material = models.ForeignKey(
+        "catalog.ServiceMaterial",
+        related_name="reservation_overrides",
+        on_delete=models.CASCADE,
+    )
+    chosen_material = models.ForeignKey(
+        "inventory.Material",
+        related_name="reservation_overrides",
+        on_delete=models.PROTECT,
+    )
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "reemplazo de material en reserva"
+        verbose_name_plural = "reemplazos de material en reserva"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["reservation", "service_material"],
+                name="uniq_rmo_per_reservation_slot",
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"Reserva {self.reservation_id}: "
+            f"{self.service_material.material.name} → {self.chosen_material.name}"
+        )
+
+
 class ReservationItem(SoftDeleteMixin):
     reservation = models.ForeignKey(Reservation, related_name="items", on_delete=models.CASCADE)
     service = models.ForeignKey("catalog.Service", null=True, blank=True, on_delete=models.SET_NULL)

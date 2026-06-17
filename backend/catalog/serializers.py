@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from core.serializers import BusinessScopedSerializerMixin
 
-from .models import Sector, Service, ServiceMaterial
+from .models import Sector, Service, ServiceMaterial, ServiceMaterialAlternative
 
 PRICE_BY_TYPE_FIELDS = ["price_moto", "price_auto", "price_camioneta", "price_combi", "price_camion"]
 
@@ -55,17 +55,71 @@ class SectorSerializer(BusinessScopedSerializerMixin, serializers.ModelSerialize
         return attrs
 
 
+class ServiceMaterialAlternativeSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
+    alternative_material_name = serializers.CharField(source="alternative_material.name", read_only=True)
+    alternative_material_unit = serializers.CharField(source="alternative_material.unit", read_only=True)
+    alternative_material_unit_cost = serializers.DecimalField(
+        source="alternative_material.estimated_unit_cost", max_digits=12, decimal_places=2, read_only=True
+    )
+
+    class Meta:
+        model = ServiceMaterialAlternative
+        fields = [
+            "id",
+            "service_material",
+            "alternative_material",
+            "alternative_material_name",
+            "alternative_material_unit",
+            "alternative_material_unit_cost",
+            "notes",
+        ]
+        read_only_fields = [
+            "id",
+            "alternative_material_name",
+            "alternative_material_unit",
+            "alternative_material_unit_cost",
+        ]
+
+    def validate(self, attrs):
+        service_material = attrs.get("service_material") or getattr(self.instance, "service_material", None)
+        alternative_material = attrs.get("alternative_material") or getattr(self.instance, "alternative_material", None)
+        self.validate_same_business(
+            service_material.service if service_material else None,
+            alternative_material,
+        )
+        if (
+            service_material
+            and alternative_material
+            and service_material.material_id == alternative_material.id
+        ):
+            raise serializers.ValidationError(
+                {"alternative_material": "El material alternativo no puede ser el mismo que el por defecto."}
+            )
+        return attrs
+
+
 class ServiceMaterialSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     material_name = serializers.CharField(source="material.name", read_only=True)
     material_unit = serializers.CharField(source="material.unit", read_only=True)
     material_unit_cost = serializers.DecimalField(
         source="material.estimated_unit_cost", max_digits=12, decimal_places=2, read_only=True
     )
+    alternatives = ServiceMaterialAlternativeSerializer(many=True, read_only=True)
 
     class Meta:
         model = ServiceMaterial
-        fields = ["id", "service", "material", "material_name", "material_unit", "material_unit_cost", "quantity", "notes"]
-        read_only_fields = ["id", "material_name", "material_unit", "material_unit_cost"]
+        fields = [
+            "id",
+            "service",
+            "material",
+            "material_name",
+            "material_unit",
+            "material_unit_cost",
+            "quantity",
+            "notes",
+            "alternatives",
+        ]
+        read_only_fields = ["id", "material_name", "material_unit", "material_unit_cost", "alternatives"]
 
     def validate_quantity(self, value):
         if value <= 0:

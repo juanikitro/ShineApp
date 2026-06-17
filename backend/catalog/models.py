@@ -146,3 +146,37 @@ class ServiceMaterial(models.Model):
 
     def __str__(self):
         return f"{self.service.name} — {self.material.name} x{self.quantity}"
+
+
+class ServiceMaterialAlternative(models.Model):
+    """Alternativa explícita para un slot de receta de servicio.
+
+    Solo los materiales aquí listados pueden usarse como reemplazo
+    del material por defecto en una reserva concreta.
+    """
+
+    service_material = models.ForeignKey(
+        ServiceMaterial,
+        related_name="alternatives",
+        on_delete=models.CASCADE,
+    )
+    alternative_material = models.ForeignKey(
+        "inventory.Material",
+        related_name="service_alternatives",
+        on_delete=models.CASCADE,
+    )
+    notes = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "alternativa de material"
+        verbose_name_plural = "alternativas de material"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["service_material", "alternative_material"],
+                name="uniq_sma_per_recipe",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.service_material} → {self.alternative_material.name}"

@@ -13,6 +13,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ## 2026-06-17
 - [Sistema de alerta de duplicados](docs/registro/cambios/2026-06-17-sistema-anti-duplicados.md)
 - [Material: asignación de sector](docs/registro/cambios/2026-06-17-material-sector.md)
+- [Alternativas de material por servicio y override por reserva](docs/registro/cambios/2026-06-17-material-alternatives.md)
 - [Consumo de producto por servicio: registro historico (2026-06-17)](docs/registro/cambios/2026-06-17-consumo-de-producto-por-servicio.md)
 
 ## 2026-06-16
