@@ -1,9 +1,10 @@
 ﻿'use client'
 
-import { type FormEvent, type KeyboardEvent } from 'react'
+import { type FormEvent, type KeyboardEvent, useEffect, useState } from 'react'
 
 import { ReceiptText } from 'lucide-react'
 
+import { DuplicateWarning } from '@/app/components/DuplicateWarning'
 import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { NumericInput } from '@/app/components/ui/NumericInput'
@@ -11,6 +12,7 @@ import {
 	SearchSelect,
 	type SelectOption,
 } from '@/app/components/ui/SearchSelect'
+import { apiFetch } from '@/lib/api'
 import {
 	type AnyRecord,
 	formatDateLabel,
@@ -59,6 +61,49 @@ export function CashMovementForm({
 	submitting = false,
 	fieldErrors,
 }: CashMovementFormProps) {
+	const [duplicates, setDuplicates] = useState<AnyRecord[]>([])
+	const [dismissed, setDismissed] = useState(false)
+
+	// Reset aviso cuando cambian los campos clave
+	useEffect(() => {
+		setDismissed(false)
+	}, [movementForm.amount, movementForm.category, movementForm.movement_type, movementForm.occurred_at])
+
+	// Chequea movimientos similares del mismo día
+	useEffect(() => {
+		if (dismissed) {
+			setDuplicates([])
+			return
+		}
+		const amount = String(movementForm.amount ?? '').trim()
+		const category = String(movementForm.category ?? '').trim()
+		const occurredAt = String(movementForm.occurred_at ?? '').trim()
+		const dateStr = occurredAt.split('T')[0]
+		if (!amount || Number(amount) <= 0 || !category || !dateStr) {
+			setDuplicates([])
+			return
+		}
+		const timer = setTimeout(async () => {
+			try {
+				const data = await apiFetch<{ results?: AnyRecord[] }>(
+					`cash-movements/?date=${encodeURIComponent(dateStr)}`,
+				)
+				const results = data.results ?? []
+				const numericAmount = Number(amount)
+				const matches = results.filter(
+					(m) =>
+						m.movement_type === movementForm.movement_type &&
+						m.category === category &&
+						Math.abs(Number(m.amount) - numericAmount) < 0.001,
+				)
+				setDuplicates(matches.slice(0, 3))
+			} catch {
+				setDuplicates([])
+			}
+		}, 700)
+		return () => clearTimeout(timer)
+	}, [movementForm.amount, movementForm.category, movementForm.movement_type, movementForm.occurred_at, dismissed])
+
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
 			<SearchSelect
@@ -198,6 +243,16 @@ export function CashMovementForm({
 					}
 				/>
 			</Field>
+			{!dismissed && duplicates.length > 0 && (
+				<DuplicateWarning
+					title="Ya existe un movimiento similar en ese día:"
+					items={duplicates.map((m) => ({
+						id: m.id as number,
+						label: `${m.movement_type === 'income' ? 'Ingreso' : 'Egreso'} · ${m.category} · $${m.amount} · ${formatDateLabel(String(m.occurred_at ?? '').split('T')[0])}`,
+					}))}
+					onDismiss={() => setDismissed(true)}
+				/>
+			)}
 			<Button
 				type="submit"
 				variant="primary"

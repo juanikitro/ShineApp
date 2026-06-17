@@ -1,9 +1,10 @@
 'use client'
 
-import { type FormEvent, type KeyboardEvent, useMemo } from 'react'
+import { type FormEvent, type KeyboardEvent, useMemo, useState } from 'react'
 
 import { Plus } from 'lucide-react'
 
+import { DuplicateWarning } from '@/app/components/DuplicateWarning'
 import { AnimatedLabelSwap } from '@/app/components/motion/AnimatedLabelSwap'
 import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
@@ -12,7 +13,7 @@ import {
 	SearchSelect,
 	type SelectOption,
 } from '@/app/components/ui/SearchSelect'
-import { type AnyRecord, money } from '@/lib/page-support'
+import { type AnyRecord, money, formatDateLabel } from '@/lib/page-support'
 import {
 	type ScheduleAvailability,
 	buildTimeSlots,
@@ -29,6 +30,14 @@ function serviceLinesTotal(items: AnyRecord[]) {
 			total + Number(item.quantity || 0) * Number(item.unit_price || 0),
 		0,
 	)
+}
+
+const RESERVATION_STATUS_LABELS: Record<string, string> = {
+	pending: 'pendiente',
+	confirmed: 'confirmada',
+	in_progress: 'en curso',
+	ready: 'lista',
+	delivered: 'entregada',
 }
 
 type ReservationFormProps = {
@@ -103,6 +112,29 @@ export function ReservationForm({
 	const selectedDay =
 		typeof reservationForm.day === 'string' ? reservationForm.day : ''
 	const items = (reservationForm.items ?? []) as AnyRecord[]
+
+	const [reservationDismissed, setReservationDismissed] = useState(false)
+
+	// Busca reservas del mismo cliente en el mismo día usando la lista ya cargada
+	const duplicateReservations = useMemo(() => {
+		if (!reservationForm.customer || !selectedDay || reservationDismissed) return []
+		const customerId = Number(reservationForm.customer)
+		return reservations
+			.filter((r) => {
+				const rCustomer =
+					r.customer != null && typeof r.customer === 'object'
+						? Number((r.customer as AnyRecord).id)
+						: Number(r.customer)
+				return (
+					rCustomer === customerId &&
+					r.day === selectedDay &&
+					r.status !== 'canceled' &&
+					r.id !== reservationForm.id
+				)
+			})
+			.slice(0, 3)
+	}, [reservations, reservationForm.customer, selectedDay, reservationForm.id, reservationDismissed])
+
 	const availability = useMemo<ScheduleAvailability | null>(() => {
 		if (!selectedDay) return null
 		return scheduleAvailabilityForDay({
@@ -488,6 +520,16 @@ export function ReservationForm({
 					}
 				/>
 			</Field>
+			{!reservationDismissed && duplicateReservations.length > 0 && (
+				<DuplicateWarning
+					title="Este cliente ya tiene una reserva para ese día:"
+					items={duplicateReservations.map((r) => ({
+						id: r.id as number,
+						label: `${formatDateLabel(String(r.day))} · ${RESERVATION_STATUS_LABELS[String(r.status)] ?? r.status}`,
+					}))}
+					onDismiss={() => setReservationDismissed(true)}
+				/>
+			)}
 			<Button
 				type="submit"
 				variant="primary"

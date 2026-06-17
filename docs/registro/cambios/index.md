@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Sistema de alerta de duplicados](2026-06-17-sistema-anti-duplicados.md)
 - [Material: asignación de sector](2026-06-17-material-sector.md)
 - [Consumo de producto por servicio: registro historico (2026-06-17)](2026-06-17-consumo-de-producto-por-servicio.md)
 - [Tareas: CSS muerto, tints a tokens y errores inline (2026-06-16)](2026-06-16-tareas-css-muerto-tints-tokens-y-errores-inline.md)
