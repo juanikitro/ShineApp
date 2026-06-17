@@ -8,7 +8,7 @@ from django.utils.dateparse import parse_date
 from rest_framework import decorators, response, serializers, status, viewsets
 
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
-from core.permissions import CanViewEconomy
+from core.permissions import CanViewEconomy, business_from_request
 from debts.models import Debt
 from debts.serializers import DebtSerializer
 from finance.cash import ensure_cash_day_open
@@ -30,6 +30,8 @@ from .serializers import (
     MaterialOpenUnitSerializer,
     MaterialPurchaseSerializer,
     MaterialSerializer,
+    MaterialUsageBackfillSerializer,
+    ServiceUsageRowSerializer,
     StockMovementSerializer,
     SupplierListSerializer,
     SupplierSerializer,
@@ -165,6 +167,63 @@ def build_material_list_metrics(rows):
     return metrics
 
 
+def build_service_usage_rows(units):
+    """Agrupa unidades historicas finalizadas por (material, servicio) y estima
+    el consumo de producto por servicio: producto total consumido / trabajos
+    cubiertos."""
+    grouped = {}
+    for unit in units:
+        key = (unit.material_id, unit.service_id)
+        bucket = grouped.get(key)
+        if bucket is None:
+            bucket = {
+                "material": unit.material_id,
+                "material_name": unit.material.name,
+                "material_unit": unit.material.unit,
+                "material_unit_cost": unit.material.estimated_unit_cost or ZERO,
+                "service": unit.service_id,
+                "service_name": unit.service.name,
+                "units_count": 0,
+                "total_jobs": 0,
+                "total_quantity": ZERO,
+                "total_days": 0,
+            }
+            grouped[key] = bucket
+        bucket["units_count"] += 1
+        bucket["total_jobs"] += len({consumption.work_order_id for consumption in unit.consumptions.all()})
+        bucket["total_quantity"] += unit.stock_quantity_to_decrement or ZERO
+        if unit.duration_days is not None:
+            bucket["total_days"] += unit.duration_days
+
+    rows = []
+    for bucket in grouped.values():
+        total_jobs = bucket["total_jobs"]
+        units_count = bucket["units_count"]
+        if total_jobs:
+            consumption_per_service = bucket["total_quantity"] / Decimal(total_jobs)
+            cost_per_service = (bucket["total_quantity"] * bucket["material_unit_cost"]) / Decimal(total_jobs)
+        else:
+            consumption_per_service = ZERO
+            cost_per_service = ZERO
+        rows.append(
+            {
+                "material": bucket["material"],
+                "material_name": bucket["material_name"],
+                "material_unit": bucket["material_unit"],
+                "service": bucket["service"],
+                "service_name": bucket["service_name"],
+                "units_count": units_count,
+                "total_jobs": total_jobs,
+                "estimated_consumption_per_service": consumption_per_service,
+                "estimated_cost_per_service": cost_per_service,
+                "avg_jobs_per_unit": average_decimal(total_jobs, units_count),
+                "avg_days_per_unit": average_decimal(bucket["total_days"], units_count),
+            }
+        )
+    rows.sort(key=lambda row: (row["material_name"].lower(), row["service_name"].lower()))
+    return rows
+
+
 class MaterialViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     queryset = Material.objects.all()
     serializer_class = MaterialSerializer
@@ -204,6 +263,25 @@ class MaterialViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         instance.delete()
+
+    @decorators.action(detail=False, methods=["get"], url_path="service-usage")
+    def service_usage(self, request):
+        """Consumo estimado por servicio, derivado de las unidades historicas
+        (material x servicio). Alimenta la vista cruzada y el volcado a receta."""
+        business = business_from_request(request)
+        units = (
+            MaterialOpenUnit.objects.filter(
+                status=MaterialOpenUnit.Status.FINISHED,
+                service__isnull=False,
+            )
+            .select_related("material", "service")
+            .prefetch_related("consumptions")
+        )
+        if business is not None:
+            units = units.filter(material__business=business)
+        rows = build_service_usage_rows(units)
+        serializer = ServiceUsageRowSerializer(rows, many=True)
+        return response.Response({"results": serializer.data})
 
 
 class ToolViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
@@ -536,6 +614,31 @@ class MaterialOpenUnitViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         return queryset
+
+    @decorators.action(detail=False, methods=["post"], url_path="register-usage")
+    @transaction.atomic
+    def register_usage(self, request):
+        """Registro retroactivo: crea una unidad historica (finalizada) y un uso
+        por cada reserva pasada del servicio. No descuenta stock actual."""
+        serializer = MaterialUsageBackfillSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        open_unit = serializer.save()
+        record_audit_event(
+            request=request,
+            action="register_usage",
+            instance=open_unit,
+            before=None,
+            after=audit_snapshot(open_unit),
+            metadata={
+                "material": open_unit.material_id,
+                "service": open_unit.service_id,
+                "reservations": [reservation.id for reservation in serializer.validated_data["reservations"]],
+            },
+        )
+        return response.Response(
+            self.get_serializer(open_unit).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     @decorators.action(detail=True, methods=["post"])
     def consume(self, request, pk=None):

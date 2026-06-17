@@ -102,6 +102,7 @@ const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 		'workOrders',
 		'customers',
 		'reservations',
+		'services',
 	],
 	tools: ['tools'],
 	quotes: [

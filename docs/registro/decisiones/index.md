@@ -26,3 +26,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Red de seguridad E2E con Playwright antes del refactor del god component](2026-06-12-red-e2e-playwright.md)
 - [Regla: toda feature nueva con entidad propia debe estar en el buscador global](2026-06-12-regla-feature-nueva-buscador-global.md)
 - [Tipos del dominio generados desde OpenAPI (drf-spectacular -> openapi-typescript)](2026-06-12-tipos-desde-openapi.md)
+- [Unidad historica y consumo de producto por servicio](2026-06-17-unidad-historica-consumo-por-servicio.md)

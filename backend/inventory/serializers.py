@@ -5,9 +5,11 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
+from catalog.models import Service
 from core.permissions import file_url
 from core.serializers import BusinessScopedSerializerMixin
 from finance.cash import ensure_cash_day_open, request_user_from_context
+from scheduling.models import Reservation
 from scheduling.services import ensure_reservation_work_order
 
 from .models import (
@@ -531,6 +533,7 @@ class StockMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSe
 
 class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     material_name = serializers.CharField(source="material.name", read_only=True)
+    service_name = serializers.SerializerMethodField()
     opened_by_work_order_label = serializers.SerializerMethodField()
     work_orders_count = serializers.SerializerMethodField()
     consumptions_count = serializers.SerializerMethodField()
@@ -543,6 +546,9 @@ class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.Mode
             "id",
             "material",
             "material_name",
+            "service",
+            "service_name",
+            "is_historical",
             "opened_at",
             "opened_by_work_order",
             "opened_by_work_order_label",
@@ -560,6 +566,8 @@ class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.Mode
         read_only_fields = [
             "id",
             "material_name",
+            "service_name",
+            "is_historical",
             "opened_by_work_order_label",
             "status",
             "finished_at",
@@ -570,6 +578,9 @@ class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.Mode
             "consumptions",
             "created_at",
         ]
+
+    def get_service_name(self, obj):
+        return obj.service.name if obj.service_id else None
 
     def get_opened_by_work_order_label(self, obj):
         return str(obj.opened_by_work_order) if obj.opened_by_work_order else None
@@ -636,6 +647,123 @@ class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.Mode
             **validated_data,
             estimated_unit_cost_at_open=material.estimated_unit_cost or Decimal("0.00"),
         )
+
+
+class MaterialUsageBackfillSerializer(BusinessScopedSerializerMixin, serializers.Serializer):
+    """Registro retroactivo de una unidad ya consumida.
+
+    Recibe un material, un servicio y las reservas pasadas de ese servicio donde
+    se uso el producto. Crea una MaterialOpenUnit historica (finalizada) con un
+    MaterialConsumption por reserva, para estimar el rendimiento por servicio.
+    No descuenta stock actual: el consumo ocurrio en el pasado.
+    """
+
+    material = serializers.PrimaryKeyRelatedField(queryset=Material.objects.filter(is_active=True))
+    service = serializers.PrimaryKeyRelatedField(queryset=Service.objects.all())
+    reservations = serializers.PrimaryKeyRelatedField(queryset=Reservation.objects.all(), many=True)
+    opened_at = serializers.DateField(required=False)
+    finished_at = serializers.DateField(required=False)
+    stock_quantity_to_decrement = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        default=Decimal("1.00"),
+    )
+    observations = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate_stock_quantity_to_decrement(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("La cantidad debe ser mayor a cero.")
+        return value
+
+    def validate_reservations(self, value):
+        if not value:
+            raise serializers.ValidationError("Selecciona al menos una reserva.")
+        return value
+
+    def validate(self, attrs):
+        material = attrs["material"]
+        service = attrs["service"]
+        reservations = attrs["reservations"]
+        # Defensa cross-tenant: material, servicio y reservas del mismo negocio.
+        self.validate_same_business(material, service, *reservations)
+
+        mismatched = [reservation.id for reservation in reservations if reservation.service_id != service.id]
+        if mismatched:
+            raise serializers.ValidationError(
+                {"reservations": "Todas las reservas deben pertenecer al servicio seleccionado."}
+            )
+
+        days = [reservation.day for reservation in reservations]
+        opened_at = attrs.get("opened_at") or min(days)
+        finished_at = attrs.get("finished_at") or max(days)
+        if finished_at < opened_at:
+            raise serializers.ValidationError(
+                {"finished_at": "La fecha de cierre no puede ser anterior a la de apertura."}
+            )
+        attrs["opened_at"] = opened_at
+        attrs["finished_at"] = finished_at
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        material = validated_data["material"]
+        service = validated_data["service"]
+        reservations = sorted(
+            validated_data["reservations"],
+            key=lambda reservation: (reservation.day, reservation.id),
+        )
+        unit_cost = material.estimated_unit_cost or Decimal("0.00")
+
+        orders = [(reservation, ensure_reservation_work_order(reservation)) for reservation in reservations]
+        opening_order = next((order for _, order in orders if order is not None), None)
+
+        open_unit = MaterialOpenUnit.objects.create(
+            business=material.business,
+            material=material,
+            service=service,
+            is_historical=True,
+            opened_at=validated_data["opened_at"],
+            finished_at=validated_data["finished_at"],
+            status=MaterialOpenUnit.Status.FINISHED,
+            opened_by_work_order=opening_order,
+            stock_quantity_to_decrement=validated_data["stock_quantity_to_decrement"],
+            estimated_unit_cost_at_open=unit_cost,
+            observations=validated_data.get("observations", ""),
+        )
+
+        for reservation, order in orders:
+            if order is None:
+                continue
+            MaterialConsumption.objects.create(
+                business=material.business,
+                material=material,
+                open_unit=open_unit,
+                work_order=order,
+                consumed_at=reservation.day,
+                quantity=Decimal("0.00"),
+                estimated_unit_cost=unit_cost,
+                estimated_total_cost=Decimal("0.00"),
+            )
+
+        return open_unit
+
+
+class ServiceUsageRowSerializer(serializers.Serializer):
+    """Consumo estimado de un material por servicio, derivado de las unidades
+    historicas finalizadas (material x servicio)."""
+
+    material = serializers.IntegerField()
+    material_name = serializers.CharField()
+    material_unit = serializers.CharField()
+    service = serializers.IntegerField()
+    service_name = serializers.CharField()
+    units_count = serializers.IntegerField()
+    total_jobs = serializers.IntegerField()
+    estimated_consumption_per_service = serializers.DecimalField(max_digits=12, decimal_places=4)
+    estimated_cost_per_service = serializers.DecimalField(max_digits=12, decimal_places=2)
+    avg_jobs_per_unit = serializers.DecimalField(max_digits=12, decimal_places=2)
+    avg_days_per_unit = serializers.DecimalField(max_digits=12, decimal_places=2)
 
 
 class MaterialPurchaseSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
