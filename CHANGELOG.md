@@ -11,6 +11,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-17
+- [Material: asignación de sector](docs/registro/cambios/2026-06-17-material-sector.md)
 - [Consumo de producto por servicio: registro historico (2026-06-17)](docs/registro/cambios/2026-06-17-consumo-de-producto-por-servicio.md)
 
 ## 2026-06-16

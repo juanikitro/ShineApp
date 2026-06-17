@@ -1,6 +1,6 @@
 'use client'
 
-import { type ReactNode, useMemo } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 
 import { Package } from 'lucide-react'
 
@@ -9,6 +9,10 @@ import { Empty } from '@/app/components/ui/Empty'
 import { SkeletonList } from '@/app/components/ui/Skeleton'
 import { type QuickAction } from '@/app/components/ui/QuickActionsMenu'
 import { Button } from '@/app/components/ui/Button'
+import {
+	SegmentedControl,
+	type SegmentedOption,
+} from '@/app/components/ui/SegmentedControl'
 import { joinDisplayParts } from '@/lib/display-text'
 import {
 	money,
@@ -37,6 +41,7 @@ type ServiceUsageBucket = {
 type InventoryPanelProps = {
 	inventorySummary: AnyRecord
 	loading?: boolean
+	sectors?: AnyRecord[]
 	stockMovements: AnyRecord[]
 	stockMovementTypeLabels: Record<string, string>
 	suppliers: AnyRecord[]
@@ -82,6 +87,7 @@ type InventoryPanelProps = {
 export function InventoryPanel({
 	inventorySummary,
 	loading = false,
+	sectors = [],
 	stockMovements,
 	stockMovementTypeLabels,
 	suppliers,
@@ -115,6 +121,33 @@ export function InventoryPanel({
 	onOpenUnitForMaterial,
 	onOpenHistoricalUsage,
 }: InventoryPanelProps) {
+	const [selectedSectorKey, setSelectedSectorKey] = useState<string>('all')
+
+	const activeSectors = useMemo(
+		() => sectors.filter((s) => s.is_active !== false),
+		[sectors],
+	)
+
+	const sectorTabOptions = useMemo<SegmentedOption<string>[]>(
+		() => [
+			{ value: 'all', label: 'Todos' },
+			...activeSectors.map((s) => ({
+				value: String(s.id),
+				label: String(s.name ?? ''),
+			})),
+			{ value: 'none', label: 'Sin sector' },
+		],
+		[activeSectors],
+	)
+
+	const filteredMaterials = useMemo(() => {
+		if (selectedSectorKey === 'all') return materials
+		if (selectedSectorKey === 'none') return materials.filter((m) => !m.sector)
+		return materials.filter(
+			(m) => String(m.sector) === selectedSectorKey,
+		)
+	}, [materials, selectedSectorKey])
+
 	// Map id -> material memoizado para el lookup O(1) de unidades abiertas
 	// (antes .find() por unidad sobre todo el dataset de materiales).
 	const materialsById = useMemo(() => {
@@ -289,8 +322,18 @@ export function InventoryPanel({
 					{suppliers.length ? null : (
 						<Empty text="Sin proveedores cargados." />
 					)}
-					{materials.length ? (
-						materials.map((item) => {
+					{activeSectors.length > 0 && (
+						<SegmentedControl
+							ariaLabel="Filtrar materiales por sector"
+							className="inventory-sector-filter"
+							options={sectorTabOptions}
+							selectionMode="tabs"
+							value={selectedSectorKey}
+							onChange={setSelectedSectorKey}
+						/>
+					)}
+					{filteredMaterials.length ? (
+						filteredMaterials.map((item) => {
 							const usage = materialUsageSummary(item)
 							const quickActions = materialQuickActions(item)
 							return (

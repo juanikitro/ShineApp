@@ -897,6 +897,7 @@ export default function Home() {
 	>('cash-movement')
 	const [materialForm, setMaterialForm] = useState<AnyRecord>({
 		id: '',
+		sector: null,
 		name: '',
 		unit: 'ml',
 		category: '',
@@ -6464,6 +6465,7 @@ export default function Home() {
 		if (kind === 'material') {
 			setMaterialForm({
 				id: '',
+				sector: null,
 				name: '',
 				unit: 'ml',
 				stock_quantity: '0',
@@ -6567,6 +6569,7 @@ export default function Home() {
 			applyQuickSelection(quickCreate.target, String(created.id))
 			setMaterialForm({
 				id: '',
+				sector: null,
 				name: '',
 				unit: 'ml',
 				stock_quantity: '0',
@@ -8330,6 +8333,16 @@ export default function Home() {
 							}
 						/>
 					</Field>
+					{sectorSelectOptions.length > 0 && (
+						<SearchSelect
+							label="Sector"
+							value={String(data.sector ?? '')}
+							options={[{ value: '', label: 'Sin sector' }, ...sectorSelectOptions]}
+							onChange={(value) =>
+								updateDetailEdit({ sector: value ? Number(value) : null })
+							}
+						/>
+					)}
 					<div className="form-row">
 						<Field label="Unidad">
 							<input
@@ -10317,6 +10330,7 @@ export default function Home() {
 			})
 			setMaterialForm({
 				id: '',
+				sector: null,
 				name: '',
 				unit: 'ml',
 				stock_quantity: '0',
@@ -12110,6 +12124,7 @@ export default function Home() {
 						materialForm={materialForm}
 						setMaterialForm={setMaterialForm}
 						focusNextOnEnter={focusNextOnEnter}
+						sectors={sectors}
 						submitting={isActionPending('save:material')}
 					/>
 					</Modal>
@@ -14029,6 +14044,7 @@ export default function Home() {
 				) : displayedActive === 'inventory' ? (
 					<InventoryPanel
 						loading={isDataSetLoading('materials')}
+						sectors={sectors}
 						availableQuickActions={availableQuickActions}
 						consumptions={consumptions}
 						detailRecordProps={detailRecordProps}

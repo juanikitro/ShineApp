@@ -111,11 +111,14 @@ class MaterialSerializer(BusinessScopedSerializerMixin, serializers.ModelSeriali
     open_units_finished_count = serializers.SerializerMethodField()
     average_jobs_per_finished_unit = serializers.SerializerMethodField()
     average_days_per_finished_unit = serializers.SerializerMethodField()
+    sector_name = serializers.CharField(source="sector.name", read_only=True, default=None)
 
     class Meta:
         model = Material
         fields = [
             "id",
+            "sector",
+            "sector_name",
             "name",
             "unit",
             "category",
@@ -142,6 +145,7 @@ class MaterialSerializer(BusinessScopedSerializerMixin, serializers.ModelSeriali
         ]
         read_only_fields = [
             "id",
+            "sector_name",
             "estimated_unit_cost",
             "last_purchase_unit_cost",
             "last_purchase_date",
