@@ -10978,6 +10978,12 @@ export default function Home() {
 	}
 
 	function renderOpenUnitForm(submitLabel: string) {
+		const unitLabel = selectedOpenUnitFormMaterial?.unit
+			? `en ${selectedOpenUnitFormMaterial.unit}`
+			: ''
+		const unitCost = selectedOpenUnitFormMaterial
+			? numberValue(selectedOpenUnitFormMaterial.estimated_unit_cost)
+			: 0
 		return (
 			<form className="form-grid" onSubmit={saveOpenUnit}>
 				<SearchSelect
@@ -10995,6 +11001,29 @@ export default function Home() {
 						focusField('material-open-unit.work_order', true)
 					}}
 				/>
+				{selectedOpenUnitFormMaterial ? (
+					<div className="info-note open-unit-material-info">
+						<div className="open-unit-material-stats">
+							<span>
+								Stock actual{' '}
+								<strong>
+									{quantity(
+										selectedOpenUnitFormMaterial.stock_quantity,
+										selectedOpenUnitFormMaterial.unit,
+									)}
+								</strong>
+							</span>
+							{unitCost > 0 && (
+								<span>
+									Costo unitario <strong>{money(unitCost)}</strong>
+								</span>
+							)}
+						</div>
+						<span className="open-unit-material-disclaimer">
+							Abrir una unidad no descuenta stock; el descuento se aplica al finalizar.
+						</span>
+					</div>
+				) : null}
 				<SearchSelect
 					label="Trabajo de apertura"
 					value={openUnitForm.opened_by_work_order}
@@ -11010,7 +11039,7 @@ export default function Home() {
 					}}
 				/>
 				<div className="form-row">
-					<Field label="Fecha apertura">
+					<Field label="Fecha de apertura">
 						<input
 							data-focus-key="material-open-unit.opened_at"
 							type="date"
@@ -11024,7 +11053,14 @@ export default function Home() {
 							onKeyDown={focusNextOnEnter('material-open-unit.quantity')}
 						/>
 					</Field>
-					<Field label="Cantidad al cerrar">
+					<Field
+						label="Cantidad al cerrar"
+						hint={
+							selectedOpenUnitFormMaterial
+								? `Se descuenta del stock ${unitLabel} al finalizar`
+								: 'Se descuenta del stock al finalizar la unidad'
+						}
+					>
 						<input
 							data-focus-key="material-open-unit.quantity"
 							required
@@ -11041,18 +11077,6 @@ export default function Home() {
 						/>
 					</Field>
 				</div>
-				{selectedOpenUnitFormMaterial ? (
-					<div className="info-note">
-						Stock registrado:{' '}
-						<strong>
-							{quantity(
-								selectedOpenUnitFormMaterial.stock_quantity,
-								selectedOpenUnitFormMaterial.unit,
-							)}
-						</strong>
-						. Abrir una unidad no descuenta stock; el descuento se aplica al finalizarla.
-					</div>
-				) : null}
 				<Field label="Observaciones">
 					<textarea
 						data-focus-key="material-open-unit.notes"

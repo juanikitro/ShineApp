@@ -2,7 +2,7 @@
 
 import { type ReactNode, useMemo, useState } from 'react'
 
-import { Package } from 'lucide-react'
+import { Package, Search } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
 import { Empty } from '@/app/components/ui/Empty'
@@ -122,6 +122,7 @@ export function InventoryPanel({
 	onOpenHistoricalUsage,
 }: InventoryPanelProps) {
 	const [selectedSectorKey, setSelectedSectorKey] = useState<string>('all')
+	const [materialSearch, setMaterialSearch] = useState('')
 
 	const activeSectors = useMemo(
 		() => sectors.filter((s) => s.is_active !== false),
@@ -141,12 +142,18 @@ export function InventoryPanel({
 	)
 
 	const filteredMaterials = useMemo(() => {
-		if (selectedSectorKey === 'all') return materials
-		if (selectedSectorKey === 'none') return materials.filter((m) => !m.sector)
-		return materials.filter(
-			(m) => String(m.sector) === selectedSectorKey,
-		)
-	}, [materials, selectedSectorKey])
+		let result = materials
+		if (selectedSectorKey === 'none') result = result.filter((m) => !m.sector)
+		else if (selectedSectorKey !== 'all')
+			result = result.filter((m) => String(m.sector) === selectedSectorKey)
+		if (materialSearch.trim()) {
+			const q = materialSearch.toLowerCase()
+			result = result.filter((m) =>
+				String(m.name ?? '').toLowerCase().includes(q),
+			)
+		}
+		return result
+	}, [materials, selectedSectorKey, materialSearch])
 
 	// Map id -> material memoizado para el lookup O(1) de unidades abiertas
 	// (antes .find() por unidad sobre todo el dataset de materiales).
@@ -245,83 +252,20 @@ export function InventoryPanel({
 					{loading && !materials.length && !stockMovements.length ? (
 						<SkeletonList rows={6} columns={4} label="Cargando inventario" />
 					) : null}
-					{stockMovements.slice(0, 8).map((item) => (
-						<MotionFlashSurface
-							className={recordClass('stock-movement', item.id)}
-							key={`sm-${item.id}`}
-						>
-							<div className="record-head">
-								<div>
-									<div className="record-title">
-										{stockMovementTypeLabels[item.movement_type] ??
-											item.movement_type}{' '}
-										- {money(item.total_amount)}
-									</div>
-									<div className="record-sub">
-										{item.occurred_on} -{' '}
-										{item.supplier_name ||
-											item.customer_name ||
-											item.reservation_label ||
-											'Movimiento interno'}
-									</div>
-									<div className="record-sub">
-										{(item.lines ?? []).length} producto
-										{(item.lines ?? []).length === 1 ? '' : 's'}
-										{item.movement_type === 'purchase'
-											? item.products_received
-												? ' - recibido'
-												: ' - pendiente de recepcion'
-											: ''}
-									</div>
-								</div>
-							</div>
-						</MotionFlashSurface>
-					))}
-					{stockMovements.length ? null : (
-						<Empty text="Sin movimientos de stock." />
-					)}
-					{suppliers.slice(0, 5).map((item) => {
-						const quickActions = supplierQuickActions(item)
-						const insights = supplierListInsight(item)
-						return (
-							<MotionFlashSurface
-								className={recordClass('supplier', item.id)}
-								key={`supplier-${item.id}`}
-								{...interactiveRecordProps(() => onOpenSupplierDashboard(item))}
-								{...quickActionTargetProps(
-									'Acciones de proveedor',
-									quickActions,
-								)}
-							>
-								<div className="record-head">
-									<div>
-										<div className="record-title">Proveedor - {item.name}</div>
-										<div className="record-sub">
-											{supplierProfileSubtitle(item) ||
-												[item.contact_name, item.phone, item.email]
-													.filter(Boolean)
-													.join(' - ') ||
-												'Sin datos de contacto'}
-										</div>
-										<div className="record-sub">
-											Comprado {money(insights.total_purchased)} -{' '}
-											{insights.purchase_count ?? 0} compras
-										</div>
-									</div>
-									<div className="record-actions">
-										{renderQuickActionsTrigger(
-											'Acciones de proveedor',
-											quickActions,
-											'Acciones rapidas de proveedor',
-										)}
-									</div>
-								</div>
-							</MotionFlashSurface>
-						)
-					})}
-					{suppliers.length ? null : (
-						<Empty text="Sin proveedores cargados." />
-					)}
+
+					{/* Materiales */}
+					<div className="inventory-section-head">
+						<span>Materiales</span>
+						<label className="inventory-search">
+							<Search size={13} aria-hidden />
+							<input
+								type="search"
+								placeholder="Buscar material…"
+								value={materialSearch}
+								onChange={(e) => setMaterialSearch(e.target.value)}
+							/>
+						</label>
+					</div>
 					{activeSectors.length > 0 && (
 						<SegmentedControl
 							ariaLabel="Filtrar materiales por sector"
@@ -350,31 +294,13 @@ export function InventoryPanel({
 										<div>
 											<div className="record-title">{item.name}</div>
 											<div className="record-sub">
-												Stock {quantity(item.stock_quantity, item.unit)} -
-												unidad {money(materialUnitValue(item))} - stock
-												valorizado {money(materialStockValue(item))}
+												Stock {quantity(item.stock_quantity, item.unit)} · {money(materialUnitValue(item))}/u · valorizado {money(materialStockValue(item))}
 											</div>
 											<div className="record-sub">
-												{usage.count} usos -{' '}
-												{quantity(usage.totalQuantity, item.unit)} consumidos -{' '}
-												{money(usage.totalCost)} imputados
-											</div>
-											<div className="record-sub">
-												{numberValue(item.open_units_active_count)} unidades
-												abiertas - {numberValue(item.open_units_finished_count)}{' '}
-												finalizadas - promedio{' '}
-												{numberValue(
-													item.average_jobs_per_finished_unit,
-												).toLocaleString('es-AR', {
-													maximumFractionDigits: 1,
-												})}{' '}
-												trabajos /{' '}
-												{numberValue(
-													item.average_days_per_finished_unit,
-												).toLocaleString('es-AR', {
-													maximumFractionDigits: 1,
-												})}{' '}
-												dias
+												{usage.count} usos · {quantity(usage.totalQuantity, item.unit)} consumidos · {money(usage.totalCost)} imputados
+												{numberValue(item.open_units_active_count) > 0
+													? ` · ${numberValue(item.open_units_active_count)} u. abiertas`
+													: ''}
 											</div>
 										</div>
 										<div className="record-actions">
@@ -412,6 +338,11 @@ export function InventoryPanel({
 					) : (
 						<Empty text="Sin materiales." />
 					)}
+
+					{/* Unidades abiertas */}
+					<div className="inventory-section-head">
+						<span>Unidades abiertas</span>
+					</div>
 					{materialOpenUnits.slice(0, 8).map((item) => {
 						const material = materialsById.get(String(item.material))
 						const quickActions = materialOpenUnitQuickActions(item)
@@ -425,22 +356,17 @@ export function InventoryPanel({
 								<div className="record-head">
 									<div>
 										<div className="record-title">
-											Unidad abierta - {item.material_name}
+											{item.material_name}
 										</div>
 										<div className="record-sub">
 											{item.status === 'open' ? 'Abierta' : 'Finalizada'} desde{' '}
 											{item.opened_at}
-											{item.finished_at ? ` - cierre ${item.finished_at}` : ''}
+											{item.finished_at ? ` · cierre ${item.finished_at}` : ''}
 										</div>
 										<div className="record-sub">
-											{item.consumptions_count ?? 0} usos -{' '}
-											{item.work_orders_count ?? 0} trabajos
-											{item.duration_days ? ` - ${item.duration_days} dias` : ''}{' '}
-											- descuenta{' '}
-											{quantity(
-												item.stock_quantity_to_decrement,
-												material?.unit,
-											)}
+											{item.consumptions_count ?? 0} usos · {item.work_orders_count ?? 0} trabajos
+											{item.duration_days ? ` · ${item.duration_days} días` : ''} · descuenta{' '}
+											{quantity(item.stock_quantity_to_decrement, material?.unit)}
 										</div>
 									</div>
 									{item.status === 'open' ||
@@ -466,35 +392,87 @@ export function InventoryPanel({
 							</MotionFlashSurface>
 						)
 					})}
-					{materialOpenUnits.length ? null : (
+					{!materialOpenUnits.length && (
 						<Empty text="Sin unidades abiertas." />
 					)}
-					{serviceUsageRows.map((row) => (
-						<MotionFlashSurface className="record" key={`su-${row.key}`}>
+
+					{/* Consumo por servicio (solo si hay datos históricos) */}
+					{serviceUsageRows.length > 0 && (
+						<>
+							<div className="inventory-section-head">
+								<span>Consumo por servicio</span>
+							</div>
+							{serviceUsageRows.map((row) => (
+								<MotionFlashSurface className="record" key={`su-${row.key}`}>
+									<div className="record-head">
+										<div>
+											<div className="record-title">{row.serviceName}</div>
+											<div className="record-sub">
+												{row.materialName}: ~
+												{row.consumptionPerService.toLocaleString('es-AR', {
+													maximumFractionDigits: 3,
+												})}{' '}
+												{row.materialUnit} por servicio
+												{row.unitCost > 0
+													? ` · ${money(row.consumptionPerService * row.unitCost)}`
+													: ''}
+											</div>
+											<div className="record-sub">
+												{row.totalJobs} servicios en {row.unitsCount} unidad
+												{row.unitsCount === 1 ? '' : 'es'} histórica
+												{row.unitsCount === 1 ? '' : 's'}
+											</div>
+										</div>
+									</div>
+								</MotionFlashSurface>
+							))}
+						</>
+					)}
+
+					{/* Movimientos de stock */}
+					<div className="inventory-section-head">
+						<span>Movimientos recientes</span>
+					</div>
+					{stockMovements.slice(0, 8).map((item) => (
+						<MotionFlashSurface
+							className={recordClass('stock-movement', item.id)}
+							key={`sm-${item.id}`}
+						>
 							<div className="record-head">
 								<div>
 									<div className="record-title">
-										Consumo por servicio - {row.serviceName}
+										{stockMovementTypeLabels[item.movement_type] ??
+											item.movement_type}{' '}
+										· {money(item.total_amount)}
 									</div>
 									<div className="record-sub">
-										{row.materialName}: ~
-										{row.consumptionPerService.toLocaleString('es-AR', {
-											maximumFractionDigits: 3,
-										})}{' '}
-										{row.materialUnit} por servicio
-										{row.unitCost > 0
-											? ` - ${money(row.consumptionPerService * row.unitCost)}`
+										{item.occurred_on} ·{' '}
+										{item.supplier_name ||
+											item.customer_name ||
+											item.reservation_label ||
+											'Movimiento interno'}
+									</div>
+									<div className="record-sub">
+										{(item.lines ?? []).length} producto
+										{(item.lines ?? []).length === 1 ? '' : 's'}
+										{item.movement_type === 'purchase'
+											? item.products_received
+												? ' · recibido'
+												: ' · pendiente de recepción'
 											: ''}
-									</div>
-									<div className="record-sub">
-										{row.totalJobs} servicios en {row.unitsCount} unidad
-										{row.unitsCount === 1 ? '' : 'es'} historica
-										{row.unitsCount === 1 ? '' : 's'}
 									</div>
 								</div>
 							</div>
 						</MotionFlashSurface>
 					))}
+					{!stockMovements.length && (
+						<Empty text="Sin movimientos de stock." />
+					)}
+
+					{/* Compras */}
+					<div className="inventory-section-head">
+						<span>Compras recientes</span>
+					</div>
 					{purchases.slice(0, 5).map((item) => {
 						const quickActions = materialPurchaseQuickActions(item)
 						return (
@@ -528,39 +506,47 @@ export function InventoryPanel({
 							</MotionFlashSurface>
 						)
 					})}
-					{purchases.length ? null : (
+					{!purchases.length && (
 						<Empty text="Sin compras registradas." />
 					)}
-					{consumptions.slice(0, 5).map((item) => {
-						const quickActions = materialConsumptionQuickActions(item)
-						return (
-							<MotionFlashSurface
-								className={recordClass('material-consumption', item.id)}
-								key={`c-${item.id}`}
-								{...detailRecordProps('Consumo de material', item)}
-								{...quickActionTargetProps('Acciones de consumo', quickActions)}
-							>
-								<div className="record-head">
-									<div>
-										<div className="record-title">
-											{joinDisplayParts(['Consumo', item.material_name])}
+
+					{/* Consumos */}
+					{consumptions.length > 0 && (
+						<>
+							<div className="inventory-section-head">
+								<span>Consumos</span>
+							</div>
+							{consumptions.slice(0, 5).map((item) => {
+								const quickActions = materialConsumptionQuickActions(item)
+								return (
+									<MotionFlashSurface
+										className={recordClass('material-consumption', item.id)}
+										key={`c-${item.id}`}
+										{...detailRecordProps('Consumo de material', item)}
+										{...quickActionTargetProps('Acciones de consumo', quickActions)}
+									>
+										<div className="record-head">
+											<div>
+												<div className="record-title">
+													{joinDisplayParts(['Consumo', item.material_name])}
+												</div>
+												<div className="record-sub">
+													Trabajo asociado · {item.quantity} · {money(item.estimated_total_cost)}
+												</div>
+											</div>
+											<div className="record-actions">
+												{renderQuickActionsTrigger(
+													'Acciones de consumo',
+													quickActions,
+													'Acciones rapidas de consumo',
+												)}
+											</div>
 										</div>
-										<div className="record-sub">
-											Trabajo asociado - {item.quantity} -{' '}
-											{money(item.estimated_total_cost)}
-										</div>
-									</div>
-									<div className="record-actions">
-										{renderQuickActionsTrigger(
-											'Acciones de consumo',
-											quickActions,
-											'Acciones rapidas de consumo',
-										)}
-									</div>
-								</div>
-							</MotionFlashSurface>
-						)
-					})}
+									</MotionFlashSurface>
+								)
+							})}
+						</>
+					)}
 				</div>
 			</section>
 		</div>

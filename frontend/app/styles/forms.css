@@ -485,9 +485,12 @@ button.primary.quote-action-button--filled {
   .app-shell,
   .two,
   .three,
-  .customer-dashboard-duo,
-  .inventory-metrics {
+  .customer-dashboard-duo {
     grid-template-columns: 1fr;
+  }
+
+  .inventory-metrics {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .service-emoji-picker {
