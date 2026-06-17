@@ -1,5 +1,34 @@
 export type AnyAvailabilityRecord = Record<string, unknown>
 
+export type WorkingHoursEntry = {
+	day_of_week: number
+	is_open: boolean
+	opening_time: string | null
+	closing_time: string | null
+}
+
+export function getHoursForDate(
+	isoDate: string,
+	workingHours: WorkingHoursEntry[],
+): { is_open: boolean; opening_time: string | null; closing_time: string | null } | null {
+	if (!isoDate || !workingHours.length) return null
+	const d = new Date(isoDate + 'T00:00:00')
+	// getDay() returns 0=Sunday, 1=Monday...; we use 0=Monday, 6=Sunday
+	const jsDay = d.getDay()
+	const dayOfWeek = jsDay === 0 ? 6 : jsDay - 1
+	return workingHours.find((e) => e.day_of_week === dayOfWeek) ?? null
+}
+
+export const DEFAULT_WORKING_HOURS: WorkingHoursEntry[] = [
+	{ day_of_week: 0, is_open: true, opening_time: null, closing_time: null },
+	{ day_of_week: 1, is_open: true, opening_time: null, closing_time: null },
+	{ day_of_week: 2, is_open: true, opening_time: null, closing_time: null },
+	{ day_of_week: 3, is_open: true, opening_time: null, closing_time: null },
+	{ day_of_week: 4, is_open: true, opening_time: null, closing_time: null },
+	{ day_of_week: 5, is_open: true, opening_time: null, closing_time: null },
+	{ day_of_week: 6, is_open: false, opening_time: null, closing_time: null },
+]
+
 export type AvailabilityBucket = {
 	max_slots: number
 	used_slots: number

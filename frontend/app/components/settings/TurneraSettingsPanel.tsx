@@ -8,6 +8,12 @@ import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { Toggle } from '@/app/components/ui/Toggle'
 import { type AnyRecord } from '@/lib/page-support'
+import {
+	type WorkingHoursEntry,
+	DEFAULT_WORKING_HOURS,
+} from '@/lib/scheduling-availability'
+
+const DAY_LABELS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo']
 
 type TurneraSettingsPanelProps = {
 	businessForm: AnyRecord
@@ -36,6 +42,13 @@ function normalizeHiddenIds(value: unknown): number[] {
 	return out
 }
 
+function normalizeWorkingHours(value: unknown): WorkingHoursEntry[] {
+	const base = Array.isArray(value) && value.length === 7
+		? (value as WorkingHoursEntry[])
+		: DEFAULT_WORKING_HOURS
+	return base
+}
+
 export function TurneraSettingsPanel({
 	businessForm,
 	businessSlug,
@@ -44,6 +57,17 @@ export function TurneraSettingsPanel({
 	onPatchBusinessForm,
 	onSaveBusinessProfile,
 }: TurneraSettingsPanelProps) {
+	const workingHours = useMemo(
+		() => normalizeWorkingHours(businessForm.working_hours),
+		[businessForm.working_hours],
+	)
+
+	function patchWorkingHoursDay(dayOfWeek: number, patch: Partial<WorkingHoursEntry>) {
+		const next = workingHours.map((entry) =>
+			entry.day_of_week === dayOfWeek ? { ...entry, ...patch } : entry,
+		)
+		onPatchBusinessForm({ working_hours: next })
+	}
 	const publicLandingUrl = businessSlug
 		? `${typeof window !== 'undefined' ? window.location.origin : ''}/publica/${businessSlug}`
 		: ''
@@ -257,6 +281,52 @@ export function TurneraSettingsPanel({
 					>
 						Solapar turnos
 					</Toggle>
+				</div>
+				<div className="working-hours-grid">
+					<h3>Dias y horarios de atencion</h3>
+					<p>Configura que dias trabaja el negocio y en que horario. La agenda bloqueara los dias cerrados.</p>
+					<div className="working-hours-rows">
+						{workingHours.map((entry) => (
+							<div key={entry.day_of_week} className="working-hours-row">
+								<Toggle
+									checked={entry.is_open}
+									onChange={(checked) =>
+										patchWorkingHoursDay(entry.day_of_week, { is_open: checked })
+									}
+								>
+									{DAY_LABELS[entry.day_of_week]}
+								</Toggle>
+								{entry.is_open ? (
+									<div className="working-hours-times">
+										<Field label="Apertura">
+											<input
+												type="time"
+												value={entry.opening_time ?? ''}
+												onChange={(e) =>
+													patchWorkingHoursDay(entry.day_of_week, {
+														opening_time: e.target.value || null,
+													})
+												}
+											/>
+										</Field>
+										<Field label="Cierre">
+											<input
+												type="time"
+												value={entry.closing_time ?? ''}
+												onChange={(e) =>
+													patchWorkingHoursDay(entry.day_of_week, {
+														closing_time: e.target.value || null,
+													})
+												}
+											/>
+										</Field>
+									</div>
+								) : (
+									<span className="working-hours-closed">Cerrado</span>
+								)}
+							</div>
+						))}
+					</div>
 				</div>
 				<div className="turnera-services">
 					<div className="turnera-services-head">

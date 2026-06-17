@@ -39,6 +39,7 @@ import {
 } from '@/lib/intl-format'
 import { type ApiErrorNotice, formatApiError } from '@/lib/api-errors'
 import { type AgendaOperationalPhase } from '@/lib/agenda'
+import { type WorkingHoursEntry, DEFAULT_WORKING_HOURS } from '@/lib/scheduling-availability'
 import { toastIconVariants, toastVariants } from '@/lib/motion-spec'
 
 type AnyRecord = Record<string, any>
@@ -236,6 +237,7 @@ function blankBusinessForm() {
 		public_show_service_price: false,
 		opening_time: null,
 		closing_time: null,
+		working_hours: DEFAULT_WORKING_HOURS as WorkingHoursEntry[],
 		income_category_tree: normalizeIncomeCategoryTree(
 			DEFAULT_INCOME_CATEGORY_TREE,
 		),

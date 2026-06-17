@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from catalog.models import Sector
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
-from core.models import BusinessProfile
+from core.models import BusinessHours, BusinessProfile
 from core.permissions import EmployerRequiredForUnsafe, business_from_request
 from finance.cash import cash_day, ensure_cash_day_open
 from notifications.service import send_public_request_push, send_reservation_confirmation
@@ -288,9 +288,25 @@ class DailyAgendaView(APIView):
                     "available_slots": max(max_slots - used_slots, 0),
                 }
             )
+        day_of_week = day.weekday()  # 0=Monday, 6=Sunday
+        day_hours = BusinessHours.objects.filter(
+            business=business, day_of_week=day_of_week
+        ).first()
+        if day_hours is not None:
+            is_working_day = day_hours.is_open
+            day_opening_time = day_hours.opening_time.strftime("%H:%M") if day_hours.opening_time else None
+            day_closing_time = day_hours.closing_time.strftime("%H:%M") if day_hours.closing_time else None
+        else:
+            is_working_day = True
+            day_opening_time = None
+            day_closing_time = None
+
         return response.Response(
             {
                 "date": day.isoformat(),
+                "is_working_day": is_working_day,
+                "day_opening_time": day_opening_time,
+                "day_closing_time": day_closing_time,
                 "capacity_enforced": bool(profile.enforce_capacity_limit),
                 "sectors": sectors_payload,
                 "reservations": ReservationSerializer(
