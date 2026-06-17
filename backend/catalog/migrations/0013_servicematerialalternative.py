@@ -41,6 +41,7 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={
+                "ordering": ["id"],
                 "verbose_name": "alternativa de material",
                 "verbose_name_plural": "alternativas de material",
             },

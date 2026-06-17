@@ -5,7 +5,12 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
-from catalog.views import SectorViewSet, ServiceMaterialAlternativeViewSet, ServiceMaterialViewSet, ServiceViewSet
+from catalog.views import (
+    SectorViewSet,
+    ServiceMaterialAlternativeViewSet,
+    ServiceMaterialViewSet,
+    ServiceViewSet,
+)
 from core.views import AuditLogView, TrashPurgeView, TrashRestoreView, TrashView
 from customers.views import CustomerViewSet, VehicleViewSet
 from dashboard.views import DashboardSummaryView

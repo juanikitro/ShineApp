@@ -49,6 +49,7 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={
+                "ordering": ["id"],
                 "verbose_name": "reemplazo de material en reserva",
                 "verbose_name_plural": "reemplazos de material en reserva",
             },
