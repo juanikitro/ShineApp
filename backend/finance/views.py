@@ -232,6 +232,13 @@ class CashMovementViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     serializer_class = CashMovementSerializer
     permission_classes = [CanViewEconomy]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        date_param = self.request.query_params.get("date")
+        if date_param:
+            queryset = queryset.filter(occurred_at__date=date_param)
+        return queryset
+
     def perform_destroy(self, instance):
         ensure_cash_day_open(
             cash_day(instance.occurred_at),

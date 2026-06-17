@@ -11,6 +11,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-06-17
+- [Sistema de alerta de duplicados](docs/registro/cambios/2026-06-17-sistema-anti-duplicados.md)
 - [Material: asignación de sector](docs/registro/cambios/2026-06-17-material-sector.md)
 
 ## 2026-06-16

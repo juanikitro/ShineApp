@@ -1,12 +1,14 @@
 'use client'
 
-import { type FormEvent, type KeyboardEvent } from 'react'
+import { type FormEvent, type KeyboardEvent, useEffect, useState } from 'react'
 
 import { Plus } from 'lucide-react'
 
+import { DuplicateWarning } from '@/app/components/DuplicateWarning'
 import { BirthdayFields } from '@/app/components/ui/BirthdayFields'
 import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
+import { apiFetch } from '@/lib/api'
 import { type AnyRecord } from '@/lib/page-support'
 
 type CustomerFormProps = {
@@ -31,6 +33,45 @@ export function CustomerForm({
 	submitting = false,
 	fieldErrors,
 }: CustomerFormProps) {
+	const [duplicates, setDuplicates] = useState<Array<{ id: number; name: string; phone: string }>>([])
+	const [dismissed, setDismissed] = useState(false)
+
+	// Reset aviso cuando el usuario modifica nombre o teléfono
+	useEffect(() => {
+		setDismissed(false)
+	}, [customerForm.name, customerForm.phone])
+
+	// Búsqueda debounced de clientes similares
+	useEffect(() => {
+		if (dismissed) {
+			setDuplicates([])
+			return
+		}
+		const name = (customerForm.name ?? '').trim()
+		const phone = (customerForm.phone ?? '').trim()
+		const query = name.length >= 3 ? name : phone.length >= 8 ? phone : ''
+		if (!query) {
+			setDuplicates([])
+			return
+		}
+		const timer = setTimeout(async () => {
+			try {
+				const data = await apiFetch<{ results?: AnyRecord[] }>(
+					`customers/?search=${encodeURIComponent(query)}`,
+				)
+				const results = data.results ?? []
+				setDuplicates(
+					results
+						.filter((c) => c.id !== customerForm.id)
+						.slice(0, 3) as Array<{ id: number; name: string; phone: string }>,
+				)
+			} catch {
+				setDuplicates([])
+			}
+		}, 700)
+		return () => clearTimeout(timer)
+	}, [customerForm.name, customerForm.phone, customerForm.id, dismissed])
+
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
 			<Field label="Nombre" error={fieldErrors?.['name']}>
@@ -152,6 +193,16 @@ export function CustomerForm({
 					}
 				/>
 			</Field>
+			{!dismissed && duplicates.length > 0 && (
+				<DuplicateWarning
+					title="Ya existe un cliente similar:"
+					items={duplicates.map((c) => ({
+						id: c.id,
+						label: [c.name, c.phone].filter(Boolean).join(' · '),
+					}))}
+					onDismiss={() => setDismissed(true)}
+				/>
+			)}
 			<Button
 				type="submit"
 				variant="primary"
