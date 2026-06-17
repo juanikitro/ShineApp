@@ -30,6 +30,7 @@ from .serializers import (
     MaterialOpenUnitSerializer,
     MaterialPurchaseSerializer,
     MaterialSerializer,
+    MaterialUsageBackfillSerializer,
     StockMovementSerializer,
     SupplierListSerializer,
     SupplierSerializer,
@@ -531,6 +532,31 @@ class MaterialOpenUnitViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         return queryset
+
+    @decorators.action(detail=False, methods=["post"], url_path="register-usage")
+    @transaction.atomic
+    def register_usage(self, request):
+        """Registro retroactivo: crea una unidad historica (finalizada) y un uso
+        por cada reserva pasada del servicio. No descuenta stock actual."""
+        serializer = MaterialUsageBackfillSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        open_unit = serializer.save()
+        record_audit_event(
+            request=request,
+            action="register_usage",
+            instance=open_unit,
+            before=None,
+            after=audit_snapshot(open_unit),
+            metadata={
+                "material": open_unit.material_id,
+                "service": open_unit.service_id,
+                "reservations": [reservation.id for reservation in serializer.validated_data["reservations"]],
+            },
+        )
+        return response.Response(
+            self.get_serializer(open_unit).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     @decorators.action(detail=True, methods=["post"])
     def consume(self, request, pk=None):

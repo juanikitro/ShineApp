@@ -191,6 +191,13 @@ class MaterialOpenUnit(models.Model):
 
     business = models.ForeignKey("core.BusinessAccount", related_name="material_open_units", on_delete=models.PROTECT)
     material = models.ForeignKey(Material, related_name="open_units", on_delete=models.PROTECT)
+    service = models.ForeignKey(
+        "catalog.Service",
+        related_name="material_open_units",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+    )
     opened_at = models.DateField(default=timezone.localdate)
     opened_by_work_order = models.ForeignKey(
         "workorders.WorkOrder",
@@ -199,6 +206,10 @@ class MaterialOpenUnit(models.Model):
         blank=True,
         on_delete=models.PROTECT,
     )
+    # Unidad cargada de forma retroactiva (consumo pasado para analisis de
+    # rendimiento por servicio). No descuenta stock actual: el stock de hoy ya
+    # refleja ese consumo. Ver inventory.views.MaterialOpenUnitViewSet.register_usage.
+    is_historical = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
     finished_at = models.DateField(null=True, blank=True)
     stock_quantity_to_decrement = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("1.00"))
