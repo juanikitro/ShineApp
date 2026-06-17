@@ -11,7 +11,7 @@ from decimal import Decimal
 import pytest
 from django.urls import reverse
 
-from catalog.models import Sector, Service
+from catalog.models import Sector, Service, ServiceMaterial
 from customers.models import Customer, Vehicle
 from inventory.models import Material, MaterialConsumption, MaterialOpenUnit
 from scheduling.models import Reservation
@@ -218,3 +218,28 @@ def test_service_usage_empty_without_historical_units(usage_setup):
 
     assert response.status_code == 200
     assert response.data["results"] == []
+
+
+@pytest.mark.django_db
+def test_recipe_upsert_creates_then_updates(usage_setup):
+    api_client, customer, vehicle, service = usage_setup
+    material = Material.objects.create(name="Esmalte", unit="frasco", stock_quantity=Decimal("5.00"))
+
+    created = api_client.post(
+        reverse("servicematerial-upsert"),
+        {"service": service.id, "material": material.id, "quantity": "0.250"},
+        format="json",
+    )
+    assert created.status_code == 201, created.data
+    recipe_id = created.data["id"]
+    assert Decimal(created.data["quantity"]) == Decimal("0.250")
+
+    updated = api_client.post(
+        reverse("servicematerial-upsert"),
+        {"service": service.id, "material": material.id, "quantity": "0.330"},
+        format="json",
+    )
+    assert updated.status_code == 200, updated.data
+    assert updated.data["id"] == recipe_id  # mismo registro, no duplica
+    assert Decimal(updated.data["quantity"]) == Decimal("0.330")
+    assert ServiceMaterial.objects.filter(service=service, material=material).count() == 1

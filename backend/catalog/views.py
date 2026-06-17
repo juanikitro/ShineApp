@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.db.models import Q
 from django.utils import timezone
-from rest_framework import decorators, permissions, response, viewsets
+from rest_framework import decorators, permissions, response, status, viewsets
 from rest_framework.exceptions import ValidationError
 
 from core.audit import AuditedModelViewSetMixin
@@ -326,3 +326,25 @@ class ServiceMaterialViewSet(viewsets.ModelViewSet):
         if service_id:
             qs = qs.filter(service_id=service_id)
         return qs
+
+    @decorators.action(detail=False, methods=["post"], url_path="upsert")
+    def upsert(self, request):
+        """Crea o actualiza la receta (servicio, material) en una sola llamada.
+        Usado para volcar el consumo estimado por servicio a la receta oficial."""
+        business = business_from_request(request)
+        service_id = request.data.get("service")
+        material_id = request.data.get("material")
+        existing = None
+        if service_id and material_id:
+            existing = ServiceMaterial.objects.filter(
+                service_id=service_id,
+                material_id=material_id,
+                service__business=business,
+            ).first()
+        serializer = self.get_serializer(instance=existing, data=request.data, partial=existing is not None)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return response.Response(
+            serializer.data,
+            status=status.HTTP_200_OK if existing is not None else status.HTTP_201_CREATED,
+        )
