@@ -4501,7 +4501,6 @@ export default function Home() {
 	})
 	const navItems: SidebarNavItem[] = [
 		buildNavItem('dashboard'),
-		buildNavItem('tasks'),
 		{
 			...buildNavItem('agenda'),
 			children: canViewEconomy
@@ -4527,9 +4526,10 @@ export default function Home() {
 							buildNavItem('tools'),
 						],
 					},
+					buildNavItem('tasks'),
 					buildNavItem('settings'),
 				]
-			: []),
+			: [buildNavItem('tasks')]),
 	]
 	const customerVehicles = vehicles.filter(
 		(vehicle) =>
