@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Consumo de producto por servicio: registro historico (2026-06-17)](2026-06-17-consumo-de-producto-por-servicio.md)
 - [Tareas: CSS muerto, tints a tokens y errores inline (2026-06-16)](2026-06-16-tareas-css-muerto-tints-tokens-y-errores-inline.md)
 - [Tareas: accesibilidad, primitives y mobile (2026-06-13)](2026-06-13-tareas-accesibilidad-y-primitives.md)
 - [Performance Capa 2: useMemo en derivaciones caras](2026-06-13-perf-capa2-usememo-derivaciones.md)

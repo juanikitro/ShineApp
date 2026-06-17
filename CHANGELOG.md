@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-06-17
+- [Consumo de producto por servicio: registro historico (2026-06-17)](docs/registro/cambios/2026-06-17-consumo-de-producto-por-servicio.md)
+
 ## 2026-06-16
 - [Tareas: CSS muerto, tints a tokens y errores inline (2026-06-16)](docs/registro/cambios/2026-06-16-tareas-css-muerto-tints-tokens-y-errores-inline.md)
 
