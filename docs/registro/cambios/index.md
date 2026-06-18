@@ -10,6 +10,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 - [Detalle read-first al clickear items de listados](2026-06-18-detalle-read-first-listados.md)
+- [Agenda: vista mensual](2026-06-18-agenda-vista-mensual.md)
 - [Sistema de alerta de duplicados](2026-06-17-sistema-anti-duplicados.md)
 - [Material: asignación de sector](2026-06-17-material-sector.md)
 - [Alternativas de material por servicio y override por reserva](2026-06-17-material-alternatives.md)
