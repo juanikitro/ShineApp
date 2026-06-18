@@ -437,6 +437,7 @@ export function InventoryPanel({
 						<MotionFlashSurface
 							className={recordClass('stock-movement', item.id)}
 							key={`sm-${item.id}`}
+							{...detailRecordProps('Movimiento de stock', item)}
 						>
 							<div className="record-head">
 								<div>

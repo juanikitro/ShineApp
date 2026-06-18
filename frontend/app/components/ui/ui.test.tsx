@@ -498,10 +498,12 @@ test('DetailModal formats readonly data and swaps to edit form when editing', ()
 	)
 
 	assert.ok(screen.getByRole('dialog', { name: 'Detalle' }))
+	assert.ok(screen.getByText('Ana'))
 	assert.ok(screen.getByText('Si'))
 	assert.ok(screen.getByText('1 items'))
-	assert.ok(screen.getByText('{"visits":2}'))
-	assert.ok(screen.getByText('Sin dato'))
+	assert.ok(screen.getByText('Ver mas'))
+	// Los valores vacios y las claves internas se ocultan del detalle legible.
+	assert.equal(screen.queryByText('Sin dato'), null)
 	assert.equal(screen.queryByText('hidden'), null)
 
 	rerender(
