@@ -4091,6 +4091,118 @@
   padding: 10px 12px;
 }
 
+.settings-classification-toggle {
+  width: 100%;
+}
+
+.settings-category-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-category-item {
+  background: var(--color-workspace-surface);
+  border: 1px solid var(--color-workspace-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 18px var(--color-shadow-soft);
+  overflow: hidden;
+}
+
+.settings-category-item.is-open {
+  border-color: var(--shop-accent, var(--color-workspace-border));
+}
+
+.settings-category-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px 8px 6px;
+}
+
+.settings-category-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1 1 auto;
+  gap: 10px;
+  min-width: 0;
+  padding: 6px 4px;
+  text-align: left;
+}
+
+.settings-category-chevron {
+  color: var(--shop-muted, currentColor);
+  flex: 0 0 auto;
+  transition: transform 0.18s ease;
+}
+
+.settings-category-item.is-open .settings-category-chevron {
+  transform: rotate(180deg);
+}
+
+.settings-category-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-category-count {
+  color: var(--shop-muted, currentColor);
+  flex: 0 0 auto;
+  font-size: var(--text-base, 0.82rem);
+}
+
+.settings-category-actions,
+.settings-subcategory-actions {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+
+.settings-subcategory-list {
+  border-top: 1px solid var(--color-workspace-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 10px 10px 28px;
+}
+
+.settings-subcategory-row {
+  align-items: center;
+  border-radius: var(--radius-sm, 8px);
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 4px 6px;
+}
+
+.settings-subcategory-row:hover {
+  background: var(--color-workspace-surface-strong, rgba(17, 24, 39, 0.04));
+}
+
+.settings-subcategory-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-subcategory-empty {
+  align-items: center;
+  color: var(--shop-muted, currentColor);
+  display: flex;
+  font-size: var(--text-base, 0.82rem);
+  gap: 4px;
+  margin: 0;
+  padding: 4px 6px;
+}
+
 .employee-detail-section {
   border-top: 1px solid var(--shop-border);
   margin-top: var(--space-5);

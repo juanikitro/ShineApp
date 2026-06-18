@@ -390,6 +390,12 @@ import {
 	uniqueValues,
 	removeExpenseCategoryPair,
 	removeIncomeCategoryPair,
+	addExpenseCategory,
+	addIncomeCategory,
+	removeExpenseCategory,
+	removeIncomeCategory,
+	renameExpenseCategory,
+	renameIncomeCategory,
 	upsertIncomeCategoryPair,
 	upsertExpenseCategoryPair,
 	useButtonHoverTitles,
@@ -845,7 +851,13 @@ export default function Home() {
 			subcategory: '',
 			originalCategory: '',
 			originalSubcategory: '',
+			lockCategory: false,
 		})
+	const [cashCategoryForm, setCashCategoryForm] = useState<AnyRecord>({
+		movement_type: 'expense',
+		name: '',
+		originalName: '',
+	})
 	const [profileForm, setProfileForm] = useState<AnyRecord>(blankProfileForm())
 	const businessFormRef = useRef<AnyRecord>(blankBusinessForm())
 	const [customerForm, setCustomerForm] = useState<AnyRecord>(blankCustomerForm())
@@ -1633,6 +1645,7 @@ export default function Home() {
 			'cash-movement': 'cash-movement.type',
 			'cash-load': 'cash-movement.type',
 			'expense-classification': 'expense-classification.type',
+			'cash-category': 'cash-category.name',
 			debt: 'debt.concept',
 			'debt-payment': 'debt-payment.debt',
 			'fixed-expense': 'fixed-expense.concept',
@@ -6104,6 +6117,7 @@ export default function Home() {
 			subcategory: '',
 			originalCategory: '',
 			originalSubcategory: '',
+			lockCategory: false,
 		})
 	}
 
@@ -6118,8 +6132,99 @@ export default function Home() {
 			subcategory: item.subcategory,
 			originalCategory: item.category,
 			originalSubcategory: item.subcategory,
+			lockCategory: false,
 		})
 		setFormModal({ kind: 'expense-classification' })
+	}
+
+	function openSubcategoryCreator(movementType: string, category: string) {
+		const nextType = movementType === 'income' ? 'income' : 'expense'
+		setExpenseClassificationForm({
+			movement_type: nextType,
+			category,
+			subcategory: '',
+			originalCategory: '',
+			originalSubcategory: '',
+			lockCategory: true,
+		})
+		setFormModal({ kind: 'expense-classification' })
+		focusField('expense-classification.subcategory')
+	}
+
+	function resetCashCategoryForm() {
+		setCashCategoryForm({
+			movement_type: 'expense',
+			name: '',
+			originalName: '',
+		})
+	}
+
+	function openCashCategoryCreator(movementType: string) {
+		const nextType = movementType === 'income' ? 'income' : 'expense'
+		setCashCategoryForm({
+			movement_type: nextType,
+			name: '',
+			originalName: '',
+		})
+		setFormModal({ kind: 'cash-category' })
+		focusField('cash-category.name')
+	}
+
+	function openCashCategoryEditor(movementType: string, category: string) {
+		const nextType = movementType === 'income' ? 'income' : 'expense'
+		setCashCategoryForm({
+			movement_type: nextType,
+			name: category,
+			originalName: category,
+		})
+		setFormModal({ kind: 'cash-category' })
+		focusField('cash-category.name')
+	}
+
+	async function saveCashCategory(event: FormEvent) {
+		event.preventDefault()
+		if (!canViewEconomy) return
+		const name = String(cashCategoryForm.name ?? '').trim()
+		if (!name) return
+		const original = String(cashCategoryForm.originalName ?? '').trim()
+		const isIncome = cashCategoryForm.movement_type === 'income'
+		const field = isIncome ? 'income_category_tree' : 'expense_category_tree'
+		const currentTree = businessFormRef.current[field]
+		let nextTree
+		if (original && original !== name) {
+			nextTree = isIncome
+				? renameIncomeCategory(currentTree, original, name)
+				: renameExpenseCategory(currentTree, original, name)
+		} else {
+			nextTree = isIncome
+				? addIncomeCategory(currentTree, name)
+				: addExpenseCategory(currentTree, name)
+		}
+		const saved = await persistBusinessProfile(
+			{ ...businessFormRef.current, [field]: nextTree },
+			{
+				successTitle: original
+					? 'Categoria actualizada'
+					: 'Categoria creada',
+			},
+		)
+		if (saved) {
+			resetCashCategoryForm()
+			formModalExit.close()
+		}
+	}
+
+	async function deleteCashCategory(movementType: string, category: string) {
+		if (!canViewEconomy) return
+		const isIncome = movementType === 'income'
+		const field = isIncome ? 'income_category_tree' : 'expense_category_tree'
+		const nextTree = isIncome
+			? removeIncomeCategory(businessFormRef.current[field], category)
+			: removeExpenseCategory(businessFormRef.current[field], category)
+		await persistBusinessProfile(
+			{ ...businessFormRef.current, [field]: nextTree },
+			{ successTitle: 'Categoria eliminada' },
+		)
 	}
 
 	async function saveExpenseClassification(event: FormEvent) {
@@ -11431,6 +11536,7 @@ export default function Home() {
 
 	function renderExpenseClassificationForm() {
 		const editing = Boolean(expenseClassificationForm.originalCategory)
+		const lockCategory = Boolean(expenseClassificationForm.lockCategory)
 		const movementType =
 			expenseClassificationForm.movement_type === 'income'
 				? 'income'
@@ -11445,7 +11551,7 @@ export default function Home() {
 						{ value: 'income', label: 'Ingreso' },
 						{ value: 'expense', label: 'Egreso' },
 					]}
-					disabled={editing}
+					disabled={editing || lockCategory}
 					focusKey="expense-classification.type"
 					onChange={(value) => {
 						const nextType = value === 'income' ? 'income' : 'expense'
@@ -11463,6 +11569,7 @@ export default function Home() {
 					value={expenseClassificationForm.category}
 					options={settingsClassificationCategoryOptions}
 					placeholder={`Categoria de ${movementLabel}`}
+					disabled={lockCategory}
 					focusKey="expense-classification.category"
 					onChange={(value) =>
 						setExpenseClassificationForm({
@@ -11515,7 +11622,80 @@ export default function Home() {
 						loading={pendingActions.pending}
 						leadingIcon={<ReceiptText size={16} />}
 					>
-						{editing ? 'Guardar cambios' : 'Crear subcategoria'}
+						{editing
+							? 'Guardar cambios'
+							: lockCategory
+								? 'Agregar subcategoria'
+								: 'Crear subcategoria'}
+					</Button>
+				</div>
+			</form>
+		)
+	}
+
+	function renderCashCategoryForm() {
+		const editing = Boolean(cashCategoryForm.originalName)
+		const movementType =
+			cashCategoryForm.movement_type === 'income' ? 'income' : 'expense'
+		const movementLabel = movementType === 'income' ? 'ingreso' : 'egreso'
+		return (
+			<form className="form-grid" onSubmit={saveCashCategory}>
+				<SearchSelect
+					label="Tipo"
+					value={movementType}
+					options={[
+						{ value: 'income', label: 'Ingreso' },
+						{ value: 'expense', label: 'Egreso' },
+					]}
+					disabled={editing}
+					focusKey="cash-category.type"
+					onChange={(value) => {
+						const nextType = value === 'income' ? 'income' : 'expense'
+						setCashCategoryForm({
+							...cashCategoryForm,
+							movement_type: nextType,
+						})
+						focusField('cash-category.name')
+					}}
+				/>
+				<Field label={`Nombre de la categoria de ${movementLabel}`}>
+					<input
+						required
+						data-focus-key="cash-category.name"
+						value={cashCategoryForm.name}
+						placeholder={`Categoria de ${movementLabel}`}
+						onChange={(event) =>
+							setCashCategoryForm({
+								...cashCategoryForm,
+								name: event.target.value,
+							})
+						}
+					/>
+				</Field>
+				<div className="info-note">
+					Podes crear la categoria ahora y agregarle subcategorias mas
+					tarde desde el listado.
+				</div>
+				<div className="record-actions">
+					{editing ? (
+						<Button
+							type="button"
+							variant="ghost"
+							onClick={() => {
+								resetCashCategoryForm()
+								formModalExit.close()
+							}}
+						>
+							Cancelar
+						</Button>
+					) : null}
+					<Button
+						type="submit"
+						variant="primary"
+						loading={pendingActions.pending}
+						leadingIcon={<Plus size={16} />}
+					>
+						{editing ? 'Guardar cambios' : 'Crear categoria'}
 					</Button>
 				</div>
 			</form>
@@ -11958,8 +12138,10 @@ export default function Home() {
 						key="form-expense-classification"
 						title={
 							expenseClassificationForm.originalCategory
-								? 'Editar clasificacion de caja'
-								: 'Nueva clasificacion de caja'
+								? 'Editar subcategoria de caja'
+								: expenseClassificationForm.lockCategory
+									? 'Nueva subcategoria de caja'
+									: 'Nueva clasificacion de caja'
 						}
 						onClose={() => {
 							resetExpenseClassificationForm()
@@ -11967,6 +12149,22 @@ export default function Home() {
 						}}
 					>
 						{renderExpenseClassificationForm()}
+					</Modal>
+				) : null}
+				{canViewEconomy && formModal?.kind === 'cash-category' ? (
+					<Modal
+						key="form-cash-category"
+						title={
+							cashCategoryForm.originalName
+								? 'Editar categoria de caja'
+								: 'Nueva categoria de caja'
+						}
+						onClose={() => {
+							resetCashCategoryForm()
+							formModalExit.close()
+						}}
+					>
+						{renderCashCategoryForm()}
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'debt' ? (
@@ -14326,6 +14524,8 @@ export default function Home() {
 						businessProfile={businessProfile}
 						businessSlug={String(currentUser?.business?.slug ?? '')}
 						cashClassificationPairs={cashClassificationPairs}
+						incomeCategoryTree={incomeCategoryTree}
+						expenseCategoryTree={expenseCategoryTree}
 						currentUserId={currentUser?.id ?? null}
 						employees={employees}
 						selectedEmployee={selectedEmployee}
@@ -14333,9 +14533,7 @@ export default function Home() {
 						employeeAuditLogsLoading={employeeAuditLogsLoading}
 						employeeAuditLogsError={employeeAuditLogsError}
 						expandedAuditLogId={expandedAuditLogId}
-						expenseClassificationPairs={expenseClassificationPairs}
 						inactiveEmployeeCount={inactiveEmployeeCount}
-						incomeClassificationPairs={incomeClassificationPairs}
 						loading={loading}
 						safeBusinessLogoPdfThumbnail={safeBusinessLogoPdfThumbnail}
 						safeBusinessLogoPreview={safeBusinessLogoPreview}
@@ -14357,15 +14555,16 @@ export default function Home() {
 						onClearAuditFilters={clearAuditFilters}
 						onDeleteExpenseClassification={deleteExpenseClassification}
 						onEditExpenseClassification={openExpenseClassificationEditor}
+						onAddSubcategory={openSubcategoryCreator}
+						onOpenCashCategoryForm={openCashCategoryCreator}
+						onEditCashCategory={openCashCategoryEditor}
+						onDeleteCashCategory={deleteCashCategory}
 						onOpenBusinessLogoPicker={openBusinessLogoPicker}
 						onSelectEmployee={selectEmployee}
 						onDeselectEmployee={deselectEmployee}
 						onChangeEmployeePassword={changeEmployeePassword}
 						onToggleEmployeeActive={toggleEmployeeActive}
 						onOpenEmployeeForm={() => openFormModal('employee')}
-						onOpenExpenseClassificationForm={() =>
-							openFormModal('expense-classification')
-						}
 						onCreateSector={(data) =>
 							runAction(() =>
 								apiFetch('/sectors/', {

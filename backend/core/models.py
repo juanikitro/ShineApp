@@ -102,8 +102,9 @@ def normalize_category_tree(value, default_tree):
             if subcategory and subcategory not in seen:
                 subcategories.append(subcategory)
                 seen.add(subcategory)
-        if subcategories:
-            normalized[category] = sorted(subcategories, key=str.casefold)
+        # Las categorias sin subcategorias son validas: se conservan vacias para
+        # que el usuario pueda crear una categoria y agregar subcategorias luego.
+        normalized[category] = sorted(subcategories, key=str.casefold)
     return normalized or default_tree()
 
 

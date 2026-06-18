@@ -304,10 +304,6 @@ def validate_category_tree_payload(value, normalizer):
                 raise serializers.ValidationError(
                     f"{category} tiene una subcategoria vacia."
                 )
-        if not raw_subcategories:
-            raise serializers.ValidationError(
-                f"{category} necesita al menos una subcategoria."
-            )
 
     normalized = normalizer(value)
     if not normalized:
