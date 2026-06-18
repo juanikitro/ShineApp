@@ -44,10 +44,12 @@ def create_employer(username, business):
 
 
 # ---------------------------------------------------------------------------
-# Recall publico: no debe filtrar PII de clientes ni confirmar existencia.
+# Recall publico: por decision de producto autocompleta los datos del cliente
+# (telefono/email) para mejorar la UX del landing. Acepta el tradeoff de exponer
+# PII en un endpoint publico, mitigado por rate limit de 3 intentos / 15 min / IP.
 # ---------------------------------------------------------------------------
 @pytest.mark.django_db
-def test_public_recall_does_not_leak_customer_pii():
+def test_public_recall_returns_customer_for_autocomplete():
     business = create_business("Recall Test", "recall-test", public_landing=True)
     customer = Customer.objects.create(
         business=business,
@@ -71,10 +73,11 @@ def test_public_recall_does_not_leak_customer_pii():
     )
 
     assert response.status_code == 200
-    assert response.data["customer_name"] is None
-    assert response.data["customer_phone"] is None
-    assert response.data["customer_email"] is None
-    assert response.data["vehicles"] == []
+    assert response.data["customer_name"] == "Cliente Real"
+    assert response.data["customer_phone"] == "+54 11 1234-5678"
+    assert response.data["customer_email"] == "real@example.com"
+    assert len(response.data["vehicles"]) == 1
+    assert response.data["vehicles"][0]["license_plate"] == "AB123CD"
 
 
 @pytest.mark.django_db

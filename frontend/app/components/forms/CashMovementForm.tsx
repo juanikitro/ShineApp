@@ -12,6 +12,7 @@ import {
 	SearchSelect,
 	type SelectOption,
 } from '@/app/components/ui/SearchSelect'
+import { Toggle } from '@/app/components/ui/Toggle'
 import { apiFetch } from '@/lib/api'
 import {
 	type AnyRecord,
@@ -63,6 +64,16 @@ export function CashMovementForm({
 }: CashMovementFormProps) {
 	const [duplicates, setDuplicates] = useState<AnyRecord[]>([])
 	const [dismissed, setDismissed] = useState(false)
+	const [correctsClosure, setCorrectsClosure] = useState(
+		Boolean(movementForm.adjusts_closed_day),
+	)
+
+	// Si el movimiento ya trae fecha de correccion (ej. edicion), activa el toggle
+	useEffect(() => {
+		if (movementForm.adjusts_closed_day) {
+			setCorrectsClosure(true)
+		}
+	}, [movementForm.adjusts_closed_day])
 
 	// Reset aviso cuando cambian los campos clave
 	useEffect(() => {
@@ -206,7 +217,26 @@ export function CashMovementForm({
 						onKeyDown={focusNextOnEnter('cash-movement.occurred_at')}
 					/>
 				</Field>
-				<Field label="Corrige cierre" error={fieldErrors?.['adjusts_closed_day']}>
+			</div>
+			<Toggle
+				checked={correctsClosure}
+				onChange={(checked) => {
+					setCorrectsClosure(checked)
+					if (!checked) {
+						setMovementForm({
+							...movementForm,
+							adjusts_closed_day: '',
+						})
+					}
+				}}
+			>
+				Corrige cierre
+			</Toggle>
+			{correctsClosure ? (
+				<Field
+					label="Fecha correccion"
+					error={fieldErrors?.['adjusts_closed_day']}
+				>
 					<input
 						type="date"
 						value={movementForm.adjusts_closed_day ?? ''}
@@ -224,7 +254,7 @@ export function CashMovementForm({
 						}
 					/>
 				</Field>
-			</div>
+			) : null}
 			{movementForm.adjusts_closed_day ? (
 				<div className="info-note">
 					El ajuste impacta hoy y deja trazado que corrige el cierre de{' '}
