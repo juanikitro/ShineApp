@@ -258,7 +258,7 @@ def test_manual_adjustment_uses_adjustment_category_and_subcategory(api_client):
 
 
 @pytest.mark.django_db
-def test_manual_expense_requires_category_subcategory_pair(api_client):
+def test_manual_expense_allows_missing_subcategory(api_client):
     response = api_client.post(
         reverse("cashmovement-list"),
         {
@@ -270,8 +270,8 @@ def test_manual_expense_requires_category_subcategory_pair(api_client):
         format="json",
     )
 
-    assert response.status_code == 400
-    assert "subcategory" in response.data
+    assert response.status_code == 201, response.data
+    assert response.data["category"] == "Servicios"
 
 
 @pytest.mark.django_db

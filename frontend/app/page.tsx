@@ -5689,7 +5689,7 @@ export default function Home() {
 				isLoading={customerDashboardLoading}
 				hasHistory={hasDashboardHistory}
 				onBack={() => setCustomerDashboard(null)}
-				onEdit={() => openDetailModal('Cliente', customer)}
+				onEdit={() => openDetailModal('Cliente', customer, { startEditing: true })}
 			>
 				{renderCustomerOperationalSnapshot(
 					history,
@@ -7080,7 +7080,10 @@ export default function Home() {
 	function openDetailModal(
 		title: string,
 		data: AnyRecord,
-		options: { serviceMaterialsSource?: AnyRecord[] } = {},
+		options: {
+			serviceMaterialsSource?: AnyRecord[]
+			startEditing?: boolean
+		} = {},
 	) {
 		const kind = detailKindFromTitle(title)
 		if (!canViewEconomy && detailRequiresEconomy(kind)) return
@@ -7102,8 +7105,16 @@ export default function Home() {
 			kind,
 			data,
 			editData: { ...data },
-			editing: editableDetailKind(kind),
+			editing: options.startEditing === true && editableDetailKind(kind),
 		})
+	}
+
+	function startDetailEditing() {
+		setDetailModal((current) =>
+			current && editableDetailKind(current.kind)
+				? { ...current, editing: true, editData: { ...current.data } }
+				: current,
+		)
 	}
 
 	function openDetailFromEvent(event: any, title: string, data: AnyRecord) {
@@ -13083,8 +13094,11 @@ export default function Home() {
 					<DetailModal
 						key={`detail:${detailModal.kind}:${detailModal.data?.id ?? detailModal.title}`}
 						title={detailModal.title}
+						kind={detailModal.kind}
 						data={detailModal.data}
 						editing={detailModal.editing}
+						editable={editableDetailKind(detailModal.kind)}
+						onEdit={startDetailEditing}
 						editForm={renderDetailEditForm()}
 						onClose={detailExit.close}
 					/>
@@ -13550,7 +13564,9 @@ export default function Home() {
 							onFilterChange={setCustomerCardFilter}
 							onCreate={() => openFormModal('customer')}
 							onOpenDashboard={openCustomerDashboard}
-							onEdit={(item) => openDetailModal('Cliente', item)}
+							onEdit={(item) =>
+								openDetailModal('Cliente', item, { startEditing: true })
+							}
 							onDelete={(item) =>
 								runAction(
 									() =>
@@ -13667,7 +13683,11 @@ export default function Home() {
 														<Button
 															type="button"
 															variant="ghost"
-															onClick={() => openDetailModal('Proveedor', item)}
+															onClick={() =>
+																openDetailModal('Proveedor', item, {
+																	startEditing: true,
+																})
+															}
 														>
 															Editar
 														</Button>
@@ -13800,7 +13820,9 @@ export default function Home() {
 													<Button
 														variant="ghost"
 														onClick={() =>
-															openDetailModal('Vehiculo', item)
+															openDetailModal('Vehiculo', item, {
+																startEditing: true,
+															})
 														}
 													>
 														Editar

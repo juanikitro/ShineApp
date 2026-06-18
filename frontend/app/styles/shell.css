@@ -2147,6 +2147,92 @@
   overflow: hidden;
 }
 
+.detail-view {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.detail-view__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cash-detail {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.cash-detail__hero {
+  align-items: center;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--shop-border);
+  border-left: 4px solid var(--shop-border-strong);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: var(--space-3);
+  padding: 14px 16px;
+}
+
+.cash-detail__hero--income {
+  border-left-color: var(--shop-cash);
+}
+
+.cash-detail__hero--expense {
+  border-left-color: var(--shop-danger);
+}
+
+.cash-detail__direction {
+  align-items: center;
+  display: inline-flex;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
+}
+
+.cash-detail__hero--income .cash-detail__direction {
+  color: var(--shop-cash);
+}
+
+.cash-detail__hero--expense .cash-detail__direction {
+  color: var(--shop-danger);
+}
+
+.cash-detail__hero-main {
+  display: grid;
+  gap: 2px;
+}
+
+.cash-detail__kind {
+  color: var(--shop-ink-muted);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.cash-detail__amount {
+  font-size: var(--text-xl);
+  font-weight: 750;
+}
+
+.cash-detail__hero--income .cash-detail__amount {
+  color: var(--shop-cash);
+}
+
+.cash-detail__hero--expense .cash-detail__amount {
+  color: var(--shop-danger);
+}
+
+.cash-detail__chip {
+  background: var(--color-workspace-surface-raised);
+  border: 1px solid var(--shop-border);
+  border-radius: var(--radius-pill, 999px);
+  color: var(--shop-ink-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  margin-left: auto;
+  padding: 4px 10px;
+}
+
 .profile-detail-grid .detail-row {
   align-items: center;
   gap: 10px;
