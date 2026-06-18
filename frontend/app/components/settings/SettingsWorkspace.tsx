@@ -83,8 +83,8 @@ type SettingsWorkspaceProps = {
 	safeBusinessLogoPdfThumbnail: string | null
 	safeBusinessLogoPreview: string | null
 	cashClassificationPairs: CashClassificationPair[]
-	expenseClassificationPairs: AnyRecord[]
-	incomeClassificationPairs: AnyRecord[]
+	incomeCategoryTree: Record<string, string[]>
+	expenseCategoryTree: Record<string, string[]>
 	sectors: AnyRecord[]
 	services: AnyRecord[]
 	useReservationTimes: boolean
@@ -114,13 +114,16 @@ type SettingsWorkspaceProps = {
 	onOpenBusinessLogoPicker: () => void
 	onPatchBusinessForm: (patch: AnyRecord) => void
 	onSaveBusinessProfile: (event: FormEvent) => void
-	onOpenExpenseClassificationForm: () => void
 	onEditExpenseClassification: (item: CashClassificationPair) => void
 	onDeleteExpenseClassification: (
 		movementType: string,
 		category: string,
 		subcategory: string,
 	) => void
+	onAddSubcategory: (movementType: string, category: string) => void
+	onOpenCashCategoryForm: (movementType: string) => void
+	onEditCashCategory: (movementType: string, category: string) => void
+	onDeleteCashCategory: (movementType: string, category: string) => void
 	onOpenEmployeeForm: () => void
 	onCreateSector: (data: AnyRecord) => void
 	onSaveSector: (id: number, patch: AnyRecord) => void
@@ -154,8 +157,8 @@ export function SettingsWorkspace({
 	safeBusinessLogoPdfThumbnail,
 	safeBusinessLogoPreview,
 	cashClassificationPairs,
-	expenseClassificationPairs,
-	incomeClassificationPairs,
+	incomeCategoryTree,
+	expenseCategoryTree,
 	sectors,
 	services,
 	useReservationTimes,
@@ -185,9 +188,12 @@ export function SettingsWorkspace({
 	onOpenBusinessLogoPicker,
 	onPatchBusinessForm,
 	onSaveBusinessProfile,
-	onOpenExpenseClassificationForm,
 	onEditExpenseClassification,
 	onDeleteExpenseClassification,
+	onAddSubcategory,
+	onOpenCashCategoryForm,
+	onEditCashCategory,
+	onDeleteCashCategory,
 	onOpenEmployeeForm,
 	onCreateSector,
 	onSaveSector,
@@ -257,11 +263,14 @@ export function SettingsWorkspace({
 				{settingsSection === 'cash' ? (
 					<CashSettingsPanel
 						cashClassificationPairs={cashClassificationPairs}
-						expenseClassificationPairs={expenseClassificationPairs}
-						incomeClassificationPairs={incomeClassificationPairs}
+						incomeCategoryTree={incomeCategoryTree}
+						expenseCategoryTree={expenseCategoryTree}
 						onDeleteExpenseClassification={onDeleteExpenseClassification}
 						onEditExpenseClassification={onEditExpenseClassification}
-						onOpenExpenseClassificationForm={onOpenExpenseClassificationForm}
+						onAddSubcategory={onAddSubcategory}
+						onOpenCashCategoryForm={onOpenCashCategoryForm}
+						onEditCashCategory={onEditCashCategory}
+						onDeleteCashCategory={onDeleteCashCategory}
 					/>
 				) : null}
 				{settingsSection === 'agenda' ? (
@@ -440,23 +449,49 @@ function QuotesSettingsPanel({
 
 function CashSettingsPanel({
 	cashClassificationPairs,
-	expenseClassificationPairs,
-	incomeClassificationPairs,
+	incomeCategoryTree,
+	expenseCategoryTree,
 	onDeleteExpenseClassification,
 	onEditExpenseClassification,
-	onOpenExpenseClassificationForm,
+	onAddSubcategory,
+	onOpenCashCategoryForm,
+	onEditCashCategory,
+	onDeleteCashCategory,
 }: {
 	cashClassificationPairs: CashClassificationPair[]
-	expenseClassificationPairs: AnyRecord[]
-	incomeClassificationPairs: AnyRecord[]
+	incomeCategoryTree: Record<string, string[]>
+	expenseCategoryTree: Record<string, string[]>
 	onDeleteExpenseClassification: (
 		movementType: string,
 		category: string,
 		subcategory: string,
 	) => void
 	onEditExpenseClassification: (item: CashClassificationPair) => void
-	onOpenExpenseClassificationForm: () => void
+	onAddSubcategory: (movementType: string, category: string) => void
+	onOpenCashCategoryForm: (movementType: string) => void
+	onEditCashCategory: (movementType: string, category: string) => void
+	onDeleteCashCategory: (movementType: string, category: string) => void
 }) {
+	const [activeType, setActiveType] = useState<'income' | 'expense'>('income')
+	const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+
+	const incomeCategoryCount = Object.keys(incomeCategoryTree).length
+	const expenseCategoryCount = Object.keys(expenseCategoryTree).length
+	const tree = activeType === 'income' ? incomeCategoryTree : expenseCategoryTree
+	const movementLabel = activeType === 'income' ? 'ingreso' : 'egreso'
+	const categories = useMemo(
+		() =>
+			Object.keys(tree).sort((a, b) =>
+				a.localeCompare(b, 'es', { sensitivity: 'base' }),
+			),
+		[tree],
+	)
+
+	function toggleCategory(category: string) {
+		const key = `${activeType}:${category}`
+		setExpanded((current) => ({ ...current, [key]: !current[key] }))
+	}
+
 	return (
 		<section className="panel">
 			<div className="panel-head">
@@ -464,7 +499,7 @@ function CashSettingsPanel({
 					<span className="panel-kicker">Caja y resultado</span>
 					<h2>Categorias de caja</h2>
 					<p>
-						Define las categorias y subcategorias que Caja sugiere para{' '}
+						Organiza las categorias y subcategorias que Caja sugiere para{' '}
 						<span className="cash-term income">ingresos</span>,{' '}
 						<span className="cash-term expense">egresos</span>, deudas y
 						movimientos automaticos.
@@ -474,83 +509,165 @@ function CashSettingsPanel({
 					<div className="settings-primary-actions">
 						<Button
 							variant="primary"
-							onClick={onOpenExpenseClassificationForm}
+							onClick={() => onOpenCashCategoryForm(activeType)}
 						>
 							<Plus size={16} />
-							Nueva clasificacion
+							Nueva categoria
 						</Button>
 					</div>
 				</div>
 			</div>
 			<section className="settings-operational-metrics section-block-end">
 				<MetricCard
-					label="Ingresos configurados"
-					value={incomeClassificationPairs.length}
+					label="Categorias de ingreso"
+					value={incomeCategoryCount}
 				/>
 				<MetricCard
-					label="Egresos configurados"
-					value={expenseClassificationPairs.length}
+					label="Categorias de egreso"
+					value={expenseCategoryCount}
 				/>
 				<MetricCard
-					label="Total de sugerencias"
+					label="Subcategorias totales"
 					value={cashClassificationPairs.length}
 				/>
 			</section>
-			<div className="records compact-records settings-classification-list">
-				{cashClassificationPairs.length ? (
-					cashClassificationPairs.map((item) => (
-						<RecordCard
-							className="settings-classification-card"
-							key={`${item.movement_type}-${item.category}-${item.subcategory}`}
-						>
-							<RecordCardHeader
-								title={item.subcategory}
-								subtitle={
-									<>
-										<span className={`cash-term ${item.movement_type}`}>
-											{item.movement_type === 'income' ? 'Ingreso' : 'Egreso'}
-										</span>{' '}
-										- {item.category}
-									</>
-								}
-								actions={
-									<>
+			<SegmentedControl
+				className="settings-classification-toggle section-block-end"
+				ariaLabel="Tipo de movimiento"
+				selectionMode="tabs"
+				value={activeType}
+				onChange={(value) => setActiveType(value)}
+				options={[
+					{
+						value: 'income',
+						label: `Ingresos (${incomeCategoryCount})`,
+					},
+					{
+						value: 'expense',
+						label: `Egresos (${expenseCategoryCount})`,
+					},
+				]}
+			/>
+			<div className="settings-classification-list settings-category-accordion">
+				{categories.length ? (
+					categories.map((category) => {
+						const key = `${activeType}:${category}`
+						const isOpen = Boolean(expanded[key])
+						const subcategories = tree[category] ?? []
+						return (
+							<div
+								className={`settings-category-item${
+									isOpen ? ' is-open' : ''
+								}`}
+								key={key}
+							>
+								<div className="settings-category-row">
+									<button
+										type="button"
+										className="settings-category-toggle"
+										aria-expanded={isOpen}
+										onClick={() => toggleCategory(category)}
+									>
+										<ChevronDown
+											size={16}
+											className="settings-category-chevron"
+											aria-hidden={true}
+										/>
+										<span className="settings-category-name">{category}</span>
+										<span className="settings-category-count">
+											{subcategories.length}{' '}
+											{subcategories.length === 1
+												? 'subcategoria'
+												: 'subcategorias'}
+										</span>
+									</button>
+									<div className="settings-category-actions">
 										<Button
 											variant="ghost"
-											onClick={() => onEditExpenseClassification(item)}
-											aria-label={`Editar ${item.subcategory} de ${item.category}`}
+											onClick={() => onAddSubcategory(activeType, category)}
+											aria-label={`Agregar subcategoria a ${category}`}
+										>
+											<Plus size={16} />
+										</Button>
+										<Button
+											variant="ghost"
+											onClick={() => onEditCashCategory(activeType, category)}
+											aria-label={`Renombrar categoria ${category}`}
 										>
 											<Pencil size={16} />
 										</Button>
 										<Button
 											variant="danger"
-											onClick={() =>
-												onDeleteExpenseClassification(
-													item.movement_type,
-													item.category,
-													item.subcategory,
-												)
-											}
-											aria-label={`Eliminar ${item.subcategory} de ${item.category}`}
+											onClick={() => onDeleteCashCategory(activeType, category)}
+											aria-label={`Eliminar categoria ${category}`}
 										>
 											<Trash2 size={16} />
 										</Button>
-									</>
-								}
-							/>
-						</RecordCard>
-					))
+									</div>
+								</div>
+								{isOpen ? (
+									<div className="settings-subcategory-list">
+										{subcategories.length ? (
+											subcategories.map((subcategory) => (
+												<div
+													className="settings-subcategory-row"
+													key={`${key}:${subcategory}`}
+												>
+													<span className="settings-subcategory-name">
+														{subcategory}
+													</span>
+													<div className="settings-subcategory-actions">
+														<Button
+															variant="ghost"
+															onClick={() =>
+																onEditExpenseClassification({
+																	movement_type: activeType,
+																	category,
+																	subcategory,
+																})
+															}
+															aria-label={`Editar subcategoria ${subcategory}`}
+														>
+															<Pencil size={16} />
+														</Button>
+														<Button
+															variant="danger"
+															onClick={() =>
+																onDeleteExpenseClassification(
+																	activeType,
+																	category,
+																	subcategory,
+																)
+															}
+															aria-label={`Eliminar subcategoria ${subcategory}`}
+														>
+															<Trash2 size={16} />
+														</Button>
+													</div>
+												</div>
+											))
+										) : (
+											<p className="settings-subcategory-empty">
+												Sin subcategorias todavia. Agrega una con el boton{' '}
+												<Plus size={13} aria-hidden={true} />.
+											</p>
+										)}
+									</div>
+								) : null}
+							</div>
+						)
+					})
 				) : (
 					<Empty
-						text="Sin clasificaciones configuradas."
-						hint="Carga categorias de ingreso y egreso para que Caja sugiera valores consistentes."
+						text={`Sin categorias de ${movementLabel}.`}
+						hint="Crea una categoria para empezar a clasificar los movimientos de Caja."
 						action={
 							<Button
 								variant="primary"
-								onClick={onOpenExpenseClassificationForm}
+								onClick={() => onOpenCashCategoryForm(activeType)}
 							>
 								<Plus size={16} />
-								Nueva clasificacion
+								Nueva categoria
 							</Button>
 						}
 					/>
