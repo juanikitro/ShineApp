@@ -33,6 +33,7 @@ import {
 	dateFormatter,
 	dateTimeFormatter,
 	dayMonthFormatter,
+	monthYearFormatter,
 	decimalFormatter,
 	fullDateFormatter,
 	weekdayShortFormatter,
@@ -73,6 +74,7 @@ type FormModalKind =
 	| 'cash-movement'
 	| 'cash-load'
 	| 'expense-classification'
+	| 'cash-category'
 	| 'debt'
 	| 'debt-payment'
 	| 'fixed-expense'
@@ -151,6 +153,10 @@ function formatDayName(value: string) {
 
 function formatDayLabel(value: string) {
 	return dayMonthFormatter.format(parseIsoDate(value))
+}
+
+function formatMonthLabel(value: string) {
+	return monthYearFormatter.format(parseIsoDate(value))
 }
 
 function formatFullDateLabel(value: string) {
@@ -385,9 +391,9 @@ function normalizeCategoryTree(value: any, fallback: CategoryTree): CategoryTree
 					.filter(Boolean),
 			),
 		)
-		if (subcategories.length) {
-			normalized[categoryName] = subcategories
-		}
+		// Las categorias sin subcategorias son validas: se conservan vacias para
+		// poder crear una categoria y agregarle subcategorias mas tarde.
+		normalized[categoryName] = subcategories
 	})
 	return Object.keys(normalized).length
 		? normalized
@@ -501,14 +507,10 @@ function removeExpenseCategoryPair(value: any, category: any, subcategory: any) 
 	const subcategoryName = String(subcategory ?? '').trim()
 	const tree = normalizeExpenseCategoryTree(value)
 	if (!categoryName || !subcategoryName || !tree[categoryName]) return tree
-	const nextSubcategories = tree[categoryName].filter(
+	// Conservamos la categoria aunque quede sin subcategorias.
+	tree[categoryName] = tree[categoryName].filter(
 		(item) => item !== subcategoryName,
 	)
-	if (nextSubcategories.length) {
-		tree[categoryName] = nextSubcategories
-	} else {
-		delete tree[categoryName]
-	}
 	return normalizeExpenseCategoryTree(tree)
 }
 
@@ -517,15 +519,80 @@ function removeIncomeCategoryPair(value: any, category: any, subcategory: any) {
 	const subcategoryName = String(subcategory ?? '').trim()
 	const tree = normalizeIncomeCategoryTree(value)
 	if (!categoryName || !subcategoryName || !tree[categoryName]) return tree
-	const nextSubcategories = tree[categoryName].filter(
+	// Conservamos la categoria aunque quede sin subcategorias.
+	tree[categoryName] = tree[categoryName].filter(
 		(item) => item !== subcategoryName,
 	)
-	if (nextSubcategories.length) {
-		tree[categoryName] = nextSubcategories
-	} else {
+	return normalizeIncomeCategoryTree(tree)
+}
+
+function addCategoryToTree(
+	value: any,
+	category: any,
+	normalizer: (value: any) => CategoryTree,
+) {
+	const categoryName = String(category ?? '').trim()
+	const tree = normalizer(value)
+	if (categoryName && !Object.prototype.hasOwnProperty.call(tree, categoryName)) {
+		tree[categoryName] = []
+	}
+	return normalizer(tree)
+}
+
+function removeCategoryFromTree(
+	value: any,
+	category: any,
+	normalizer: (value: any) => CategoryTree,
+) {
+	const categoryName = String(category ?? '').trim()
+	const tree = normalizer(value)
+	if (categoryName && Object.prototype.hasOwnProperty.call(tree, categoryName)) {
 		delete tree[categoryName]
 	}
-	return normalizeIncomeCategoryTree(tree)
+	return normalizer(tree)
+}
+
+function renameCategoryInTree(
+	value: any,
+	fromCategory: any,
+	toCategory: any,
+	normalizer: (value: any) => CategoryTree,
+) {
+	const fromName = String(fromCategory ?? '').trim()
+	const toName = String(toCategory ?? '').trim()
+	const tree = normalizer(value)
+	if (!fromName || !toName || fromName === toName) return tree
+	if (!Object.prototype.hasOwnProperty.call(tree, fromName)) return tree
+	const merged = Array.from(
+		new Set([...(tree[toName] ?? []), ...tree[fromName]]),
+	)
+	delete tree[fromName]
+	tree[toName] = merged
+	return normalizer(tree)
+}
+
+function addExpenseCategory(value: any, category: any) {
+	return addCategoryToTree(value, category, normalizeExpenseCategoryTree)
+}
+
+function addIncomeCategory(value: any, category: any) {
+	return addCategoryToTree(value, category, normalizeIncomeCategoryTree)
+}
+
+function removeExpenseCategory(value: any, category: any) {
+	return removeCategoryFromTree(value, category, normalizeExpenseCategoryTree)
+}
+
+function removeIncomeCategory(value: any, category: any) {
+	return removeCategoryFromTree(value, category, normalizeIncomeCategoryTree)
+}
+
+function renameExpenseCategory(value: any, from: any, to: any) {
+	return renameCategoryInTree(value, from, to, normalizeExpenseCategoryTree)
+}
+
+function renameIncomeCategory(value: any, from: any, to: any) {
+	return renameCategoryInTree(value, from, to, normalizeIncomeCategoryTree)
 }
 
 function normalizedAmountInput(value: any) {
@@ -2146,6 +2213,7 @@ export {
 	formatDayLabel,
 	formatDayName,
 	formatFullDateLabel,
+	formatMonthLabel,
 	fullPaymentAmountForOrder,
 	mergeStringValues,
 	money,
@@ -2173,6 +2241,12 @@ export {
 	uniqueValues,
 	removeExpenseCategoryPair,
 	removeIncomeCategoryPair,
+	addExpenseCategory,
+	addIncomeCategory,
+	removeExpenseCategory,
+	removeIncomeCategory,
+	renameExpenseCategory,
+	renameIncomeCategory,
 	upsertIncomeCategoryPair,
 	upsertExpenseCategoryPair,
 	useButtonHoverTitles,

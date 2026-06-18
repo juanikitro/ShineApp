@@ -90,6 +90,7 @@ import { StockMovementForm } from '@/app/components/forms/StockMovementForm'
 import { SupplierForm } from '@/app/components/forms/SupplierForm'
 import { VehicleForm } from '@/app/components/forms/VehicleForm'
 import { AgendaBoardToolbar } from '@/app/components/agenda/AgendaBoardToolbar'
+import { AgendaMonthGrid } from '@/app/components/agenda/AgendaMonthGrid'
 import { AgendaReservationCard } from '@/app/components/agenda/AgendaReservationCard'
 import {
 	CashPanel,
@@ -145,7 +146,7 @@ import { Toggle } from '@/app/components/ui/Toggle'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { ModalFrame as Modal } from '@/app/components/ui/ModalFrame'
 import { Panel } from '@/app/components/ui/Panel'
-import { SkeletonCard, SkeletonList } from '@/app/components/ui/Skeleton'
+import { SkeletonLine, SkeletonList } from '@/app/components/ui/Skeleton'
 import {
 	QuickActionsMenu,
 	type QuickAction,
@@ -199,9 +200,11 @@ import {
 import { joinDisplayParts } from '@/lib/display-text'
 import {
 	type AgendaCalendarSegment,
+	type AgendaMonthChip,
 	type AgendaOperationalPhase,
 	type AgendaOperationalRow,
 	buildAgendaCalendarSegments,
+	buildAgendaMonthGrid,
 	buildAgendaOperationalRows,
 	buildWorkOrderByReservation,
 	filterAgendaReservationsBySector,
@@ -363,6 +366,7 @@ import {
 	formatDayLabel,
 	formatDayName,
 	formatFullDateLabel,
+	formatMonthLabel,
 	fullPaymentAmountForOrder,
 	mergeStringValues,
 	money,
@@ -390,6 +394,12 @@ import {
 	uniqueValues,
 	removeExpenseCategoryPair,
 	removeIncomeCategoryPair,
+	addExpenseCategory,
+	addIncomeCategory,
+	removeExpenseCategory,
+	removeIncomeCategory,
+	renameExpenseCategory,
+	renameIncomeCategory,
 	upsertIncomeCategoryPair,
 	upsertExpenseCategoryPair,
 	useButtonHoverTitles,
@@ -440,6 +450,13 @@ const workViewModes: Array<{
 	{ value: 'agenda', label: 'Agenda' },
 	{ value: 'status', label: 'Estado' },
 	{ value: 'entry-date', label: 'Fecha de ingreso' },
+]
+const agendaRangeModes: Array<{
+	value: 'week' | 'month'
+	label: string
+}> = [
+	{ value: 'week', label: 'Semana' },
+	{ value: 'month', label: 'Mes' },
 ]
 const cashLoadTabOptions: Array<{
 	value: 'cash-movement' | 'payment' | 'debt-payment'
@@ -755,6 +772,8 @@ export default function Home() {
 	const [customerCardFilter, setCustomerCardFilter] =
 		useState<CustomerCardFilter>('all')
 	const [agendaStartDay, setAgendaStartDay] = useState(today)
+	const [agendaRangeMode, setAgendaRangeMode] =
+		useState<'week' | 'month'>('week')
 	const [agendaSectorId, setAgendaSectorId] =
 		useState<number | null>(null)
 	const [workViewMode, setWorkViewMode] =
@@ -845,7 +864,13 @@ export default function Home() {
 			subcategory: '',
 			originalCategory: '',
 			originalSubcategory: '',
+			lockCategory: false,
 		})
+	const [cashCategoryForm, setCashCategoryForm] = useState<AnyRecord>({
+		movement_type: 'expense',
+		name: '',
+		originalName: '',
+	})
 	const [profileForm, setProfileForm] = useState<AnyRecord>(blankProfileForm())
 	const businessFormRef = useRef<AnyRecord>(blankBusinessForm())
 	const [customerForm, setCustomerForm] = useState<AnyRecord>(blankCustomerForm())
@@ -1633,6 +1658,7 @@ export default function Home() {
 			'cash-movement': 'cash-movement.type',
 			'cash-load': 'cash-movement.type',
 			'expense-classification': 'expense-classification.type',
+			'cash-category': 'cash-category.name',
 			debt: 'debt.concept',
 			'debt-payment': 'debt-payment.debt',
 			'fixed-expense': 'fixed-expense.concept',
@@ -2029,6 +2055,37 @@ export default function Home() {
 		workOrderByReservation,
 		showStayDaysInAgenda,
 	])
+	const agendaMonthModel = useMemo(
+		() =>
+			buildAgendaMonthGrid(
+				visibleAgendaReservations,
+				workOrders,
+				agendaStartDay,
+				{
+					showStayDays: showStayDaysInAgenda,
+					weekStartsOn: 1,
+					chipLimit: 3,
+					today: currentDay,
+				},
+				workOrderByReservation,
+			),
+		[
+			agendaStartDay,
+			currentDay,
+			showStayDaysInAgenda,
+			visibleAgendaReservations,
+			workOrderByReservation,
+			workOrders,
+		],
+	)
+	const agendaMonthWeekdayLabels = useMemo(
+		() =>
+			(agendaMonthModel.weeks[0]?.days ?? []).map((cell) =>
+				formatDayName(cell.isoDate),
+			),
+		[agendaMonthModel],
+	)
+	const agendaMonthLabel = formatMonthLabel(agendaStartDay)
 	const agendaSectorLabel =
 		agendaSectorId === null
 			? 'Todos'
@@ -3685,6 +3742,42 @@ export default function Home() {
 		}
 		setAgendaStartDay(isoDate)
 		setSelectedDay(isoDate)
+	}
+
+	// Mueve el ancla de la agenda un mes completo (modo mensual). Deja el primer dia
+	// del mes destino como inicio, que tambien sirve de ancla si se vuelve a semana.
+	function moveAgendaMonth(offset: number) {
+		const { from } = monthRange(agendaStartDay, offset)
+		setAgendaStartDay(from)
+		setSelectedDay(from)
+	}
+
+	function handleAgendaToolbarMove(offset: number) {
+		if (agendaRangeMode === 'month') {
+			moveAgendaMonth(offset)
+		} else {
+			moveAgenda(offset)
+		}
+	}
+
+	// Drill-down desde la grilla mensual: vuelve a la vista semanal sobre el dia.
+	function selectAgendaDayFromMonth(isoDate: string) {
+		setAgendaRangeMode('week')
+		goToDate(isoDate)
+	}
+
+	function agendaMonthChipLabel(chip: AgendaMonthChip) {
+		const reservation = chip.reservation
+		const time = String(reservation.start_time ?? '').slice(0, 5)
+		const name = String(
+			reservation.customer_name ?? reservation.vehicle_label ?? 'Reserva',
+		)
+		return time ? `${time} ${name}` : name
+	}
+
+	function agendaMonthChipClass(chip: AgendaMonthChip) {
+		const status = String(chip.reservation.status ?? '')
+		return status ? `agenda-month-chip--${status.replace(/_/g, '-')}` : ''
 	}
 
 	function openQuickReservation(day: string, prefillDay = false) {
@@ -6104,6 +6197,7 @@ export default function Home() {
 			subcategory: '',
 			originalCategory: '',
 			originalSubcategory: '',
+			lockCategory: false,
 		})
 	}
 
@@ -6118,8 +6212,99 @@ export default function Home() {
 			subcategory: item.subcategory,
 			originalCategory: item.category,
 			originalSubcategory: item.subcategory,
+			lockCategory: false,
 		})
 		setFormModal({ kind: 'expense-classification' })
+	}
+
+	function openSubcategoryCreator(movementType: string, category: string) {
+		const nextType = movementType === 'income' ? 'income' : 'expense'
+		setExpenseClassificationForm({
+			movement_type: nextType,
+			category,
+			subcategory: '',
+			originalCategory: '',
+			originalSubcategory: '',
+			lockCategory: true,
+		})
+		setFormModal({ kind: 'expense-classification' })
+		focusField('expense-classification.subcategory')
+	}
+
+	function resetCashCategoryForm() {
+		setCashCategoryForm({
+			movement_type: 'expense',
+			name: '',
+			originalName: '',
+		})
+	}
+
+	function openCashCategoryCreator(movementType: string) {
+		const nextType = movementType === 'income' ? 'income' : 'expense'
+		setCashCategoryForm({
+			movement_type: nextType,
+			name: '',
+			originalName: '',
+		})
+		setFormModal({ kind: 'cash-category' })
+		focusField('cash-category.name')
+	}
+
+	function openCashCategoryEditor(movementType: string, category: string) {
+		const nextType = movementType === 'income' ? 'income' : 'expense'
+		setCashCategoryForm({
+			movement_type: nextType,
+			name: category,
+			originalName: category,
+		})
+		setFormModal({ kind: 'cash-category' })
+		focusField('cash-category.name')
+	}
+
+	async function saveCashCategory(event: FormEvent) {
+		event.preventDefault()
+		if (!canViewEconomy) return
+		const name = String(cashCategoryForm.name ?? '').trim()
+		if (!name) return
+		const original = String(cashCategoryForm.originalName ?? '').trim()
+		const isIncome = cashCategoryForm.movement_type === 'income'
+		const field = isIncome ? 'income_category_tree' : 'expense_category_tree'
+		const currentTree = businessFormRef.current[field]
+		let nextTree
+		if (original && original !== name) {
+			nextTree = isIncome
+				? renameIncomeCategory(currentTree, original, name)
+				: renameExpenseCategory(currentTree, original, name)
+		} else {
+			nextTree = isIncome
+				? addIncomeCategory(currentTree, name)
+				: addExpenseCategory(currentTree, name)
+		}
+		const saved = await persistBusinessProfile(
+			{ ...businessFormRef.current, [field]: nextTree },
+			{
+				successTitle: original
+					? 'Categoria actualizada'
+					: 'Categoria creada',
+			},
+		)
+		if (saved) {
+			resetCashCategoryForm()
+			formModalExit.close()
+		}
+	}
+
+	async function deleteCashCategory(movementType: string, category: string) {
+		if (!canViewEconomy) return
+		const isIncome = movementType === 'income'
+		const field = isIncome ? 'income_category_tree' : 'expense_category_tree'
+		const nextTree = isIncome
+			? removeIncomeCategory(businessFormRef.current[field], category)
+			: removeExpenseCategory(businessFormRef.current[field], category)
+		await persistBusinessProfile(
+			{ ...businessFormRef.current, [field]: nextTree },
+			{ successTitle: 'Categoria eliminada' },
+		)
 	}
 
 	async function saveExpenseClassification(event: FormEvent) {
@@ -11442,6 +11627,7 @@ export default function Home() {
 
 	function renderExpenseClassificationForm() {
 		const editing = Boolean(expenseClassificationForm.originalCategory)
+		const lockCategory = Boolean(expenseClassificationForm.lockCategory)
 		const movementType =
 			expenseClassificationForm.movement_type === 'income'
 				? 'income'
@@ -11456,7 +11642,7 @@ export default function Home() {
 						{ value: 'income', label: 'Ingreso' },
 						{ value: 'expense', label: 'Egreso' },
 					]}
-					disabled={editing}
+					disabled={editing || lockCategory}
 					focusKey="expense-classification.type"
 					onChange={(value) => {
 						const nextType = value === 'income' ? 'income' : 'expense'
@@ -11474,6 +11660,7 @@ export default function Home() {
 					value={expenseClassificationForm.category}
 					options={settingsClassificationCategoryOptions}
 					placeholder={`Categoria de ${movementLabel}`}
+					disabled={lockCategory}
 					focusKey="expense-classification.category"
 					onChange={(value) =>
 						setExpenseClassificationForm({
@@ -11526,7 +11713,80 @@ export default function Home() {
 						loading={pendingActions.pending}
 						leadingIcon={<ReceiptText size={16} />}
 					>
-						{editing ? 'Guardar cambios' : 'Crear subcategoria'}
+						{editing
+							? 'Guardar cambios'
+							: lockCategory
+								? 'Agregar subcategoria'
+								: 'Crear subcategoria'}
+					</Button>
+				</div>
+			</form>
+		)
+	}
+
+	function renderCashCategoryForm() {
+		const editing = Boolean(cashCategoryForm.originalName)
+		const movementType =
+			cashCategoryForm.movement_type === 'income' ? 'income' : 'expense'
+		const movementLabel = movementType === 'income' ? 'ingreso' : 'egreso'
+		return (
+			<form className="form-grid" onSubmit={saveCashCategory}>
+				<SearchSelect
+					label="Tipo"
+					value={movementType}
+					options={[
+						{ value: 'income', label: 'Ingreso' },
+						{ value: 'expense', label: 'Egreso' },
+					]}
+					disabled={editing}
+					focusKey="cash-category.type"
+					onChange={(value) => {
+						const nextType = value === 'income' ? 'income' : 'expense'
+						setCashCategoryForm({
+							...cashCategoryForm,
+							movement_type: nextType,
+						})
+						focusField('cash-category.name')
+					}}
+				/>
+				<Field label={`Nombre de la categoria de ${movementLabel}`}>
+					<input
+						required
+						data-focus-key="cash-category.name"
+						value={cashCategoryForm.name}
+						placeholder={`Categoria de ${movementLabel}`}
+						onChange={(event) =>
+							setCashCategoryForm({
+								...cashCategoryForm,
+								name: event.target.value,
+							})
+						}
+					/>
+				</Field>
+				<div className="info-note">
+					Podes crear la categoria ahora y agregarle subcategorias mas
+					tarde desde el listado.
+				</div>
+				<div className="record-actions">
+					{editing ? (
+						<Button
+							type="button"
+							variant="ghost"
+							onClick={() => {
+								resetCashCategoryForm()
+								formModalExit.close()
+							}}
+						>
+							Cancelar
+						</Button>
+					) : null}
+					<Button
+						type="submit"
+						variant="primary"
+						loading={pendingActions.pending}
+						leadingIcon={<Plus size={16} />}
+					>
+						{editing ? 'Guardar cambios' : 'Crear categoria'}
 					</Button>
 				</div>
 			</form>
@@ -11969,8 +12229,10 @@ export default function Home() {
 						key="form-expense-classification"
 						title={
 							expenseClassificationForm.originalCategory
-								? 'Editar clasificacion de caja'
-								: 'Nueva clasificacion de caja'
+								? 'Editar subcategoria de caja'
+								: expenseClassificationForm.lockCategory
+									? 'Nueva subcategoria de caja'
+									: 'Nueva clasificacion de caja'
 						}
 						onClose={() => {
 							resetExpenseClassificationForm()
@@ -11978,6 +12240,22 @@ export default function Home() {
 						}}
 					>
 						{renderExpenseClassificationForm()}
+					</Modal>
+				) : null}
+				{canViewEconomy && formModal?.kind === 'cash-category' ? (
+					<Modal
+						key="form-cash-category"
+						title={
+							cashCategoryForm.originalName
+								? 'Editar categoria de caja'
+								: 'Nueva categoria de caja'
+						}
+						onClose={() => {
+							resetCashCategoryForm()
+							formModalExit.close()
+						}}
+					>
+						{renderCashCategoryForm()}
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'debt' ? (
@@ -13756,12 +14034,29 @@ export default function Home() {
 				{displayedActive === 'agenda' && workViewMode === 'agenda' ? (
 					<div className="grid agenda-layout">
 						<section className="panel agenda-panel">
+							<div className="agenda-range-toggle-row">
+								<SegmentedControl
+									ariaLabel="Rango de la agenda"
+									className="agenda-range-toggle"
+									options={agendaRangeModes}
+									value={agendaRangeMode}
+									onChange={(nextValue) =>
+										setAgendaRangeMode(nextValue as "week" | "month")
+									}
+								/>
+							</div>
 							<AgendaBoardToolbar
 								currentDay={agendaStartDay}
 								endLabel={formatDayLabel(weekEndDay)}
 								startLabel={formatDayLabel(agendaStartDay)}
 								visibleDays={AGENDA_VISIBLE_DAYS}
-								onMove={moveAgenda}
+								rangeMode={agendaRangeMode}
+								title={
+									agendaRangeMode === "month"
+										? `Agenda de ${agendaMonthLabel}`
+										: undefined
+								}
+								onMove={handleAgendaToolbarMove}
 								onToday={goToToday}
 								onGoToDate={goToDate}
 							/>
@@ -13781,7 +14076,25 @@ export default function Home() {
 									}
 								/>
 							) : null}
-							{loading &&
+							{agendaRangeMode === "month" && !agendaLoadError ? (
+								<AgendaMonthGrid
+									weeks={agendaMonthModel.weeks}
+									weekdayLabels={agendaMonthWeekdayLabels}
+									onSelectDay={selectAgendaDayFromMonth}
+									onSelectReservation={(chip) =>
+										selectAgendaDayFromMonth(
+											String(chip.reservation.day ?? agendaStartDay),
+										)
+									}
+									chipClassName={agendaMonthChipClass}
+									chipLabel={agendaMonthChipLabel}
+									dayAriaLabel={(isoDate) =>
+										`Ver agenda del ${formatFullDateLabel(isoDate)}`
+									}
+								/>
+							) : null}
+							{agendaRangeMode === "week" &&
+							loading &&
 							!agendaLoadError &&
 							!agendaBoardModel.segments.length ? (
 								<div
@@ -13791,10 +14104,24 @@ export default function Home() {
 									aria-label="Cargando agenda"
 								>
 									{Array.from({ length: AGENDA_VISIBLE_DAYS }).map((_, index) => (
-										<SkeletonCard key={index} lines={3} />
+										<div
+											key={index}
+											className="agenda-skeleton-column"
+											aria-hidden="true"
+										>
+											<div className="agenda-skeleton-head">
+												<SkeletonLine width="70%" height={15} />
+												<SkeletonLine width="45%" height={11} />
+											</div>
+											<div className="agenda-skeleton-lane">
+												<span className="skeleton agenda-skeleton-card" />
+												<span className="skeleton agenda-skeleton-card" />
+											</div>
+										</div>
 									))}
 								</div>
 							) : null}
+							{agendaRangeMode === "week" ? (
 							<DndContext
 								sensors={agendaSensors}
 								collisionDetection={closestCenter}
@@ -13908,6 +14235,7 @@ export default function Home() {
 									})}
 								</DragOverlay>
 							</DndContext>
+							) : null}
 						</section>
 					</div>
 				) : null}
@@ -14348,6 +14676,8 @@ export default function Home() {
 						businessProfile={businessProfile}
 						businessSlug={String(currentUser?.business?.slug ?? '')}
 						cashClassificationPairs={cashClassificationPairs}
+						incomeCategoryTree={incomeCategoryTree}
+						expenseCategoryTree={expenseCategoryTree}
 						currentUserId={currentUser?.id ?? null}
 						employees={employees}
 						selectedEmployee={selectedEmployee}
@@ -14355,9 +14685,7 @@ export default function Home() {
 						employeeAuditLogsLoading={employeeAuditLogsLoading}
 						employeeAuditLogsError={employeeAuditLogsError}
 						expandedAuditLogId={expandedAuditLogId}
-						expenseClassificationPairs={expenseClassificationPairs}
 						inactiveEmployeeCount={inactiveEmployeeCount}
-						incomeClassificationPairs={incomeClassificationPairs}
 						loading={loading}
 						safeBusinessLogoPdfThumbnail={safeBusinessLogoPdfThumbnail}
 						safeBusinessLogoPreview={safeBusinessLogoPreview}
@@ -14379,15 +14707,16 @@ export default function Home() {
 						onClearAuditFilters={clearAuditFilters}
 						onDeleteExpenseClassification={deleteExpenseClassification}
 						onEditExpenseClassification={openExpenseClassificationEditor}
+						onAddSubcategory={openSubcategoryCreator}
+						onOpenCashCategoryForm={openCashCategoryCreator}
+						onEditCashCategory={openCashCategoryEditor}
+						onDeleteCashCategory={deleteCashCategory}
 						onOpenBusinessLogoPicker={openBusinessLogoPicker}
 						onSelectEmployee={selectEmployee}
 						onDeselectEmployee={deselectEmployee}
 						onChangeEmployeePassword={changeEmployeePassword}
 						onToggleEmployeeActive={toggleEmployeeActive}
 						onOpenEmployeeForm={() => openFormModal('employee')}
-						onOpenExpenseClassificationForm={() =>
-							openFormModal('expense-classification')
-						}
 						onCreateSector={(data) =>
 							runAction(() =>
 								apiFetch('/sectors/', {

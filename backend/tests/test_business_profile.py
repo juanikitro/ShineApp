@@ -173,6 +173,34 @@ def test_business_profile_rejects_invalid_expense_category_tree(api_client):
 
 
 @pytest.mark.django_db
+def test_business_profile_accepts_categories_without_subcategories(api_client):
+    income_category_tree = {
+        "Pago": ["Efectivo"],
+        "Reserva": [],
+    }
+    expense_category_tree = {
+        "Servicios": ["Luz"],
+        "Pendiente": [],
+    }
+    response = api_client.patch(
+        reverse("business-profile"),
+        {
+            "income_category_tree": income_category_tree,
+            "expense_category_tree": expense_category_tree,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    assert response.data["income_category_tree"]["Reserva"] == []
+    assert response.data["expense_category_tree"]["Pendiente"] == []
+
+    profile = BusinessProfile.get_solo()
+    assert profile.income_category_tree == income_category_tree
+    assert profile.expense_category_tree == expense_category_tree
+
+
+@pytest.mark.django_db
 def test_business_profile_rejects_invalid_income_category_tree(api_client):
     response = api_client.patch(
         reverse("business-profile"),
