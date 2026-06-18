@@ -3,6 +3,7 @@ import { test } from 'vitest'
 
 import {
 	agendaSectorForReservation,
+	buildAgendaMonthGrid,
 	buildAgendaOperationalRows,
 	buildAgendaCalendarSegments,
 	buildWorkOrderByReservation,
@@ -296,6 +297,105 @@ test('buildAgendaCalendarSegments clips reservations to the visible window and r
 			},
 		],
 	)
+})
+
+test('buildAgendaMonthGrid covers full weeks with leading and trailing padding', () => {
+	// Junio 2026: 1 de junio es lunes, 30 de junio es martes.
+	const grid = buildAgendaMonthGrid([], [], '2026-06-18', {
+		weekStartsOn: 1,
+		today: '2026-06-18',
+	})
+
+	assert.equal(grid.monthStart, '2026-06-01')
+	assert.equal(grid.monthEnd, '2026-06-30')
+	assert.equal(grid.weeks.length, 5)
+	grid.weeks.forEach((week) => assert.equal(week.days.length, 7))
+	assert.equal(grid.weeks[0].days[0].isoDate, '2026-06-01')
+	assert.equal(grid.weeks[0].days[0].inCurrentMonth, true)
+	const lastWeek = grid.weeks[grid.weeks.length - 1]
+	assert.equal(lastWeek.days[0].isoDate, '2026-06-29')
+	assert.equal(lastWeek.days[1].isoDate, '2026-06-30')
+	assert.equal(lastWeek.days[2].isoDate, '2026-07-01')
+	assert.equal(lastWeek.days[2].inCurrentMonth, false)
+
+	const todayCell = grid.weeks
+		.flatMap((week) => week.days)
+		.find((cell) => cell.isToday)
+	assert.equal(todayCell.isoDate, '2026-06-18')
+})
+
+test('buildAgendaMonthGrid can start weeks on Sunday and pads accordingly', () => {
+	const grid = buildAgendaMonthGrid([], [], '2026-06-01', { weekStartsOn: 0 })
+	assert.equal(grid.weeks[0].days[0].isoDate, '2026-05-31')
+	assert.equal(grid.weeks[0].days[0].inCurrentMonth, false)
+	assert.equal(grid.weeks[0].days[1].isoDate, '2026-06-01')
+})
+
+test('buildAgendaMonthGrid places a multi-day reservation on every crossed day', () => {
+	const grid = buildAgendaMonthGrid(
+		[
+			{
+				id: 7,
+				day: '2026-06-09',
+				exit_day: '2026-06-11',
+				start_time: '10:00:00',
+				status: 'confirmed',
+			},
+		],
+		[{ id: 70, reservation_id: 7 }],
+		'2026-06-15',
+		{ showStayDays: true, today: '2026-06-15' },
+	)
+
+	const cells = Object.fromEntries(
+		grid.weeks.flatMap((week) => week.days).map((cell) => [cell.isoDate, cell]),
+	)
+
+	assert.equal(cells['2026-06-09'].count, 1)
+	assert.equal(cells['2026-06-09'].chips[0].phase, 'entry')
+	assert.equal(cells['2026-06-09'].chips[0].workOrder.id, 70)
+	assert.equal(cells['2026-06-10'].chips[0].phase, 'stay')
+	assert.equal(cells['2026-06-11'].chips[0].phase, 'exit')
+	assert.equal(cells['2026-06-12'].count, 0)
+})
+
+test('buildAgendaMonthGrid keeps entry day only when stay days are disabled', () => {
+	const grid = buildAgendaMonthGrid(
+		[{ id: 7, day: '2026-06-09', exit_day: '2026-06-11', start_time: '10:00' }],
+		[],
+		'2026-06-15',
+		{ showStayDays: false },
+	)
+	const cells = Object.fromEntries(
+		grid.weeks.flatMap((week) => week.days).map((cell) => [cell.isoDate, cell]),
+	)
+	assert.equal(cells['2026-06-09'].count, 1)
+	assert.equal(cells['2026-06-10'].count, 0)
+	assert.equal(cells['2026-06-11'].count, 0)
+})
+
+test('buildAgendaMonthGrid sorts chips by start time and reports overflow', () => {
+	const grid = buildAgendaMonthGrid(
+		[
+			{ id: 1, day: '2026-06-10', start_time: '15:00' },
+			{ id: 2, day: '2026-06-10', start_time: '08:30' },
+			{ id: 3, day: '2026-06-10', start_time: '11:00' },
+			{ id: 4, day: '2026-06-10', start_time: '17:00' },
+		],
+		[],
+		'2026-06-10',
+		{ chipLimit: 2 },
+	)
+	const cell = grid.weeks
+		.flatMap((week) => week.days)
+		.find((item) => item.isoDate === '2026-06-10')
+
+	assert.equal(cell.count, 4)
+	assert.deepEqual(
+		cell.chips.map((chip) => chip.reservation.id),
+		[2, 3],
+	)
+	assert.equal(cell.overflowCount, 2)
 })
 
 test('buildAgendaCalendarSegments skips empty windows, malformed reservations and out-of-window segments', () => {
