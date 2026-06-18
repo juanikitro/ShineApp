@@ -30,6 +30,11 @@ export const dayMonthFormatter = new Intl.DateTimeFormat(LOCALE, {
 	month: '2-digit',
 })
 
+export const monthYearFormatter = new Intl.DateTimeFormat(LOCALE, {
+	month: 'long',
+	year: 'numeric',
+})
+
 export const fullDateFormatter = new Intl.DateTimeFormat(LOCALE, {
 	weekday: 'long',
 	day: '2-digit',

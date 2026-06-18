@@ -33,6 +33,7 @@ import {
 	dateFormatter,
 	dateTimeFormatter,
 	dayMonthFormatter,
+	monthYearFormatter,
 	decimalFormatter,
 	fullDateFormatter,
 	weekdayShortFormatter,
@@ -151,6 +152,10 @@ function formatDayName(value: string) {
 
 function formatDayLabel(value: string) {
 	return dayMonthFormatter.format(parseIsoDate(value))
+}
+
+function formatMonthLabel(value: string) {
+	return monthYearFormatter.format(parseIsoDate(value))
 }
 
 function formatFullDateLabel(value: string) {
@@ -2146,6 +2151,7 @@ export {
 	formatDayLabel,
 	formatDayName,
 	formatFullDateLabel,
+	formatMonthLabel,
 	fullPaymentAmountForOrder,
 	mergeStringValues,
 	money,
