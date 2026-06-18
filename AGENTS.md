@@ -44,6 +44,19 @@ No inventes endpoints, payloads, permisos, modelos, migraciones, capas `services
 - Si tocas side effects como stock, caja, pagos, estado de ordenes, emails o notificaciones, hacelos visibles y cubri el caso con tests cuando sea viable.
 - Si el cambio es trivial y no amerita doc nueva, decilo en la entrega.
 
+## Tests obligatorios
+
+- Todo codigo nuevo se entrega con tests en el mismo cambio. Sin excepcion. Un PR con logica nueva sin tests esta incompleto.
+- Si agregas o modificas una funcion exportada, helper, modulo, endpoint o componente con logica: agregas tests que cubran caso normal, bordes (vacio, null, 0, invalido) y cada rama (if / ternario / switch).
+- Por que: CI tiene un gate **bloqueante** de cobertura `branches >= 80%` global en frontend y esta al filo. Un modulo nuevo sin tests baja el global y rompe el check `frontend` para todo el repo. No es opcional.
+- Convenciones del repo:
+  - Helpers de `frontend/lib/`: archivo `*.test.mjs` al lado (ej. `lib/cash-entry.test.mjs`, `lib/detail-format.test.mjs`).
+  - Componentes con comportamiento: `*.test.tsx` (ej. `app/components/ui/ui.test.tsx`).
+  - Backend: pytest en `backend/tests/`, cubriendo permisos y casos de error de cada vista nueva o modificada.
+- Antes de cerrar: corre `npm run test` y, si creaste o tocaste modulos, `npm run test:coverage` para confirmar que el gate de branches sigue `>= 80%`. Reporta numeros reales (tests passed, % cobertura).
+- Si un test es genuinamente inviable (infra ausente, etc.): declaralo explicito con la razon en la entrega. Nunca lo omitas en silencio.
+- Detalle de comandos y criterios en `docs/ia/TESTING.md`.
+
 ## UI
 
 - Para UI lee `docs/ia/UI_CONTEXT.md`, el archivo objetivo y la partial CSS relevante.
@@ -99,7 +112,7 @@ Si la tarea es solo lectura o el usuario pide explicitamente no versionar, no ha
 
 - Lei solo el contexto necesario.
 - No cambie contratos publicos sin justificar compatibilidad.
-- Agregue o actualice tests cuando el cambio lo requeria.
+- Agregue tests para todo lo nuevo (ver `## Tests obligatorios`) y confirme que el gate de cobertura sigue `>= 80%`.
 - Ejecute validacion relevante o explique el bloqueo.
 - Documente cambios importantes en `docs/`.
 - Entregue resumen compacto con cambio, validacion y riesgos.
