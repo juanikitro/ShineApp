@@ -9,9 +9,11 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Detalle read-first al clickear items de listados](2026-06-18-detalle-read-first-listados.md)
 - [Sistema de alerta de duplicados](2026-06-17-sistema-anti-duplicados.md)
 - [Material: asignación de sector](2026-06-17-material-sector.md)
 - [Alternativas de material por servicio y override por reserva](2026-06-17-material-alternatives.md)
+- [Horarios de apertura por dia de semana](2026-06-17-horarios-por-dia-semana.md)
 - [Consumo de producto por servicio: registro historico (2026-06-17)](2026-06-17-consumo-de-producto-por-servicio.md)
 - [Tareas: CSS muerto, tints a tokens y errores inline (2026-06-16)](2026-06-16-tareas-css-muerto-tints-tokens-y-errores-inline.md)
 - [Tareas: accesibilidad, primitives y mobile (2026-06-13)](2026-06-13-tareas-accesibilidad-y-primitives.md)
