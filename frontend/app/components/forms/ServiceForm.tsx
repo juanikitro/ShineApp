@@ -122,7 +122,6 @@ export function ServiceForm({
 					form={serviceForm}
 					onPatch={(patch) => setServiceForm({ ...serviceForm, ...patch })}
 					focusKey="service.duration"
-					required
 					onKeyDown={focusNextOnEnter('service.notes')}
 				/>
 			</div>
@@ -176,7 +175,6 @@ export function ServiceForm({
 							/>
 							<Field label={`Cantidad${mat?.unit ? ` (${mat.unit})` : ''}`}>
 								<input
-									required={!!line.material}
 									type="number"
 									min="0.001"
 									step="0.001"
