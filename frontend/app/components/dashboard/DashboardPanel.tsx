@@ -15,7 +15,7 @@ import { DashboardCashByCategory } from './DashboardCashByCategory'
 import { DashboardCrossReadings } from './DashboardCrossReadings'
 import { Panel } from '@/app/components/ui/Panel'
 import { RecordCard } from '@/app/components/ui/RecordCard'
-import { SkeletonMetric } from '@/app/components/ui/Skeleton'
+import { SkeletonLine } from '@/app/components/ui/Skeleton'
 import { cx } from '@/app/components/utils'
 import { deltaHintVariants } from '@/lib/motion-spec'
 import {
@@ -417,13 +417,22 @@ export function DashboardPanel({
 				<>
 					{loading && !dashboardHasBusinessActivity ? (
 						<div
-							className="dashboard-metric-skeleton-grid"
+							className="dashboard-executive-grid"
 							role="status"
 							aria-live="polite"
 							aria-label="Cargando indicadores del negocio"
 						>
-							{Array.from({ length: 6 }).map((_, index) => (
-								<SkeletonMetric key={index} />
+							{Array.from({ length: 4 }).map((_, index) => (
+								<div
+									key={index}
+									className="metric dashboard-executive-metric skeleton-metric-card"
+									aria-hidden="true"
+								>
+									<span className="skeleton skeleton-metric-card__icon" />
+									<SkeletonLine width="55%" height={11} />
+									<SkeletonLine width="70%" height={28} />
+									<SkeletonLine width="42%" height={11} />
+								</div>
 							))}
 						</div>
 					) : null}

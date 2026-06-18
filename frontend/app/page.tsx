@@ -146,7 +146,7 @@ import { Toggle } from '@/app/components/ui/Toggle'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { ModalFrame as Modal } from '@/app/components/ui/ModalFrame'
 import { Panel } from '@/app/components/ui/Panel'
-import { SkeletonCard, SkeletonList } from '@/app/components/ui/Skeleton'
+import { SkeletonLine, SkeletonList } from '@/app/components/ui/Skeleton'
 import {
 	QuickActionsMenu,
 	type QuickAction,
@@ -13906,7 +13906,20 @@ export default function Home() {
 									aria-label="Cargando agenda"
 								>
 									{Array.from({ length: AGENDA_VISIBLE_DAYS }).map((_, index) => (
-										<SkeletonCard key={index} lines={3} />
+										<div
+											key={index}
+											className="agenda-skeleton-column"
+											aria-hidden="true"
+										>
+											<div className="agenda-skeleton-head">
+												<SkeletonLine width="70%" height={15} />
+												<SkeletonLine width="45%" height={11} />
+											</div>
+											<div className="agenda-skeleton-lane">
+												<span className="skeleton agenda-skeleton-card" />
+												<span className="skeleton agenda-skeleton-card" />
+											</div>
+										</div>
 									))}
 								</div>
 							) : null}
