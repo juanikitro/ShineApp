@@ -90,6 +90,7 @@ import { StockMovementForm } from '@/app/components/forms/StockMovementForm'
 import { SupplierForm } from '@/app/components/forms/SupplierForm'
 import { VehicleForm } from '@/app/components/forms/VehicleForm'
 import { AgendaBoardToolbar } from '@/app/components/agenda/AgendaBoardToolbar'
+import { AgendaMonthGrid } from '@/app/components/agenda/AgendaMonthGrid'
 import { AgendaReservationCard } from '@/app/components/agenda/AgendaReservationCard'
 import {
 	CashPanel,
@@ -199,9 +200,11 @@ import {
 import { joinDisplayParts } from '@/lib/display-text'
 import {
 	type AgendaCalendarSegment,
+	type AgendaMonthChip,
 	type AgendaOperationalPhase,
 	type AgendaOperationalRow,
 	buildAgendaCalendarSegments,
+	buildAgendaMonthGrid,
 	buildAgendaOperationalRows,
 	buildWorkOrderByReservation,
 	filterAgendaReservationsBySector,
@@ -363,6 +366,7 @@ import {
 	formatDayLabel,
 	formatDayName,
 	formatFullDateLabel,
+	formatMonthLabel,
 	fullPaymentAmountForOrder,
 	mergeStringValues,
 	money,
@@ -440,6 +444,13 @@ const workViewModes: Array<{
 	{ value: 'agenda', label: 'Agenda' },
 	{ value: 'status', label: 'Estado' },
 	{ value: 'entry-date', label: 'Fecha de ingreso' },
+]
+const agendaRangeModes: Array<{
+	value: 'week' | 'month'
+	label: string
+}> = [
+	{ value: 'week', label: 'Semana' },
+	{ value: 'month', label: 'Mes' },
 ]
 const cashLoadTabOptions: Array<{
 	value: 'cash-movement' | 'payment' | 'debt-payment'
@@ -755,6 +766,8 @@ export default function Home() {
 	const [customerCardFilter, setCustomerCardFilter] =
 		useState<CustomerCardFilter>('all')
 	const [agendaStartDay, setAgendaStartDay] = useState(today)
+	const [agendaRangeMode, setAgendaRangeMode] =
+		useState<'week' | 'month'>('week')
 	const [agendaSectorId, setAgendaSectorId] =
 		useState<number | null>(null)
 	const [workViewMode, setWorkViewMode] =
@@ -2029,6 +2042,37 @@ export default function Home() {
 		workOrderByReservation,
 		showStayDaysInAgenda,
 	])
+	const agendaMonthModel = useMemo(
+		() =>
+			buildAgendaMonthGrid(
+				visibleAgendaReservations,
+				workOrders,
+				agendaStartDay,
+				{
+					showStayDays: showStayDaysInAgenda,
+					weekStartsOn: 1,
+					chipLimit: 3,
+					today: currentDay,
+				},
+				workOrderByReservation,
+			),
+		[
+			agendaStartDay,
+			currentDay,
+			showStayDaysInAgenda,
+			visibleAgendaReservations,
+			workOrderByReservation,
+			workOrders,
+		],
+	)
+	const agendaMonthWeekdayLabels = useMemo(
+		() =>
+			(agendaMonthModel.weeks[0]?.days ?? []).map((cell) =>
+				formatDayName(cell.isoDate),
+			),
+		[agendaMonthModel],
+	)
+	const agendaMonthLabel = formatMonthLabel(agendaStartDay)
 	const agendaSectorLabel =
 		agendaSectorId === null
 			? 'Todos'
@@ -3685,6 +3729,42 @@ export default function Home() {
 		}
 		setAgendaStartDay(isoDate)
 		setSelectedDay(isoDate)
+	}
+
+	// Mueve el ancla de la agenda un mes completo (modo mensual). Deja el primer dia
+	// del mes destino como inicio, que tambien sirve de ancla si se vuelve a semana.
+	function moveAgendaMonth(offset: number) {
+		const { from } = monthRange(agendaStartDay, offset)
+		setAgendaStartDay(from)
+		setSelectedDay(from)
+	}
+
+	function handleAgendaToolbarMove(offset: number) {
+		if (agendaRangeMode === 'month') {
+			moveAgendaMonth(offset)
+		} else {
+			moveAgenda(offset)
+		}
+	}
+
+	// Drill-down desde la grilla mensual: vuelve a la vista semanal sobre el dia.
+	function selectAgendaDayFromMonth(isoDate: string) {
+		setAgendaRangeMode('week')
+		goToDate(isoDate)
+	}
+
+	function agendaMonthChipLabel(chip: AgendaMonthChip) {
+		const reservation = chip.reservation
+		const time = String(reservation.start_time ?? '').slice(0, 5)
+		const name = String(
+			reservation.customer_name ?? reservation.vehicle_label ?? 'Reserva',
+		)
+		return time ? `${time} ${name}` : name
+	}
+
+	function agendaMonthChipClass(chip: AgendaMonthChip) {
+		const status = String(chip.reservation.status ?? '')
+		return status ? `agenda-month-chip--${status.replace(/_/g, '-')}` : ''
 	}
 
 	function openQuickReservation(day: string, prefillDay = false) {
@@ -13734,12 +13814,29 @@ export default function Home() {
 				{displayedActive === 'agenda' && workViewMode === 'agenda' ? (
 					<div className="grid agenda-layout">
 						<section className="panel agenda-panel">
+							<div className="agenda-range-toggle-row">
+								<SegmentedControl
+									ariaLabel="Rango de la agenda"
+									className="agenda-range-toggle"
+									options={agendaRangeModes}
+									value={agendaRangeMode}
+									onChange={(nextValue) =>
+										setAgendaRangeMode(nextValue as "week" | "month")
+									}
+								/>
+							</div>
 							<AgendaBoardToolbar
 								currentDay={agendaStartDay}
 								endLabel={formatDayLabel(weekEndDay)}
 								startLabel={formatDayLabel(agendaStartDay)}
 								visibleDays={AGENDA_VISIBLE_DAYS}
-								onMove={moveAgenda}
+								rangeMode={agendaRangeMode}
+								title={
+									agendaRangeMode === "month"
+										? `Agenda de ${agendaMonthLabel}`
+										: undefined
+								}
+								onMove={handleAgendaToolbarMove}
 								onToday={goToToday}
 								onGoToDate={goToDate}
 							/>
@@ -13759,7 +13856,25 @@ export default function Home() {
 									}
 								/>
 							) : null}
-							{loading &&
+							{agendaRangeMode === "month" && !agendaLoadError ? (
+								<AgendaMonthGrid
+									weeks={agendaMonthModel.weeks}
+									weekdayLabels={agendaMonthWeekdayLabels}
+									onSelectDay={selectAgendaDayFromMonth}
+									onSelectReservation={(chip) =>
+										selectAgendaDayFromMonth(
+											String(chip.reservation.day ?? agendaStartDay),
+										)
+									}
+									chipClassName={agendaMonthChipClass}
+									chipLabel={agendaMonthChipLabel}
+									dayAriaLabel={(isoDate) =>
+										`Ver agenda del ${formatFullDateLabel(isoDate)}`
+									}
+								/>
+							) : null}
+							{agendaRangeMode === "week" &&
+							loading &&
 							!agendaLoadError &&
 							!agendaBoardModel.segments.length ? (
 								<div
@@ -13773,6 +13888,7 @@ export default function Home() {
 									))}
 								</div>
 							) : null}
+							{agendaRangeMode === "week" ? (
 							<DndContext
 								sensors={agendaSensors}
 								collisionDetection={closestCenter}
@@ -13886,6 +14002,7 @@ export default function Home() {
 									})}
 								</DragOverlay>
 							</DndContext>
+							) : null}
 						</section>
 					</div>
 				) : null}
