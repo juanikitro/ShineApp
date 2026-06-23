@@ -10,8 +10,12 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-06-23
+- [Turnera: el formulario publico pide nombre y apellido](docs/registro/cambios/2026-06-23-turnera-nombre-y-apellido.md)
+
 ## 2026-06-18
 - [Detalle read-first al clickear items de listados](docs/registro/cambios/2026-06-18-detalle-read-first-listados.md)
+- [Agenda: vista mensual](docs/registro/cambios/2026-06-18-agenda-vista-mensual.md)
 
 ## 2026-06-17
 - [Sistema de alerta de duplicados](docs/registro/cambios/2026-06-17-sistema-anti-duplicados.md)

@@ -72,7 +72,7 @@ test('muestra el campo "Hora preferida" y el mensaje del backend cuando el submi
 
 	await user.click(await screen.findByRole('button', { name: /Lavadero/ }))
 	await user.click(screen.getByRole('button', { name: /Lavado Premium/ }))
-	await user.type(screen.getByLabelText('Nombre'), 'Juan Pablo')
+	await user.type(screen.getByLabelText('Nombre y apellido'), 'Juan Pablo')
 	await user.type(screen.getByLabelText('Celular'), '1164321234')
 	await user.click(screen.getByRole('button', { name: /Enviar solicitud/i }))
 
@@ -90,7 +90,7 @@ test('validaciones locales muestran el mensaje sin listar campos', async () => {
 	render(<PublicLandingClient slug="test" />)
 
 	await screen.findByRole('button', { name: /Lavadero/ })
-	await user.type(screen.getByLabelText('Nombre'), 'Juan Pablo')
+	await user.type(screen.getByLabelText('Nombre y apellido'), 'Juan Pablo')
 	await user.type(screen.getByLabelText('Celular'), '1164321234')
 	await user.click(screen.getByRole('button', { name: /Enviar solicitud/i }))
 

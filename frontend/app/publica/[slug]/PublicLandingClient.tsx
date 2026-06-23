@@ -918,7 +918,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 								<h2>Datos del Turno</h2>
 							</div>
 							<label>
-								Nombre
+								Nombre y apellido
 								<input
 									required
 									autoComplete="name"
