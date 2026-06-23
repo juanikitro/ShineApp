@@ -11,6 +11,7 @@ import {
 	FileText,
 	Gauge,
 	Hammer,
+	ListTodo,
 	Package,
 	ReceiptText,
 	Search,
@@ -27,8 +28,19 @@ import { createPortal } from 'react-dom'
 import { AppBrand } from '@/app/components/layout/AppBrand'
 import { Field } from '@/app/components/ui/Field'
 import { apiFetch, publicApiFetch, setStoredToken } from '@/lib/api'
+import {
+	currencyArsFormatter,
+	dateFormatter,
+	dateTimeFormatter,
+	dayMonthFormatter,
+	monthYearFormatter,
+	decimalFormatter,
+	fullDateFormatter,
+	weekdayShortFormatter,
+} from '@/lib/intl-format'
 import { type ApiErrorNotice, formatApiError } from '@/lib/api-errors'
 import { type AgendaOperationalPhase } from '@/lib/agenda'
+import { type WorkingHoursEntry, DEFAULT_WORKING_HOURS } from '@/lib/scheduling-availability'
 import { toastIconVariants, toastVariants } from '@/lib/motion-spec'
 
 type AnyRecord = Record<string, any>
@@ -60,7 +72,9 @@ type FormModalKind =
 	| 'service'
 	| 'payment'
 	| 'cash-movement'
+	| 'cash-load'
 	| 'expense-classification'
+	| 'cash-category'
 	| 'debt'
 	| 'debt-payment'
 	| 'fixed-expense'
@@ -70,6 +84,7 @@ type FormModalKind =
 	| 'stock-movement'
 	| 'material-purchase'
 	| 'material-open-unit'
+	| 'material-historical-usage'
 	| 'material-consumption'
 	| 'tool'
 	| 'employee'
@@ -77,6 +92,7 @@ type FormModalKind =
 type Section =
 	| 'dashboard'
 	| 'agenda'
+	| 'tasks'
 	| 'customers'
 	| 'suppliers'
 	| 'vehicles'
@@ -132,23 +148,19 @@ function monthRange(value: string, offset = 0) {
 }
 
 function formatDayName(value: string) {
-	return parseIsoDate(value).toLocaleDateString('es-AR', { weekday: 'short' })
+	return weekdayShortFormatter.format(parseIsoDate(value))
 }
 
 function formatDayLabel(value: string) {
-	return parseIsoDate(value).toLocaleDateString('es-AR', {
-		day: '2-digit',
-		month: '2-digit',
-	})
+	return dayMonthFormatter.format(parseIsoDate(value))
+}
+
+function formatMonthLabel(value: string) {
+	return monthYearFormatter.format(parseIsoDate(value))
 }
 
 function formatFullDateLabel(value: string) {
-	return parseIsoDate(value).toLocaleDateString('es-AR', {
-		weekday: 'long',
-		day: '2-digit',
-		month: 'long',
-		year: 'numeric',
-	})
+	return fullDateFormatter.format(parseIsoDate(value))
 }
 
 function formatDateTimeLabel(value: any) {
@@ -157,12 +169,7 @@ function formatDateTimeLabel(value: any) {
 	if (Number.isNaN(date.getTime())) {
 		return String(value)
 	}
-	return date.toLocaleString('es-AR', {
-		day: '2-digit',
-		month: '2-digit',
-		hour: '2-digit',
-		minute: '2-digit',
-	})
+	return dateTimeFormatter.format(date)
 }
 
 function formatDateLabel(value: any) {
@@ -176,11 +183,7 @@ function formatDateLabel(value: any) {
 	if (Number.isNaN(date.getTime())) {
 		return String(value)
 	}
-	return date.toLocaleDateString('es-AR', {
-		day: '2-digit',
-		month: '2-digit',
-		year: 'numeric',
-	})
+	return dateFormatter.format(date)
 }
 
 function birthdayText(customer: AnyRecord) {
@@ -240,6 +243,7 @@ function blankBusinessForm() {
 		public_show_service_price: false,
 		opening_time: null,
 		closing_time: null,
+		working_hours: DEFAULT_WORKING_HOURS as WorkingHoursEntry[],
 		income_category_tree: normalizeIncomeCategoryTree(
 			DEFAULT_INCOME_CATEGORY_TREE,
 		),
@@ -387,9 +391,9 @@ function normalizeCategoryTree(value: any, fallback: CategoryTree): CategoryTree
 					.filter(Boolean),
 			),
 		)
-		if (subcategories.length) {
-			normalized[categoryName] = subcategories
-		}
+		// Las categorias sin subcategorias son validas: se conservan vacias para
+		// poder crear una categoria y agregarle subcategorias mas tarde.
+		normalized[categoryName] = subcategories
 	})
 	return Object.keys(normalized).length
 		? normalized
@@ -503,14 +507,10 @@ function removeExpenseCategoryPair(value: any, category: any, subcategory: any) 
 	const subcategoryName = String(subcategory ?? '').trim()
 	const tree = normalizeExpenseCategoryTree(value)
 	if (!categoryName || !subcategoryName || !tree[categoryName]) return tree
-	const nextSubcategories = tree[categoryName].filter(
+	// Conservamos la categoria aunque quede sin subcategorias.
+	tree[categoryName] = tree[categoryName].filter(
 		(item) => item !== subcategoryName,
 	)
-	if (nextSubcategories.length) {
-		tree[categoryName] = nextSubcategories
-	} else {
-		delete tree[categoryName]
-	}
 	return normalizeExpenseCategoryTree(tree)
 }
 
@@ -519,15 +519,80 @@ function removeIncomeCategoryPair(value: any, category: any, subcategory: any) {
 	const subcategoryName = String(subcategory ?? '').trim()
 	const tree = normalizeIncomeCategoryTree(value)
 	if (!categoryName || !subcategoryName || !tree[categoryName]) return tree
-	const nextSubcategories = tree[categoryName].filter(
+	// Conservamos la categoria aunque quede sin subcategorias.
+	tree[categoryName] = tree[categoryName].filter(
 		(item) => item !== subcategoryName,
 	)
-	if (nextSubcategories.length) {
-		tree[categoryName] = nextSubcategories
-	} else {
+	return normalizeIncomeCategoryTree(tree)
+}
+
+function addCategoryToTree(
+	value: any,
+	category: any,
+	normalizer: (value: any) => CategoryTree,
+) {
+	const categoryName = String(category ?? '').trim()
+	const tree = normalizer(value)
+	if (categoryName && !Object.prototype.hasOwnProperty.call(tree, categoryName)) {
+		tree[categoryName] = []
+	}
+	return normalizer(tree)
+}
+
+function removeCategoryFromTree(
+	value: any,
+	category: any,
+	normalizer: (value: any) => CategoryTree,
+) {
+	const categoryName = String(category ?? '').trim()
+	const tree = normalizer(value)
+	if (categoryName && Object.prototype.hasOwnProperty.call(tree, categoryName)) {
 		delete tree[categoryName]
 	}
-	return normalizeIncomeCategoryTree(tree)
+	return normalizer(tree)
+}
+
+function renameCategoryInTree(
+	value: any,
+	fromCategory: any,
+	toCategory: any,
+	normalizer: (value: any) => CategoryTree,
+) {
+	const fromName = String(fromCategory ?? '').trim()
+	const toName = String(toCategory ?? '').trim()
+	const tree = normalizer(value)
+	if (!fromName || !toName || fromName === toName) return tree
+	if (!Object.prototype.hasOwnProperty.call(tree, fromName)) return tree
+	const merged = Array.from(
+		new Set([...(tree[toName] ?? []), ...tree[fromName]]),
+	)
+	delete tree[fromName]
+	tree[toName] = merged
+	return normalizer(tree)
+}
+
+function addExpenseCategory(value: any, category: any) {
+	return addCategoryToTree(value, category, normalizeExpenseCategoryTree)
+}
+
+function addIncomeCategory(value: any, category: any) {
+	return addCategoryToTree(value, category, normalizeIncomeCategoryTree)
+}
+
+function removeExpenseCategory(value: any, category: any) {
+	return removeCategoryFromTree(value, category, normalizeExpenseCategoryTree)
+}
+
+function removeIncomeCategory(value: any, category: any) {
+	return removeCategoryFromTree(value, category, normalizeIncomeCategoryTree)
+}
+
+function renameExpenseCategory(value: any, from: any, to: any) {
+	return renameCategoryInTree(value, from, to, normalizeExpenseCategoryTree)
+}
+
+function renameIncomeCategory(value: any, from: any, to: any) {
+	return renameCategoryInTree(value, from, to, normalizeIncomeCategoryTree)
 }
 
 function normalizedAmountInput(value: any) {
@@ -869,6 +934,11 @@ const sectionMeta: Record<
 		icon: CalendarDays,
 		subtitle: 'Reservas, trabajos y seguimiento diario',
 	},
+	tasks: {
+		label: 'Tareas',
+		icon: ListTodo,
+		subtitle: 'Pendientes del negocio y por empleado',
+	},
 	customers: {
 		label: 'Clientes',
 		icon: Users,
@@ -1049,12 +1119,7 @@ const serviceTypeLabels: Record<string, string> = {
 }
 
 function money(value: any) {
-	const number = Number(value ?? 0)
-	return number.toLocaleString('es-AR', {
-		style: 'currency',
-		currency: 'ARS',
-		maximumFractionDigits: 0,
-	})
+	return currencyArsFormatter.format(Number(value ?? 0))
 }
 
 function numberValue(value: any) {
@@ -1063,9 +1128,7 @@ function numberValue(value: any) {
 }
 
 function quantity(value: any, unit = '') {
-	const formatted = numberValue(value).toLocaleString('es-AR', {
-		maximumFractionDigits: 2,
-	})
+	const formatted = decimalFormatter.format(numberValue(value))
 	return unit ? `${formatted} ${unit}` : formatted
 }
 
@@ -1419,7 +1482,27 @@ function useButtonHoverTitles() {
 		}
 
 		scheduleApply()
-		const observer = new MutationObserver(scheduleApply)
+		const observer = new MutationObserver((mutations) => {
+			window.cancelAnimationFrame(frameId)
+			frameId = window.requestAnimationFrame(() => {
+				if (activeButton && document.body.contains(activeButton)) {
+					// Tooltip is visible — only reposition. showTooltip() applies titles
+					// lazily on hover, so no full sweep needed while a button is active.
+					positionButtonHoverTooltip(tooltip, activeButton)
+					return
+				}
+				// Sweep only the subtrees that actually mutated, not the whole document.
+				const seen = new Set<ParentNode>()
+				for (const m of mutations) {
+					const el =
+						m.target instanceof Element ? m.target : m.target.parentElement
+					if (el && !seen.has(el)) {
+						seen.add(el)
+						applyButtonHoverTitles(el)
+					}
+				}
+			})
+		})
 		observer.observe(document.body, {
 			attributeFilter: ['aria-label', 'class', 'data-collapsed', 'title'],
 			attributes: true,
@@ -1530,40 +1613,19 @@ function usePendingActions(): PendingActionsApi {
 function useNoticeToasts() {
 	const [toasts, setToasts] = useState<ToastNotice[]>([])
 	const nextIdRef = useRef(0)
-	const timersRef = useRef<Record<number, number>>({})
 
 	function dismissToast(id: number) {
-		const timer = timersRef.current[id]
-		if (timer) {
-			window.clearTimeout(timer)
-			delete timersRef.current[id]
-		}
 		setToasts((current) => current.filter((toast) => toast.id !== id))
 	}
 
+	// El auto-cierre se delega en cada NoticeToast para poder pausarlo con hover
+	// o foco (WCAG 2.2.1). El hook solo administra la cola de notificaciones.
 	function showToast(notice: ToastDraft) {
 		const id = nextIdRef.current + 1
 		nextIdRef.current = id
-		const visibleMs =
-			notice.visibleMs ??
-			(notice.tone === 'error' ? TOAST_ERROR_VISIBLE_MS : TOAST_VISIBLE_MS)
 		setToasts((current) => [...current.slice(-2), { id, ...notice }])
-		timersRef.current[id] = window.setTimeout(
-			() => dismissToast(id),
-			visibleMs,
-		)
 		return id
 	}
-
-	useEffect(
-		() => () => {
-			Object.values(timersRef.current).forEach((timer) =>
-				window.clearTimeout(timer),
-			)
-			timersRef.current = {}
-		},
-		[],
-	)
 
 	return { toasts, showToast, dismissToast }
 }
@@ -1577,6 +1639,23 @@ function NoticeToast({
 }) {
 	const Icon = toast.tone === 'success' ? CheckCircle2 : CircleAlert
 	const role = toast.tone === 'error' ? 'alert' : 'status'
+	const [paused, setPaused] = useState(false)
+	const dismissRef = useRef(onDismiss)
+	dismissRef.current = onDismiss
+	const visibleMs =
+		toast.visibleMs ??
+		(toast.tone === 'error' ? TOAST_ERROR_VISIBLE_MS : TOAST_VISIBLE_MS)
+
+	// Auto-cierre que se pausa con hover o con foco dentro del toast: evita que
+	// desaparezca mientras se lee o se usa "Deshacer" (WCAG 2.2.1 / 2.4.3).
+	useEffect(() => {
+		if (paused) return
+		const timer = window.setTimeout(
+			() => dismissRef.current(toast.id),
+			visibleMs,
+		)
+		return () => window.clearTimeout(timer)
+	}, [paused, visibleMs, toast.id])
 
 	return (
 		<m.div
@@ -1589,6 +1668,14 @@ function NoticeToast({
 			initial="initial"
 			animate="animate"
 			exit="exit"
+			onMouseEnter={() => setPaused(true)}
+			onMouseLeave={() => setPaused(false)}
+			onFocusCapture={() => setPaused(true)}
+			onBlurCapture={(event) => {
+				if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+					setPaused(false)
+				}
+			}}
 		>
 			<m.span
 				className="toast-icon"
@@ -1606,7 +1693,7 @@ function NoticeToast({
 			</div>
 			{toast.fields?.length ? (
 				<ul className="alert-fields">
-					{toast.fields.slice(0, 3).map((field, index) => (
+					{toast.fields.slice(0, 8).map((field, index) => (
 						<li key={`${field.path}-${index}`}>
 							<strong>{field.label}</strong>
 							<span>{field.message}</span>
@@ -1692,8 +1779,10 @@ function trialSignupInitialForm() {
 
 function LoginScreen({
 	onLogin,
+	sessionExpired = false,
 }: {
 	onLogin: (token: string, user: AnyRecord) => void
+	sessionExpired?: boolean
 }) {
 	const [mode, setMode] = useState<'login' | 'trial' | 'forgot-password' | 'forgot-password-sent'>('login')
 	const [form, setForm] = useState(loginInitialCredentials)
@@ -1853,6 +1942,11 @@ function LoginScreen({
 						subtitle={signupMode ? 'Prueba gratuita por 30 dias' : 'Acceso operativo'}
 						titleAs="h1"
 					/>
+					{sessionExpired && !signupMode ? (
+						<div className="alert-notice" role="alert">
+							<p>Tu sesion expiro. Volve a iniciar sesion para continuar.</p>
+						</div>
+					) : null}
 					{signupMode ? (
 						<div className="form-grid login-trial-grid">
 							<p className="login-trial-note">
@@ -2119,6 +2213,7 @@ export {
 	formatDayLabel,
 	formatDayName,
 	formatFullDateLabel,
+	formatMonthLabel,
 	fullPaymentAmountForOrder,
 	mergeStringValues,
 	money,
@@ -2146,6 +2241,12 @@ export {
 	uniqueValues,
 	removeExpenseCategoryPair,
 	removeIncomeCategoryPair,
+	addExpenseCategory,
+	addIncomeCategory,
+	removeExpenseCategory,
+	removeIncomeCategory,
+	renameExpenseCategory,
+	renameIncomeCategory,
 	upsertIncomeCategoryPair,
 	upsertExpenseCategoryPair,
 	useButtonHoverTitles,

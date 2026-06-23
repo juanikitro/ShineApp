@@ -8,6 +8,7 @@ import {
 
 import { Building2, FileText } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { cx } from '@/app/components/utils'
 import { joinDisplayParts } from '@/lib/display-text'
@@ -68,24 +69,23 @@ export function BusinessSettingsPanel({
 				</div>
 				<div className="settings-action-rail">
 					<div className="settings-primary-actions">
-						<button
+						<Button
 							type="submit"
-							className="primary"
+							variant="primary"
 							form="settings-business-form"
 						>
 							<Building2 size={16} />
 							Guardar datos
-						</button>
+						</Button>
 					</div>
 					<div className="settings-secondary-actions">
-						<button
-							type="button"
-							className="ghost"
+						<Button
+							variant="ghost"
 							onClick={onOpenBusinessLogoPicker}
 						>
 							<FileText size={16} />
 							{businessLogoPreview ? 'Cambiar logo' : 'Cargar logo'}
-						</button>
+						</Button>
 					</div>
 				</div>
 			</div>

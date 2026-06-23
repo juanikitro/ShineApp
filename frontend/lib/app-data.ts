@@ -8,6 +8,7 @@ export type AppDataScope = {
 		to: string
 	}
 	selectedDay: string
+	cashViewMode?: 'day' | 'week'
 }
 
 export type AppDataLoaders = {
@@ -23,7 +24,7 @@ export function dataSetCacheKey(key: DataSetKey, scope: AppDataScope) {
 	if (key === 'dashboard') {
 		return `${key}:${scope.period.from}:${scope.period.to}`
 	}
-	if (key === 'cash') return `${key}:${scope.selectedDay}`
+	if (key === 'cash') return `${key}:${scope.selectedDay}:${scope.cashViewMode ?? 'day'}`
 	return key
 }
 
@@ -39,8 +40,12 @@ export async function loadAppDataSet(
 			)
 		case 'cash':
 			return loaders.apiFetch<AnyRecord>(
-				`/cash/daily/?date=${scope.selectedDay}`,
+				scope.cashViewMode === 'week'
+					? `/cash/weekly/?date=${scope.selectedDay}`
+					: `/cash/daily/?date=${scope.selectedDay}`,
 			)
+		case 'tasks':
+			return loaders.apiList<AnyRecord>('/tasks/')
 		case 'customers':
 			return loaders.apiList<AnyRecord>('/customers/')
 		case 'vehicles':
@@ -69,8 +74,11 @@ export async function loadAppDataSet(
 			return loaders.apiList<AnyRecord>('/materials/')
 		case 'suppliers':
 			return loaders.apiList<AnyRecord>('/suppliers/')
-		case 'stockMovements':
-			return loaders.apiList<AnyRecord>('/stock-movements/')
+		case 'stockMovements': {
+			const d = new Date()
+			d.setDate(d.getDate() - 90)
+			return loaders.apiList<AnyRecord>(`/stock-movements/?from=${d.toISOString().slice(0, 10)}`)
+		}
 		case 'materialOpenUnits':
 			return loaders.apiList<AnyRecord>('/material-open-units/')
 		case 'purchases':

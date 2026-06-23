@@ -43,6 +43,18 @@ class Debt(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-origin_date", "-id"]
+        verbose_name = "deuda"
+        verbose_name_plural = "deudas"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(principal_amount__gt=0),
+                name="debt_principal_amount_positive",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["business", "-origin_date"], name="debt_biz_origin_idx"),
+            models.Index(fields=["business", "due_date"], name="debt_biz_due_idx"),
+        ]
 
     def __str__(self):
         return self.concept
@@ -73,8 +85,27 @@ class Debt(SoftDeleteMixin):
             self.deleted_at = timezone.now()
             self.save(update_fields=["deleted_at", "updated_at"])
 
+    def restore(self):
+        # No se reactiva el `cash_movement` original: la cascada de delete corta
+        # el link `Debt.cash_movement` para evitar conflictos en re-creacion. Si
+        # el usuario necesita el movimiento de caja vinculado, debe restaurarlo
+        # desde la papelera por separado.
+        with transaction.atomic():
+            now = timezone.now()
+            Debt.all_objects.filter(pk=self.pk).update(deleted_at=None, updated_at=now)
+            self.deleted_at = None
+            self.updated_at = now
+            for payment in self.payments(manager="all_objects").filter(deleted_at__isnull=False):
+                payment.restore()
+
     @property
     def total_paid(self):
+        # Si el queryset anoto `total_paid_amount` (DebtViewSet / dashboard) se usa esa
+        # lectura en memoria y se evita un aggregate por deuda (N+1). Fuera de ese
+        # contexto (tests, admin, create) cae al aggregate normal.
+        annotated = getattr(self, "total_paid_amount", None)
+        if annotated is not None:
+            return annotated
         return self.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
 
     @property
@@ -109,6 +140,17 @@ class DebtPayment(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-paid_at", "-id"]
+        verbose_name = "pago de deuda"
+        verbose_name_plural = "pagos de deuda"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0),
+                name="debtpayment_amount_positive",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["business", "-paid_at"], name="debtpay_biz_paid_idx"),
+        ]
 
     def __str__(self):
         return f"{self.debt_id} - {self.amount}"

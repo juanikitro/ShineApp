@@ -85,13 +85,18 @@ async function readErrorPayload(response: Response) {
 }
 
 function raiseApiError(response: Response, payload: unknown): never {
-  throw new ApiResponseError(
-    normalizeApiErrorPayload(payload, { status: response.status }),
-    {
-      status: response.status,
-      payload,
-    },
-  );
+  const requestId = response.headers?.get?.("X-Request-ID") ?? undefined;
+  const notice = normalizeApiErrorPayload(payload, { status: response.status });
+  // Para errores de sistema/genericos (no de campo), sumamos la referencia que
+  // el operador puede pasar a soporte para correlacionar con logs/Sentry.
+  if (requestId && (response.status >= 500 || notice.fields.length === 0)) {
+    notice.description = `${notice.description} (ref: ${requestId})`;
+  }
+  throw new ApiResponseError(notice, {
+    status: response.status,
+    payload,
+    requestId,
+  });
 }
 
 export function getStoredToken() {

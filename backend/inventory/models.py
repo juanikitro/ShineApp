@@ -10,6 +10,13 @@ from core.soft_delete import SoftDeleteMixin
 
 class Material(SoftDeleteMixin):
     business = models.ForeignKey("core.BusinessAccount", related_name="materials", on_delete=models.PROTECT)
+    sector = models.ForeignKey(
+        "catalog.Sector",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="materials",
+    )
     name = models.CharField(max_length=140)
     unit = models.CharField(max_length=30)
     category = models.CharField(max_length=80, blank=True)
@@ -25,6 +32,8 @@ class Material(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["name"]
+        verbose_name = "material"
+        verbose_name_plural = "materiales"
         indexes = [
             models.Index(fields=["business", "name"], name="material_biz_name_idx"),
         ]
@@ -33,6 +42,18 @@ class Material(SoftDeleteMixin):
                 fields=["business", "sku"],
                 condition=~models.Q(sku="") & models.Q(deleted_at__isnull=True),
                 name="unique_material_sku_per_business_when_present",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(stock_quantity__gte=0),
+                name="material_stock_quantity_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(minimum_stock__gte=0),
+                name="material_minimum_stock_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(estimated_unit_cost__gte=0),
+                name="material_estimated_unit_cost_non_negative",
             ),
         ]
 
@@ -143,6 +164,8 @@ class Supplier(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["name"]
+        verbose_name = "proveedor"
+        verbose_name_plural = "proveedores"
 
     def __str__(self):
         return self.name
@@ -175,6 +198,13 @@ class MaterialOpenUnit(models.Model):
 
     business = models.ForeignKey("core.BusinessAccount", related_name="material_open_units", on_delete=models.PROTECT)
     material = models.ForeignKey(Material, related_name="open_units", on_delete=models.PROTECT)
+    service = models.ForeignKey(
+        "catalog.Service",
+        related_name="material_open_units",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+    )
     opened_at = models.DateField(default=timezone.localdate)
     opened_by_work_order = models.ForeignKey(
         "workorders.WorkOrder",
@@ -183,6 +213,10 @@ class MaterialOpenUnit(models.Model):
         blank=True,
         on_delete=models.PROTECT,
     )
+    # Unidad cargada de forma retroactiva (consumo pasado para analisis de
+    # rendimiento por servicio). No descuenta stock actual: el stock de hoy ya
+    # refleja ese consumo. Ver inventory.views.MaterialOpenUnitViewSet.register_usage.
+    is_historical = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
     finished_at = models.DateField(null=True, blank=True)
     stock_quantity_to_decrement = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("1.00"))
@@ -192,6 +226,8 @@ class MaterialOpenUnit(models.Model):
 
     class Meta:
         ordering = ["-opened_at", "-id"]
+        verbose_name = "unidad abierta"
+        verbose_name_plural = "unidades abiertas"
 
     def __str__(self):
         return f"{self.material} - unidad {self.id or '-'}"
@@ -239,6 +275,8 @@ class Tool(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["name"]
+        verbose_name = "herramienta"
+        verbose_name_plural = "herramientas"
 
     def __str__(self):
         return self.name
@@ -272,6 +310,21 @@ class MaterialPurchase(models.Model):
 
     class Meta:
         ordering = ["-purchased_at", "-id"]
+        verbose_name = "compra de material"
+        verbose_name_plural = "compras de material"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0),
+                name="materialpurchase_quantity_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(total_cost__gte=0),
+                name="materialpurchase_total_cost_non_negative",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["business", "-purchased_at"], name="matpur_biz_purchased_idx"),
+        ]
 
     def save(self, *args, **kwargs):
         if self.material_id and not self.business_id:
@@ -308,10 +361,20 @@ class MaterialConsumption(models.Model):
 
     class Meta:
         ordering = ["-consumed_at", "-id"]
+        verbose_name = "consumo de material"
+        verbose_name_plural = "consumos de material"
         indexes = [
             models.Index(
                 fields=["business", "-consumed_at"],
                 name="mc_biz_consumed_at_idx",
+            ),
+        ]
+        constraints = [
+            # >= 0 (no > 0): los consumos por unidad abierta registran quantity=0
+            # porque el descuento de stock ocurre al abrir/cerrar la unidad.
+            models.CheckConstraint(
+                condition=models.Q(quantity__gte=0),
+                name="materialconsumption_quantity_non_negative",
             ),
         ]
 
@@ -394,6 +457,12 @@ class StockMovement(models.Model):
 
     class Meta:
         ordering = ["-occurred_on", "-id"]
+        verbose_name = "movimiento de stock"
+        verbose_name_plural = "movimientos de stock"
+        indexes = [
+            models.Index(fields=["business", "-occurred_on"], name="stockmv_biz_occurred_idx"),
+            models.Index(fields=["business", "movement_type", "occurred_on"], name="stockmv_biz_type_occ_idx"),
+        ]
 
     def __str__(self):
         return f"{self.get_movement_type_display()} #{self.id or '-'}"
@@ -425,6 +494,8 @@ class StockMovementLine(models.Model):
 
     class Meta:
         ordering = ["id"]
+        verbose_name = "línea de movimiento"
+        verbose_name_plural = "líneas de movimiento"
 
     def __str__(self):
         return f"{self.material} x {self.quantity}"

@@ -16,7 +16,7 @@ def normalize_database_url(value):
 
 MIGRATION_DATABASE_URL = os.environ.pop("DATABASE_URL", None)
 
-from .settings import *  # noqa: F401,F403
+from .settings import *  # noqa: E402,F401,F403
 
 if MIGRATION_DATABASE_URL:
     os.environ["DATABASE_URL"] = MIGRATION_DATABASE_URL

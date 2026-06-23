@@ -1,10 +1,11 @@
 'use client'
 
-import { type ReactNode } from 'react'
+import { type ReactNode, useMemo } from 'react'
 
 import { ChevronLeft, Plus } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
+import { Button } from '@/app/components/ui/Button'
 import { Empty, LoadingState } from '@/app/components/ui/Empty'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { Panel } from '@/app/components/ui/Panel'
@@ -95,10 +96,57 @@ export function ServicesPanel({
 	onOpenServiceDetail,
 	onOpenWorkOrderDetail,
 }: ServicesPanelProps) {
-	const sectorNameById = sectors.reduce<Record<string, string>>((acc, s) => {
-		if (s.id != null) acc[String(s.id)] = String(s.name ?? '')
-		return acc
-	}, {})
+	const sectorNameById = useMemo(
+		() =>
+			sectors.reduce<Record<string, string>>((acc, s) => {
+				if (s.id != null) acc[String(s.id)] = String(s.name ?? '')
+				return acc
+			}, {}),
+		[sectors],
+	)
+
+	// Maps id -> registro memoizados para lookups O(1) en los detalles del servicio
+	// (antes .find() por fila sobre el dataset completo = O(filas x dataset)).
+	const reservationsById = useMemo(() => {
+		const map = new Map<string, AnyRecord>()
+		for (const item of reservations) map.set(String(item.id), item)
+		return map
+	}, [reservations])
+
+	const workOrdersById = useMemo(() => {
+		const map = new Map<string, AnyRecord>()
+		for (const item of workOrders) map.set(String(item.id), item)
+		return map
+	}, [workOrders])
+
+	const quotesById = useMemo(() => {
+		const map = new Map<string, AnyRecord>()
+		for (const item of quotes) map.set(String(item.id), item)
+		return map
+	}, [quotes])
+
+	function renderServicePriceRow(service: AnyRecord) {
+		const setVehiclePrices = VEHICLE_TYPES.filter((t) => {
+			const val = service[t.priceField]
+			return val !== null && val !== undefined && String(val).trim() !== ''
+		})
+
+		const totalMaterialCost = (service.materials ?? []).reduce(
+			(sum: number, m: AnyRecord) =>
+				sum + Number(m.quantity || 0) * Number(m.material_unit_cost || 0),
+			0,
+		)
+
+		const parts: string[] = [`Base: ${money(service.base_price)}`]
+		for (const t of setVehiclePrices) {
+			parts.push(`${t.label}: ${money(service[t.priceField])}`)
+		}
+		if (totalMaterialCost > 0) {
+			parts.push(`Mat: ${money(totalMaterialCost)}`)
+		}
+
+		return <div className="record-prices">{parts.join(' · ')}</div>
+	}
 
 	function sectorLabel(service: AnyRecord): string {
 		const sectorId = service.sector
@@ -197,9 +245,7 @@ export function ServicesPanel({
 					{reservationsRows.length ? (
 						reservationsRows.map((reservation: AnyRecord) => {
 							const detailReservation =
-								reservations.find(
-									(item) => String(item.id) === String(reservation.id),
-								) ?? reservation
+								reservationsById.get(String(reservation.id)) ?? reservation
 							return (
 								<button
 									className="record compact"
@@ -245,9 +291,7 @@ export function ServicesPanel({
 					{orders.length ? (
 						orders.map((order: AnyRecord) => {
 							const detailOrder =
-								workOrders.find(
-									(item) => String(item.id) === String(order.id),
-								) ?? order
+								workOrdersById.get(String(order.id)) ?? order
 							return (
 								<button
 									className="record compact"
@@ -295,8 +339,7 @@ export function ServicesPanel({
 					{quotesRows.length ? (
 						quotesRows.map((quote: AnyRecord) => {
 							const detailQuote =
-								quotes.find((item) => String(item.id) === String(quote.id)) ??
-								quote
+								quotesById.get(String(quote.id)) ?? quote
 							return (
 								<button
 									className="record compact"
@@ -351,21 +394,21 @@ export function ServicesPanel({
 			<div className="grid customer-dashboard service-dashboard">
 				<Panel>
 					<div className="customer-dashboard-head service-dashboard-head">
-						<button type="button" className="ghost" onClick={onBackToServices}>
+						<Button type="button" variant="ghost" onClick={onBackToServices}>
 							<ChevronLeft size={16} />
 							Servicios
-						</button>
+						</Button>
 						<div>
 							<h2>{serviceDisplayName(service)}</h2>
 							<p>Dashboard especifico del servicio</p>
 						</div>
-						<button
+						<Button
 							type="button"
-							className="ghost"
+							variant="ghost"
 							onClick={() => onOpenServiceDetail(service)}
 						>
 							Editar servicio
-						</button>
+						</Button>
 					</div>
 					<div className="customer-dashboard-profile service-dashboard-profile">
 						<div>
@@ -484,10 +527,10 @@ export function ServicesPanel({
 						</p>
 					</div>
 					{canViewEconomy ? (
-						<button type="button" className="primary" onClick={onCreateService}>
+						<Button type="button" variant="primary" onClick={onCreateService}>
 							<Plus size={16} />
 							Nuevo servicio
-						</button>
+						</Button>
 					) : null}
 				</div>
 				<div className="records">
@@ -512,7 +555,6 @@ export function ServicesPanel({
 										title={serviceDisplayName(item)}
 										subtitle={joinDisplayParts([
 											sectorLabel(item),
-											money(item.base_price),
 											formatDurationLabel(item.estimated_duration_minutes),
 										])}
 										primaryAction={{
@@ -522,24 +564,26 @@ export function ServicesPanel({
 										actions={
 											canViewEconomy ? (
 												<>
-													<button
+													<Button
 														type="button"
-														className="ghost"
+														variant="ghost"
 														onClick={() => onOpenServiceDetail(item)}
 													>
 														Editar
-													</button>
-													<button
+													</Button>
+													<Button
 														type="button"
-														className="danger"
+														variant="danger"
 														onClick={() => onDeleteService(item)}
 													>
 														Inactivar
-													</button>
+													</Button>
 												</>
 											) : undefined
 										}
-									/>
+									>
+										{renderServicePriceRow(item)}
+									</RecordCardHeader>
 								</MotionFlashSurface>
 							)
 						})

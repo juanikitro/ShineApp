@@ -51,6 +51,7 @@ def test_employee_creation_uses_django_password_validators(api_client, django_us
 def test_patch_employee_password_invalidates_employee_token(api_client, django_user_model, default_business):
     from django.contrib.auth.models import Group
     from rest_framework.authtoken.models import Token
+
     from core.models import UserProfile
 
     employee = django_user_model.objects.create_user(
@@ -76,6 +77,7 @@ def test_patch_employee_password_invalidates_employee_token(api_client, django_u
 def test_patch_employee_active_does_not_invalidate_token(api_client, django_user_model, default_business):
     from django.contrib.auth.models import Group
     from rest_framework.authtoken.models import Token
+
     from core.models import UserProfile
 
     employee = django_user_model.objects.create_user(

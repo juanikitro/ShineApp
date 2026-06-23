@@ -1,5 +1,9 @@
 name: shineapp
 
+# Stack de DESARROLLO LOCAL únicamente. Usa DEBUG=1, SECRET_KEY de dev y
+# credenciales de Postgres por defecto: NO usar en producción (prod corre en
+# Vercel + Supabase con settings_production y secretos reales).
+
 services:
   db:
     image: postgres:16-alpine
@@ -8,7 +12,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-shineapp}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shineapp}
     ports:
-      - "${SHINEAPP_DB_PORT:-9002}:5432"
+      # Bind solo a loopback: la DB no queda expuesta a la LAN con credenciales
+      # de dev. Para acceso remoto deliberado, sobreescribir SHINEAPP_DB_PORT.
+      - "127.0.0.1:${SHINEAPP_DB_PORT:-9002}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

@@ -1,0 +1,5 @@
+.next
+coverage
+node_modules
+app/data/changelog.generated.json
+package-lock.json

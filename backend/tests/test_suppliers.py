@@ -5,7 +5,6 @@ import pytest
 from django.urls import reverse
 
 from debts.models import Debt
-from finance.models import CashMovement
 from inventory.models import Material, StockMovement, Supplier
 
 

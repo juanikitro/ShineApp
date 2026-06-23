@@ -36,6 +36,18 @@ No commitear valores reales. Usar `.env.example` solo como forma.
 - `VAPID_PUBLIC_KEY`: clave publica VAPID. Debe coincidir exactamente con `NEXT_PUBLIC_VAPID_PUBLIC_KEY` o las suscripciones del navegador fallan.
 - `VAPID_CLAIMS_EMAIL`: contacto `mailto:` que recibe los push providers en caso de problemas. Por ejemplo `mailto:soporte@shineapp.com.ar`. Default `mailto:no-reply@shineapp.local`.
 
+### Observabilidad y operabilidad
+
+- `LOG_FORMAT`: `json` en produccion (logs estructurados con `request_id`/`business_id`, capturados por Vercel) o `plain` (texto legible) en local. `settings_production` fuerza `json` igual.
+- `DJANGO_LOG_LEVEL`: nivel del logger root. Default `WARNING` en base, `INFO` en produccion.
+- `DATABASE_CONNECT_TIMEOUT`: timeout de conexion a Postgres en segundos. Default `10`.
+- `EMAIL_TIMEOUT`: timeout del envio SMTP en segundos (evita requests colgados). Default `10`.
+- `PUSH_TIMEOUT_SECONDS`: timeout del envio de web push en segundos. Default `10`.
+- `FRONTEND_BASE_URL`: base publica del frontend usada en los links de emails (reset, bienvenida, avisos). Reemplaza el dominio hardcodeado. Default `https://shineapp-web.vercel.app`.
+- `CRON_SECRET`: secret compartido para autenticar el endpoint interno `POST /api/internal/maintenance/`, que dispara el workflow `maintenance.yml` (header `X-Cron-Token`). Vacio = endpoint deshabilitado (responde 503). En produccion, generar un valor aleatorio largo y cargarlo tanto en Vercel API como en los secrets de GitHub. Comparacion en tiempo constante.
+- `TRASH_RETENTION_DAYS`: dias que un registro soft-deleted debe tener antes de ser elegible para purga. Default `90`.
+- `MAINTENANCE_PURGE_ENABLED`: `1` para que el mantenimiento purgue la papelera de verdad; `0` (default) hace que solo reporte cuanto seria elegible (dry-run seguro).
+
 ## Variables Publicas Frontend
 
 - `NEXT_PUBLIC_API_URL`: raiz de API, incluyendo `/api`, por ejemplo `https://shineapp-api.vercel.app/api`.

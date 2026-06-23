@@ -4,6 +4,7 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { Plus, Trash2, Wrench } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { DurationInput } from '@/app/components/ui/DurationInput'
 import { Field } from '@/app/components/ui/Field'
 import { NumericInput } from '@/app/components/ui/NumericInput'
@@ -31,6 +32,8 @@ type ServiceFormProps = {
 		key: string,
 	) => (event: KeyboardEvent<HTMLElement>) => void
 	focusField: (key: string) => void
+	fieldErrors?: Record<string, string>
+	submitting?: boolean
 }
 
 export function ServiceForm({
@@ -47,6 +50,8 @@ export function ServiceForm({
 	updateServiceMaterialLine,
 	focusNextOnEnter,
 	focusField,
+	fieldErrors,
+	submitting = false,
 }: ServiceFormProps) {
 	const sectorOptions = sectors
 		.filter((s) => s.is_active !== false)
@@ -58,7 +63,7 @@ export function ServiceForm({
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
 			<div className="form-row">
-				<Field label="Nombre">
+				<Field label="Nombre" error={fieldErrors?.['name']}>
 					<input
 						data-focus-key="service.name"
 						required
@@ -99,7 +104,7 @@ export function ServiceForm({
 				}}
 			/>
 			<div className="form-row">
-				<Field label="Precio base">
+				<Field label="Precio base" error={fieldErrors?.['base_price']}>
 					<NumericInput
 						data-focus-key="service.base_price"
 						required
@@ -117,7 +122,6 @@ export function ServiceForm({
 					form={serviceForm}
 					onPatch={(patch) => setServiceForm({ ...serviceForm, ...patch })}
 					focusKey="service.duration"
-					required
 					onKeyDown={focusNextOnEnter('service.notes')}
 				/>
 			</div>
@@ -137,7 +141,7 @@ export function ServiceForm({
 					</Field>
 				))}
 			</div>
-			<Field label="Notas">
+			<Field label="Notas" error={fieldErrors?.['notes']}>
 				<textarea
 					data-focus-key="service.notes"
 					value={serviceForm.notes}
@@ -171,7 +175,6 @@ export function ServiceForm({
 							/>
 							<Field label={`Cantidad${mat?.unit ? ` (${mat.unit})` : ''}`}>
 								<input
-									required={!!line.material}
 									type="number"
 									min="0.001"
 									step="0.001"
@@ -183,29 +186,29 @@ export function ServiceForm({
 									}
 								/>
 							</Field>
-							<button
+							<Button
 								type="button"
-								className="ghost"
+								variant="ghost"
 								onClick={() => removeServiceMaterialLine(index)}
 							>
 								<Trash2 size={16} />
-							</button>
+							</Button>
 						</div>
 					)
 				})}
 			</div>
-			<button
+			<Button
 				type="button"
-				className="ghost"
+				variant="ghost"
 				onClick={addServiceMaterialLine}
 			>
 				<Plus size={16} />
 				Agregar material
-			</button>
-			<button className="primary" data-focus-key="service.submit">
+			</Button>
+			<Button type="submit" variant="primary" loading={submitting} data-focus-key="service.submit">
 				<Wrench size={16} />
 				{submitLabel}
-			</button>
+			</Button>
 		</form>
 	)
 }

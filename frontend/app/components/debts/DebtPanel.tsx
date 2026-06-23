@@ -14,7 +14,9 @@ import {
 
 import { FinanceRecordCard } from '@/app/components/finance/FinanceRecordCard'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
+import { SkeletonList } from '@/app/components/ui/Skeleton'
 import { Field } from '@/app/components/ui/Field'
+import { Button } from '@/app/components/ui/Button'
 import {
 	type QuickAction,
 } from '@/app/components/ui/QuickActionsMenu'
@@ -126,20 +128,19 @@ export function DebtPanel({
 				<div className="panel-head finance-panel-head">
 					<div className="finance-action-rail">
 						<div className="finance-primary-actions">
-							<button
-								type="button"
-								className="primary"
+							<Button
+								variant="primary"
 								onClick={onCreateDebtPayment}
 							>
 								<CreditCard size={16} />
 								Registrar pago
-							</button>
+							</Button>
 						</div>
 						<div className="finance-secondary-actions">
-							<button type="button" className="ghost" onClick={onCreateDebt}>
+							<Button variant="ghost" onClick={onCreateDebt}>
 								<ReceiptText size={16} />
 								Nueva deuda
-							</button>
+							</Button>
 						</div>
 					</div>
 				</div>
@@ -151,18 +152,15 @@ export function DebtPanel({
 						}
 						hint={loadErrorNotice?.description}
 						action={
-							<button type="button" className="ghost" onClick={onRefresh}>
+							<Button variant="ghost" onClick={onRefresh}>
 								<RefreshCw size={16} />
 								Actualizar
-							</button>
+							</Button>
 						}
 					/>
 				) : null}
 				{!loadBlocked && loading && !debts.length && !debtPayments.length ? (
-					<LoadingState
-						text="Cargando deudas..."
-						hint="Estamos preparando saldos, estado y pagos recientes."
-					/>
+					<SkeletonList rows={6} columns={4} label="Cargando deudas" />
 				) : null}
 				{!loadBlocked && (!loading || debts.length || debtPayments.length) ? (
 					<>
@@ -201,14 +199,13 @@ export function DebtPanel({
 									<span className="cash-filter-counter">
 										{filteredDebts.length} de {debts.length}
 									</span>
-									<button
-										type="button"
-										className="ghost"
+									<Button
+										variant="ghost"
 										disabled={!debtFiltersActive}
 										onClick={onClearDebtFilters}
 									>
 										Limpiar filtros
-									</button>
+									</Button>
 								</div>
 							</div>
 							<div className="debt-filter-grid">
@@ -350,14 +347,13 @@ export function DebtPanel({
 									}
 									action={
 										debts.length ? undefined : (
-											<button
-												type="button"
-												className="primary"
+											<Button
+												variant="primary"
 												onClick={onCreateDebt}
 											>
 												<ReceiptText size={16} />
 												Nueva deuda
-											</button>
+											</Button>
 										)
 									}
 								/>
@@ -426,23 +422,21 @@ export function DebtPanel({
 									hint="Cuando pagues una deuda, queda trazada aca sin duplicar el gasto economico."
 									action={
 										debtOptions.length ? (
-											<button
-												type="button"
-												className="primary"
+											<Button
+												variant="primary"
 												onClick={onCreateDebtPayment}
 											>
 												<CreditCard size={16} />
 												Registrar pago
-											</button>
+											</Button>
 										) : (
-											<button
-												type="button"
-												className="ghost"
+											<Button
+												variant="ghost"
 												onClick={onCreateDebt}
 											>
 												<ReceiptText size={16} />
 												Nueva deuda
-											</button>
+											</Button>
 										)
 									}
 								/>

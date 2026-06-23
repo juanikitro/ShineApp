@@ -8,7 +8,6 @@ from django.utils.functional import Promise
 from .models import AuditLog
 from .permissions import business_for_user, get_user_role
 
-
 REDACTED_VALUE = "[redacted]"
 SENSITIVE_FIELD_MARKERS = (
     "password",

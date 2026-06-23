@@ -5,6 +5,7 @@ from django.http import HttpResponse
 from django.utils.html import format_html
 
 from inventory.models import MaterialConsumption
+
 from .models import WorkOrder
 
 

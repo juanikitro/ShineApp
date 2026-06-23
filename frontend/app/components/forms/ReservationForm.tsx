@@ -1,9 +1,10 @@
 'use client'
 
-import { type FormEvent, type KeyboardEvent, useMemo } from 'react'
+import { type FormEvent, type KeyboardEvent, useMemo, useState } from 'react'
 
 import { Plus } from 'lucide-react'
 
+import { DuplicateWarning } from '@/app/components/DuplicateWarning'
 import { AnimatedLabelSwap } from '@/app/components/motion/AnimatedLabelSwap'
 import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
@@ -12,12 +13,14 @@ import {
 	SearchSelect,
 	type SelectOption,
 } from '@/app/components/ui/SearchSelect'
-import { type AnyRecord, money } from '@/lib/page-support'
+import { type AnyRecord, money, formatDateLabel } from '@/lib/page-support'
 import {
 	type ScheduleAvailability,
+	type WorkingHoursEntry,
 	buildTimeSlots,
 	computeReservationFormItemsDuration,
 	formatCapacityLabel,
+	getHoursForDate,
 	scheduleAvailabilityForDay,
 	timeToMinutes,
 	todayIsoDate,
@@ -29,6 +32,14 @@ function serviceLinesTotal(items: AnyRecord[]) {
 			total + Number(item.quantity || 0) * Number(item.unit_price || 0),
 		0,
 	)
+}
+
+const RESERVATION_STATUS_LABELS: Record<string, string> = {
+	pending: 'pendiente',
+	confirmed: 'confirmada',
+	in_progress: 'en curso',
+	ready: 'lista',
+	delivered: 'entregada',
 }
 
 type ReservationFormProps = {
@@ -45,6 +56,7 @@ type ReservationFormProps = {
 	allowOverlap: boolean
 	openingTime?: string | null
 	closingTime?: string | null
+	workingHours?: WorkingHoursEntry[]
 	enforceCapacity: boolean
 	sectors: AnyRecord[]
 	services: AnyRecord[]
@@ -64,6 +76,7 @@ type ReservationFormProps = {
 	flashClass: (key: string | null) => string
 	fieldFlashKey: (target: string) => string
 	submitting?: boolean
+	fieldErrors?: Record<string, string>
 }
 
 export function ReservationForm({
@@ -80,6 +93,7 @@ export function ReservationForm({
 	allowOverlap,
 	openingTime,
 	closingTime,
+	workingHours,
 	enforceCapacity,
 	sectors,
 	services,
@@ -96,11 +110,46 @@ export function ReservationForm({
 	flashClass,
 	fieldFlashKey,
 	submitting = false,
+	fieldErrors,
 }: ReservationFormProps) {
 	const today = todayIsoDate()
 	const selectedDay =
 		typeof reservationForm.day === 'string' ? reservationForm.day : ''
+
+	const dayHours = useMemo(
+		() =>
+			selectedDay && workingHours?.length
+				? getHoursForDate(selectedDay, workingHours)
+				: null,
+		[selectedDay, workingHours],
+	)
+	const isNonWorkingDay = dayHours !== null && !dayHours.is_open
+	const effectiveOpeningTime = dayHours?.opening_time ?? openingTime ?? null
+	const effectiveClosingTime = dayHours?.closing_time ?? closingTime ?? null
 	const items = (reservationForm.items ?? []) as AnyRecord[]
+
+	const [reservationDismissed, setReservationDismissed] = useState(false)
+
+	// Busca reservas del mismo cliente en el mismo día usando la lista ya cargada
+	const duplicateReservations = useMemo(() => {
+		if (!reservationForm.customer || !selectedDay || reservationDismissed) return []
+		const customerId = Number(reservationForm.customer)
+		return reservations
+			.filter((r) => {
+				const rCustomer =
+					r.customer != null && typeof r.customer === 'object'
+						? Number((r.customer as AnyRecord).id)
+						: Number(r.customer)
+				return (
+					rCustomer === customerId &&
+					r.day === selectedDay &&
+					r.status !== 'canceled' &&
+					r.id !== reservationForm.id
+				)
+			})
+			.slice(0, 3)
+	}, [reservations, reservationForm.customer, selectedDay, reservationForm.id, reservationDismissed])
+
 	const availability = useMemo<ScheduleAvailability | null>(() => {
 		if (!selectedDay) return null
 		return scheduleAvailabilityForDay({
@@ -126,13 +175,13 @@ export function ReservationForm({
 	const startTimeSlots = useMemo(
 		() =>
 			buildTimeSlots({
-				openingTime,
-				closingTime,
+				openingTime: effectiveOpeningTime,
+				closingTime: effectiveClosingTime,
 				occupied: availability?.occupied ?? [],
 				durationMinutes: itemsDuration || 60,
 				allowOverlap,
 			}),
-		[allowOverlap, availability, closingTime, itemsDuration, openingTime],
+		[allowOverlap, availability, effectiveClosingTime, effectiveOpeningTime, itemsDuration],
 	)
 	const startTimeMinutes = timeToMinutes(reservationForm.start_time)
 	const exitTimeSlots = useMemo(
@@ -141,12 +190,12 @@ export function ReservationForm({
 				openingTime:
 					startTimeMinutes !== null
 						? reservationForm.start_time
-						: openingTime,
-				closingTime,
+						: effectiveOpeningTime,
+				closingTime: effectiveClosingTime,
 				occupied: [],
 				allowOverlap: true,
 			}),
-		[closingTime, openingTime, reservationForm.start_time, startTimeMinutes],
+		[effectiveClosingTime, effectiveOpeningTime, reservationForm.start_time, startTimeMinutes],
 	)
 	const selectedSectors = useMemo(() => {
 		const sectorById = new Map<number, number>()
@@ -332,8 +381,13 @@ export function ReservationForm({
 					</strong>
 				</div>
 			</div>
+			{isNonWorkingDay ? (
+				<div className="form-notice form-notice--warn">
+					El dia seleccionado es no laborable segun la configuracion del negocio. Igual podes crear la reserva si es necesario.
+				</div>
+			) : null}
 			<div className="form-row">
-				<Field label="Fecha de ingreso (opcional)">
+				<Field label="Fecha de ingreso (opcional)" error={fieldErrors?.['day']}>
 					<input
 						data-focus-key="reservation.day"
 						name="reservation_day"
@@ -350,7 +404,7 @@ export function ReservationForm({
 						onKeyDown={focusNextOnEnter('reservation.exit_day')}
 					/>
 				</Field>
-				<Field label="Fecha de egreso">
+				<Field label="Fecha de egreso" error={fieldErrors?.['exit_day']}>
 					<input
 						data-focus-key="reservation.exit_day"
 						name="reservation_exit_day"
@@ -415,7 +469,7 @@ export function ReservationForm({
 			) : null}
 			{useReservationTimes ? (
 				<div className="form-row">
-					<Field label="Hora de ingreso (opcional)">
+					<Field label="Hora de ingreso (opcional)" error={fieldErrors?.['start_time']}>
 						<select
 							data-focus-key="reservation.start_time"
 							name="reservation_start_time"
@@ -444,7 +498,7 @@ export function ReservationForm({
 							))}
 						</select>
 					</Field>
-					<Field label="Hora de egreso (opcional)">
+					<Field label="Hora de egreso (opcional)" error={fieldErrors?.['exit_time']}>
 						<select
 							data-focus-key="reservation.exit_time"
 							name="reservation_exit_time"
@@ -472,7 +526,7 @@ export function ReservationForm({
 					</Field>
 				</div>
 			) : null}
-			<Field label="Notas">
+			<Field label="Notas" error={fieldErrors?.['notes']}>
 				<textarea
 					data-focus-key="reservation.notes"
 					name="reservation_notes"
@@ -486,6 +540,16 @@ export function ReservationForm({
 					}
 				/>
 			</Field>
+			{!reservationDismissed && duplicateReservations.length > 0 && (
+				<DuplicateWarning
+					title="Este cliente ya tiene una reserva para ese día:"
+					items={duplicateReservations.map((r) => ({
+						id: r.id as number,
+						label: `${formatDateLabel(String(r.day))} · ${RESERVATION_STATUS_LABELS[String(r.status)] ?? r.status}`,
+					}))}
+					onDismiss={() => setReservationDismissed(true)}
+				/>
+			)}
 			<Button
 				type="submit"
 				variant="primary"

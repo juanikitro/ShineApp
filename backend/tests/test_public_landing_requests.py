@@ -14,7 +14,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from catalog.models import Sector, Service
-from catalog.sector_defaults import ensure_default_sectors, SERVICE_TYPE_TO_SECTOR_KEY
+from catalog.sector_defaults import SERVICE_TYPE_TO_SECTOR_KEY, ensure_default_sectors
 from core.models import BusinessAccount, BusinessProfile, UserProfile
 from customers.models import Customer, Vehicle
 from notifications.models import PublicRequest
@@ -685,7 +685,7 @@ def test_public_request_create_returns_201_even_if_email_fails():
     public_client = APIClient()
     url = reverse("public-landing-requests", args=[business.slug])
 
-    with patch("notifications.service.send_mail", side_effect=Exception("SMTP error")):
+    with patch("notifications.outbox.send_mail", side_effect=Exception("SMTP error")):
         resp = public_client.post(url, public_request_payload(service), format="json")
 
     assert resp.status_code == 201
@@ -702,7 +702,7 @@ def test_public_request_create_no_email_when_no_users_have_email():
     public_client = APIClient()
     url = reverse("public-landing-requests", args=[business.slug])
 
-    with patch("notifications.service.send_mail") as mock_send:
+    with patch("notifications.outbox.send_mail") as mock_send:
         resp = public_client.post(url, public_request_payload(service), format="json")
 
     assert resp.status_code == 201
@@ -719,6 +719,7 @@ def _make_pywebpush_mock():
 @pytest.mark.django_db
 def test_public_request_create_sends_push_to_business_users_with_subscription():
     from django.test import override_settings
+
     from core.models import UserProfile
 
     business = create_business()

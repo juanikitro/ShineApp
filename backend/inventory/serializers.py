@@ -1,16 +1,15 @@
 import json
-from datetime import datetime, time
 from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from core.models import register_expense_classification, register_income_classification
+from catalog.models import Service
 from core.permissions import file_url
 from core.serializers import BusinessScopedSerializerMixin
 from finance.cash import ensure_cash_day_open, request_user_from_context
-from finance.models import CashMovement
+from scheduling.models import Reservation
 from scheduling.services import ensure_reservation_work_order
 
 from .models import (
@@ -23,179 +22,13 @@ from .models import (
     Supplier,
     Tool,
 )
-
-
-def refresh_material_cost(material):
-    latest_stock_line = (
-        material.stock_movement_lines.filter(
-            movement__movement_type__in=[
-                StockMovement.MovementType.PURCHASE,
-                StockMovement.MovementType.INITIAL_STOCK,
-            ],
-            stock_delta__gt=0,
-            unit_price__gt=0,
-        )
-        .select_related("movement")
-        .order_by("-movement__occurred_on", "-movement_id", "-id")
-        .first()
-    )
-    latest_purchase = material.purchases.order_by("-purchased_at", "-id").first()
-    if latest_stock_line and (
-        not latest_purchase or latest_stock_line.movement.occurred_on >= latest_purchase.purchased_at
-    ):
-        material.estimated_unit_cost = latest_stock_line.unit_price
-    elif latest_purchase and latest_purchase.quantity > 0:
-        material.estimated_unit_cost = latest_purchase.total_cost / latest_purchase.quantity
-    else:
-        material.estimated_unit_cost = Decimal("0.00")
-    material.save(update_fields=["estimated_unit_cost", "updated_at"])
-
-
-def sync_purchase_cash_movement(purchase, user=None):
-    if purchase.affects_cash and purchase.total_cost > 0:
-        movement, created = CashMovement.objects.update_or_create(
-            material_purchase=purchase,
-            defaults={
-                "business": purchase.business,
-                "movement_type": CashMovement.MovementType.EXPENSE,
-                "category": "Materiales e insumos",
-                "subcategory": purchase.material.name or "Compra de materiales",
-                "amount": purchase.total_cost,
-                "occurred_at": timezone.make_aware(datetime.combine(purchase.purchased_at, time.min)),
-                "description": f"Compra de {purchase.material.name}",
-            },
-        )
-        if created and user:
-            movement.created_by = user
-            movement.save(update_fields=["created_by"])
-        register_expense_classification(movement.category, movement.subcategory, business=purchase.business)
-    else:
-        CashMovement.objects.filter(material_purchase=purchase).hard_delete()
-
-
-def stock_movement_affects_cash(movement_type, affects_cash):
-    if movement_type == StockMovement.MovementType.SALE:
-        return True
-    return movement_type == StockMovement.MovementType.PURCHASE and bool(affects_cash)
-
-
-def sync_stock_movement_cash_movement(movement, user=None):
-    if movement.movement_type == StockMovement.MovementType.PURCHASE and movement.affects_cash and movement.total_amount > 0:
-        movement_record, created = CashMovement.objects.update_or_create(
-            stock_movement=movement,
-            defaults={
-                "business": movement.business,
-                "movement_type": CashMovement.MovementType.EXPENSE,
-                "category": "Materiales e insumos",
-                "subcategory": movement.supplier.name if movement.supplier_id else "Compra de materiales",
-                "amount": movement.total_amount,
-                "occurred_at": timezone.make_aware(datetime.combine(movement.occurred_on, time.min)),
-                "description": f"Compra de materiales #{movement.id}",
-            },
-        )
-        if created and user:
-            movement_record.created_by = user
-            movement_record.save(update_fields=["created_by"])
-        register_expense_classification(movement_record.category, movement_record.subcategory, business=movement.business)
-        return
-
-    if movement.movement_type == StockMovement.MovementType.SALE and movement.total_amount > 0:
-        movement_record, created = CashMovement.objects.update_or_create(
-            stock_movement=movement,
-            defaults={
-                "business": movement.business,
-                "movement_type": CashMovement.MovementType.INCOME,
-                "category": "Venta",
-                "subcategory": movement.get_payment_method_display(),
-                "amount": movement.total_amount,
-                "occurred_at": timezone.make_aware(datetime.combine(movement.occurred_on, time.min)),
-                "description": f"Venta de materiales a {movement.customer.name if movement.customer_id else 'cliente'}",
-            },
-        )
-        if created and user:
-            movement_record.created_by = user
-            movement_record.save(update_fields=["created_by"])
-        register_income_classification(movement_record.category, movement_record.subcategory, business=movement.business)
-        return
-
-    CashMovement.objects.filter(stock_movement=movement).hard_delete()
-
-
-def reverse_stock_movement_effects(movement):
-    touched_material_ids = set()
-    for line in movement.lines.select_related("material").select_for_update():
-        material = line.material
-        next_stock = material.stock_quantity - line.stock_delta
-        if next_stock < 0:
-            raise serializers.ValidationError({"lines": "No se puede revertir el movimiento: el stock quedaria negativo."})
-        material.stock_quantity = next_stock
-        material.save(update_fields=["stock_quantity", "updated_at"])
-        touched_material_ids.add(material.id)
-    CashMovement.objects.filter(stock_movement=movement).hard_delete()
-    movement.lines.all().delete()
-    for material in Material.objects.filter(id__in=touched_material_ids):
-        refresh_material_cost(material)
-
-
-def stock_delta_for(movement, quantity):
-    if movement.movement_type == StockMovement.MovementType.PURCHASE:
-        return quantity if movement.products_received else Decimal("0.00")
-    if movement.movement_type == StockMovement.MovementType.INITIAL_STOCK:
-        return quantity
-    if movement.movement_type in [StockMovement.MovementType.CONSUMPTION, StockMovement.MovementType.SALE]:
-        return -quantity
-    return Decimal("0.00")
-
-
-def apply_stock_movement_lines(movement, lines_data, user=None):
-    total_amount = Decimal("0.00")
-    touched_material_ids = set()
-    for line_data in lines_data:
-        material = Material.objects.select_for_update().get(pk=line_data["material"].pk)
-        quantity = line_data["quantity"]
-        unit_price = line_data.get("unit_price") or Decimal("0.00")
-
-        if movement.movement_type == StockMovement.MovementType.CONSUMPTION:
-            estimated_unit_cost = material.estimated_unit_cost or Decimal("0.00")
-            line_total = estimated_unit_cost * quantity
-            estimated_total_cost = line_total
-            unit_price = unit_price or estimated_unit_cost
-        elif movement.movement_type == StockMovement.MovementType.SALE:
-            line_total = unit_price * quantity
-            estimated_unit_cost = material.estimated_unit_cost or Decimal("0.00")
-            estimated_total_cost = estimated_unit_cost * quantity
-        else:
-            line_total = unit_price * quantity
-            estimated_unit_cost = unit_price
-            estimated_total_cost = line_total
-
-        stock_delta = stock_delta_for(movement, quantity)
-        next_stock = material.stock_quantity + stock_delta
-        if next_stock < 0:
-            raise serializers.ValidationError(
-                {"lines": f"Stock insuficiente para {material.name}."}
-            )
-        material.stock_quantity = next_stock
-        material.save(update_fields=["stock_quantity", "updated_at"])
-        touched_material_ids.add(material.id)
-
-        StockMovementLine.objects.create(
-            movement=movement,
-            material=material,
-            quantity=quantity,
-            unit_price=unit_price,
-            line_total=line_total,
-            estimated_unit_cost=estimated_unit_cost,
-            estimated_total_cost=estimated_total_cost,
-            stock_delta=stock_delta,
-        )
-        total_amount += line_total
-
-    movement.total_amount = total_amount
-    movement.save(update_fields=["total_amount", "updated_at"])
-    for material in Material.objects.filter(id__in=touched_material_ids):
-        refresh_material_cost(material)
-    sync_stock_movement_cash_movement(movement, user=user)
+from .stock import (
+    apply_stock_movement_lines,
+    refresh_material_cost,
+    reverse_stock_movement_effects,
+    stock_movement_affects_cash,
+    sync_purchase_cash_movement,
+)
 
 
 class SupplierSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
@@ -278,11 +111,14 @@ class MaterialSerializer(BusinessScopedSerializerMixin, serializers.ModelSeriali
     open_units_finished_count = serializers.SerializerMethodField()
     average_jobs_per_finished_unit = serializers.SerializerMethodField()
     average_days_per_finished_unit = serializers.SerializerMethodField()
+    sector_name = serializers.CharField(source="sector.name", read_only=True, default=None)
 
     class Meta:
         model = Material
         fields = [
             "id",
+            "sector",
+            "sector_name",
             "name",
             "unit",
             "category",
@@ -309,6 +145,7 @@ class MaterialSerializer(BusinessScopedSerializerMixin, serializers.ModelSeriali
         ]
         read_only_fields = [
             "id",
+            "sector_name",
             "estimated_unit_cost",
             "last_purchase_unit_cost",
             "last_purchase_date",
@@ -617,11 +454,12 @@ class StockMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSe
         supplier = attrs.get("supplier", getattr(self.instance, "supplier", None))
         self.validate_same_business(supplier, customer, reservation)
 
+        business = self.get_business()
         if self.instance and stock_movement_affects_cash(self.instance.movement_type, self.instance.affects_cash):
-            ensure_cash_day_open(self.instance.occurred_on, field="occurred_on")
+            ensure_cash_day_open(self.instance.occurred_on, field="occurred_on", business=business)
 
         if stock_movement_affects_cash(movement_type, affects_cash):
-            ensure_cash_day_open(occurred_on, field="occurred_on")
+            ensure_cash_day_open(occurred_on, field="occurred_on", business=business)
 
         if movement_type == StockMovement.MovementType.CONSUMPTION:
             if not reservation:
@@ -646,7 +484,14 @@ class StockMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSe
         elif movement_type == StockMovement.MovementType.PURCHASE:
             attrs.setdefault("products_received", getattr(self.instance, "products_received", False))
         else:
-            raise serializers.ValidationError({"movement_type": "Tipo de movimiento invalido."})
+            raise serializers.ValidationError(
+                {
+                    "movement_type": (
+                        "Tipo de movimiento invalido. Opciones validas: "
+                        f"{', '.join(StockMovement.MovementType.values)}."
+                    )
+                }
+            )
 
         return attrs
 
@@ -688,9 +533,10 @@ class StockMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSe
 
 class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     material_name = serializers.CharField(source="material.name", read_only=True)
+    service_name = serializers.SerializerMethodField()
     opened_by_work_order_label = serializers.SerializerMethodField()
-    work_orders_count = serializers.IntegerField(read_only=True)
-    consumptions_count = serializers.IntegerField(read_only=True)
+    work_orders_count = serializers.SerializerMethodField()
+    consumptions_count = serializers.SerializerMethodField()
     duration_days = serializers.IntegerField(read_only=True, allow_null=True)
     consumptions = serializers.SerializerMethodField()
 
@@ -700,6 +546,9 @@ class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.Mode
             "id",
             "material",
             "material_name",
+            "service",
+            "service_name",
+            "is_historical",
             "opened_at",
             "opened_by_work_order",
             "opened_by_work_order_label",
@@ -717,6 +566,8 @@ class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.Mode
         read_only_fields = [
             "id",
             "material_name",
+            "service_name",
+            "is_historical",
             "opened_by_work_order_label",
             "status",
             "finished_at",
@@ -728,10 +579,37 @@ class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.Mode
             "created_at",
         ]
 
+    def get_service_name(self, obj):
+        return obj.service.name if obj.service_id else None
+
     def get_opened_by_work_order_label(self, obj):
         return str(obj.opened_by_work_order) if obj.opened_by_work_order else None
 
+    def _prefetched_consumptions(self, obj):
+        # Reusa el prefetch consumptions__work_order del viewset (0 queries por unidad
+        # en el listado). Fuera de ese contexto retorna None para caer al fallback.
+        cache = getattr(obj, "_prefetched_objects_cache", None)
+        if cache is not None and "consumptions" in cache:
+            return list(obj.consumptions.all())
+        return None
+
+    def get_work_orders_count(self, obj):
+        consumptions = self._prefetched_consumptions(obj)
+        if consumptions is not None:
+            return len({consumption.work_order_id for consumption in consumptions})
+        return obj.work_orders_count
+
+    def get_consumptions_count(self, obj):
+        consumptions = self._prefetched_consumptions(obj)
+        if consumptions is not None:
+            return len(consumptions)
+        return obj.consumptions_count
+
     def get_consumptions(self, obj):
+        consumptions = self._prefetched_consumptions(obj)
+        if consumptions is None:
+            consumptions = obj.consumptions.select_related("work_order").all()
+        consumptions = sorted(consumptions, key=lambda consumption: (consumption.consumed_at, consumption.id))
         return [
             {
                 "id": consumption.id,
@@ -742,7 +620,7 @@ class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.Mode
                 "estimated_total_cost": consumption.estimated_total_cost,
                 "observations": consumption.observations,
             }
-            for consumption in obj.consumptions.select_related("work_order").order_by("consumed_at", "id")
+            for consumption in consumptions
         ]
 
     def validate_stock_quantity_to_decrement(self, value):
@@ -769,6 +647,123 @@ class MaterialOpenUnitSerializer(BusinessScopedSerializerMixin, serializers.Mode
             **validated_data,
             estimated_unit_cost_at_open=material.estimated_unit_cost or Decimal("0.00"),
         )
+
+
+class MaterialUsageBackfillSerializer(BusinessScopedSerializerMixin, serializers.Serializer):
+    """Registro retroactivo de una unidad ya consumida.
+
+    Recibe un material, un servicio y las reservas pasadas de ese servicio donde
+    se uso el producto. Crea una MaterialOpenUnit historica (finalizada) con un
+    MaterialConsumption por reserva, para estimar el rendimiento por servicio.
+    No descuenta stock actual: el consumo ocurrio en el pasado.
+    """
+
+    material = serializers.PrimaryKeyRelatedField(queryset=Material.objects.filter(is_active=True))
+    service = serializers.PrimaryKeyRelatedField(queryset=Service.objects.all())
+    reservations = serializers.PrimaryKeyRelatedField(queryset=Reservation.objects.all(), many=True)
+    opened_at = serializers.DateField(required=False)
+    finished_at = serializers.DateField(required=False)
+    stock_quantity_to_decrement = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        default=Decimal("1.00"),
+    )
+    observations = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate_stock_quantity_to_decrement(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("La cantidad debe ser mayor a cero.")
+        return value
+
+    def validate_reservations(self, value):
+        if not value:
+            raise serializers.ValidationError("Selecciona al menos una reserva.")
+        return value
+
+    def validate(self, attrs):
+        material = attrs["material"]
+        service = attrs["service"]
+        reservations = attrs["reservations"]
+        # Defensa cross-tenant: material, servicio y reservas del mismo negocio.
+        self.validate_same_business(material, service, *reservations)
+
+        mismatched = [reservation.id for reservation in reservations if reservation.service_id != service.id]
+        if mismatched:
+            raise serializers.ValidationError(
+                {"reservations": "Todas las reservas deben pertenecer al servicio seleccionado."}
+            )
+
+        days = [reservation.day for reservation in reservations]
+        opened_at = attrs.get("opened_at") or min(days)
+        finished_at = attrs.get("finished_at") or max(days)
+        if finished_at < opened_at:
+            raise serializers.ValidationError(
+                {"finished_at": "La fecha de cierre no puede ser anterior a la de apertura."}
+            )
+        attrs["opened_at"] = opened_at
+        attrs["finished_at"] = finished_at
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        material = validated_data["material"]
+        service = validated_data["service"]
+        reservations = sorted(
+            validated_data["reservations"],
+            key=lambda reservation: (reservation.day, reservation.id),
+        )
+        unit_cost = material.estimated_unit_cost or Decimal("0.00")
+
+        orders = [(reservation, ensure_reservation_work_order(reservation)) for reservation in reservations]
+        opening_order = next((order for _, order in orders if order is not None), None)
+
+        open_unit = MaterialOpenUnit.objects.create(
+            business=material.business,
+            material=material,
+            service=service,
+            is_historical=True,
+            opened_at=validated_data["opened_at"],
+            finished_at=validated_data["finished_at"],
+            status=MaterialOpenUnit.Status.FINISHED,
+            opened_by_work_order=opening_order,
+            stock_quantity_to_decrement=validated_data["stock_quantity_to_decrement"],
+            estimated_unit_cost_at_open=unit_cost,
+            observations=validated_data.get("observations", ""),
+        )
+
+        for reservation, order in orders:
+            if order is None:
+                continue
+            MaterialConsumption.objects.create(
+                business=material.business,
+                material=material,
+                open_unit=open_unit,
+                work_order=order,
+                consumed_at=reservation.day,
+                quantity=Decimal("0.00"),
+                estimated_unit_cost=unit_cost,
+                estimated_total_cost=Decimal("0.00"),
+            )
+
+        return open_unit
+
+
+class ServiceUsageRowSerializer(serializers.Serializer):
+    """Consumo estimado de un material por servicio, derivado de las unidades
+    historicas finalizadas (material x servicio)."""
+
+    material = serializers.IntegerField()
+    material_name = serializers.CharField()
+    material_unit = serializers.CharField()
+    service = serializers.IntegerField()
+    service_name = serializers.CharField()
+    units_count = serializers.IntegerField()
+    total_jobs = serializers.IntegerField()
+    estimated_consumption_per_service = serializers.DecimalField(max_digits=12, decimal_places=4)
+    estimated_cost_per_service = serializers.DecimalField(max_digits=12, decimal_places=2)
+    avg_jobs_per_unit = serializers.DecimalField(max_digits=12, decimal_places=2)
+    avg_days_per_unit = serializers.DecimalField(max_digits=12, decimal_places=2)
 
 
 class MaterialPurchaseSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):

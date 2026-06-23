@@ -4,6 +4,7 @@ import { type ChangeEvent, type FormEvent, type RefObject } from 'react'
 
 import { Camera, FileText, LogOut } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { type AnyRecord } from '@/lib/page-support'
 
 const profilePhoneCountryOptions = [
@@ -44,6 +45,7 @@ type ProfileModalProps = {
 	hasStoredAvatar: boolean
 	onAvatarChange: (event: ChangeEvent<HTMLInputElement>) => void
 	onOpenAvatarPicker: () => void
+	submitting?: boolean
 }
 
 export function ProfileModal({
@@ -67,6 +69,7 @@ export function ProfileModal({
 	hasStoredAvatar,
 	onAvatarChange,
 	onOpenAvatarPicker,
+	submitting = false,
 }: ProfileModalProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -158,30 +161,16 @@ export function ProfileModal({
 					<span>Acceso</span>
 					<strong>{lastLoginText}</strong>
 				</div>
-				<label className="detail-row" htmlFor="profile-subscription-type">
+				<div className="detail-row">
 					<span>Plan interno</span>
-					<div className="profile-detail-control">
-						<select
-							id="profile-subscription-type"
-							name="profile_subscription_type"
-							className="profile-detail-input"
-							value={profileForm.subscription_type}
-							onChange={(event) =>
-								setProfileForm({
-									...profileForm,
-									subscription_type: event.target.value,
-								})
-							}
-							disabled={!canViewEconomy}
-						>
-							{subscriptionTypeOptions.map((option) => (
-								<option key={option.value} value={option.value}>
-									{option.label}
-								</option>
-							))}
-						</select>
-					</div>
-				</label>
+					{/* Solo lectura: el plan lo gestiona facturacion/admin del lado servidor,
+					    no es auto-asignable desde el perfil. */}
+					<strong>
+						{subscriptionTypeOptions.find(
+							(option) => option.value === profileForm.subscription_type,
+						)?.label ?? profileForm.subscription_type}
+					</strong>
+				</div>
 				<div className="detail-row">
 					<span id="profile-phone-label">Celular</span>
 					<div className="profile-detail-control">
@@ -234,13 +223,13 @@ export function ProfileModal({
 				</div>
 			)}
 			<div className="modal-actions split">
-				<button type="button" className="danger" onClick={onLogout}>
+				<Button type="button" variant="danger" onClick={onLogout}>
 					<LogOut size={16} />
 					Salir
-				</button>
-				<button type="submit" className="primary">
+				</Button>
+				<Button type="submit" variant="primary" loading={submitting}>
 					Guardar perfil
-				</button>
+				</Button>
 			</div>
 		</form>
 	)

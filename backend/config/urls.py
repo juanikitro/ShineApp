@@ -2,16 +2,27 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
-from catalog.views import SectorViewSet, ServiceMaterialViewSet, ServiceViewSet
-from search.views import GlobalSearchView
-
-from core.views import AuditLogView
+from catalog.views import (
+    SectorViewSet,
+    ServiceMaterialAlternativeViewSet,
+    ServiceMaterialViewSet,
+    ServiceViewSet,
+)
+from core.views import AuditLogView, TrashPurgeView, TrashRestoreView, TrashView
 from customers.views import CustomerViewSet, VehicleViewSet
 from dashboard.views import DashboardSummaryView
 from debts.views import DebtPaymentViewSet, DebtViewSet
-from finance.views import CashCloseView, CashDailyView, CashMovementViewSet, CashReopenView, PaymentViewSet
+from finance.views import (
+    CashCloseView,
+    CashDailyView,
+    CashMovementViewSet,
+    CashReopenView,
+    CashWeeklyView,
+    PaymentViewSet,
+)
 from fixed_expenses.views import FixedExpenseOccurrenceViewSet, FixedExpenseViewSet
 from inventory.views import (
     MaterialConsumptionViewSet,
@@ -22,9 +33,6 @@ from inventory.views import (
     SupplierViewSet,
     ToolViewSet,
 )
-from quotes.views import QuoteViewSet
-from scheduling.views import DailyAgendaView, ReservationViewSet
-from workorders.views import WorkOrderViewSet
 from notifications.views import (
     PublicLandingAvailabilityView,
     PublicLandingRecallView,
@@ -32,6 +40,11 @@ from notifications.views import (
     PublicLandingView,
     PublicRequestViewSet,
 )
+from quotes.views import QuoteViewSet
+from scheduling.views import DailyAgendaView, ReservationMaterialOverrideViewSet, ReservationViewSet
+from search.views import GlobalSearchView
+from tasks.views import TaskViewSet
+from workorders.views import WorkOrderViewSet
 
 from .views import (
     BusinessProfileView,
@@ -40,6 +53,7 @@ from .views import (
     HealthCheckView,
     LoginView,
     LogoutView,
+    MaintenanceView,
     MeView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
@@ -51,8 +65,10 @@ router.register("customers", CustomerViewSet, basename="customer")
 router.register("vehicles", VehicleViewSet, basename="vehicle")
 router.register("services", ServiceViewSet, basename="service")
 router.register("service-materials", ServiceMaterialViewSet, basename="servicematerial")
+router.register("service-material-alternatives", ServiceMaterialAlternativeViewSet, basename="servicematerialalternative")
 router.register("sectors", SectorViewSet, basename="sector")
 router.register("reservations", ReservationViewSet, basename="reservation")
+router.register("reservation-material-overrides", ReservationMaterialOverrideViewSet, basename="reservationmaterialoverride")
 router.register("work-orders", WorkOrderViewSet, basename="workorder")
 router.register("payments", PaymentViewSet, basename="payment")
 router.register("cash-movements", CashMovementViewSet, basename="cashmovement")
@@ -68,11 +84,13 @@ router.register("material-open-units", MaterialOpenUnitViewSet, basename="materi
 router.register("material-purchases", MaterialPurchaseViewSet, basename="materialpurchase")
 router.register("material-consumptions", MaterialConsumptionViewSet, basename="materialconsumption")
 router.register("quotes", QuoteViewSet, basename="quote")
+router.register("tasks", TaskViewSet, basename="task")
 router.register("public-requests", PublicRequestViewSet, basename="publicrequest")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", HealthCheckView.as_view(), name="health-check"),
+    path("api/internal/maintenance/", MaintenanceView.as_view(), name="maintenance"),
     path("api/auth/login/", LoginView.as_view(), name="auth-login"),
     path("api/auth/trial-signup/", TrialSignupView.as_view(), name="auth-trial-signup"),
     path("api/auth/logout/", LogoutView.as_view(), name="auth-logout"),
@@ -82,6 +100,17 @@ urlpatterns = [
     path("api/auth/password-reset/", PasswordResetRequestView.as_view(), name="auth-password-reset"),
     path("api/auth/password-reset/confirm/", PasswordResetConfirmView.as_view(), name="auth-password-reset-confirm"),
     path("api/audit-log/", AuditLogView.as_view(), name="audit-log"),
+    path("api/trash/", TrashView.as_view(), name="trash-list"),
+    path(
+        "api/trash/<slug:entry_key>/<int:pk>/restore/",
+        TrashRestoreView.as_view(),
+        name="trash-restore",
+    ),
+    path(
+        "api/trash/<slug:entry_key>/<int:pk>/",
+        TrashPurgeView.as_view(),
+        name="trash-purge",
+    ),
     path(
         "api/settings/business-profile/",
         BusinessProfileView.as_view(),
@@ -89,6 +118,7 @@ urlpatterns = [
     ),
     path("api/agenda/daily/", DailyAgendaView.as_view(), name="agenda-daily"),
     path("api/cash/daily/", CashDailyView.as_view(), name="cash-daily"),
+    path("api/cash/weekly/", CashWeeklyView.as_view(), name="cash-weekly"),
     path("api/cash/close/", CashCloseView.as_view(), name="cash-close"),
     path("api/cash/reopen/", CashReopenView.as_view(), name="cash-reopen"),
     path("api/dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
@@ -108,6 +138,12 @@ urlpatterns = [
         "api/public/landing/<slug:slug>/availability/",
         PublicLandingAvailabilityView.as_view(),
         name="public-landing-availability",
+    ),
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path(
+        "api/schema/swagger-ui/",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger-ui",
     ),
     path("api/", include(router.urls)),
 ]

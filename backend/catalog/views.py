@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.db.models import Q
 from django.utils import timezone
-from rest_framework import decorators, permissions, response, viewsets
+from rest_framework import decorators, permissions, response, status, viewsets
 from rest_framework.exceptions import ValidationError
 
 from core.audit import AuditedModelViewSetMixin
@@ -11,8 +11,14 @@ from core.permissions import CanViewEconomy, EmployerRequiredForUnsafe, business
 from quotes.models import Quote, QuoteItem
 from scheduling.models import Reservation, ReservationItem
 from workorders.models import WorkOrder
-from .models import Sector, Service, ServiceMaterial
-from .serializers import SectorSerializer, ServiceMaterialSerializer, ServiceSerializer
+
+from .models import Sector, Service, ServiceMaterial, ServiceMaterialAlternative
+from .serializers import (
+    SectorSerializer,
+    ServiceMaterialAlternativeSerializer,
+    ServiceMaterialSerializer,
+    ServiceSerializer,
+)
 
 
 class SectorViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
@@ -126,7 +132,9 @@ def service_history_quote_row(quote):
 
 class ServiceViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     serializer_class = ServiceSerializer
-    queryset = Service.objects.all()
+    # prefetch de la receta de materiales: ServiceSerializer anida
+    # ServiceMaterialSerializer (lee material.name/unit/estimated_unit_cost).
+    queryset = Service.objects.prefetch_related("materials__material", "materials__alternatives__alternative_material")
     permission_classes = [permissions.IsAuthenticated, EmployerRequiredForUnsafe]
 
     def get_queryset(self):
@@ -312,6 +320,23 @@ class ServiceViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         )
 
 
+class ServiceMaterialAlternativeViewSet(viewsets.ModelViewSet):
+    serializer_class = ServiceMaterialAlternativeSerializer
+    permission_classes = [permissions.IsAuthenticated, EmployerRequiredForUnsafe]
+
+    def get_queryset(self):
+        business = business_from_request(self.request)
+        qs = ServiceMaterialAlternative.objects.select_related(
+            "alternative_material",
+            "service_material__material",
+            "service_material__service",
+        ).filter(service_material__service__business=business)
+        service_material_id = self.request.query_params.get("service_material")
+        if service_material_id:
+            qs = qs.filter(service_material_id=service_material_id)
+        return qs
+
+
 class ServiceMaterialViewSet(viewsets.ModelViewSet):
     serializer_class = ServiceMaterialSerializer
     permission_classes = [permissions.IsAuthenticated, EmployerRequiredForUnsafe]
@@ -323,3 +348,25 @@ class ServiceMaterialViewSet(viewsets.ModelViewSet):
         if service_id:
             qs = qs.filter(service_id=service_id)
         return qs
+
+    @decorators.action(detail=False, methods=["post"], url_path="upsert")
+    def upsert(self, request):
+        """Crea o actualiza la receta (servicio, material) en una sola llamada.
+        Usado para volcar el consumo estimado por servicio a la receta oficial."""
+        business = business_from_request(request)
+        service_id = request.data.get("service")
+        material_id = request.data.get("material")
+        existing = None
+        if service_id and material_id:
+            existing = ServiceMaterial.objects.filter(
+                service_id=service_id,
+                material_id=material_id,
+                service__business=business,
+            ).first()
+        serializer = self.get_serializer(instance=existing, data=request.data, partial=existing is not None)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return response.Response(
+            serializer.data,
+            status=status.HTTP_200_OK if existing is not None else status.HTTP_201_CREATED,
+        )

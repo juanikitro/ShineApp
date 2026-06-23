@@ -1,4 +1,3 @@
-from decimal import Decimal
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
@@ -291,11 +290,7 @@ class CashMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSer
     def validate(self, attrs):
         occurred_at = attrs.get("occurred_at", getattr(self.instance, "occurred_at", timezone.now()))
         adjusts_closed_day = attrs.get("adjusts_closed_day", getattr(self.instance, "adjusts_closed_day", None))
-        movement_type = attrs.get("movement_type", getattr(self.instance, "movement_type", ""))
-        subcategory = attrs.get("subcategory", getattr(self.instance, "subcategory", ""))
         business = self.get_business() or getattr(self.instance, "business", None)
-        if movement_type == CashMovement.MovementType.EXPENSE and not str(subcategory or "").strip():
-            raise serializers.ValidationError({"subcategory": "La subcategoria es obligatoria para egresos."})
         if self.instance:
             ensure_cash_day_open(cash_day(self.instance.occurred_at), field="occurred_at", business=self.instance.business)
         ensure_cash_day_open(cash_day(occurred_at), field="occurred_at", business=business)

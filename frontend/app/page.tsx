@@ -27,6 +27,7 @@ import {
 	Globe,
 	Hammer,
 	History,
+	ListTodo,
 	LockKeyhole,
 	LogOut,
 	Menu,
@@ -54,6 +55,7 @@ import {
 	type KeyboardEvent,
 	type MouseEvent,
 	type ReactNode,
+	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
@@ -88,6 +90,7 @@ import { StockMovementForm } from '@/app/components/forms/StockMovementForm'
 import { SupplierForm } from '@/app/components/forms/SupplierForm'
 import { VehicleForm } from '@/app/components/forms/VehicleForm'
 import { AgendaBoardToolbar } from '@/app/components/agenda/AgendaBoardToolbar'
+import { AgendaMonthGrid } from '@/app/components/agenda/AgendaMonthGrid'
 import { AgendaReservationCard } from '@/app/components/agenda/AgendaReservationCard'
 import {
 	CashPanel,
@@ -108,6 +111,7 @@ import {
 } from '@/app/components/quotes/QuotesPanel'
 import { ServicesPanel } from '@/app/components/services/ServicesPanel'
 import { SettingsWorkspace } from '@/app/components/settings/SettingsWorkspace'
+import { TasksPanel } from '@/app/components/tasks/TasksPanel'
 import { ToolsPanel } from '@/app/components/tools/ToolsPanel'
 import {
 	CustomerDashboardShell,
@@ -130,15 +134,19 @@ import {
 import NextImage from 'next/image'
 
 import { Button } from '@/app/components/ui/Button'
+import { GlobalProgressBar } from '@/app/components/ui/GlobalProgressBar'
+import { SavingOverlay } from '@/app/components/ui/SavingOverlay'
+import { useConfirmDialog } from '@/lib/use-confirm-dialog'
 import { DetailModal } from '@/app/components/ui/DetailModal'
 import { DurationInput } from '@/app/components/ui/DurationInput'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
 import { BirthdayFields } from '@/app/components/ui/BirthdayFields'
 import { Field } from '@/app/components/ui/Field'
+import { Toggle } from '@/app/components/ui/Toggle'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { ModalFrame as Modal } from '@/app/components/ui/ModalFrame'
 import { Panel } from '@/app/components/ui/Panel'
-import { SkeletonCard, SkeletonList } from '@/app/components/ui/Skeleton'
+import { SkeletonLine, SkeletonList } from '@/app/components/ui/Skeleton'
 import {
 	QuickActionsMenu,
 	type QuickAction,
@@ -192,9 +200,11 @@ import {
 import { joinDisplayParts } from '@/lib/display-text'
 import {
 	type AgendaCalendarSegment,
+	type AgendaMonthChip,
 	type AgendaOperationalPhase,
 	type AgendaOperationalRow,
 	buildAgendaCalendarSegments,
+	buildAgendaMonthGrid,
 	buildAgendaOperationalRows,
 	buildWorkOrderByReservation,
 	filterAgendaReservationsBySector,
@@ -203,6 +213,11 @@ import {
 	buildAgendaReservationActions,
 	type AgendaReservationAction,
 } from '@/lib/reservation-actions'
+import {
+	type WorkingHoursEntry,
+	DEFAULT_WORKING_HOURS,
+	getHoursForDate,
+} from '@/lib/scheduling-availability'
 import {
 	buildWorkStatusColumns,
 	filterFreeQuotesBySector,
@@ -351,6 +366,7 @@ import {
 	formatDayLabel,
 	formatDayName,
 	formatFullDateLabel,
+	formatMonthLabel,
 	fullPaymentAmountForOrder,
 	mergeStringValues,
 	money,
@@ -378,6 +394,12 @@ import {
 	uniqueValues,
 	removeExpenseCategoryPair,
 	removeIncomeCategoryPair,
+	addExpenseCategory,
+	addIncomeCategory,
+	removeExpenseCategory,
+	removeIncomeCategory,
+	renameExpenseCategory,
+	renameIncomeCategory,
 	upsertIncomeCategoryPair,
 	upsertExpenseCategoryPair,
 	useButtonHoverTitles,
@@ -429,6 +451,21 @@ const workViewModes: Array<{
 	{ value: 'status', label: 'Estado' },
 	{ value: 'entry-date', label: 'Fecha de ingreso' },
 ]
+const agendaRangeModes: Array<{
+	value: 'week' | 'month'
+	label: string
+}> = [
+	{ value: 'week', label: 'Semana' },
+	{ value: 'month', label: 'Mes' },
+]
+const cashLoadTabOptions: Array<{
+	value: 'cash-movement' | 'payment' | 'debt-payment'
+	label: string
+}> = [
+	{ value: 'cash-movement', label: 'Movimiento normal' },
+	{ value: 'debt-payment', label: 'Pagar deuda' },
+	{ value: 'payment', label: 'Cobrar trabajo' },
+]
 const quoteStatusLabels: Record<string, string> = {
 	draft: 'Sin enviar',
 	sent: 'Enviado',
@@ -468,6 +505,7 @@ type SettingsSection =
 	| 'agenda'
 	| 'users'
 	| 'history'
+	| 'trash'
 	| 'novedades'
 
 const settingsSectionOptions: Array<{
@@ -482,6 +520,7 @@ const settingsSectionOptions: Array<{
 	{ value: 'agenda', label: 'Agenda', icon: CalendarDays },
 	{ value: 'users', label: 'Usuarios', icon: Users },
 	{ value: 'history', label: 'Historial', icon: History },
+	{ value: 'trash', label: 'Papelera', icon: Trash2 },
 	{ value: 'novedades', label: 'Novedades', icon: Sparkles },
 ]
 const navigationConfig = {
@@ -508,7 +547,8 @@ function searchQueryFromUrl(): string {
 
 // Mapea cada tipo de resultado del buscador global a su seccion del SPA y al
 // modal de detalle/edicion correspondiente. `fixed_expense` no tiene detail
-// modal: abre el form modal de gastos fijos.
+// modal: abre el form modal de gastos fijos. `task` solo navega: TasksPanel
+// edita en linea.
 const searchResultTargets: Record<
 	string,
 	{ section: Section; detailTitle: string; apiPath: (id: number) => string }
@@ -517,6 +557,11 @@ const searchResultTargets: Record<
 		section: 'customers',
 		detailTitle: 'Cliente',
 		apiPath: (id) => `/customers/${id}/`,
+	},
+	task: {
+		section: 'tasks',
+		detailTitle: '',
+		apiPath: (id) => `/tasks/${id}/`,
 	},
 	vehicle: {
 		section: 'vehicles',
@@ -704,6 +749,7 @@ export default function Home() {
 		'replaceState',
 	)
 	const [bootLoading, setBootLoading] = useState(false)
+	const [sessionExpired, setSessionExpired] = useState(false)
 	const [loadingDataSets, setLoadingDataSets] = useState<ReadonlySet<DataSetKey>>(
 		() => new Set(),
 	)
@@ -715,6 +761,7 @@ export default function Home() {
 	const { toasts, showToast, dismissToast } = useNoticeToasts()
 	const pendingActions = usePendingActions()
 	const runActionCounterRef = useRef(0)
+	const { requestConfirm, ConfirmDialog } = useConfirmDialog()
 	const isDataSetLoading = (key: DataSetKey) => loadingDataSets.has(key)
 	const loading = bootLoading || loadingDataSets.size > 0
 	const undoTimerRef = useRef<number | null>(null)
@@ -725,12 +772,16 @@ export default function Home() {
 	const [customerCardFilter, setCustomerCardFilter] =
 		useState<CustomerCardFilter>('all')
 	const [agendaStartDay, setAgendaStartDay] = useState(today)
+	const [agendaRangeMode, setAgendaRangeMode] =
+		useState<'week' | 'month'>('week')
 	const [agendaSectorId, setAgendaSectorId] =
 		useState<number | null>(null)
 	const [workViewMode, setWorkViewMode] =
 		useState<WorkOrderViewMode>('agenda')
 	const [selectedDay, setSelectedDay] = useState(today)
 	const prevSelectedDayRef = useRef(today)
+	const [cashViewMode, setCashViewMode] = useState<'day' | 'week'>('day')
+	const prevCashViewModeRef = useRef<'day' | 'week'>('day')
 	const [cashSummaryMode, setCashSummaryMode] =
 		useState<CashSummaryMode>('cashflow')
 	const [cashFilters, setCashFilters] =
@@ -779,6 +830,7 @@ export default function Home() {
 	const [materialOpenUnits, setMaterialOpenUnits] = useState<AnyRecord[]>([])
 	const [tools, setTools] = useState<AnyRecord[]>([])
 	const [quotes, setQuotes] = useState<AnyRecord[]>([])
+	const [tasks, setTasks] = useState<AnyRecord[]>([])
 	const [publicRequests, setPublicRequests] = useState<AnyRecord[]>([])
 	const [publicRequestSelections, setPublicRequestSelections] = useState<
 		Record<string, { customer?: string; vehicle?: string }>
@@ -789,7 +841,11 @@ export default function Home() {
 	const [employeeAuditLogsLoading, setEmployeeAuditLogsLoading] = useState(false)
 	const [employeeAuditLogsError, setEmployeeAuditLogsError] = useState<string | null>(null)
 	const [auditLogs, setAuditLogs] = useState<AnyRecord[]>([])
-	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>({})
+	const [auditFilters, setAuditFilters] = useState<AuditLogFilters>(() => {
+		const d = new Date()
+		d.setDate(d.getDate() - 90)
+		return { from: d.toISOString().slice(0, 10) }
+	})
 	const auditLogsLoadedRef = useRef(false)
 	const loadedDataCacheRef = useRef<Set<string>>(new Set())
 	const [expandedAuditLogId, setExpandedAuditLogId] = useState<string | null>(
@@ -808,7 +864,13 @@ export default function Home() {
 			subcategory: '',
 			originalCategory: '',
 			originalSubcategory: '',
+			lockCategory: false,
 		})
+	const [cashCategoryForm, setCashCategoryForm] = useState<AnyRecord>({
+		movement_type: 'expense',
+		name: '',
+		originalName: '',
+	})
 	const [profileForm, setProfileForm] = useState<AnyRecord>(blankProfileForm())
 	const businessFormRef = useRef<AnyRecord>(blankBusinessForm())
 	const [customerForm, setCustomerForm] = useState<AnyRecord>(blankCustomerForm())
@@ -861,8 +923,12 @@ export default function Home() {
 	const [debtPaymentForm, setDebtPaymentForm] = useState<AnyRecord>(
 		blankDebtPaymentForm(today),
 	)
+	const [cashLoadTab, setCashLoadTab] = useState<
+		'cash-movement' | 'payment' | 'debt-payment'
+	>('cash-movement')
 	const [materialForm, setMaterialForm] = useState<AnyRecord>({
 		id: '',
+		sector: null,
 		name: '',
 		unit: 'ml',
 		category: '',
@@ -904,6 +970,16 @@ export default function Home() {
 		opened_by_work_order: '',
 		stock_quantity_to_decrement: '1',
 		observations: '',
+	})
+	const [historicalUsageForm, setHistoricalUsageForm] = useState<AnyRecord>({
+		material: '',
+		service: '',
+		reservations: [] as string[],
+		opened_at: '',
+		finished_at: '',
+		stock_quantity_to_decrement: '1',
+		observations: '',
+		update_recipe: false,
 	})
 	const [toolForm, setToolForm] = useState<AnyRecord>({
 		id: '',
@@ -1187,9 +1263,27 @@ export default function Home() {
 	useEffect(() => revokeProfileAvatarObjectUrl, [])
 	const { flashTarget, flash } = useFlashTarget(FEEDBACK_PULSE_MS)
 
+	const [formFieldErrors, setFormFieldErrors] = useState<Record<string, string>>(
+		{},
+	)
+
+	function fieldErrorMapFromNotice(notice: ApiErrorNotice): Record<string, string> {
+		const map: Record<string, string> = {}
+		for (const field of notice.fields ?? []) {
+			const path = field?.path
+			if (path && !(String(path) in map)) {
+				map[String(path)] = String(field.message ?? '')
+			}
+		}
+		return map
+	}
+
 	function setError(notice: ApiErrorNotice | null) {
 		if (notice) {
 			showToast(apiErrorToast(notice))
+			setFormFieldErrors(fieldErrorMapFromNotice(notice))
+		} else {
+			setFormFieldErrors({})
 		}
 	}
 
@@ -1260,6 +1354,7 @@ export default function Home() {
 		pending.busy = true
 		setError(null)
 		try {
+			await pending.execute()
 			await loadData({ force: true })
 			const successTitle = pending.successTitle
 			const successDescription = pending.successDescription
@@ -1443,6 +1538,9 @@ export default function Home() {
 					closing_time: profile.closing_time
 						? String(profile.closing_time)
 						: null,
+					working_hours: Array.isArray(profile.working_hours) && profile.working_hours.length === 7
+						? (profile.working_hours as WorkingHoursEntry[])
+						: DEFAULT_WORKING_HOURS,
 					income_category_tree: normalizeIncomeCategoryTree(
 						profile.income_category_tree,
 					),
@@ -1550,6 +1648,7 @@ export default function Home() {
 
 	useEffect(() => {
 		if (!formModal) return
+		setFormFieldErrors({})
 		const firstFocus: Record<FormModalKind, string> = {
 			customer: 'customer.name',
 			vehicle: 'vehicle.customer',
@@ -1557,7 +1656,9 @@ export default function Home() {
 			service: 'service.name',
 			payment: 'payment.work_order',
 			'cash-movement': 'cash-movement.type',
+			'cash-load': 'cash-movement.type',
 			'expense-classification': 'expense-classification.type',
+			'cash-category': 'cash-category.name',
 			debt: 'debt.concept',
 			'debt-payment': 'debt-payment.debt',
 			'fixed-expense': 'fixed-expense.concept',
@@ -1567,6 +1668,7 @@ export default function Home() {
 			'stock-movement': 'stock-movement.type',
 			'material-purchase': 'material-purchase.material',
 			'material-open-unit': 'material-open-unit.material',
+			'material-historical-usage': 'material-historical-usage.material',
 			'material-consumption': 'material-consumption.work_order',
 			tool: 'tool.name',
 			employee: 'employee.username',
@@ -1953,6 +2055,37 @@ export default function Home() {
 		workOrderByReservation,
 		showStayDaysInAgenda,
 	])
+	const agendaMonthModel = useMemo(
+		() =>
+			buildAgendaMonthGrid(
+				visibleAgendaReservations,
+				workOrders,
+				agendaStartDay,
+				{
+					showStayDays: showStayDaysInAgenda,
+					weekStartsOn: 1,
+					chipLimit: 3,
+					today: currentDay,
+				},
+				workOrderByReservation,
+			),
+		[
+			agendaStartDay,
+			currentDay,
+			showStayDaysInAgenda,
+			visibleAgendaReservations,
+			workOrderByReservation,
+			workOrders,
+		],
+	)
+	const agendaMonthWeekdayLabels = useMemo(
+		() =>
+			(agendaMonthModel.weeks[0]?.days ?? []).map((cell) =>
+				formatDayName(cell.isoDate),
+			),
+		[agendaMonthModel],
+	)
+	const agendaMonthLabel = formatMonthLabel(agendaStartDay)
 	const agendaSectorLabel =
 		agendaSectorId === null
 			? 'Todos'
@@ -2121,13 +2254,15 @@ export default function Home() {
 		String(value ?? '').trim(),
 	)
 
-	function auditActionLabel(action: string) {
-		return auditActionLabels[action] ?? action
-	}
+	const auditActionLabel = useCallback(
+		(action: string) => auditActionLabels[action] ?? action,
+		[],
+	)
 
-	function auditModuleLabel(module: string) {
-		return auditModuleLabels[module] ?? module
-	}
+	const auditModuleLabel = useCallback(
+		(module: string) => auditModuleLabels[module] ?? module,
+		[],
+	)
 
 	function updateAuditFilter(key: keyof AuditLogFilters, value: string) {
 		setAuditFilters((current) => ({
@@ -2204,13 +2339,14 @@ export default function Home() {
 		consumptions: setConsumptions,
 		tools: setTools,
 		quotes: setQuotes,
+		tasks: setTasks,
 		publicRequests: setPublicRequests,
 		businessProfile: syncBusinessProfile,
 		employees: setEmployees,
 	}
 
 	async function loadData(options: LoadDataOptions = {}) {
-		const dataScope = { period: options.period ?? period, selectedDay }
+		const dataScope = { period: options.period ?? period, selectedDay, cashViewMode }
 		const keys = dataSetKeysForSection({
 			section: options.section ?? displayedActive,
 			settingsSection: options.settingsSection ?? settingsSection,
@@ -2310,6 +2446,7 @@ export default function Home() {
 				if (!ignore) {
 					setToken(null)
 					setCurrentUser(null)
+					setSessionExpired(true)
 				}
 			})
 			.finally(() => {
@@ -2325,15 +2462,16 @@ export default function Home() {
 
 	useEffect(() => {
 		if (token && currentUser) {
-			if (prevSelectedDayRef.current !== selectedDay) {
+			if (prevSelectedDayRef.current !== selectedDay || prevCashViewModeRef.current !== cashViewMode) {
 				for (const key of [...loadedDataCacheRef.current]) {
 					if (key.startsWith('cash:')) loadedDataCacheRef.current.delete(key)
 				}
 				prevSelectedDayRef.current = selectedDay
+				prevCashViewModeRef.current = cashViewMode
 			}
 			loadData()
 		}
-	}, [currentUser, displayedActive, selectedDay, settingsSection, token])
+	}, [currentUser, displayedActive, selectedDay, cashViewMode, settingsSection, token])
 
 	const prefetchedSectionsRef = useRef<Set<Section>>(new Set())
 	function prefetchSection(section: Section) {
@@ -2716,15 +2854,15 @@ export default function Home() {
 					<div className="record-actions">
 						<StatusPill value={workOrder.status} labels={orderLabels} />
 						{options.showDetailAction ? (
-							<button
+							<Button
 								type="button"
-								className="ghost"
+								variant="ghost"
 								onClick={() =>
 									openDetailModal('Orden de trabajo', workOrder)
 								}
 							>
 								Editar trabajo
-							</button>
+							</Button>
 						) : null}
 					</div>
 				</div>
@@ -3190,14 +3328,14 @@ export default function Home() {
 						text="Sin reservas o cotizaciones para este filtro."
 						hint="Crea una reserva o cambia el tipo de servicio para ver trabajos por fecha de ingreso."
 						action={
-							<button
+							<Button
 								type="button"
-								className="primary"
+								variant="primary"
 								onClick={() => openQuickReservation(selectedDay)}
 							>
 								<Plus size={16} />
 								Crear reserva
-							</button>
+							</Button>
 						}
 					/>
 				</section>
@@ -3276,6 +3414,16 @@ export default function Home() {
 			actions,
 		)
 
+		const reservationIdStr = String(reservation.id ?? '')
+		const workOrderId = workOrder?.id != null ? String(workOrder.id) : ''
+		const cardSaving =
+			(agendaMovePendingId !== null &&
+				agendaMovePendingId === reservationIdStr) ||
+			isActionPending(`reservation-status:${reservationIdStr}`) ||
+			(workOrderId
+				? isActionPending(`wo-status:${workOrderId}`)
+				: false)
+
 		return (
 			<AgendaReservationCard
 				actions={actions}
@@ -3301,6 +3449,7 @@ export default function Home() {
 					reservationLabels[reservationStatusValue] ?? reservationStatusValue
 				}
 				reservationStatusValue={reservationStatusValue}
+				saving={cardSaving}
 				serviceLines={serviceLines}
 				statusMode={options.statusMode}
 				timeLabel={reservationStartTimeLabel(reservation, 'Sin hora')}
@@ -3426,6 +3575,9 @@ export default function Home() {
 		const isToday = day === currentDay
 		const isSelected = selectedDay === day
 		const fullDateLabel = formatFullDateLabel(day)
+		const wh = businessForm.working_hours as WorkingHoursEntry[] | undefined
+		const dayHoursEntry = wh?.length ? getHoursForDate(day, wh) : null
+		const isNonWorkingDay = dayHoursEntry !== null && !dayHoursEntry?.is_open
 
 		return (
 			<button
@@ -3434,6 +3586,7 @@ export default function Home() {
 					'agenda-day-head',
 					isToday && 'agenda-day-head--today',
 					isSelected && 'agenda-day-head--active',
+					isNonWorkingDay && 'agenda-day-head--closed',
 					hiddenDuringEnter && 'agenda-entering-overlap-hidden',
 				)}
 				style={agendaColumnStyle(column)}
@@ -3450,6 +3603,9 @@ export default function Home() {
 							{formatDayName(day)} {formatDayLabel(day)}
 							{isToday ? (
 								<strong className="day-row-today-badge">Hoy</strong>
+							) : null}
+							{isNonWorkingDay ? (
+								<span className="agenda-day-closed-badge">Cerrado</span>
 							) : null}
 						</span>
 						<span className="agenda-day-count">
@@ -3588,11 +3744,71 @@ export default function Home() {
 		setSelectedDay(isoDate)
 	}
 
+	// Mueve el ancla de la agenda un mes completo (modo mensual). Deja el primer dia
+	// del mes destino como inicio, que tambien sirve de ancla si se vuelve a semana.
+	function moveAgendaMonth(offset: number) {
+		const { from } = monthRange(agendaStartDay, offset)
+		setAgendaStartDay(from)
+		setSelectedDay(from)
+	}
+
+	function handleAgendaToolbarMove(offset: number) {
+		if (agendaRangeMode === 'month') {
+			moveAgendaMonth(offset)
+		} else {
+			moveAgenda(offset)
+		}
+	}
+
+	// Drill-down desde la grilla mensual: vuelve a la vista semanal sobre el dia.
+	function selectAgendaDayFromMonth(isoDate: string) {
+		setAgendaRangeMode('week')
+		goToDate(isoDate)
+	}
+
+	function agendaMonthChipLabel(chip: AgendaMonthChip) {
+		const reservation = chip.reservation
+		const time = String(reservation.start_time ?? '').slice(0, 5)
+		const name = String(
+			reservation.customer_name ?? reservation.vehicle_label ?? 'Reserva',
+		)
+		return time ? `${time} ${name}` : name
+	}
+
+	function agendaMonthChipClass(chip: AgendaMonthChip) {
+		const status = String(chip.reservation.status ?? '')
+		return status ? `agenda-month-chip--${status.replace(/_/g, '-')}` : ''
+	}
+
 	function openQuickReservation(day: string, prefillDay = false) {
 		setSelectedDay(day)
 		setQuickReservationPrefillDay(prefillDay)
 		setReservationForm(blankReservationForm(prefillDay ? day : ''))
 		setQuickReservationDay(day)
+	}
+
+	function showProgressToastSoon() {
+		const handle: { id: number | null; timer: number } = {
+			id: null,
+			timer: window.setTimeout(() => {
+				handle.id = showToast({
+					tone: 'success',
+					title: 'Guardando…',
+					description:
+						'El servidor está respondiendo. Esto puede tardar unos segundos en el demo.',
+					visibleMs: 30000,
+				})
+			}, 700),
+		}
+		return handle
+	}
+
+	function clearProgressToast(handle: { id: number | null; timer: number }) {
+		window.clearTimeout(handle.timer)
+		if (handle.id !== null) {
+			dismissToast(handle.id)
+			handle.id = null
+		}
 	}
 
 	async function runAction<T>(
@@ -3603,6 +3819,7 @@ export default function Home() {
 			options?.key ?? `runAction:${++runActionCounterRef.current}`
 		pendingActions.begin(pendingKey)
 		setError(null)
+		const progress = showProgressToastSoon()
 		try {
 			const result = await action()
 			await loadData({ force: true })
@@ -3640,6 +3857,7 @@ export default function Home() {
 		} catch (err: any) {
 			setError(formatApiError(err))
 		} finally {
+			clearProgressToast(progress)
 			pendingActions.end(pendingKey)
 		}
 	}
@@ -3657,6 +3875,7 @@ export default function Home() {
 		pendingActions.begin(args.key)
 		args.optimistic()
 		setError(null)
+		const progress = showProgressToastSoon()
 		try {
 			const result = await args.action()
 			await loadData({ force: true })
@@ -3676,6 +3895,7 @@ export default function Home() {
 			setError(formatApiError(err))
 			return undefined
 		} finally {
+			clearProgressToast(progress)
 			pendingActions.end(args.key)
 		}
 	}
@@ -4283,6 +4503,7 @@ export default function Home() {
 
 	function handleLogin(nextToken: string, user: AnyRecord) {
 		setCurrentUser(null)
+		setSessionExpired(false)
 		setToken(nextToken)
 		if (!user.can_view_economy && sectionRequiresEmployer(active)) {
 			navigationHistoryModeRef.current = 'replaceState'
@@ -4334,6 +4555,10 @@ export default function Home() {
 		if (!target) return
 		if (!canViewEconomy && sectionRequiresEmployer(target.section)) return
 		handleSectionChange(target.section)
+		if (groupType === 'task') {
+			// TasksPanel edita en linea: alcanza con cambiar de seccion.
+			return
+		}
 		try {
 			const data = await apiFetch<AnyRecord>(target.apiPath(item.id))
 			if (groupType === 'fixed_expense') {
@@ -4410,9 +4635,10 @@ export default function Home() {
 							buildNavItem('tools'),
 						],
 					},
+					buildNavItem('tasks'),
 					buildNavItem('settings'),
 				]
-			: []),
+			: [buildNavItem('tasks')]),
 	]
 	const customerVehicles = vehicles.filter(
 		(vehicle) =>
@@ -4796,7 +5022,7 @@ export default function Home() {
 	)
 
 	if (!token) {
-		return <LoginScreen onLogin={handleLogin} />
+		return <LoginScreen onLogin={handleLogin} sessionExpired={sessionExpired} />
 	}
 
 	if (!currentUser) {
@@ -4866,6 +5092,39 @@ export default function Home() {
 	const fixedExpenseLoadBlocked = Boolean(
 		loadErrorNotice && !fixedExpenses.length && !fixedExpenseOccurrences.length,
 	)
+
+	// Fallback uniforme de carga/error para secciones que antes aparecian "pop-in":
+	// muestra skeleton mientras carga o un ErrorState con reintento si la carga fallo.
+	const sectionFallback = (
+		key: DataSetKey,
+		hasData: boolean,
+		loadingLabel: string,
+	): ReactNode => {
+		const showLoading = isDataSetLoading(key) && !hasData
+		return (
+			<div className="grid">
+				<section className="panel">
+					{showLoading ? (
+						<SkeletonList rows={6} label={loadingLabel} />
+					) : (
+						<ErrorState
+							text={loadErrorNotice?.title ?? 'No se pudieron cargar los datos'}
+							hint={loadErrorNotice?.description}
+							action={
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => loadData({ force: true })}
+								>
+									Actualizar
+								</Button>
+							}
+						/>
+					)}
+				</section>
+			</div>
+		)
+	}
 
 	function materialUsageRows(material: AnyRecord) {
 		const legacyRows = consumptions.filter(
@@ -5510,7 +5769,7 @@ export default function Home() {
 				isLoading={customerDashboardLoading}
 				hasHistory={hasDashboardHistory}
 				onBack={() => setCustomerDashboard(null)}
-				onEdit={() => openDetailModal('Cliente', customer)}
+				onEdit={() => openDetailModal('Cliente', customer, { startEditing: true })}
 			>
 				{renderCustomerOperationalSnapshot(
 					history,
@@ -5938,6 +6197,7 @@ export default function Home() {
 			subcategory: '',
 			originalCategory: '',
 			originalSubcategory: '',
+			lockCategory: false,
 		})
 	}
 
@@ -5952,8 +6212,99 @@ export default function Home() {
 			subcategory: item.subcategory,
 			originalCategory: item.category,
 			originalSubcategory: item.subcategory,
+			lockCategory: false,
 		})
 		setFormModal({ kind: 'expense-classification' })
+	}
+
+	function openSubcategoryCreator(movementType: string, category: string) {
+		const nextType = movementType === 'income' ? 'income' : 'expense'
+		setExpenseClassificationForm({
+			movement_type: nextType,
+			category,
+			subcategory: '',
+			originalCategory: '',
+			originalSubcategory: '',
+			lockCategory: true,
+		})
+		setFormModal({ kind: 'expense-classification' })
+		focusField('expense-classification.subcategory')
+	}
+
+	function resetCashCategoryForm() {
+		setCashCategoryForm({
+			movement_type: 'expense',
+			name: '',
+			originalName: '',
+		})
+	}
+
+	function openCashCategoryCreator(movementType: string) {
+		const nextType = movementType === 'income' ? 'income' : 'expense'
+		setCashCategoryForm({
+			movement_type: nextType,
+			name: '',
+			originalName: '',
+		})
+		setFormModal({ kind: 'cash-category' })
+		focusField('cash-category.name')
+	}
+
+	function openCashCategoryEditor(movementType: string, category: string) {
+		const nextType = movementType === 'income' ? 'income' : 'expense'
+		setCashCategoryForm({
+			movement_type: nextType,
+			name: category,
+			originalName: category,
+		})
+		setFormModal({ kind: 'cash-category' })
+		focusField('cash-category.name')
+	}
+
+	async function saveCashCategory(event: FormEvent) {
+		event.preventDefault()
+		if (!canViewEconomy) return
+		const name = String(cashCategoryForm.name ?? '').trim()
+		if (!name) return
+		const original = String(cashCategoryForm.originalName ?? '').trim()
+		const isIncome = cashCategoryForm.movement_type === 'income'
+		const field = isIncome ? 'income_category_tree' : 'expense_category_tree'
+		const currentTree = businessFormRef.current[field]
+		let nextTree
+		if (original && original !== name) {
+			nextTree = isIncome
+				? renameIncomeCategory(currentTree, original, name)
+				: renameExpenseCategory(currentTree, original, name)
+		} else {
+			nextTree = isIncome
+				? addIncomeCategory(currentTree, name)
+				: addExpenseCategory(currentTree, name)
+		}
+		const saved = await persistBusinessProfile(
+			{ ...businessFormRef.current, [field]: nextTree },
+			{
+				successTitle: original
+					? 'Categoria actualizada'
+					: 'Categoria creada',
+			},
+		)
+		if (saved) {
+			resetCashCategoryForm()
+			formModalExit.close()
+		}
+	}
+
+	async function deleteCashCategory(movementType: string, category: string) {
+		if (!canViewEconomy) return
+		const isIncome = movementType === 'income'
+		const field = isIncome ? 'income_category_tree' : 'expense_category_tree'
+		const nextTree = isIncome
+			? removeIncomeCategory(businessFormRef.current[field], category)
+			: removeExpenseCategory(businessFormRef.current[field], category)
+		await persistBusinessProfile(
+			{ ...businessFormRef.current, [field]: nextTree },
+			{ successTitle: 'Categoria eliminada' },
+		)
 	}
 
 	async function saveExpenseClassification(event: FormEvent) {
@@ -6204,6 +6555,12 @@ export default function Home() {
 		if (kind === 'cash-movement') {
 			setMovementForm(blankMovementForm(selectedDay))
 		}
+		if (kind === 'cash-load') {
+			setMovementForm(blankMovementForm(selectedDay))
+			setPaymentForm(blankPaymentForm())
+			setDebtPaymentForm(blankDebtPaymentForm(today))
+			setCashLoadTab('cash-movement')
+		}
 		if (kind === 'expense-classification') {
 			resetExpenseClassificationForm()
 		}
@@ -6309,6 +6666,7 @@ export default function Home() {
 		if (kind === 'material') {
 			setMaterialForm({
 				id: '',
+				sector: null,
 				name: '',
 				unit: 'ml',
 				stock_quantity: '0',
@@ -6412,6 +6770,7 @@ export default function Home() {
 			applyQuickSelection(quickCreate.target, String(created.id))
 			setMaterialForm({
 				id: '',
+				sector: null,
 				name: '',
 				unit: 'ml',
 				stock_quantity: '0',
@@ -6747,12 +7106,9 @@ export default function Home() {
 		if (profileAvatarFile) {
 			payload.append('avatar', profileAvatarFile)
 		}
-		if (canViewEconomy) {
-			payload.append(
-				'subscription_type',
-				String(profileForm.subscription_type ?? 'trial'),
-			)
-		}
+		// subscription_type es de solo lectura: lo controla facturacion/admin del
+		// lado servidor (el endpoint /me ya no lo acepta).
+		pendingActions.begin('save:profile')
 		try {
 			const saved = await apiFetch<AnyRecord>('/auth/me/', {
 				method: 'PATCH',
@@ -6773,6 +7129,8 @@ export default function Home() {
 						'Revisa los datos e intenta nuevamente.',
 				}),
 			)
+		} finally {
+			pendingActions.end('save:profile')
 		}
 	}
 
@@ -6802,7 +7160,10 @@ export default function Home() {
 	function openDetailModal(
 		title: string,
 		data: AnyRecord,
-		options: { serviceMaterialsSource?: AnyRecord[] } = {},
+		options: {
+			serviceMaterialsSource?: AnyRecord[]
+			startEditing?: boolean
+		} = {},
 	) {
 		const kind = detailKindFromTitle(title)
 		if (!canViewEconomy && detailRequiresEconomy(kind)) return
@@ -6824,8 +7185,16 @@ export default function Home() {
 			kind,
 			data,
 			editData: { ...data },
-			editing: editableDetailKind(kind),
+			editing: options.startEditing === true && editableDetailKind(kind),
 		})
+	}
+
+	function startDetailEditing() {
+		setDetailModal((current) =>
+			current && editableDetailKind(current.kind)
+				? { ...current, editing: true, editData: { ...current.data } }
+				: current,
+		)
 	}
 
 	function openDetailFromEvent(event: any, title: string, data: AnyRecord) {
@@ -6977,6 +7346,20 @@ export default function Home() {
 			observations: '',
 		})
 		setFormModal({ kind: 'material-open-unit' })
+	}
+
+	function openHistoricalUsage(material?: AnyRecord) {
+		setHistoricalUsageForm({
+			material: material ? String(material.id) : '',
+			service: '',
+			reservations: [],
+			opened_at: '',
+			finished_at: '',
+			stock_quantity_to_decrement: '1',
+			observations: '',
+			update_recipe: false,
+		})
+		setFormModal({ kind: 'material-historical-usage' })
 	}
 
 	function customerForRecord(record: AnyRecord | null | undefined) {
@@ -7814,22 +8197,22 @@ export default function Home() {
 		return (
 			<div className="modal-actions split">
 				{canDelete ? (
-					<button
+					<Button
 						type="button"
-						className="danger"
+						variant="danger"
 						onClick={deleteDetail}
 					>
 						<Trash2 size={16} />
 						Eliminar
-					</button>
+					</Button>
 				) : (
 					<span />
 				)}
 				<div className="modal-actions detail-save-actions">
 					{beforeSubmit}
-					<button className="primary" disabled={!isDetailDirty()}>
+					<Button type="submit" variant="primary" disabled={!isDetailDirty()}>
 						Editar
-					</button>
+					</Button>
 				</div>
 			</div>
 		)
@@ -7868,6 +8251,9 @@ export default function Home() {
 					<Field label="Telefono">
 						<input
 							data-focus-key="detail.customer.phone"
+							type="tel"
+							inputMode="tel"
+							autoComplete="tel"
 							value={data.phone ?? ''}
 							onChange={(event) =>
 								updateDetailEdit({ phone: event.target.value })
@@ -7879,6 +8265,7 @@ export default function Home() {
 						<input
 							data-focus-key="detail.customer.email"
 							type="email"
+							autoComplete="email"
 							value={data.email ?? ''}
 							onChange={(event) =>
 								updateDetailEdit({ email: event.target.value })
@@ -8119,25 +8506,25 @@ export default function Home() {
 											}
 										/>
 									</Field>
-									<button
+									<Button
 										type="button"
-										className="ghost"
+										variant="ghost"
 										onClick={() => removeServiceMaterialLine(index)}
 									>
 										<Trash2 size={16} />
-									</button>
+									</Button>
 								</div>
 							)
 						})}
 					</div>
-					<button
+					<Button
 						type="button"
-						className="ghost"
+						variant="ghost"
 						onClick={addServiceMaterialLine}
 					>
 						<Plus size={16} />
 						Agregar material
-					</button>
+					</Button>
 					{renderDetailEditActions()}
 				</form>
 			)
@@ -8158,6 +8545,16 @@ export default function Home() {
 							}
 						/>
 					</Field>
+					{sectorSelectOptions.length > 0 && (
+						<SearchSelect
+							label="Sector"
+							value={String(data.sector ?? '')}
+							options={[{ value: '', label: 'Sin sector' }, ...sectorSelectOptions]}
+							onChange={(value) =>
+								updateDetailEdit({ sector: value ? Number(value) : null })
+							}
+						/>
+					)}
 					<div className="form-row">
 						<Field label="Unidad">
 							<input
@@ -8342,6 +8739,9 @@ export default function Home() {
 						</Field>
 						<Field label="Telefono">
 							<input
+								type="tel"
+								inputMode="tel"
+								autoComplete="tel"
 								value={data.phone ?? ''}
 								onChange={(event) =>
 									updateDetailEdit({ phone: event.target.value })
@@ -8353,6 +8753,7 @@ export default function Home() {
 						<Field label="Email">
 							<input
 								type="email"
+								autoComplete="email"
 								value={data.email ?? ''}
 								onChange={(event) =>
 									updateDetailEdit({ email: event.target.value })
@@ -8385,16 +8786,12 @@ export default function Home() {
 							}
 						/>
 					</Field>
-					<label>
-						<input
-							type="checkbox"
-							checked={data.is_active !== false}
-							onChange={(event) =>
-								updateDetailEdit({ is_active: event.target.checked })
-							}
-						/>
+					<Toggle
+						checked={data.is_active !== false}
+						onChange={(checked) => updateDetailEdit({ is_active: checked })}
+					>
 						Proveedor activo
-					</label>
+					</Toggle>
 					<Field label="Notas internas">
 						<textarea
 							value={data.notes ?? ''}
@@ -8431,14 +8828,14 @@ export default function Home() {
 					<div className="quote-lines">
 						<div className="quote-lines-head">
 							<h3>Servicios</h3>
-							<button
+							<Button
 								type="button"
-								className="ghost"
+								variant="ghost"
 								onClick={addDetailReservationItem}
 							>
 								<Plus size={16} />
 								Agregar servicio
-							</button>
+							</Button>
 						</div>
 						{detailReservationItems(data).map(
 							(item: AnyRecord, index: number) => {
@@ -8487,13 +8884,13 @@ export default function Home() {
 											</div>
 										</div>
 										{detailReservationItems(data).length > 1 ? (
-											<button
+											<Button
 												type="button"
-												className="danger"
+												variant="danger"
 												onClick={() => removeDetailReservationItem(index)}
 											>
 												Quitar
-											</button>
+											</Button>
 										) : null}
 									</div>
 								)
@@ -8596,14 +8993,14 @@ export default function Home() {
 						: null}
 					{renderDetailEditActions(
 						canViewEconomy ? (
-							<button
+							<Button
 								type="button"
-								className="ghost"
+								variant="ghost"
 								onClick={() => createQuoteFromReservation(detailModal.data)}
 							>
 								<FileText size={16} />
 								Crear cotizacion
-							</button>
+							</Button>
 						) : null,
 					)}
 				</form>
@@ -8717,9 +9114,9 @@ export default function Home() {
 					</Field>
 					{canViewEconomy && detailModal.data.id ? (
 						<div className="modal-actions">
-							<button
+							<Button
 								type="button"
-								className="ghost"
+								variant="ghost"
 								onClick={() =>
 									openConsumptionForOrder(
 										detailModal.data,
@@ -8729,7 +9126,7 @@ export default function Home() {
 							>
 								<Package size={16} />
 								Consumir material
-							</button>
+							</Button>
 						</div>
 					) : null}
 					{renderDetailEditActions()}
@@ -8893,23 +9290,23 @@ export default function Home() {
 						/>
 					</Field>
 					<div className="modal-actions">
-						<button
+						<Button
 							type="button"
-							className="ghost"
+							variant="ghost"
 							onClick={() => downloadQuotePdf(data)}
 						>
 							<FileText size={16} />
 							Bajar PDF
-						</button>
+						</Button>
 						{quoteLaneStatus(data) === 'draft' ? (
-							<button
+							<Button
 								type="button"
-								className="primary"
+								variant="primary"
 								onClick={() => downloadQuotePdfAndMarkSent(data)}
 							>
 								<FileText size={16} />
 								Bajar y marcar enviado
-							</button>
+							</Button>
 						) : null}
 					</div>
 					{renderDetailEditActions()}
@@ -9439,18 +9836,12 @@ export default function Home() {
 							)}
 						</strong>
 					</div>
-					<label>
-						<input
-							type="checkbox"
-							checked={Boolean(data.affects_cash)}
-							onChange={(event) =>
-								updateDetailEdit({
-									affects_cash: event.target.checked,
-								})
-							}
-						/>
+					<Toggle
+						checked={Boolean(data.affects_cash)}
+						onChange={(checked) => updateDetailEdit({ affects_cash: checked })}
+					>
 						Impacta en caja
-					</label>
+					</Toggle>
 					<Field label="Observaciones">
 						<textarea
 							value={data.observations ?? ''}
@@ -9718,6 +10109,7 @@ export default function Home() {
 			formModalExit.close()
 			return saved
 		}, {
+			key: 'save:service',
 			flashTarget: (saved: AnyRecord) =>
 				recordFlashKey('service', saved?.id ?? currentId),
 			successTitle: entityFeedbackTitle(
@@ -10049,12 +10441,14 @@ export default function Home() {
 	}
 
 	async function deleteFixedExpense(id: string | number) {
-		const confirmed =
-			typeof window === 'undefined'
-				? true
-				: window.confirm(
-						'Eliminar el gasto fijo. Los periodos ya generados se conservan. Continuar?',
-					)
+		const confirmed = await requestConfirm({
+			title: 'Eliminar gasto fijo',
+			message:
+				'Eliminar el gasto fijo. Los periodos ya generados se conservan. ¿Continuar?',
+			confirmLabel: 'Eliminar',
+			cancelLabel: 'Cancelar',
+			tone: 'danger',
+		})
 		if (!confirmed) return
 		await runAction(
 			async () =>
@@ -10064,12 +10458,13 @@ export default function Home() {
 	}
 
 	async function unpayFixedExpenseOccurrence(id: string | number) {
-		const confirmed =
-			typeof window === 'undefined'
-				? true
-				: window.confirm(
-						'Revertir el pago elimina el egreso de la caja. Continuar?',
-					)
+		const confirmed = await requestConfirm({
+			title: 'Revertir pago',
+			message: 'Revertir el pago elimina el egreso de la caja. ¿Continuar?',
+			confirmLabel: 'Revertir pago',
+			cancelLabel: 'Cancelar',
+			tone: 'danger',
+		})
 		if (!confirmed) return
 		await runAction(
 			async () =>
@@ -10112,6 +10507,7 @@ export default function Home() {
 			formModalExit.close()
 			return created
 		}, {
+			key: 'save:debt-payment',
 			flashTarget: (created: AnyRecord) =>
 				recordFlashKey('debt-payment', created?.id),
 			successTitle: entityFeedbackTitle('debt-payment', 'created'),
@@ -10136,6 +10532,7 @@ export default function Home() {
 			})
 			setMaterialForm({
 				id: '',
+				sector: null,
 				name: '',
 				unit: 'ml',
 				stock_quantity: '0',
@@ -10380,6 +10777,55 @@ export default function Home() {
 				recordFlashKey('material-open-unit', created?.id),
 			successTitle: entityFeedbackTitle('material-open-unit', 'created'),
 			undo: undoCreatedRecord('material-open-unit'),
+		})
+	}
+
+	async function saveHistoricalUsage(event: FormEvent) {
+		event.preventDefault()
+		await runAction(async () => {
+			const payload: AnyRecord = {
+				material: historicalUsageForm.material,
+				service: historicalUsageForm.service,
+				reservations: historicalUsageForm.reservations,
+				stock_quantity_to_decrement:
+					historicalUsageForm.stock_quantity_to_decrement || '1',
+				observations: historicalUsageForm.observations,
+			}
+			if (historicalUsageForm.opened_at) payload.opened_at = historicalUsageForm.opened_at
+			if (historicalUsageForm.finished_at) payload.finished_at = historicalUsageForm.finished_at
+			const created = await apiFetch<AnyRecord>(
+				'/material-open-units/register-usage/',
+				{ method: 'POST', body: JSON.stringify(payload) },
+			)
+			// Volcado opcional a la receta: consumo estimado por servicio de esta unidad.
+			const jobs = numberValue(created?.work_orders_count)
+			const unitQuantity = numberValue(created?.stock_quantity_to_decrement)
+			if (historicalUsageForm.update_recipe && jobs > 0 && unitQuantity > 0) {
+				await apiFetch('/service-materials/upsert/', {
+					method: 'POST',
+					body: JSON.stringify({
+						service: historicalUsageForm.service,
+						material: historicalUsageForm.material,
+						quantity: (unitQuantity / jobs).toFixed(3),
+					}),
+				})
+			}
+			setHistoricalUsageForm({
+				material: '',
+				service: '',
+				reservations: [],
+				opened_at: '',
+				finished_at: '',
+				stock_quantity_to_decrement: '1',
+				observations: '',
+				update_recipe: false,
+			})
+			formModalExit.close()
+			return created
+		}, {
+			flashTarget: (created: AnyRecord) =>
+				recordFlashKey('material-open-unit', created?.id),
+			successTitle: 'Consumo historico registrado',
 		})
 	}
 
@@ -10727,25 +11173,28 @@ export default function Home() {
 					</strong>
 					{selectedPurchaseMaterial ? ` por ${selectedPurchaseMaterial.unit}` : ''}
 				</div>
-				<label>
-					<input
-						type="checkbox"
-						checked={purchaseForm.affects_cash}
-						onChange={(event) =>
-							setPurchaseForm({
-								...purchaseForm,
-								affects_cash: event.target.checked,
-							})
-						}
-					/>
+				<Toggle
+					checked={purchaseForm.affects_cash}
+					onChange={(checked) =>
+						setPurchaseForm({ ...purchaseForm, affects_cash: checked })
+					}
+				>
 					Impacta en caja
-				</label>
-				<button className="primary">{submitLabel}</button>
+				</Toggle>
+				<Button type="submit" variant="primary" loading={pendingActions.pending}>
+					{submitLabel}
+				</Button>
 			</form>
 		)
 	}
 
 	function renderOpenUnitForm(submitLabel: string) {
+		const unitLabel = selectedOpenUnitFormMaterial?.unit
+			? `en ${selectedOpenUnitFormMaterial.unit}`
+			: ''
+		const unitCost = selectedOpenUnitFormMaterial
+			? numberValue(selectedOpenUnitFormMaterial.estimated_unit_cost)
+			: 0
 		return (
 			<form className="form-grid" onSubmit={saveOpenUnit}>
 				<SearchSelect
@@ -10763,6 +11212,29 @@ export default function Home() {
 						focusField('material-open-unit.work_order', true)
 					}}
 				/>
+				{selectedOpenUnitFormMaterial ? (
+					<div className="info-note open-unit-material-info">
+						<div className="open-unit-material-stats">
+							<span>
+								Stock actual{' '}
+								<strong>
+									{quantity(
+										selectedOpenUnitFormMaterial.stock_quantity,
+										selectedOpenUnitFormMaterial.unit,
+									)}
+								</strong>
+							</span>
+							{unitCost > 0 && (
+								<span>
+									Costo unitario <strong>{money(unitCost)}</strong>
+								</span>
+							)}
+						</div>
+						<span className="open-unit-material-disclaimer">
+							Abrir una unidad no descuenta stock; el descuento se aplica al finalizar.
+						</span>
+					</div>
+				) : null}
 				<SearchSelect
 					label="Trabajo de apertura"
 					value={openUnitForm.opened_by_work_order}
@@ -10778,7 +11250,7 @@ export default function Home() {
 					}}
 				/>
 				<div className="form-row">
-					<Field label="Fecha apertura">
+					<Field label="Fecha de apertura">
 						<input
 							data-focus-key="material-open-unit.opened_at"
 							type="date"
@@ -10792,7 +11264,14 @@ export default function Home() {
 							onKeyDown={focusNextOnEnter('material-open-unit.quantity')}
 						/>
 					</Field>
-					<Field label="Cantidad al cerrar">
+					<Field
+						label="Cantidad al cerrar"
+						hint={
+							selectedOpenUnitFormMaterial
+								? `Se descuenta del stock ${unitLabel} al finalizar`
+								: 'Se descuenta del stock al finalizar la unidad'
+						}
+					>
 						<input
 							data-focus-key="material-open-unit.quantity"
 							required
@@ -10809,18 +11288,6 @@ export default function Home() {
 						/>
 					</Field>
 				</div>
-				{selectedOpenUnitFormMaterial ? (
-					<div className="info-note">
-						Stock registrado:{' '}
-						<strong>
-							{quantity(
-								selectedOpenUnitFormMaterial.stock_quantity,
-								selectedOpenUnitFormMaterial.unit,
-							)}
-						</strong>
-						. Abrir una unidad no descuenta stock; el descuento se aplica al finalizarla.
-					</div>
-				) : null}
 				<Field label="Observaciones">
 					<textarea
 						data-focus-key="material-open-unit.notes"
@@ -10833,10 +11300,208 @@ export default function Home() {
 						}
 					/>
 				</Field>
-				<button className="primary">
-					<Package size={16} />
+				<Button
+					type="submit"
+					variant="primary"
+					loading={pendingActions.pending}
+					leadingIcon={<Package size={16} />}
+				>
 					{submitLabel}
-				</button>
+				</Button>
+			</form>
+		)
+	}
+
+	function renderHistoricalUsageForm(submitLabel: string) {
+		const selectedMaterial = materials.find(
+			(item) => String(item.id) === historicalUsageForm.material,
+		)
+		const selectedReservationIds: string[] = historicalUsageForm.reservations ?? []
+		const pastServiceReservations = historicalUsageForm.service
+			? reservations
+					.filter(
+						(item) =>
+							String(item.service) === String(historicalUsageForm.service) &&
+							item.status !== 'canceled' &&
+							String(item.day) <= today,
+					)
+					.sort((a, b) => String(b.day).localeCompare(String(a.day)))
+			: []
+		const selectedCount = selectedReservationIds.length
+		const unitQuantity =
+			numberValue(historicalUsageForm.stock_quantity_to_decrement) || 1
+		const consumptionPerService = selectedCount > 0 ? unitQuantity / selectedCount : 0
+		const unitCost = selectedMaterial
+			? numberValue(selectedMaterial.estimated_unit_cost)
+			: 0
+		const materialUnit = selectedMaterial?.unit ?? 'unidad'
+
+		function toggleReservation(id: string) {
+			const set = new Set(selectedReservationIds)
+			if (set.has(id)) set.delete(id)
+			else set.add(id)
+			const nextIds = Array.from(set)
+			const days = (nextIds
+				.map((rid) => reservations.find((item) => String(item.id) === rid)?.day)
+				.filter(Boolean) as string[]).sort()
+			setHistoricalUsageForm({
+				...historicalUsageForm,
+				reservations: nextIds,
+				opened_at: days.length ? days[0] : '',
+				finished_at: days.length ? days[days.length - 1] : '',
+			})
+		}
+
+		return (
+			<form className="form-grid" onSubmit={saveHistoricalUsage}>
+				<div className="info-note">
+					Registra una unidad ya consumida en el pasado: elegi el producto, el
+					servicio y las reservas donde lo usaste. Calcula el rendimiento por
+					servicio y no descuenta stock actual.
+				</div>
+				<SearchSelect
+					label="Producto"
+					value={historicalUsageForm.material}
+					options={materialOptions}
+					focusKey="material-historical-usage.material"
+					onChange={(value) =>
+						setHistoricalUsageForm({ ...historicalUsageForm, material: value })
+					}
+				/>
+				<SearchSelect
+					label="Servicio"
+					value={historicalUsageForm.service}
+					options={serviceOptions}
+					placeholder="Elegi un servicio"
+					focusKey="material-historical-usage.service"
+					onChange={(value) =>
+						setHistoricalUsageForm({
+							...historicalUsageForm,
+							service: value,
+							reservations: [],
+							opened_at: '',
+							finished_at: '',
+						})
+					}
+				/>
+				{historicalUsageForm.service ? (
+					<Field
+						label={`Reservas pasadas de este servicio (${selectedCount} elegidas)`}
+					>
+						{pastServiceReservations.length ? (
+							<div className="usage-reservation-list">
+								{pastServiceReservations.map((item) => (
+									<Toggle
+										key={item.id}
+										checked={selectedReservationIds.includes(String(item.id))}
+										onChange={() => toggleReservation(String(item.id))}
+									>
+										<span>
+											{item.day} - {item.customer_name}
+											{item.vehicle_label ? (
+												<small>{item.vehicle_label}</small>
+											) : null}
+										</span>
+									</Toggle>
+								))}
+							</div>
+						) : (
+							<div className="info-note">
+								No hay reservas pasadas de este servicio.
+							</div>
+						)}
+					</Field>
+				) : null}
+				<div className="form-row">
+					<Field label="Apertura">
+						<input
+							type="date"
+							value={historicalUsageForm.opened_at}
+							onChange={(event) =>
+								setHistoricalUsageForm({
+									...historicalUsageForm,
+									opened_at: event.target.value,
+								})
+							}
+						/>
+					</Field>
+					<Field label="Cierre">
+						<input
+							type="date"
+							value={historicalUsageForm.finished_at}
+							onChange={(event) =>
+								setHistoricalUsageForm({
+									...historicalUsageForm,
+									finished_at: event.target.value,
+								})
+							}
+						/>
+					</Field>
+				</div>
+				<Field label="Cantidad de producto usada (unidades)">
+					<input
+						type="number"
+						min="0"
+						step="0.01"
+						value={historicalUsageForm.stock_quantity_to_decrement}
+						onChange={(event) =>
+							setHistoricalUsageForm({
+								...historicalUsageForm,
+								stock_quantity_to_decrement: event.target.value,
+							})
+						}
+					/>
+				</Field>
+				{selectedCount > 0 ? (
+					<div className="info-note">
+						Rendimiento estimado:{' '}
+						<strong>
+							{unitQuantity.toLocaleString('es-AR', {
+								maximumFractionDigits: 2,
+							})}{' '}
+							{materialUnit} en {selectedCount} servicio
+							{selectedCount === 1 ? '' : 's'}
+						</strong>
+						. Cada servicio gasta ~
+						{consumptionPerService.toLocaleString('es-AR', {
+							maximumFractionDigits: 3,
+						})}{' '}
+						{materialUnit}
+						{unitCost > 0 ? ` (~${money(consumptionPerService * unitCost)})` : ''}.
+					</div>
+				) : null}
+				<Toggle
+					checked={Boolean(historicalUsageForm.update_recipe)}
+					onChange={(checked) =>
+						setHistoricalUsageForm({ ...historicalUsageForm, update_recipe: checked })
+					}
+				>
+					Actualizar la receta del servicio con este consumo estimado
+				</Toggle>
+				<Field label="Observaciones">
+					<textarea
+						value={historicalUsageForm.observations}
+						onChange={(event) =>
+							setHistoricalUsageForm({
+								...historicalUsageForm,
+								observations: event.target.value,
+							})
+						}
+					/>
+				</Field>
+				<Button
+					type="submit"
+					variant="primary"
+					loading={pendingActions.pending}
+					disabled={
+						!historicalUsageForm.material ||
+						!historicalUsageForm.service ||
+						selectedCount === 0
+					}
+					leadingIcon={<Package size={16} />}
+				>
+					{submitLabel}
+				</Button>
 			</form>
 		)
 	}
@@ -10845,7 +11510,9 @@ export default function Home() {
 		return (
 			<form className="form-grid" onSubmit={saveConsumption}>
 				{renderConsumptionFields(true)}
-				<button className="primary">{submitLabel}</button>
+				<Button type="submit" variant="primary" loading={pendingActions.pending}>
+					{submitLabel}
+				</Button>
 			</form>
 		)
 	}
@@ -10946,16 +11613,21 @@ export default function Home() {
 						}
 					/>
 				</Field>
-				<button className="primary">
-					<Hammer size={16} />
+				<Button
+					type="submit"
+					variant="primary"
+					loading={pendingActions.pending}
+					leadingIcon={<Hammer size={16} />}
+				>
 					{submitLabel}
-				</button>
+				</Button>
 			</form>
 		)
 	}
 
 	function renderExpenseClassificationForm() {
 		const editing = Boolean(expenseClassificationForm.originalCategory)
+		const lockCategory = Boolean(expenseClassificationForm.lockCategory)
 		const movementType =
 			expenseClassificationForm.movement_type === 'income'
 				? 'income'
@@ -10970,7 +11642,7 @@ export default function Home() {
 						{ value: 'income', label: 'Ingreso' },
 						{ value: 'expense', label: 'Egreso' },
 					]}
-					disabled={editing}
+					disabled={editing || lockCategory}
 					focusKey="expense-classification.type"
 					onChange={(value) => {
 						const nextType = value === 'income' ? 'income' : 'expense'
@@ -10988,6 +11660,7 @@ export default function Home() {
 					value={expenseClassificationForm.category}
 					options={settingsClassificationCategoryOptions}
 					placeholder={`Categoria de ${movementLabel}`}
+					disabled={lockCategory}
 					focusKey="expense-classification.category"
 					onChange={(value) =>
 						setExpenseClassificationForm({
@@ -11023,21 +11696,98 @@ export default function Home() {
 				</div>
 				<div className="record-actions">
 					{editing ? (
-						<button
+						<Button
 							type="button"
-							className="ghost"
+							variant="ghost"
 							onClick={() => {
 								resetExpenseClassificationForm()
 								formModalExit.close()
 							}}
 						>
 							Cancelar
-						</button>
+						</Button>
 					) : null}
-					<button className="primary">
-						<ReceiptText size={16} />
-						{editing ? 'Guardar cambios' : 'Crear subcategoria'}
-					</button>
+					<Button
+						type="submit"
+						variant="primary"
+						loading={pendingActions.pending}
+						leadingIcon={<ReceiptText size={16} />}
+					>
+						{editing
+							? 'Guardar cambios'
+							: lockCategory
+								? 'Agregar subcategoria'
+								: 'Crear subcategoria'}
+					</Button>
+				</div>
+			</form>
+		)
+	}
+
+	function renderCashCategoryForm() {
+		const editing = Boolean(cashCategoryForm.originalName)
+		const movementType =
+			cashCategoryForm.movement_type === 'income' ? 'income' : 'expense'
+		const movementLabel = movementType === 'income' ? 'ingreso' : 'egreso'
+		return (
+			<form className="form-grid" onSubmit={saveCashCategory}>
+				<SearchSelect
+					label="Tipo"
+					value={movementType}
+					options={[
+						{ value: 'income', label: 'Ingreso' },
+						{ value: 'expense', label: 'Egreso' },
+					]}
+					disabled={editing}
+					focusKey="cash-category.type"
+					onChange={(value) => {
+						const nextType = value === 'income' ? 'income' : 'expense'
+						setCashCategoryForm({
+							...cashCategoryForm,
+							movement_type: nextType,
+						})
+						focusField('cash-category.name')
+					}}
+				/>
+				<Field label={`Nombre de la categoria de ${movementLabel}`}>
+					<input
+						required
+						data-focus-key="cash-category.name"
+						value={cashCategoryForm.name}
+						placeholder={`Categoria de ${movementLabel}`}
+						onChange={(event) =>
+							setCashCategoryForm({
+								...cashCategoryForm,
+								name: event.target.value,
+							})
+						}
+					/>
+				</Field>
+				<div className="info-note">
+					Podes crear la categoria ahora y agregarle subcategorias mas
+					tarde desde el listado.
+				</div>
+				<div className="record-actions">
+					{editing ? (
+						<Button
+							type="button"
+							variant="ghost"
+							onClick={() => {
+								resetCashCategoryForm()
+								formModalExit.close()
+							}}
+						>
+							Cancelar
+						</Button>
+					) : null}
+					<Button
+						type="submit"
+						variant="primary"
+						loading={pendingActions.pending}
+						leadingIcon={<Plus size={16} />}
+					>
+						{editing ? 'Guardar cambios' : 'Crear categoria'}
+					</Button>
 				</div>
 			</form>
 		)
@@ -11092,10 +11842,14 @@ export default function Home() {
 						}
 					/>
 				</Field>
-				<button className="primary">
-					<Plus size={16} />
+				<Button
+					type="submit"
+					variant="primary"
+					loading={pendingActions.pending}
+					leadingIcon={<Plus size={16} />}
+				>
 					{submitLabel}
-				</button>
+				</Button>
 			</form>
 		)
 	}
@@ -11230,7 +11984,7 @@ export default function Home() {
 						onClose={profileExit.close}
 					>
 						{currentUser ? (
-						<ProfileModal
+						<ProfileModal submitting={isActionPending('save:profile')}
 							onSubmit={saveProfile}
 							currentUser={currentUser}
 							profileForm={profileForm}
@@ -11261,7 +12015,7 @@ export default function Home() {
 						title="Nuevo cliente"
 						onClose={formModalExit.close}
 					>
-						<CustomerForm
+						<CustomerForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar cliente"
 						onSubmit={saveCustomer}
 						customerForm={customerForm}
@@ -11277,7 +12031,7 @@ export default function Home() {
 						title="Nuevo vehiculo"
 						onClose={formModalExit.close}
 					>
-						<VehicleForm
+						<VehicleForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar vehiculo"
 						onSubmit={saveVehicle}
 						vehicleForm={vehicleForm}
@@ -11302,7 +12056,7 @@ export default function Home() {
 						title="Nueva cotizacion"
 						onClose={formModalExit.close}
 					>
-						<QuoteForm
+						<QuoteForm fieldErrors={formFieldErrors}
 						submitLabel="Crear cotizacion"
 						onSubmit={saveQuote}
 						quoteForm={quoteForm}
@@ -11335,7 +12089,7 @@ export default function Home() {
 						title="Nuevo servicio"
 						onClose={formModalExit.close}
 					>
-						<ServiceForm
+						<ServiceForm fieldErrors={formFieldErrors} submitting={isActionPending('save:service')}
 						submitLabel="Guardar servicio"
 						onSubmit={saveService}
 						serviceForm={serviceForm}
@@ -11358,7 +12112,7 @@ export default function Home() {
 						title="Registrar pago"
 						onClose={formModalExit.close}
 					>
-						<PaymentForm
+						<PaymentForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar pago"
 						onSubmit={savePayment}
 						paymentForm={paymentForm}
@@ -11378,7 +12132,7 @@ export default function Home() {
 						title="Movimiento manual"
 						onClose={formModalExit.close}
 					>
-						<CashMovementForm
+						<CashMovementForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar movimiento"
 						onSubmit={saveCashMovement}
 						movementForm={movementForm}
@@ -11395,13 +12149,90 @@ export default function Home() {
 					/>
 					</Modal>
 				) : null}
+				{canViewEconomy && formModal?.kind === 'cash-load' ? (
+					<Modal
+						key="form-cash-load"
+						title="Cargar movimiento"
+						onClose={formModalExit.close}
+					>
+						<div className="cash-load-modal">
+							<SegmentedControl
+								ariaLabel="Tipo de movimiento"
+								className="cash-load-toggle"
+								selectionMode="tabs"
+								options={cashLoadTabOptions}
+								value={cashLoadTab}
+								onChange={(nextValue) => {
+									const tab = nextValue as typeof cashLoadTab
+									setCashLoadTab(tab)
+									if (tab === 'cash-movement') {
+										focusField('cash-movement.type')
+									} else if (tab === 'payment') {
+										focusField('payment.work_order', true)
+									} else {
+										focusField('debt-payment.debt', true)
+									}
+								}}
+							/>
+							{cashLoadTab === 'cash-movement' ? (
+								<CashMovementForm fieldErrors={formFieldErrors}
+									submitLabel="Guardar movimiento"
+									onSubmit={saveCashMovement}
+									movementForm={movementForm}
+									setMovementForm={setMovementForm}
+									incomeCategorySelectOptions={incomeCategorySelectOptions}
+									expenseCategorySelectOptions={expenseCategorySelectOptions}
+									movementSubcategorySelectOptions={
+										movementSubcategorySelectOptions
+									}
+									updateMovementCashCategory={updateMovementCashCategory}
+									registerMovementSubcategory={registerMovementSubcategory}
+									validCashSubcategoryForCategory={
+										validCashSubcategoryForCategory
+									}
+									focusField={focusField}
+									focusNextOnEnter={focusNextOnEnter}
+									submitting={isActionPending('save:cash')}
+								/>
+							) : null}
+							{cashLoadTab === 'payment' ? (
+								<PaymentForm fieldErrors={formFieldErrors}
+									submitLabel="Guardar pago"
+									onSubmit={savePayment}
+									paymentForm={paymentForm}
+									setPaymentForm={setPaymentForm}
+									workOrders={workOrders}
+									workOrderOptions={workOrderOptions}
+									selectedWorkOrderForPayment={selectedWorkOrderForPayment}
+									focusField={focusField}
+									focusNextOnEnter={focusNextOnEnter}
+									submitting={isActionPending('save:payment')}
+								/>
+							) : null}
+							{cashLoadTab === 'debt-payment' ? (
+								<DebtPaymentForm fieldErrors={formFieldErrors} submitting={isActionPending('save:debt-payment')}
+									submitLabel="Guardar pago de deuda"
+									onSubmit={saveDebtPayment}
+									debtPaymentForm={debtPaymentForm}
+									setDebtPaymentForm={setDebtPaymentForm}
+									debtOptions={debtOptions}
+									selectedDebtForPayment={selectedDebtForPayment}
+									focusField={focusField}
+									focusNextOnEnter={focusNextOnEnter}
+								/>
+							) : null}
+						</div>
+					</Modal>
+				) : null}
 				{canViewEconomy && formModal?.kind === 'expense-classification' ? (
 					<Modal
 						key="form-expense-classification"
 						title={
 							expenseClassificationForm.originalCategory
-								? 'Editar clasificacion de caja'
-								: 'Nueva clasificacion de caja'
+								? 'Editar subcategoria de caja'
+								: expenseClassificationForm.lockCategory
+									? 'Nueva subcategoria de caja'
+									: 'Nueva clasificacion de caja'
 						}
 						onClose={() => {
 							resetExpenseClassificationForm()
@@ -11411,13 +12242,29 @@ export default function Home() {
 						{renderExpenseClassificationForm()}
 					</Modal>
 				) : null}
+				{canViewEconomy && formModal?.kind === 'cash-category' ? (
+					<Modal
+						key="form-cash-category"
+						title={
+							cashCategoryForm.originalName
+								? 'Editar categoria de caja'
+								: 'Nueva categoria de caja'
+						}
+						onClose={() => {
+							resetCashCategoryForm()
+							formModalExit.close()
+						}}
+					>
+						{renderCashCategoryForm()}
+					</Modal>
+				) : null}
 				{canViewEconomy && formModal?.kind === 'debt' ? (
 					<Modal
 						key="form-debt"
 						title="Nueva deuda"
 						onClose={formModalExit.close}
 					>
-						<DebtForm
+						<DebtForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar deuda"
 						onSubmit={saveDebt}
 						debtForm={debtForm}
@@ -11440,7 +12287,7 @@ export default function Home() {
 						title={fixedExpenseForm.id ? 'Editar gasto fijo' : 'Nuevo gasto fijo'}
 						onClose={formModalExit.close}
 					>
-						<FixedExpenseForm
+						<FixedExpenseForm fieldErrors={formFieldErrors}
 							submitLabel="Guardar gasto fijo"
 							onSubmit={saveFixedExpense}
 							fixedExpenseForm={fixedExpenseForm}
@@ -11498,21 +12345,19 @@ export default function Home() {
 							{payOccurrenceForm.amount !== '' &&
 							Number(payOccurrenceForm.amount) !==
 								Number(payOccurrenceForm.original_amount) ? (
-								<label>
-									<input
-										type="checkbox"
-										checked={payOccurrenceForm.update_template}
-										onChange={(e) =>
-											setPayOccurrenceForm({
-												...payOccurrenceForm,
-												update_template: e.target.checked,
-											})
-										}
-									/>
-									{' '}Actualizar el monto estimado de la plantilla (
+								<Toggle
+									checked={payOccurrenceForm.update_template}
+									onChange={(checked) =>
+										setPayOccurrenceForm({
+											...payOccurrenceForm,
+											update_template: checked,
+										})
+									}
+								>
+									Actualizar el monto estimado de la plantilla (
 									{money(Number(payOccurrenceForm.original_amount))} →{' '}
 									{money(Number(payOccurrenceForm.amount))})
-								</label>
+								</Toggle>
 							) : null}
 							<Field label="Metodo de pago">
 								<select
@@ -11548,10 +12393,10 @@ export default function Home() {
 								/>
 							</Field>
 							<div className="form-actions">
-								<button type="submit" className="primary">
+								<Button type="submit" variant="primary">
 									<CreditCard size={16} />
 									Confirmar pago
-								</button>
+								</Button>
 							</div>
 						</form>
 					</Modal>
@@ -11562,7 +12407,7 @@ export default function Home() {
 						title="Registrar pago de deuda"
 						onClose={formModalExit.close}
 					>
-						<DebtPaymentForm
+						<DebtPaymentForm fieldErrors={formFieldErrors} submitting={isActionPending('save:debt-payment')}
 						onSubmit={saveDebtPayment}
 						debtPaymentForm={debtPaymentForm}
 						setDebtPaymentForm={setDebtPaymentForm}
@@ -11579,12 +12424,13 @@ export default function Home() {
 						title="Nuevo material"
 						onClose={formModalExit.close}
 					>
-						<MaterialForm
+						<MaterialForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar material"
 						onSubmit={saveMaterial}
 						materialForm={materialForm}
 						setMaterialForm={setMaterialForm}
 						focusNextOnEnter={focusNextOnEnter}
+						sectors={sectors}
 						submitting={isActionPending('save:material')}
 					/>
 					</Modal>
@@ -11595,7 +12441,7 @@ export default function Home() {
 						title="Nuevo proveedor"
 						onClose={formModalExit.close}
 					>
-						<SupplierForm
+						<SupplierForm fieldErrors={formFieldErrors}
 						submitLabel="Guardar proveedor"
 						onSubmit={saveSupplier}
 						supplierForm={supplierForm}
@@ -11611,7 +12457,7 @@ export default function Home() {
 						title="Crear movimiento de stock"
 						onClose={formModalExit.close}
 					>
-						<StockMovementForm
+						<StockMovementForm fieldErrors={formFieldErrors}
 						submitLabel="Crear movimiento"
 						onSubmit={saveStockMovement}
 						stockMovementForm={stockMovementForm}
@@ -11660,6 +12506,15 @@ export default function Home() {
 						onClose={formModalExit.close}
 					>
 						{renderOpenUnitForm('Abrir unidad')}
+					</Modal>
+				) : null}
+				{canViewEconomy && formModal?.kind === 'material-historical-usage' ? (
+					<Modal
+						key="form-material-historical-usage"
+						title="Registrar consumo historico"
+						onClose={formModalExit.close}
+					>
+						{renderHistoricalUsageForm('Registrar consumo')}
 					</Modal>
 				) : null}
 				{canViewEconomy && formModal?.kind === 'material-consumption' ? (
@@ -11756,10 +12611,14 @@ export default function Home() {
 									</Field>
 								</div>
 							) : null}
-							<button className="primary">
-								<CalendarDays size={16} />
+							<Button
+								type="submit"
+								variant="primary"
+								loading={pendingActions.pending}
+								leadingIcon={<CalendarDays size={16} />}
+							>
 								Crear reserva
-							</button>
+							</Button>
 						</form>
 					</Modal>
 				) : null}
@@ -11773,7 +12632,7 @@ export default function Home() {
 						}
 						onClose={quickReservationExit.close}
 					>
-						<ReservationForm
+						<ReservationForm fieldErrors={formFieldErrors}
 							submitLabel={reservationForm.day ? 'Crear reserva' : 'Crear cotizacion'}
 							onSubmit={saveReservation}
 							prefillDayMode={Boolean(quickReservationPrefillDay)}
@@ -11789,6 +12648,7 @@ export default function Home() {
 							}
 							openingTime={businessForm.opening_time as string | null}
 							closingTime={businessForm.closing_time as string | null}
+							workingHours={businessForm.working_hours as WorkingHoursEntry[] | undefined}
 							enforceCapacity={
 								businessForm.enforce_capacity_limit !== false
 							}
@@ -11908,10 +12768,14 @@ export default function Home() {
 									})
 								}
 							/>
-							<button className="primary">
-								<Plus size={16} />
+							<Button
+								type="submit"
+								variant="primary"
+								loading={pendingActions.pending}
+								leadingIcon={<Plus size={16} />}
+							>
 								Crear cliente
-							</button>
+							</Button>
 						</form>
 					</Modal>
 				) : null}
@@ -12015,10 +12879,14 @@ export default function Home() {
 									/>
 								</Field>
 							</div>
-							<button className="primary">
-								<Plus size={16} />
+							<Button
+								type="submit"
+								variant="primary"
+								loading={pendingActions.pending}
+								leadingIcon={<Plus size={16} />}
+							>
 								Crear vehiculo
-							</button>
+							</Button>
 						</form>
 					</Modal>
 				) : null}
@@ -12107,10 +12975,14 @@ export default function Home() {
 									</Field>
 								))}
 							</div>
-							<button className="primary">
-								<Plus size={16} />
+							<Button
+								type="submit"
+								variant="primary"
+								loading={pendingActions.pending}
+								leadingIcon={<Plus size={16} />}
+							>
 								Crear servicio
-							</button>
+							</Button>
 						</form>
 					</Modal>
 				) : null}
@@ -12165,10 +13037,14 @@ export default function Home() {
 							<div className="info-note">
 								El costo unitario se completa con la primera compra.
 							</div>
-							<button className="primary">
-								<Plus size={16} />
+							<Button
+								type="submit"
+								variant="primary"
+								loading={pendingActions.pending}
+								leadingIcon={<Plus size={16} />}
+							>
 								Crear material
-							</button>
+							</Button>
 						</form>
 					</Modal>
 				) : null}
@@ -12178,7 +13054,7 @@ export default function Home() {
 						title="Nuevo proveedor"
 						onClose={quickCreateExit.close}
 					>
-						<SupplierForm
+						<SupplierForm fieldErrors={formFieldErrors}
 						submitLabel="Crear proveedor"
 						onSubmit={saveQuickSupplier}
 						supplierForm={supplierForm}
@@ -12201,10 +13077,14 @@ export default function Home() {
 								{serviceDisplayName(consumeForOrder)}
 							</div>
 							{renderConsumptionFields(false)}
-							<button className="primary">
-								<Package size={16} />
+							<Button
+								type="submit"
+								variant="primary"
+								loading={pendingActions.pending}
+								leadingIcon={<Package size={16} />}
+							>
 								Registrar consumo
-							</button>
+							</Button>
 						</form>
 					</Modal>
 				) : null}
@@ -12278,10 +13158,14 @@ export default function Home() {
 									}
 								/>
 							</Field>
-							<button className="primary">
-								<CreditCard size={16} />
+							<Button
+								type="submit"
+								variant="primary"
+								loading={pendingActions.pending}
+								leadingIcon={<CreditCard size={16} />}
+							>
 								Registrar pago
-							</button>
+							</Button>
 						</form>
 					</Modal>
 				) : null}
@@ -12290,8 +13174,11 @@ export default function Home() {
 					<DetailModal
 						key={`detail:${detailModal.kind}:${detailModal.data?.id ?? detailModal.title}`}
 						title={detailModal.title}
+						kind={detailModal.kind}
 						data={detailModal.data}
 						editing={detailModal.editing}
+						editable={editableDetailKind(detailModal.kind)}
+						onEdit={startDetailEditing}
 						editForm={renderDetailEditForm()}
 						onClose={detailExit.close}
 					/>
@@ -12509,7 +13396,9 @@ export default function Home() {
 					/>
 				}
 			>
-				<NoticeToastViewport toasts={toasts} onDismiss={dismissToast} />
+				<GlobalProgressBar active={pendingActions.pending} />
+			<ConfirmDialog />
+			<NoticeToastViewport toasts={toasts} onDismiss={dismissToast} />
 				<QuickActionsMenu
 					open={Boolean(quickActionsMenu)}
 					anchorPoint={quickActionsMenu?.anchorPoint ?? null}
@@ -12551,15 +13440,15 @@ export default function Home() {
 											triggerPeriodReloadNow()
 										}}
 									>
-										<button
+										<Button
 											type="button"
-											className="ghost icon-button"
+											variant="ghost" className="icon-button"
 											onClick={() => goToMonth(-1)}
 											aria-label="Mes anterior"
 											title="Mes anterior"
 										>
 											<ChevronLeft size={16} />
-										</button>
+										</Button>
 										<Field label="Desde">
 											<input
 												type="date"
@@ -12578,15 +13467,15 @@ export default function Home() {
 												}
 											/>
 										</Field>
-										<button
+										<Button
 											type="button"
-											className="ghost icon-button"
+											variant="ghost" className="icon-button"
 											onClick={() => goToMonth(1)}
 											aria-label="Mes siguiente"
 											title="Mes siguiente"
 										>
 											<ChevronRight size={16} />
-										</button>
+										</Button>
 										<Button
 											type="submit"
 											variant="primary"
@@ -12625,20 +13514,20 @@ export default function Home() {
 										Menu
 									</button>
 									{displayedActive === 'agenda' ? (
-										<button
+										<Button
 											type="button"
-											className="primary"
+											variant="primary"
 											aria-label="Crear reserva para el dia seleccionado"
 											title="Crear reserva para el dia seleccionado"
 											onClick={() => openQuickReservation(selectedDay)}
 										>
 											<Plus size={16} />
 											Crear
-										</button>
+										</Button>
 									) : null}
-									<button
+									<Button
 										type="button"
-										className="ghost"
+										variant="ghost"
 										aria-label={`Actualizar ${title.label.toLowerCase()}`}
 										title={`Actualizar ${title.label.toLowerCase()}`}
 										onClick={() => loadData({ force: true })}
@@ -12646,7 +13535,7 @@ export default function Home() {
 									>
 										<RefreshCw size={16} />
 										Actualizar
-									</button>
+									</Button>
 								</div>
 							</>
 						}
@@ -12740,6 +13629,7 @@ export default function Home() {
 					<div className="grid">
 						<CustomerListPanel
 							customers={filteredCustomers}
+							loading={isDataSetLoading('customers')}
 							totalCustomers={customers.length}
 							search={search}
 							filter={customerCardFilter}
@@ -12754,7 +13644,9 @@ export default function Home() {
 							onFilterChange={setCustomerCardFilter}
 							onCreate={() => openFormModal('customer')}
 							onOpenDashboard={openCustomerDashboard}
-							onEdit={(item) => openDetailModal('Cliente', item)}
+							onEdit={(item) =>
+								openDetailModal('Cliente', item, { startEditing: true })
+							}
 							onDelete={(item) =>
 								runAction(
 									() =>
@@ -12772,13 +13664,6 @@ export default function Home() {
 							}
 							onOpenQuickActions={(event, item) =>
 								openQuickActionsFromContext(
-									event,
-									'Acciones de cliente',
-									customerQuickActions(item),
-								)
-							}
-							onOpenQuickActionsFromTrigger={(event, item) =>
-								openQuickActionsFromTrigger(
 									event,
 									'Acciones de cliente',
 									customerQuickActions(item),
@@ -12810,22 +13695,22 @@ export default function Home() {
 									<p>Compras, materiales, comprobantes, caja y deuda vinculada.</p>
 								</div>
 								<div className="record-actions">
-									<button
+									<Button
 										type="button"
-										className="primary"
+										variant="primary"
 										onClick={() => openFormModal('supplier')}
 									>
 										<Building2 size={16} />
 										Nuevo proveedor
-									</button>
-									<button
+									</Button>
+									<Button
 										type="button"
-										className="ghost"
+										variant="ghost"
 										onClick={() => openFormModal('stock-movement')}
 									>
 										<Package size={16} />
 										Nueva compra
-									</button>
+									</Button>
 								</div>
 							</div>
 							<div className="toolbar toolbar-spaced">
@@ -12868,23 +13753,27 @@ export default function Home() {
 													}
 													actions={
 														<>
-														<button
+														<Button
 															type="button"
-															className="primary"
+															variant="primary"
 															onClick={() => openStockPurchaseForSupplier(item)}
 														>
 															Nueva compra
-														</button>
-														<button
+														</Button>
+														<Button
 															type="button"
-															className="ghost"
-															onClick={() => openDetailModal('Proveedor', item)}
+															variant="ghost"
+															onClick={() =>
+																openDetailModal('Proveedor', item, {
+																	startEditing: true,
+																})
+															}
 														>
 															Editar
-														</button>
-														<button
+														</Button>
+														<Button
 															type="button"
-															className="danger"
+															variant="danger"
 															onClick={() =>
 																runAction(
 																	() =>
@@ -12905,7 +13794,7 @@ export default function Home() {
 															}
 														>
 															Inactivar
-														</button>
+														</Button>
 														{renderQuickActionsTrigger(
 															'Acciones de proveedor',
 															quickActions,
@@ -12959,14 +13848,14 @@ export default function Home() {
 						<section className="panel">
 							<div className="panel-head">
 								<h2>Vehiculos</h2>
-								<button
+								<Button
 									type="button"
-									className="primary"
+									variant="primary"
 									onClick={() => openFormModal('vehicle')}
 								>
 									<Car size={16} />
 									Nuevo vehiculo
-								</button>
+								</Button>
 							</div>
 							<div
 								className="toolbar toolbar-spaced"
@@ -13008,16 +13897,18 @@ export default function Home() {
 													</div>
 												</div>
 												<div className="record-actions">
-													<button
-														className="ghost"
+													<Button
+														variant="ghost"
 														onClick={() =>
-															openDetailModal('Vehiculo', item)
+															openDetailModal('Vehiculo', item, {
+																startEditing: true,
+															})
 														}
 													>
 														Editar
-													</button>
-													<button
-														className="danger"
+													</Button>
+													<Button
+														variant="danger"
 														onClick={() =>
 															runAction(() =>
 																apiFetch(
@@ -13041,7 +13932,7 @@ export default function Home() {
 													}
 												>
 													Baja
-												</button>
+												</Button>
 											</div>
 										</div>
 										</MotionFlashSurface>
@@ -13066,7 +13957,11 @@ export default function Home() {
 					</div>
 				) : null}
 
-				{displayedActive === 'services' ? (
+				{displayedActive === 'services' &&
+				(isDataSetLoading('services') || Boolean(loadErrorNotice)) &&
+				!services.length ? (
+					sectionFallback('services', false, 'Cargando servicios')
+				) : displayedActive === 'services' ? (
 					<ServicesPanel
 						canViewEconomy={canViewEconomy}
 						customerDaysAgoText={customerDaysAgoText}
@@ -13139,12 +14034,29 @@ export default function Home() {
 				{displayedActive === 'agenda' && workViewMode === 'agenda' ? (
 					<div className="grid agenda-layout">
 						<section className="panel agenda-panel">
+							<div className="agenda-range-toggle-row">
+								<SegmentedControl
+									ariaLabel="Rango de la agenda"
+									className="agenda-range-toggle"
+									options={agendaRangeModes}
+									value={agendaRangeMode}
+									onChange={(nextValue) =>
+										setAgendaRangeMode(nextValue as "week" | "month")
+									}
+								/>
+							</div>
 							<AgendaBoardToolbar
 								currentDay={agendaStartDay}
 								endLabel={formatDayLabel(weekEndDay)}
 								startLabel={formatDayLabel(agendaStartDay)}
 								visibleDays={AGENDA_VISIBLE_DAYS}
-								onMove={moveAgenda}
+								rangeMode={agendaRangeMode}
+								title={
+									agendaRangeMode === "month"
+										? `Agenda de ${agendaMonthLabel}`
+										: undefined
+								}
+								onMove={handleAgendaToolbarMove}
 								onToday={goToToday}
 								onGoToDate={goToDate}
 							/>
@@ -13153,18 +14065,36 @@ export default function Home() {
 									text={agendaLoadError.title}
 									hint={agendaLoadError.description}
 									action={
-										<button
+										<Button
 											type="button"
-											className="ghost"
+											variant="ghost"
 											onClick={() => loadData({ force: true })}
 										>
 											<RefreshCw size={16} />
 											Actualizar
-										</button>
+										</Button>
 									}
 								/>
 							) : null}
-							{loading &&
+							{agendaRangeMode === "month" && !agendaLoadError ? (
+								<AgendaMonthGrid
+									weeks={agendaMonthModel.weeks}
+									weekdayLabels={agendaMonthWeekdayLabels}
+									onSelectDay={selectAgendaDayFromMonth}
+									onSelectReservation={(chip) =>
+										selectAgendaDayFromMonth(
+											String(chip.reservation.day ?? agendaStartDay),
+										)
+									}
+									chipClassName={agendaMonthChipClass}
+									chipLabel={agendaMonthChipLabel}
+									dayAriaLabel={(isoDate) =>
+										`Ver agenda del ${formatFullDateLabel(isoDate)}`
+									}
+								/>
+							) : null}
+							{agendaRangeMode === "week" &&
+							loading &&
 							!agendaLoadError &&
 							!agendaBoardModel.segments.length ? (
 								<div
@@ -13174,10 +14104,24 @@ export default function Home() {
 									aria-label="Cargando agenda"
 								>
 									{Array.from({ length: AGENDA_VISIBLE_DAYS }).map((_, index) => (
-										<SkeletonCard key={index} lines={3} />
+										<div
+											key={index}
+											className="agenda-skeleton-column"
+											aria-hidden="true"
+										>
+											<div className="agenda-skeleton-head">
+												<SkeletonLine width="70%" height={15} />
+												<SkeletonLine width="45%" height={11} />
+											</div>
+											<div className="agenda-skeleton-lane">
+												<span className="skeleton agenda-skeleton-card" />
+												<span className="skeleton agenda-skeleton-card" />
+											</div>
+										</div>
 									))}
 								</div>
 							) : null}
+							{agendaRangeMode === "week" ? (
 							<DndContext
 								sensors={agendaSensors}
 								collisionDetection={closestCenter}
@@ -13291,11 +14235,16 @@ export default function Home() {
 									})}
 								</DragOverlay>
 							</DndContext>
+							) : null}
 						</section>
 					</div>
 				) : null}
 
-				{displayedActive === 'agenda' && workViewMode === 'status' ? (
+				{displayedActive === 'agenda' && workViewMode === 'status' &&
+				(isDataSetLoading('reservations') || Boolean(loadErrorNotice)) &&
+				!reservations.length ? (
+					sectionFallback('reservations', false, 'Cargando trabajos')
+				) : displayedActive === 'agenda' && workViewMode === 'status' ? (
 					<WorkStatusView
 						sensors={agendaSensors}
 						onDragStart={handleWorkStatusDragStart}
@@ -13318,7 +14267,11 @@ export default function Home() {
 					/>
 				) : null}
 
-				{displayedActive === 'agenda' && workViewMode === 'entry-date' ? (
+				{displayedActive === 'agenda' && workViewMode === 'entry-date' &&
+				(isDataSetLoading('reservations') || Boolean(loadErrorNotice)) &&
+				!reservations.length ? (
+					sectionFallback('reservations', false, 'Cargando ingresos')
+				) : displayedActive === 'agenda' && workViewMode === 'entry-date' ? (
 					<WorkEntryDateView
 						workEntryDateGroups={workEntryDateGroups}
 						workFreeQuotesWithoutEntryDate={workFreeQuotesWithoutEntryDate}
@@ -13369,22 +14322,22 @@ export default function Home() {
 						loadErrorNotice={loadErrorNotice}
 						recordClass={recordClass}
 						renderQuickActionsTrigger={renderQuickActionsTrigger}
+						cashViewMode={cashViewMode}
 						selectedDay={selectedDay}
 						onCashFilterChange={updateCashFilter}
 						onCashQuickFilterChange={setCashQuickFilter}
 						onCashSortChange={setCashSortKey}
 						onCashSummaryModeChange={setCashSummaryMode}
+						onCashViewModeChange={setCashViewMode}
 						onClearCashFilters={() => {
 							setCashFilters(CASH_FILTER_DEFAULTS)
 							setCashQuickFilter('all')
 						}}
 						onCloseDay={closeCashDay}
 						onReopenDay={reopenCashDay}
-						onCollectWork={() => openFormModal('payment')}
-						onCreateMovement={() => openFormModal('cash-movement')}
+						onCreateMovement={() => openFormModal('cash-load')}
 						onMoveSelectedDay={moveSelectedCashDay}
 						onOpenCashEntryDetail={openCashEntryDetail}
-						onPayDebt={() => openFormModal('debt-payment')}
 						onQuickActionsContext={openQuickActionsFromContext}
 						onRefresh={() => loadData({ force: true })}
 						onRegisterAdjustment={() =>
@@ -13448,7 +14401,9 @@ export default function Home() {
 						onRefresh={() => loadData({ force: true })}
 					/>
 				) : null}
-				{displayedActive === 'inventory' && isDataSetLoading('materials') && !materials.length ? (
+				{displayedActive === 'inventory' && Boolean(loadErrorNotice) && !materials.length ? (
+					sectionFallback('materials', false, 'Cargando inventario')
+				) : displayedActive === 'inventory' && isDataSetLoading('materials') && !materials.length ? (
 					<div className="grid">
 						<section className="panel">
 							<SkeletonList rows={6} columns={4} label="Cargando inventario" />
@@ -13456,6 +14411,8 @@ export default function Home() {
 					</div>
 				) : displayedActive === 'inventory' ? (
 					<InventoryPanel
+						loading={isDataSetLoading('materials')}
+						sectors={sectors}
 						availableQuickActions={availableQuickActions}
 						consumptions={consumptions}
 						detailRecordProps={detailRecordProps}
@@ -13499,10 +14456,15 @@ export default function Home() {
 						onOpenSupplierDashboard={openSupplierDashboard}
 						onOpenSupplierForm={() => openFormModal('supplier')}
 						onOpenUnitForMaterial={openUnitForMaterial}
+						onOpenHistoricalUsage={() => openHistoricalUsage()}
 					/>
 				) : null}
 
-				{displayedActive === 'tools' ? (
+				{displayedActive === 'tools' &&
+				(isDataSetLoading('tools') || Boolean(loadErrorNotice)) &&
+				!filteredTools.length ? (
+					sectionFallback('tools', false, 'Cargando herramientas')
+				) : displayedActive === 'tools' ? (
 					<ToolsPanel
 						detailRecordProps={detailRecordProps}
 						filteredTools={filteredTools}
@@ -13532,7 +14494,142 @@ export default function Home() {
 					/>
 				) : null}
 
-				{displayedActive === 'quotes' ? (
+				{displayedActive === 'tasks' &&
+				(isDataSetLoading('tasks') || Boolean(loadErrorNotice)) &&
+				!tasks.length ? (
+					sectionFallback('tasks', false, 'Cargando tareas')
+				) : displayedActive === 'tasks' ? (
+					<TasksPanel
+						tasks={tasks as any}
+						loading={isDataSetLoading('tasks')}
+						employees={employees as any}
+						customers={customers.map((item) => ({
+							id: Number(item.id),
+							name: String(item.name ?? `Cliente ${item.id}`),
+						}))}
+						vehicles={vehicles.map((item) => {
+							const plate = String(item.license_plate ?? '').trim()
+							const detail = [item.brand, item.model]
+								.map((part) => String(part ?? '').trim())
+								.filter(Boolean)
+								.join(' ')
+							const label = [plate, detail].filter(Boolean).join(' - ') ||
+								`Vehiculo ${item.id}`
+							return {
+								id: Number(item.id),
+								label,
+								customerId: item.customer != null ? Number(item.customer) : null,
+							}
+						})}
+						currentUser={currentUser}
+						canViewEconomy={canViewEconomy}
+						fieldErrors={formFieldErrors}
+						onFormOpen={() => setError(null)}
+						onCreate={async (payload) => {
+							return await runAction(
+								() =>
+									apiFetch('/tasks/', {
+										method: 'POST',
+										body: JSON.stringify(payload),
+									}),
+								{ successTitle: 'Tarea creada' },
+							)
+						}}
+						onUpdate={async (id, payload) => {
+							return await runAction(
+								() =>
+									apiFetch(`/tasks/${id}/`, {
+										method: 'PATCH',
+										body: JSON.stringify(payload),
+									}),
+								{ successTitle: 'Tarea actualizada' },
+							)
+						}}
+						onDelete={async (id) => {
+							await runAction(
+								() => apiFetch(`/tasks/${id}/`, { method: 'DELETE' }),
+								{
+									successTitle: 'Tarea eliminada',
+									undo: {
+										execute: async () => {
+											await apiFetch(`/tasks/${id}/restore/`, {
+												method: 'POST',
+											})
+										},
+										successTitle: 'Tarea restaurada',
+									},
+								},
+							)
+						}}
+						onComplete={async (id) => {
+							const original = tasks.find(
+								(item) => Number(item.id) === id,
+							)
+							if (!original) return
+							const optimistic = {
+								...original,
+								status: 'done',
+								completed_at: new Date().toISOString(),
+								is_overdue: false,
+							}
+							await runOptimistic({
+								key: `task-complete-${id}`,
+								optimistic: () =>
+									setTasks((current) =>
+										current.map((item) =>
+											Number(item.id) === id ? optimistic : item,
+										),
+									),
+								rollback: () =>
+									setTasks((current) =>
+										current.map((item) =>
+											Number(item.id) === id ? original : item,
+										),
+									),
+								action: () =>
+									apiFetch(`/tasks/${id}/complete/`, { method: 'POST' }),
+								successTitle: 'Tarea completada',
+							})
+						}}
+						onReopen={async (id) => {
+							const original = tasks.find(
+								(item) => Number(item.id) === id,
+							)
+							if (!original) return
+							const optimistic = {
+								...original,
+								status: 'pending',
+								completed_at: null,
+								completed_by: null,
+								completed_by_username: null,
+							}
+							await runOptimistic({
+								key: `task-reopen-${id}`,
+								optimistic: () =>
+									setTasks((current) =>
+										current.map((item) =>
+											Number(item.id) === id ? optimistic : item,
+										),
+									),
+								rollback: () =>
+									setTasks((current) =>
+										current.map((item) =>
+											Number(item.id) === id ? original : item,
+										),
+									),
+								action: () =>
+									apiFetch(`/tasks/${id}/reopen/`, { method: 'POST' }),
+								successTitle: 'Tarea reabierta',
+							})
+						}}
+					/>
+				) : null}
+
+				{displayedActive === 'quotes' &&
+				(isDataSetLoading('quotes') || Boolean(loadErrorNotice)) &&
+				!quotes.length ? (
+					sectionFallback('quotes', false, 'Cargando cotizaciones')
+				) : displayedActive === 'quotes' ? (
 					<QuotesPanel
 						activeQuoteDrag={activeQuoteDrag}
 						agendaSensors={agendaSensors}
@@ -13579,6 +14676,8 @@ export default function Home() {
 						businessProfile={businessProfile}
 						businessSlug={String(currentUser?.business?.slug ?? '')}
 						cashClassificationPairs={cashClassificationPairs}
+						incomeCategoryTree={incomeCategoryTree}
+						expenseCategoryTree={expenseCategoryTree}
 						currentUserId={currentUser?.id ?? null}
 						employees={employees}
 						selectedEmployee={selectedEmployee}
@@ -13586,9 +14685,7 @@ export default function Home() {
 						employeeAuditLogsLoading={employeeAuditLogsLoading}
 						employeeAuditLogsError={employeeAuditLogsError}
 						expandedAuditLogId={expandedAuditLogId}
-						expenseClassificationPairs={expenseClassificationPairs}
 						inactiveEmployeeCount={inactiveEmployeeCount}
-						incomeClassificationPairs={incomeClassificationPairs}
 						loading={loading}
 						safeBusinessLogoPdfThumbnail={safeBusinessLogoPdfThumbnail}
 						safeBusinessLogoPreview={safeBusinessLogoPreview}
@@ -13610,15 +14707,16 @@ export default function Home() {
 						onClearAuditFilters={clearAuditFilters}
 						onDeleteExpenseClassification={deleteExpenseClassification}
 						onEditExpenseClassification={openExpenseClassificationEditor}
+						onAddSubcategory={openSubcategoryCreator}
+						onOpenCashCategoryForm={openCashCategoryCreator}
+						onEditCashCategory={openCashCategoryEditor}
+						onDeleteCashCategory={deleteCashCategory}
 						onOpenBusinessLogoPicker={openBusinessLogoPicker}
 						onSelectEmployee={selectEmployee}
 						onDeselectEmployee={deselectEmployee}
 						onChangeEmployeePassword={changeEmployeePassword}
 						onToggleEmployeeActive={toggleEmployeeActive}
 						onOpenEmployeeForm={() => openFormModal('employee')}
-						onOpenExpenseClassificationForm={() =>
-							openFormModal('expense-classification')
-						}
 						onCreateSector={(data) =>
 							runAction(() =>
 								apiFetch('/sectors/', {

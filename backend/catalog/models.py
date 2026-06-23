@@ -31,6 +31,11 @@ class Sector(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["order", "name"]
+        verbose_name = "sector"
+        verbose_name_plural = "sectores"
+        indexes = [
+            models.Index(fields=["business", "is_active"], name="sector_biz_active_idx"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["business", "key"],
@@ -92,6 +97,11 @@ class Service(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["sector__order", "name"]
+        verbose_name = "servicio"
+        verbose_name_plural = "servicios"
+        indexes = [
+            models.Index(fields=["business", "is_active"], name="service_biz_active_idx"),
+        ]
 
     def __str__(self):
         return self.name
@@ -130,7 +140,43 @@ class ServiceMaterial(models.Model):
 
     class Meta:
         ordering = ["id"]
+        verbose_name = "receta de material"
+        verbose_name_plural = "recetas de materiales"
         unique_together = [("service", "material")]
 
     def __str__(self):
         return f"{self.service.name} — {self.material.name} x{self.quantity}"
+
+
+class ServiceMaterialAlternative(models.Model):
+    """Alternativa explícita para un slot de receta de servicio.
+
+    Solo los materiales aquí listados pueden usarse como reemplazo
+    del material por defecto en una reserva concreta.
+    """
+
+    service_material = models.ForeignKey(
+        ServiceMaterial,
+        related_name="alternatives",
+        on_delete=models.CASCADE,
+    )
+    alternative_material = models.ForeignKey(
+        "inventory.Material",
+        related_name="service_alternatives",
+        on_delete=models.CASCADE,
+    )
+    notes = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "alternativa de material"
+        verbose_name_plural = "alternativas de material"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["service_material", "alternative_material"],
+                name="uniq_sma_per_recipe",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.service_material} → {self.alternative_material.name}"

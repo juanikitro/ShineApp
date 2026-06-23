@@ -55,6 +55,11 @@ class FixedExpense(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-is_active", "concept", "-id"]
+        verbose_name = "gasto fijo"
+        verbose_name_plural = "gastos fijos"
+        indexes = [
+            models.Index(fields=["business", "is_active"], name="fixexp_biz_active_idx"),
+        ]
 
     def __str__(self):
         return f"{self.concept} (cada {self.interval_count} {self.interval_unit})"
@@ -75,6 +80,20 @@ class FixedExpense(SoftDeleteMixin):
         # las ocurrencias pendientes (sin pagar) dejan de adeudarse; las pagadas
         # quedan como egresos historicos
         self.occurrences.filter(status="pending").delete()
+
+    def restore(self):
+        with transaction.atomic():
+            now = timezone.now()
+            FixedExpense.all_objects.filter(pk=self.pk).update(
+                is_active=True, deleted_at=None, updated_at=now,
+            )
+            self.is_active = True
+            self.deleted_at = None
+            self.updated_at = now
+            for occurrence in self.occurrences(manager="all_objects").filter(
+                deleted_at__isnull=False, status="pending"
+            ):
+                occurrence.restore()
 
 
 class FixedExpenseOccurrence(SoftDeleteMixin):
@@ -117,6 +136,11 @@ class FixedExpenseOccurrence(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-period_date", "-id"]
+        verbose_name = "ocurrencia de gasto fijo"
+        verbose_name_plural = "ocurrencias de gasto fijo"
+        indexes = [
+            models.Index(fields=["business", "status", "period_date"], name="fixocc_biz_status_dt_idx"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["fixed_expense", "period_date"],
@@ -150,3 +174,15 @@ class FixedExpenseOccurrence(SoftDeleteMixin):
                 movement.delete()
             self.deleted_at = timezone.now()
             self.save(update_fields=["deleted_at", "updated_at"])
+
+    def restore(self):
+        # No se reactiva el `cash_movement` original (la cascada de delete corta
+        # el link). El movimiento de caja queda disponible en la papelera para
+        # que el usuario lo recupere por separado si lo necesita.
+        with transaction.atomic():
+            now = timezone.now()
+            FixedExpenseOccurrence.all_objects.filter(pk=self.pk).update(
+                deleted_at=None, updated_at=now,
+            )
+            self.deleted_at = None
+            self.updated_at = now

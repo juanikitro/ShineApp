@@ -35,7 +35,7 @@ from inventory.models import (
     Supplier,
     Tool,
 )
-from inventory.serializers import (
+from inventory.stock import (
     refresh_material_cost,
     sync_purchase_cash_movement,
     sync_stock_movement_cash_movement,
@@ -44,7 +44,6 @@ from notifications.models import PublicRequest, PublicRequestItem
 from quotes.models import Quote, QuoteItem
 from scheduling.models import Reservation, ReservationItem
 from scheduling.services import ensure_reservation_work_order
-
 
 DEFAULT_ADMIN_PASSWORD = "admin123"
 DEFAULT_EMPLOYEE_PASSWORD = "empleado123"
@@ -189,11 +188,22 @@ class Command(BaseCommand):
     def production_like_target(self):
         settings_module = os.getenv("DJANGO_SETTINGS_MODULE", "")
         database_url = os.getenv("DATABASE_URL", "")
-        return (
-            settings_module.endswith("settings_production")
-            or "supabase.co" in database_url
-            or "pooler.supabase.com" in database_url
-        )
+        if settings_module.endswith("settings_production"):
+            return True
+        if not database_url:
+            return False
+        # Fail-closed: cualquier DATABASE_URL que no apunte a un host local se
+        # trata como production-like. Evita sembrar credenciales demo conocidas
+        # (admin/admin123) contra una DB real (Supabase, RDS, self-host, etc.),
+        # no solo Supabase.
+        try:
+            from urllib.parse import urlparse
+
+            host = (urlparse(database_url).hostname or "").lower()
+        except Exception:
+            return True
+        local_hosts = {"", "localhost", "127.0.0.1", "::1", "db", "postgres"}
+        return host not in local_hosts
 
     def resolve_password(self, *, explicit_value, default_value, label, production_like, allow_defaults):
         if explicit_value:

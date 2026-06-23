@@ -30,6 +30,7 @@ type DebtFormProps = {
 		openCombo?: boolean,
 	) => (event: KeyboardEvent<HTMLElement>) => void
 	submitting?: boolean
+	fieldErrors?: Record<string, string>
 }
 
 export function DebtForm({
@@ -46,10 +47,11 @@ export function DebtForm({
 	focusField,
 	focusNextOnEnter,
 	submitting = false,
+	fieldErrors,
 }: DebtFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
-			<Field label="Concepto">
+			<Field label="Concepto" error={fieldErrors?.['concept']}>
 				<input
 					data-focus-key="debt.concept"
 					required
@@ -64,7 +66,7 @@ export function DebtForm({
 					onKeyDown={focusNextOnEnter('debt.creditor')}
 				/>
 			</Field>
-			<Field label="Acreedor">
+			<Field label="Acreedor" error={fieldErrors?.['creditor']}>
 				<input
 					data-focus-key="debt.creditor"
 					list="debt-creditor-options"
@@ -95,7 +97,7 @@ export function DebtForm({
 				}}
 			/>
 			<div className="form-row">
-				<Field label="Total deuda">
+				<Field label="Total deuda" error={fieldErrors?.['principal_amount']}>
 					<NumericInput
 						data-focus-key="debt.amount"
 						required
@@ -110,7 +112,7 @@ export function DebtForm({
 						onKeyDown={focusNextOnEnter('debt.origin_date')}
 					/>
 				</Field>
-				<Field label="Origen">
+				<Field label="Origen" error={fieldErrors?.['origin_date']}>
 					<input
 						data-focus-key="debt.origin_date"
 						type="date"
@@ -125,7 +127,7 @@ export function DebtForm({
 					/>
 				</Field>
 			</div>
-			<Field label="Fecha limite">
+			<Field label="Fecha limite" error={fieldErrors?.['due_date']}>
 				<input
 					data-focus-key="debt.due_date"
 					type="date"
@@ -169,7 +171,7 @@ export function DebtForm({
 					createLabel={(value) => `Crear subcategoria "${value}"`}
 				/>
 			</div>
-			<Field label="Notas">
+			<Field label="Notas" error={fieldErrors?.['notes']}>
 				<textarea
 					data-focus-key="debt.notes"
 					value={debtForm.notes}

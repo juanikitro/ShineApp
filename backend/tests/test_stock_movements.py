@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -6,7 +6,6 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
-from django.utils import timezone
 
 from catalog.models import Service
 from customers.models import Customer, Vehicle
@@ -128,7 +127,7 @@ def test_stock_purchase_pending_and_received_control_stock_cash_and_document(api
             "affects_cash": False,
             "products_received": True,
             "document_file": receipt,
-            "lines": '[{"material": %s, "quantity": "1.00", "unit_price": "1200.00"}]' % shampoo.id,
+            "lines": f'[{{"material": {shampoo.id}, "quantity": "1.00", "unit_price": "1200.00"}}]',
         },
         format="multipart",
     )

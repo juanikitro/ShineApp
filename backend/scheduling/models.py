@@ -8,8 +8,6 @@ from django.utils import timezone
 from core.soft_delete import SoftDeleteMixin
 
 
-
-
 class Reservation(SoftDeleteMixin):
     class Status(models.TextChoices):
         PENDING = "pending", "Pendiente"
@@ -40,6 +38,8 @@ class Reservation(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["day", "start_time", "id"]
+        verbose_name = "reserva"
+        verbose_name_plural = "reservas"
         indexes = [
             models.Index(
                 fields=["business", "day", "status"],
@@ -79,6 +79,22 @@ class Reservation(SoftDeleteMixin):
             self._skip_work_order_sync = True
             self.deleted_at = timezone.now()
             self.save(update_fields=["deleted_at", "updated_at"])
+
+    def restore(self):
+        with transaction.atomic():
+            now = timezone.now()
+            Reservation.all_objects.filter(pk=self.pk).update(deleted_at=None, updated_at=now)
+            self.deleted_at = None
+            self.updated_at = now
+            for item in self.items(manager="all_objects").filter(deleted_at__isnull=False):
+                item.restore()
+            from workorders.models import WorkOrder
+
+            work_order = (
+                WorkOrder.all_objects.filter(reservation_id=self.pk, deleted_at__isnull=False).first()
+            )
+            if work_order is not None:
+                work_order.restore()
 
     @property
     def service_items(self):
@@ -211,6 +227,47 @@ class Reservation(SoftDeleteMixin):
         return queryset.count()
 
 
+class ReservationMaterialOverride(models.Model):
+    """Reemplazo de material para una reserva específica.
+
+    Permite usar un material alternativo (definido en ServiceMaterialAlternative)
+    en lugar del material por defecto del slot de la receta del servicio.
+    """
+
+    reservation = models.ForeignKey(
+        Reservation,
+        related_name="material_overrides",
+        on_delete=models.CASCADE,
+    )
+    service_material = models.ForeignKey(
+        "catalog.ServiceMaterial",
+        related_name="reservation_overrides",
+        on_delete=models.CASCADE,
+    )
+    chosen_material = models.ForeignKey(
+        "inventory.Material",
+        related_name="reservation_overrides",
+        on_delete=models.PROTECT,
+    )
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "reemplazo de material en reserva"
+        verbose_name_plural = "reemplazos de material en reserva"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["reservation", "service_material"],
+                name="uniq_rmo_per_reservation_slot",
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"Reserva {self.reservation_id}: "
+            f"{self.service_material.material.name} → {self.chosen_material.name}"
+        )
+
+
 class ReservationItem(SoftDeleteMixin):
     reservation = models.ForeignKey(Reservation, related_name="items", on_delete=models.CASCADE)
     service = models.ForeignKey("catalog.Service", null=True, blank=True, on_delete=models.SET_NULL)
@@ -221,6 +278,8 @@ class ReservationItem(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["id"]
+        verbose_name = "ítem de reserva"
+        verbose_name_plural = "ítems de reserva"
 
     def save(self, *args, **kwargs):
         self.line_total = self.quantity * self.unit_price

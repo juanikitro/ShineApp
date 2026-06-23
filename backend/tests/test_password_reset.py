@@ -14,12 +14,10 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from core.models import PasswordResetToken
-
 
 RESET_URL = "/api/auth/password-reset/"
 CONFIRM_URL = "/api/auth/password-reset/confirm/"
@@ -112,7 +110,7 @@ def test_password_reset_request_smtp_failure_still_returns_200():
     user = make_user("smtp@shineapp.test")
     client = APIClient()
 
-    with patch("notifications.service.send_mail", side_effect=Exception("SMTP error")):
+    with patch("notifications.outbox.send_mail", side_effect=Exception("SMTP error")):
         response = client.post(RESET_URL, {"email": user.email}, format="json")
 
     assert response.status_code == 200

@@ -1,16 +1,15 @@
 from decimal import Decimal
 
 import pytest
-from django.db import connection
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from catalog.models import Service
 from customers.models import Customer, Vehicle
 from finance.models import Payment
-from workorders.metrics import build_work_order_financial_metrics
 from scheduling.models import Reservation
+from workorders.metrics import build_work_order_financial_metrics
 from workorders.models import WorkOrder
 from workorders.serializers import WorkOrderSerializer
 
@@ -167,7 +166,7 @@ def test_reservation_list_batches_embedded_work_order_totals(api_client, base_da
         response = api_client.get(reverse("reservation-list"))
 
     assert response.status_code == 200, response.data
-    assert len(queries) <= 16
+    assert len(queries) <= 18  # +2 prefetch: material_overrides + related materials
     first = response.data["results"][0]["work_order"]
     assert first["paid_amount"] == "5000"
     assert first["balance_due"] == "10000.00"

@@ -6,10 +6,16 @@ from django.utils import timezone
 from rest_framework import decorators, response, viewsets
 
 from core.audit import AuditedModelViewSetMixin
-from core.permissions import CanViewEconomy, business_from_request, can_view_economy, scope_queryset_to_business
+from core.permissions import (
+    CanViewEconomy,
+    business_from_request,
+    can_view_economy,
+    scope_queryset_to_business,
+)
 from finance.models import Payment
 from quotes.models import Quote
 from scheduling.models import Reservation
+from workorders.metrics import build_work_order_financial_metrics
 from workorders.models import WorkOrder
 
 from .birthdays import upcoming_birthday_customers
@@ -254,13 +260,19 @@ class CustomerViewSet(AuditedModelViewSetMixin, ActiveQuerysetMixin, viewsets.Mo
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            # insights solo para la pagina visible, no para toda la cartera (las
+            # metricas son por-cliente, asi que limitar a la pagina no las altera).
+            self._customer_list_insights_map = build_customer_list_insights(
+                Customer.objects.filter(pk__in=[customer.pk for customer in page]),
+                include_economy=can_view_economy(request.user),
+            )
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         self._customer_list_insights_map = build_customer_list_insights(
             queryset, include_economy=can_view_economy(request.user)
         )
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(queryset, many=True)
         return response.Response(serializer.data)
 
@@ -515,10 +527,17 @@ class VehicleViewSet(AuditedModelViewSetMixin, ActiveQuerysetMixin, viewsets.Mod
     @decorators.action(detail=True, methods=["get"], permission_classes=[CanViewEconomy])
     def history(self, request, pk=None):
         vehicle = self.get_object()
-        work_orders = WorkOrder.objects.filter(
-            vehicle=vehicle,
-            reservation__status__in=WorkOrder.operational_statuses(),
-        ).order_by("-created_at")
+        work_orders = list(
+            WorkOrder.objects.filter(
+                vehicle=vehicle,
+                reservation__status__in=WorkOrder.operational_statuses(),
+            )
+            .select_related("service", "reservation")
+            .order_by("-created_at")
+        )
+        # paid_amount / balance_due batcheados (evita 2 aggregates por orden);
+        # select_related cubre order.service.name y order.status (lee reservation).
+        metrics = build_work_order_financial_metrics(work_orders)
         return response.Response(
             {
                 "vehicle": VehicleSerializer(vehicle).data,
@@ -528,8 +547,8 @@ class VehicleViewSet(AuditedModelViewSetMixin, ActiveQuerysetMixin, viewsets.Mod
                         "status": order.status,
                         "service": order.service.name,
                         "total_amount": order.total_amount,
-                        "paid_amount": order.paid_amount,
-                        "balance_due": order.balance_due,
+                        "paid_amount": metrics[order.id]["paid_amount"],
+                        "balance_due": metrics[order.id]["balance_due"],
                     }
                     for order in work_orders
                 ],

@@ -17,11 +17,15 @@ test('dataSetCacheKey scopes dashboard and cash by active date filters', () => {
 		dataSetCacheKey('dashboard', scope),
 		'dashboard:2026-05-01:2026-05-31',
 	)
-	assert.equal(dataSetCacheKey('cash', scope), 'cash:2026-05-20')
+	assert.equal(dataSetCacheKey('cash', scope), 'cash:2026-05-20:day')
 	assert.equal(dataSetCacheKey('customers', scope), 'customers')
 })
 
 test('loadAppDataSets keeps the existing endpoint contract and entry order', async () => {
+	const d = new Date()
+	d.setDate(d.getDate() - 90)
+	const from90 = d.toISOString().slice(0, 10)
+
 	const calls = []
 	const loaders = {
 		apiFetch: async (path) => {
@@ -36,6 +40,7 @@ test('loadAppDataSets keeps the existing endpoint contract and entry order', asy
 	const keys = [
 		'dashboard',
 		'cash',
+		'tasks',
 		'customers',
 		'vehicles',
 		'services',
@@ -66,6 +71,7 @@ test('loadAppDataSets keeps the existing endpoint contract and entry order', asy
 		[
 			['fetch', '/dashboard/summary/?from=2026-05-01&to=2026-05-31'],
 			['fetch', '/cash/daily/?date=2026-05-20'],
+			['list', '/tasks/'],
 			['list', '/customers/'],
 			['list', '/vehicles/'],
 			['list', '/services/'],
@@ -78,7 +84,7 @@ test('loadAppDataSets keeps the existing endpoint contract and entry order', asy
 			['list', '/fixed-expense-occurrences/'],
 			['list', '/materials/'],
 			['list', '/suppliers/'],
-			['list', '/stock-movements/'],
+			['list', `/stock-movements/?from=${from90}`],
 			['list', '/material-open-units/'],
 			['list', '/material-purchases/'],
 			['list', '/material-consumptions/'],
@@ -114,6 +120,7 @@ test('applyAppDataEntry dispatches loaded data to the matching applier only', ()
 		[
 			'dashboard',
 			'cash',
+			'tasks',
 			'customers',
 			'vehicles',
 			'services',

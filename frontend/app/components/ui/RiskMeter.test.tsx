@@ -25,6 +25,21 @@ test('renders one segment per non-zero bucket, colored by risk', () => {
 	assert.equal((segments[1] as HTMLElement).style.width, '75%')
 })
 
+test('exposes a text summary for screen readers via role=img', () => {
+	const { getByRole } = render(
+		<RiskMeter
+			buckets={[
+				{ id: '0_7', amount: 100 },
+				{ id: '31_plus', amount: 300 },
+			]}
+		/>,
+	)
+	const meter = getByRole('img')
+	assert.match(meter.getAttribute('aria-label') ?? '', /Antiguedad de cobranzas/)
+	assert.match(meter.getAttribute('aria-label') ?? '', /75% vencido/)
+	assert.match(meter.getAttribute('aria-label') ?? '', /25% al dia/)
+})
+
 test('skips zero buckets', () => {
 	const { container } = render(
 		<RiskMeter

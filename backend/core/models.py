@@ -1,10 +1,8 @@
 from django.conf import settings
-from django.core.validators import FileExtensionValidator
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
-
 
 PROFILE_ASSET_FILE_VALIDATOR = FileExtensionValidator(
     allowed_extensions=["png", "jpg", "jpeg", "webp", "svg", "pdf"],
@@ -104,8 +102,9 @@ def normalize_category_tree(value, default_tree):
             if subcategory and subcategory not in seen:
                 subcategories.append(subcategory)
                 seen.add(subcategory)
-        if subcategories:
-            normalized[category] = sorted(subcategories, key=str.casefold)
+        # Las categorias sin subcategorias son validas: se conservan vacias para
+        # que el usuario pueda crear una categoria y agregar subcategorias luego.
+        normalized[category] = sorted(subcategories, key=str.casefold)
     return normalized or default_tree()
 
 
@@ -355,6 +354,47 @@ class BusinessProfile(models.Model):
         return getattr(settings, "BUSINESS_NAME", "ShineApp")
 
 
+class BusinessHours(models.Model):
+    DAY_CHOICES = [
+        (0, "Lunes"),
+        (1, "Martes"),
+        (2, "Miercoles"),
+        (3, "Jueves"),
+        (4, "Viernes"),
+        (5, "Sabado"),
+        (6, "Domingo"),
+    ]
+
+    business = models.ForeignKey(
+        BusinessAccount,
+        on_delete=models.CASCADE,
+        related_name="working_hours",
+    )
+    day_of_week = models.SmallIntegerField(choices=DAY_CHOICES)
+    is_open = models.BooleanField(default=True)
+    opening_time = models.TimeField(null=True, blank=True)
+    closing_time = models.TimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = [("business", "day_of_week")]
+        ordering = ["day_of_week"]
+        verbose_name = "horario del negocio"
+        verbose_name_plural = "horarios del negocio"
+
+    def __str__(self):
+        return f"{self.get_day_of_week_display()} - {'Abierto' if self.is_open else 'Cerrado'}"
+
+
+def ensure_business_hours(business):
+    """Create default working hours (Mon-Sat open, Sun closed) if not present."""
+    for day_of_week in range(7):
+        BusinessHours.objects.get_or_create(
+            business=business,
+            day_of_week=day_of_week,
+            defaults={"is_open": day_of_week < 6},
+        )
+
+
 class UserProfile(models.Model):
     class PhoneCountryCode(models.TextChoices):
         ARGENTINA = "+54", "Argentina (+54)"
@@ -459,11 +499,18 @@ class AuditLog(models.Model):
 
     class Meta:
         ordering = ["-created_at", "-id"]
+        verbose_name = "registro de auditoría"
+        verbose_name_plural = "registros de auditoría"
         indexes = [
             models.Index(fields=["-created_at"], name="core_auditl_created_49a799_idx"),
             models.Index(fields=["actor", "-created_at"], name="core_auditl_actor_i_010a7d_idx"),
             models.Index(fields=["module", "-created_at"], name="core_auditl_module_709697_idx"),
             models.Index(fields=["action", "-created_at"], name="core_auditl_action_bcd443_idx"),
+            # business-led: AuditLogView filtra business= y luego ordena -created_at.
+            models.Index(fields=["business", "-created_at"], name="audit_biz_created_idx"),
+            models.Index(fields=["business", "module", "-created_at"], name="audit_biz_module_idx"),
+            models.Index(fields=["business", "action", "-created_at"], name="audit_biz_action_idx"),
+            models.Index(fields=["business", "entity_type", "entity_id"], name="audit_biz_entity_idx"),
         ]
 
     def __str__(self):
@@ -483,6 +530,8 @@ class PasswordResetToken(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        verbose_name = "token de restablecimiento"
+        verbose_name_plural = "tokens de restablecimiento"
 
     def is_valid(self):
         return not self.used and self.expires_at > timezone.now()

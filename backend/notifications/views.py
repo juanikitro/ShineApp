@@ -8,20 +8,20 @@ from rest_framework.views import APIView
 
 from catalog.models import Sector, Service
 from core.audit import audit_snapshot, record_audit_event
-from core.models import BusinessAccount, BusinessProfile
+from core.models import BusinessAccount, BusinessHours, BusinessProfile
 from core.permissions import EmployerOnly, business_from_request, file_url
+from core.request_ip import get_client_ip
 from scheduling.models import Reservation
 
 from .models import PublicRequest
-from .service import send_business_push_notification, send_new_public_request_notification
 from .serializers import (
-    build_public_request_suggestions_map,
     PublicLandingRequestSerializer,
     PublicLandingServiceSerializer,
     PublicRequestConvertSerializer,
     PublicRequestSerializer,
+    build_public_request_suggestions_map,
 )
-
+from .service import send_business_push_notification, send_new_public_request_notification
 
 PUBLIC_REQUESTS_PER_IP_PER_HOUR = 5
 PUBLIC_RECALL_PER_IP = 3
@@ -33,10 +33,10 @@ def recall_cache_key(ip):
 
 
 def client_ip(request):
-    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR", "")
+    # Delega en el helper central que cuenta saltos de proxy desde la derecha,
+    # resistente a X-Forwarded-For falsificado (ver core/request_ip.py). Tomar el
+    # primer valor del header permitia evadir el rate-limit y falsear la IP.
+    return get_client_ip(request)
 
 
 def public_business_or_404(slug):
@@ -130,6 +130,17 @@ class PublicLandingView(APIView):
 
 
 def _availability_payload(business, profile, day):
+    day_of_week = day.weekday()  # 0=Monday, 6=Sunday
+    day_hours = BusinessHours.objects.filter(business=business, day_of_week=day_of_week).first()
+    if day_hours is not None:
+        is_working_day = day_hours.is_open
+        day_opening_time = day_hours.opening_time.strftime("%H:%M") if day_hours.opening_time else None
+        day_closing_time = day_hours.closing_time.strftime("%H:%M") if day_hours.closing_time else None
+    else:
+        is_working_day = True
+        day_opening_time = None
+        day_closing_time = None
+
     active_sectors = list(
         Sector.objects.filter(
             business=business,
@@ -171,6 +182,9 @@ def _availability_payload(business, profile, day):
         )
     return {
         "date": day.isoformat(),
+        "is_working_day": is_working_day,
+        "day_opening_time": day_opening_time,
+        "day_closing_time": day_closing_time,
         "allow_overlapping": bool(profile.allow_overlapping_reservations),
         "capacity_enforced": bool(profile.enforce_capacity_limit),
         "sectors": sectors_payload,

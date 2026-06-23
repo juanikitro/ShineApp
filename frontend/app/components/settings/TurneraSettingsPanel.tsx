@@ -4,8 +4,16 @@ import { type FormEvent, useMemo } from 'react'
 
 import { ExternalLink, Eye, EyeOff, Globe } from 'lucide-react'
 
+import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
+import { Toggle } from '@/app/components/ui/Toggle'
 import { type AnyRecord } from '@/lib/page-support'
+import {
+	type WorkingHoursEntry,
+	DEFAULT_WORKING_HOURS,
+} from '@/lib/scheduling-availability'
+
+const DAY_LABELS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo']
 
 type TurneraSettingsPanelProps = {
 	businessForm: AnyRecord
@@ -34,6 +42,13 @@ function normalizeHiddenIds(value: unknown): number[] {
 	return out
 }
 
+function normalizeWorkingHours(value: unknown): WorkingHoursEntry[] {
+	const base = Array.isArray(value) && value.length === 7
+		? (value as WorkingHoursEntry[])
+		: DEFAULT_WORKING_HOURS
+	return base
+}
+
 export function TurneraSettingsPanel({
 	businessForm,
 	businessSlug,
@@ -42,6 +57,17 @@ export function TurneraSettingsPanel({
 	onPatchBusinessForm,
 	onSaveBusinessProfile,
 }: TurneraSettingsPanelProps) {
+	const workingHours = useMemo(
+		() => normalizeWorkingHours(businessForm.working_hours),
+		[businessForm.working_hours],
+	)
+
+	function patchWorkingHoursDay(dayOfWeek: number, patch: Partial<WorkingHoursEntry>) {
+		const next = workingHours.map((entry) =>
+			entry.day_of_week === dayOfWeek ? { ...entry, ...patch } : entry,
+		)
+		onPatchBusinessForm({ working_hours: next })
+	}
 	const publicLandingUrl = businessSlug
 		? `${typeof window !== 'undefined' ? window.location.origin : ''}/publica/${businessSlug}`
 		: ''
@@ -117,14 +143,14 @@ export function TurneraSettingsPanel({
 				</div>
 				<div className="settings-action-rail">
 					<div className="settings-primary-actions">
-						<button
+						<Button
 							type="submit"
-							className="primary"
+							variant="primary"
 							form="settings-turnera-form"
 						>
 							<Globe size={16} />
 							Guardar turnera
-						</button>
+						</Button>
 					</div>
 				</div>
 			</div>
@@ -157,78 +183,54 @@ export function TurneraSettingsPanel({
 							) : null}
 						</div>
 					</Field>
-					<label>
-						<input
-							type="checkbox"
-							name="business_public_landing_enabled"
-							checked={businessForm.public_landing_enabled !== false}
-							onChange={(event) =>
-								onPatchBusinessForm({
-									public_landing_enabled: event.target.checked,
-								})
-							}
-						/>
+					<Toggle
+						name="business_public_landing_enabled"
+						checked={businessForm.public_landing_enabled !== false}
+						onChange={(checked) =>
+							onPatchBusinessForm({ public_landing_enabled: checked })
+						}
+					>
 						Landing publica activa
-					</label>
+					</Toggle>
 					<div className="form-row">
-						<label>
-							<input
-								type="checkbox"
-								name="business_allow_public_booking_requests"
-								checked={
-									businessForm.allow_public_booking_requests !== false
-								}
-								onChange={(event) =>
-									onPatchBusinessForm({
-										allow_public_booking_requests: event.target.checked,
-									})
-								}
-							/>
+						<Toggle
+							name="business_allow_public_booking_requests"
+							checked={businessForm.allow_public_booking_requests !== false}
+							onChange={(checked) =>
+								onPatchBusinessForm({ allow_public_booking_requests: checked })
+							}
+						>
 							Recibir pedidos de turno
-						</label>
-						<label>
-							<input
-								type="checkbox"
-								name="business_allow_public_quote_requests"
-								checked={businessForm.allow_public_quote_requests !== false}
-								onChange={(event) =>
-									onPatchBusinessForm({
-										allow_public_quote_requests: event.target.checked,
-									})
-								}
-							/>
+						</Toggle>
+						<Toggle
+							name="business_allow_public_quote_requests"
+							checked={businessForm.allow_public_quote_requests !== false}
+							onChange={(checked) =>
+								onPatchBusinessForm({ allow_public_quote_requests: checked })
+							}
+						>
 							Recibir pedidos de cotizacion
-						</label>
+						</Toggle>
 					</div>
 					<div className="form-row">
-						<label>
-							<input
-								type="checkbox"
-								name="business_public_show_service_description"
-								checked={
-									businessForm.public_show_service_description !== false
-								}
-								onChange={(event) =>
-									onPatchBusinessForm({
-										public_show_service_description: event.target.checked,
-									})
-								}
-							/>
+						<Toggle
+							name="business_public_show_service_description"
+							checked={businessForm.public_show_service_description !== false}
+							onChange={(checked) =>
+								onPatchBusinessForm({ public_show_service_description: checked })
+							}
+						>
 							Mostrar descripcion del servicio
-						</label>
-						<label>
-							<input
-								type="checkbox"
-								name="business_public_show_service_price"
-								checked={businessForm.public_show_service_price === true}
-								onChange={(event) =>
-									onPatchBusinessForm({
-										public_show_service_price: event.target.checked,
-									})
-								}
-							/>
+						</Toggle>
+						<Toggle
+							name="business_public_show_service_price"
+							checked={businessForm.public_show_service_price === true}
+							onChange={(checked) =>
+								onPatchBusinessForm({ public_show_service_price: checked })
+							}
+						>
 							Mostrar precio del servicio
-						</label>
+						</Toggle>
 					</div>
 					<Field label="Texto corto para la landing">
 						<textarea
@@ -270,21 +272,61 @@ export function TurneraSettingsPanel({
 							/>
 						</Field>
 					</div>
-					<label>
-						<input
-							type="checkbox"
-							name="business_allow_overlapping_reservations"
-							checked={
-								businessForm.allow_overlapping_reservations === true
-							}
-							onChange={(event) =>
-								onPatchBusinessForm({
-									allow_overlapping_reservations: event.target.checked,
-								})
-							}
-						/>
+					<Toggle
+						name="business_allow_overlapping_reservations"
+						checked={businessForm.allow_overlapping_reservations === true}
+						onChange={(checked) =>
+							onPatchBusinessForm({ allow_overlapping_reservations: checked })
+						}
+					>
 						Solapar turnos
-					</label>
+					</Toggle>
+				</div>
+				<div className="working-hours-grid">
+					<h3>Dias y horarios de atencion</h3>
+					<p>Configura que dias trabaja el negocio y en que horario. La agenda bloqueara los dias cerrados.</p>
+					<div className="working-hours-rows">
+						{workingHours.map((entry) => (
+							<div key={entry.day_of_week} className="working-hours-row">
+								<Toggle
+									checked={entry.is_open}
+									onChange={(checked) =>
+										patchWorkingHoursDay(entry.day_of_week, { is_open: checked })
+									}
+								>
+									{DAY_LABELS[entry.day_of_week]}
+								</Toggle>
+								{entry.is_open ? (
+									<div className="working-hours-times">
+										<Field label="Apertura">
+											<input
+												type="time"
+												value={entry.opening_time ?? ''}
+												onChange={(e) =>
+													patchWorkingHoursDay(entry.day_of_week, {
+														opening_time: e.target.value || null,
+													})
+												}
+											/>
+										</Field>
+										<Field label="Cierre">
+											<input
+												type="time"
+												value={entry.closing_time ?? ''}
+												onChange={(e) =>
+													patchWorkingHoursDay(entry.day_of_week, {
+														closing_time: e.target.value || null,
+													})
+												}
+											/>
+										</Field>
+									</div>
+								) : (
+									<span className="working-hours-closed">Cerrado</span>
+								)}
+							</div>
+						))}
+					</div>
 				</div>
 				<div className="turnera-services">
 					<div className="turnera-services-head">
@@ -308,9 +350,8 @@ export function TurneraSettingsPanel({
 							<div className="turnera-services-group" key={sectorId}>
 								<div className="turnera-services-group-head">
 									<h4>{String(sector.name ?? '')}</h4>
-									<button
-										type="button"
-										className="ghost"
+									<Button
+										variant="ghost"
 										onClick={() => setGroupVisibility(sectorId, allHidden)}
 									>
 										{allHidden ? (
@@ -324,7 +365,7 @@ export function TurneraSettingsPanel({
 												Ocultar todos
 											</>
 										)}
-									</button>
+									</Button>
 								</div>
 								<ul className="turnera-services-list">
 									{items.map((service) => {
@@ -332,14 +373,12 @@ export function TurneraSettingsPanel({
 										const checked = isPositiveInt(id) && !hiddenSet.has(id)
 										return (
 											<li key={service.id}>
-												<label>
-													<input
-														type="checkbox"
-														checked={checked}
-														onChange={() => toggleService(id)}
-													/>
-													<span>{String(service.name ?? '')}</span>
-												</label>
+												<Toggle
+													checked={checked}
+													onChange={() => toggleService(id)}
+												>
+													{String(service.name ?? '')}
+												</Toggle>
 											</li>
 										)
 									})}

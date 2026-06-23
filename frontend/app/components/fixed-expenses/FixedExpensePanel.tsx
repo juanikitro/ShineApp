@@ -1,10 +1,14 @@
 'use client'
 
+import { useMemo } from 'react'
+
 import { CalendarClock, CreditCard, Eye, RefreshCw, RotateCcw } from 'lucide-react'
 
 import { FinanceRecordCard } from '@/app/components/finance/FinanceRecordCard'
 import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
+import { SkeletonList } from '@/app/components/ui/Skeleton'
 import { Field } from '@/app/components/ui/Field'
+import { Button } from '@/app/components/ui/Button'
 import { joinDisplayParts } from '@/lib/display-text'
 import { type ApiErrorNotice } from '@/lib/api-errors'
 import {
@@ -68,19 +72,46 @@ export function FixedExpensePanel({
 	onDeleteFixedExpense,
 	onRefresh,
 }: FixedExpensePanelProps) {
-	const pending = occurrences.filter((item) => item.status === 'pending')
-	const paid = occurrences.filter((item) => item.status === 'paid')
-	const pendingTotal = pending.reduce((sum, item) => sum + numberValue(item.amount), 0)
-	const activeCount = fixedExpenses.filter((item) => item.is_active).length
-	const monthlyEstimate = fixedExpenses
-		.filter((item) => item.is_active)
-		.reduce((sum, item) => sum + monthlyEquivalent(item), 0)
-
-	const filteredPlans = fixedExpenses.filter((plan) =>
-		matchesSearch(joinDisplayParts([plan.concept, plan.supplier_name]) || '', search),
+	// Derivaciones independientes del buscador: solo recomputan cuando cambian los
+	// datos, no en cada keystroke.
+	const pending = useMemo(
+		() => occurrences.filter((item) => item.status === 'pending'),
+		[occurrences],
 	)
-	const filteredPending = pending.filter((item) =>
-		matchesSearch(String(item.fixed_expense_concept ?? ''), search),
+	const paid = useMemo(
+		() => occurrences.filter((item) => item.status === 'paid'),
+		[occurrences],
+	)
+	const pendingTotal = useMemo(
+		() => pending.reduce((sum, item) => sum + numberValue(item.amount), 0),
+		[pending],
+	)
+	const activeCount = useMemo(
+		() => fixedExpenses.filter((item) => item.is_active).length,
+		[fixedExpenses],
+	)
+	const monthlyEstimate = useMemo(
+		() =>
+			fixedExpenses
+				.filter((item) => item.is_active)
+				.reduce((sum, item) => sum + monthlyEquivalent(item), 0),
+		[fixedExpenses],
+	)
+
+	// Filtros que dependen del buscador: lo unico que recomputa al tipear.
+	const filteredPlans = useMemo(
+		() =>
+			fixedExpenses.filter((plan) =>
+				matchesSearch(joinDisplayParts([plan.concept, plan.supplier_name]) || '', search),
+			),
+		[fixedExpenses, search],
+	)
+	const filteredPending = useMemo(
+		() =>
+			pending.filter((item) =>
+				matchesSearch(String(item.fixed_expense_concept ?? ''), search),
+			),
+		[pending, search],
 	)
 
 	return (
@@ -92,14 +123,13 @@ export function FixedExpensePanel({
 				<div className="panel-head finance-panel-head">
 					<div className="finance-action-rail">
 						<div className="finance-primary-actions">
-							<button
-								type="button"
-								className="primary"
+							<Button
+								variant="primary"
 								onClick={onCreateFixedExpense}
 							>
 								<CalendarClock size={16} />
 								Nuevo gasto fijo
-							</button>
+							</Button>
 						</div>
 					</div>
 				</div>
@@ -111,18 +141,15 @@ export function FixedExpensePanel({
 						}
 						hint={loadErrorNotice?.description}
 						action={
-							<button type="button" className="ghost" onClick={onRefresh}>
+							<Button variant="ghost" onClick={onRefresh}>
 								<RefreshCw size={16} />
 								Actualizar
-							</button>
+							</Button>
 						}
 					/>
 				) : null}
 				{!loadBlocked && loading && !fixedExpenses.length && !occurrences.length ? (
-					<LoadingState
-						text="Cargando gastos fijos..."
-						hint="Preparando plantillas y periodos por pagar."
-					/>
+					<SkeletonList rows={6} columns={4} label="Cargando gastos fijos" />
 				) : null}
 				{!loadBlocked && (!loading || fixedExpenses.length || occurrences.length) ? (
 					<>
@@ -244,29 +271,26 @@ export function FixedExpensePanel({
 												</button>
 												<div className="fixed-expense-item-actions">
 													{plan.is_active ? (
-														<button
-															type="button"
-															className="ghost"
+														<Button
+															variant="ghost"
 															onClick={() => onPauseFixedExpense(plan.id)}
 														>
 															Pausar
-														</button>
+														</Button>
 													) : (
-														<button
-															type="button"
-															className="ghost"
+														<Button
+															variant="ghost"
 															onClick={() => onResumeFixedExpense(plan.id)}
 														>
 															Reanudar
-														</button>
+														</Button>
 													)}
-													<button
-														type="button"
-														className="ghost danger"
+													<Button
+														variant="danger"
 														onClick={() => onDeleteFixedExpense(plan.id)}
 													>
 														Eliminar
-													</button>
+													</Button>
 												</div>
 											</li>
 										)
@@ -286,14 +310,13 @@ export function FixedExpensePanel({
 									}
 									action={
 										fixedExpenses.length ? undefined : (
-											<button
-												type="button"
-												className="primary"
+											<Button
+												variant="primary"
 												onClick={onCreateFixedExpense}
 											>
 												<CalendarClock size={16} />
 												Nuevo gasto fijo
-											</button>
+											</Button>
 										)
 									}
 								/>

@@ -26,7 +26,9 @@ import {
 import changelogData from '@/app/data/changelog.generated.json'
 
 import { BusinessSettingsPanel } from '@/app/components/settings/BusinessSettingsPanel'
+import { TrashSettingsPanel } from '@/app/components/settings/TrashSettingsPanel'
 import { TurneraSettingsPanel } from '@/app/components/settings/TurneraSettingsPanel'
+import { Button } from '@/app/components/ui/Button'
 import { AuditLogCard } from '@/app/components/ui/AuditLogCard'
 import { Empty, LoadingState } from '@/app/components/ui/Empty'
 import { Field } from '@/app/components/ui/Field'
@@ -56,6 +58,7 @@ export type SettingsSection =
 	| 'agenda'
 	| 'users'
 	| 'history'
+	| 'trash'
 	| 'novedades'
 
 type CashClassificationPair = AnyRecord & {
@@ -80,8 +83,8 @@ type SettingsWorkspaceProps = {
 	safeBusinessLogoPdfThumbnail: string | null
 	safeBusinessLogoPreview: string | null
 	cashClassificationPairs: CashClassificationPair[]
-	expenseClassificationPairs: AnyRecord[]
-	incomeClassificationPairs: AnyRecord[]
+	incomeCategoryTree: Record<string, string[]>
+	expenseCategoryTree: Record<string, string[]>
 	sectors: AnyRecord[]
 	services: AnyRecord[]
 	useReservationTimes: boolean
@@ -111,13 +114,16 @@ type SettingsWorkspaceProps = {
 	onOpenBusinessLogoPicker: () => void
 	onPatchBusinessForm: (patch: AnyRecord) => void
 	onSaveBusinessProfile: (event: FormEvent) => void
-	onOpenExpenseClassificationForm: () => void
 	onEditExpenseClassification: (item: CashClassificationPair) => void
 	onDeleteExpenseClassification: (
 		movementType: string,
 		category: string,
 		subcategory: string,
 	) => void
+	onAddSubcategory: (movementType: string, category: string) => void
+	onOpenCashCategoryForm: (movementType: string) => void
+	onEditCashCategory: (movementType: string, category: string) => void
+	onDeleteCashCategory: (movementType: string, category: string) => void
 	onOpenEmployeeForm: () => void
 	onCreateSector: (data: AnyRecord) => void
 	onSaveSector: (id: number, patch: AnyRecord) => void
@@ -151,8 +157,8 @@ export function SettingsWorkspace({
 	safeBusinessLogoPdfThumbnail,
 	safeBusinessLogoPreview,
 	cashClassificationPairs,
-	expenseClassificationPairs,
-	incomeClassificationPairs,
+	incomeCategoryTree,
+	expenseCategoryTree,
 	sectors,
 	services,
 	useReservationTimes,
@@ -182,9 +188,12 @@ export function SettingsWorkspace({
 	onOpenBusinessLogoPicker,
 	onPatchBusinessForm,
 	onSaveBusinessProfile,
-	onOpenExpenseClassificationForm,
 	onEditExpenseClassification,
 	onDeleteExpenseClassification,
+	onAddSubcategory,
+	onOpenCashCategoryForm,
+	onEditCashCategory,
+	onDeleteCashCategory,
 	onOpenEmployeeForm,
 	onCreateSector,
 	onSaveSector,
@@ -254,11 +263,14 @@ export function SettingsWorkspace({
 				{settingsSection === 'cash' ? (
 					<CashSettingsPanel
 						cashClassificationPairs={cashClassificationPairs}
-						expenseClassificationPairs={expenseClassificationPairs}
-						incomeClassificationPairs={incomeClassificationPairs}
+						incomeCategoryTree={incomeCategoryTree}
+						expenseCategoryTree={expenseCategoryTree}
 						onDeleteExpenseClassification={onDeleteExpenseClassification}
 						onEditExpenseClassification={onEditExpenseClassification}
-						onOpenExpenseClassificationForm={onOpenExpenseClassificationForm}
+						onAddSubcategory={onAddSubcategory}
+						onOpenCashCategoryForm={onOpenCashCategoryForm}
+						onEditCashCategory={onEditCashCategory}
+						onDeleteCashCategory={onDeleteCashCategory}
 					/>
 				) : null}
 				{settingsSection === 'agenda' ? (
@@ -323,6 +335,7 @@ export function SettingsWorkspace({
 						onUpdateAuditFilter={onUpdateAuditFilter}
 					/>
 				) : null}
+				{settingsSection === 'trash' ? <TrashSettingsPanel /> : null}
 				{settingsSection === 'novedades' ? <NewsSettingsPanel /> : null}
 			</div>
 		</div>
@@ -351,14 +364,14 @@ function QuotesSettingsPanel({
 				</div>
 				<div className="settings-action-rail">
 					<div className="settings-primary-actions">
-						<button
+						<Button
 							type="submit"
-							className="primary"
+							variant="primary"
 							form="settings-quotes-form"
 						>
 							<FileText size={16} />
 							Guardar defaults
-						</button>
+						</Button>
 					</div>
 				</div>
 			</div>
@@ -436,23 +449,49 @@ function QuotesSettingsPanel({
 
 function CashSettingsPanel({
 	cashClassificationPairs,
-	expenseClassificationPairs,
-	incomeClassificationPairs,
+	incomeCategoryTree,
+	expenseCategoryTree,
 	onDeleteExpenseClassification,
 	onEditExpenseClassification,
-	onOpenExpenseClassificationForm,
+	onAddSubcategory,
+	onOpenCashCategoryForm,
+	onEditCashCategory,
+	onDeleteCashCategory,
 }: {
 	cashClassificationPairs: CashClassificationPair[]
-	expenseClassificationPairs: AnyRecord[]
-	incomeClassificationPairs: AnyRecord[]
+	incomeCategoryTree: Record<string, string[]>
+	expenseCategoryTree: Record<string, string[]>
 	onDeleteExpenseClassification: (
 		movementType: string,
 		category: string,
 		subcategory: string,
 	) => void
 	onEditExpenseClassification: (item: CashClassificationPair) => void
-	onOpenExpenseClassificationForm: () => void
+	onAddSubcategory: (movementType: string, category: string) => void
+	onOpenCashCategoryForm: (movementType: string) => void
+	onEditCashCategory: (movementType: string, category: string) => void
+	onDeleteCashCategory: (movementType: string, category: string) => void
 }) {
+	const [activeType, setActiveType] = useState<'income' | 'expense'>('income')
+	const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+
+	const incomeCategoryCount = Object.keys(incomeCategoryTree).length
+	const expenseCategoryCount = Object.keys(expenseCategoryTree).length
+	const tree = activeType === 'income' ? incomeCategoryTree : expenseCategoryTree
+	const movementLabel = activeType === 'income' ? 'ingreso' : 'egreso'
+	const categories = useMemo(
+		() =>
+			Object.keys(tree).sort((a, b) =>
+				a.localeCompare(b, 'es', { sensitivity: 'base' }),
+			),
+		[tree],
+	)
+
+	function toggleCategory(category: string) {
+		const key = `${activeType}:${category}`
+		setExpanded((current) => ({ ...current, [key]: !current[key] }))
+	}
+
 	return (
 		<section className="panel">
 			<div className="panel-head">
@@ -460,7 +499,7 @@ function CashSettingsPanel({
 					<span className="panel-kicker">Caja y resultado</span>
 					<h2>Categorias de caja</h2>
 					<p>
-						Define las categorias y subcategorias que Caja sugiere para{' '}
+						Organiza las categorias y subcategorias que Caja sugiere para{' '}
 						<span className="cash-term income">ingresos</span>,{' '}
 						<span className="cash-term expense">egresos</span>, deudas y
 						movimientos automaticos.
@@ -468,90 +507,168 @@ function CashSettingsPanel({
 				</div>
 				<div className="settings-action-rail">
 					<div className="settings-primary-actions">
-						<button
-							type="button"
-							className="primary"
-							onClick={onOpenExpenseClassificationForm}
+						<Button
+							variant="primary"
+							onClick={() => onOpenCashCategoryForm(activeType)}
 						>
 							<Plus size={16} />
-							Nueva clasificacion
-						</button>
+							Nueva categoria
+						</Button>
 					</div>
 				</div>
 			</div>
 			<section className="settings-operational-metrics section-block-end">
 				<MetricCard
-					label="Ingresos configurados"
-					value={incomeClassificationPairs.length}
+					label="Categorias de ingreso"
+					value={incomeCategoryCount}
 				/>
 				<MetricCard
-					label="Egresos configurados"
-					value={expenseClassificationPairs.length}
+					label="Categorias de egreso"
+					value={expenseCategoryCount}
 				/>
 				<MetricCard
-					label="Total de sugerencias"
+					label="Subcategorias totales"
 					value={cashClassificationPairs.length}
 				/>
 			</section>
-			<div className="records compact-records settings-classification-list">
-				{cashClassificationPairs.length ? (
-					cashClassificationPairs.map((item) => (
-						<RecordCard
-							className="settings-classification-card"
-							key={`${item.movement_type}-${item.category}-${item.subcategory}`}
-						>
-							<RecordCardHeader
-								title={item.subcategory}
-								subtitle={
-									<>
-										<span className={`cash-term ${item.movement_type}`}>
-											{item.movement_type === 'income' ? 'Ingreso' : 'Egreso'}
-										</span>{' '}
-										- {item.category}
-									</>
-								}
-								actions={
-									<>
-										<button
-											type="button"
-											className="ghost"
-											onClick={() => onEditExpenseClassification(item)}
-											aria-label={`Editar ${item.subcategory} de ${item.category}`}
+			<SegmentedControl
+				className="settings-classification-toggle section-block-end"
+				ariaLabel="Tipo de movimiento"
+				selectionMode="tabs"
+				value={activeType}
+				onChange={(value) => setActiveType(value)}
+				options={[
+					{
+						value: 'income',
+						label: `Ingresos (${incomeCategoryCount})`,
+					},
+					{
+						value: 'expense',
+						label: `Egresos (${expenseCategoryCount})`,
+					},
+				]}
+			/>
+			<div className="settings-classification-list settings-category-accordion">
+				{categories.length ? (
+					categories.map((category) => {
+						const key = `${activeType}:${category}`
+						const isOpen = Boolean(expanded[key])
+						const subcategories = tree[category] ?? []
+						return (
+							<div
+								className={`settings-category-item${
+									isOpen ? ' is-open' : ''
+								}`}
+								key={key}
+							>
+								<div className="settings-category-row">
+									<button
+										type="button"
+										className="settings-category-toggle"
+										aria-expanded={isOpen}
+										onClick={() => toggleCategory(category)}
+									>
+										<ChevronDown
+											size={16}
+											className="settings-category-chevron"
+											aria-hidden={true}
+										/>
+										<span className="settings-category-name">{category}</span>
+										<span className="settings-category-count">
+											{subcategories.length}{' '}
+											{subcategories.length === 1
+												? 'subcategoria'
+												: 'subcategorias'}
+										</span>
+									</button>
+									<div className="settings-category-actions">
+										<Button
+											variant="ghost"
+											onClick={() => onAddSubcategory(activeType, category)}
+											aria-label={`Agregar subcategoria a ${category}`}
+										>
+											<Plus size={16} />
+										</Button>
+										<Button
+											variant="ghost"
+											onClick={() => onEditCashCategory(activeType, category)}
+											aria-label={`Renombrar categoria ${category}`}
 										>
 											<Pencil size={16} />
-										</button>
-										<button
-											type="button"
-											className="danger"
-											onClick={() =>
-												onDeleteExpenseClassification(
-													item.movement_type,
-													item.category,
-													item.subcategory,
-												)
-											}
-											aria-label={`Eliminar ${item.subcategory} de ${item.category}`}
+										</Button>
+										<Button
+											variant="danger"
+											onClick={() => onDeleteCashCategory(activeType, category)}
+											aria-label={`Eliminar categoria ${category}`}
 										>
 											<Trash2 size={16} />
-										</button>
-									</>
-								}
-							/>
-						</RecordCard>
-					))
+										</Button>
+									</div>
+								</div>
+								{isOpen ? (
+									<div className="settings-subcategory-list">
+										{subcategories.length ? (
+											subcategories.map((subcategory) => (
+												<div
+													className="settings-subcategory-row"
+													key={`${key}:${subcategory}`}
+												>
+													<span className="settings-subcategory-name">
+														{subcategory}
+													</span>
+													<div className="settings-subcategory-actions">
+														<Button
+															variant="ghost"
+															onClick={() =>
+																onEditExpenseClassification({
+																	movement_type: activeType,
+																	category,
+																	subcategory,
+																})
+															}
+															aria-label={`Editar subcategoria ${subcategory}`}
+														>
+															<Pencil size={16} />
+														</Button>
+														<Button
+															variant="danger"
+															onClick={() =>
+																onDeleteExpenseClassification(
+																	activeType,
+																	category,
+																	subcategory,
+																)
+															}
+															aria-label={`Eliminar subcategoria ${subcategory}`}
+														>
+															<Trash2 size={16} />
+														</Button>
+													</div>
+												</div>
+											))
+										) : (
+											<p className="settings-subcategory-empty">
+												Sin subcategorias todavia. Agrega una con el boton{' '}
+												<Plus size={13} aria-hidden={true} />.
+											</p>
+										)}
+									</div>
+								) : null}
+							</div>
+						)
+					})
 				) : (
 					<Empty
-						text="Sin clasificaciones configuradas."
-						hint="Carga categorias de ingreso y egreso para que Caja sugiera valores consistentes."
+						text={`Sin categorias de ${movementLabel}.`}
+						hint="Crea una categoria para empezar a clasificar los movimientos de Caja."
 						action={
-							<button
-								type="button"
-								className="primary"
-								onClick={onOpenExpenseClassificationForm}
+							<Button
+								variant="primary"
+								onClick={() => onOpenCashCategoryForm(activeType)}
 							>
 								<Plus size={16} />
-								Nueva clasificacion
-							</button>
+								Nueva categoria
+							</Button>
 						}
 					/>
 				)}
@@ -599,14 +716,14 @@ function AgendaSettingsPanel({
 				</div>
 				<div className="settings-action-rail">
 					<div className="settings-primary-actions">
-						<button
+						<Button
 							type="submit"
-							className="primary"
+							variant="primary"
 							form="settings-agenda-form"
 						>
 							<CalendarDays size={16} />
 							Guardar agenda
-						</button>
+						</Button>
 					</div>
 				</div>
 			</div>
@@ -824,13 +941,12 @@ function SectorRow({
 					</Field>
 				</div>
 				<div className="sector-row-actions">
-					<button type="submit" className="ghost">
+					<Button type="submit" variant="ghost">
 						<Pencil size={14} />
 						Guardar
-					</button>
-					<button
-						type="button"
-						className="ghost"
+					</Button>
+					<Button
+						variant="ghost"
 						onClick={() => onSave({ is_active: !isActive })}
 					>
 						{isActive ? (
@@ -844,7 +960,7 @@ function SectorRow({
 								Activar
 							</>
 						)}
-					</button>
+					</Button>
 				</div>
 			</form>
 		</RecordCard>
@@ -891,14 +1007,14 @@ function SectorsSettingsPanel({
 				</div>
 				<div className="settings-action-rail">
 					<div className="settings-primary-actions">
-						<button
+						<Button
 							type="submit"
-							className="primary"
+							variant="primary"
 							form="settings-capacity-form"
 						>
 							<CalendarDays size={16} />
 							Guardar limite
-						</button>
+						</Button>
 					</div>
 				</div>
 			</div>
@@ -961,10 +1077,10 @@ function SectorsSettingsPanel({
 						/>
 					</Field>
 				</div>
-				<button type="submit" className="primary">
+				<Button type="submit" variant="primary">
 					<Plus size={16} />
 					Agregar sector
-				</button>
+				</Button>
 			</form>
 		</section>
 	)
@@ -1036,9 +1152,8 @@ function UsersSettingsPanel({
 					</div>
 					<div className="settings-action-rail">
 						<div className="settings-primary-actions">
-							<button
-								type="button"
-								className={selectedEmployee.is_active ? 'danger' : 'primary'}
+							<Button
+								variant={selectedEmployee.is_active ? 'danger' : 'primary'}
 								onClick={() =>
 									onToggleEmployeeActive(
 										selectedEmployee.id,
@@ -1047,13 +1162,13 @@ function UsersSettingsPanel({
 								}
 							>
 								{selectedEmployee.is_active ? 'Desactivar' : 'Activar'}
-							</button>
+							</Button>
 						</div>
 						<div className="settings-secondary-actions">
-							<button type="button" className="ghost" onClick={onDeselectEmployee}>
+							<Button variant="ghost" onClick={onDeselectEmployee}>
 								<ArrowLeft size={16} />
 								Volver
-							</button>
+							</Button>
 						</div>
 					</div>
 				</div>
@@ -1085,10 +1200,10 @@ function UsersSettingsPanel({
 							<p className="employee-password-error">{passwordError}</p>
 						) : null}
 						<div className="record-actions">
-							<button type="submit" className="primary">
+							<Button type="submit" variant="primary">
 								<Pencil size={16} />
 								Actualizar contraseña
-							</button>
+							</Button>
 						</div>
 					</form>
 				</section>
@@ -1141,16 +1256,16 @@ function UsersSettingsPanel({
 				</div>
 				<div className="settings-action-rail">
 					<div className="settings-primary-actions">
-						<button type="button" className="primary" onClick={onOpenEmployeeForm}>
+						<Button variant="primary" onClick={onOpenEmployeeForm}>
 							<Plus size={16} />
 							Nuevo empleado
-						</button>
+						</Button>
 					</div>
 					<div className="settings-secondary-actions">
-						<button type="button" className="ghost" onClick={onRefreshData}>
+						<Button variant="ghost" onClick={onRefreshData}>
 							<RefreshCw size={16} />
 							Actualizar
-						</button>
+						</Button>
 					</div>
 				</div>
 			</div>
@@ -1169,15 +1284,14 @@ function UsersSettingsPanel({
 									item.is_active ? 'Activo' : 'Inactivo'
 								}`}
 								actions={
-									<button
-										type="button"
-										className="ghost"
+									<Button
+										variant="ghost"
 										onClick={() => onSelectEmployee(item)}
-									aria-label={`Ver detalle de ${item.username}`}
-								>
-									<Pencil size={16} />
-									Editar
-								</button>
+										aria-label={`Ver detalle de ${item.username}`}
+									>
+										<Pencil size={16} />
+										Editar
+									</Button>
 								}
 							>
 								<div className="record-sub">
@@ -1191,14 +1305,13 @@ function UsersSettingsPanel({
 						text="Sin empleados creados."
 						hint="Agrega empleados cuando necesites separar accesos de operacion."
 						action={
-							<button
-								type="button"
-								className="primary"
+							<Button
+								variant="primary"
 								onClick={onOpenEmployeeForm}
 							>
 								<Plus size={16} />
 								Nuevo empleado
-							</button>
+							</Button>
 						}
 					/>
 				)}
@@ -1255,10 +1368,10 @@ function HistorySettingsPanel({
 				</div>
 				<div className="settings-action-rail">
 					<div className="settings-secondary-actions">
-						<button type="button" className="ghost" onClick={onRefreshAuditLogs}>
+						<Button variant="ghost" onClick={onRefreshAuditLogs}>
 							<RefreshCw size={16} />
 							Actualizar
-						</button>
+						</Button>
 					</div>
 				</div>
 			</div>
@@ -1325,18 +1438,17 @@ function HistorySettingsPanel({
 					/>
 				</Field>
 				<div className="record-actions audit-filter-actions">
-					<button className="primary" type="submit">
+					<Button variant="primary" type="submit">
 						<Search size={16} />
 						Filtrar
-					</button>
-					<button
-						type="button"
-						className="ghost"
+					</Button>
+					<Button
+						variant="ghost"
 						disabled={!auditFiltersActive}
 						onClick={onClearAuditFilters}
 					>
 						Limpiar
-					</button>
+					</Button>
 				</div>
 			</form>
 			<DataList id="audit-actor-options" values={auditActorOptions} />
@@ -1364,14 +1476,13 @@ function HistorySettingsPanel({
 							text="Sin acciones registradas para estos filtros."
 							hint="Cambia los filtros o actualiza el historial para revisar eventos recientes."
 							action={
-								<button
-									type="button"
-									className="ghost"
+								<Button
+									variant="ghost"
 									onClick={onRefreshAuditLogs}
 								>
 									<RefreshCw size={16} />
 									Actualizar
-								</button>
+								</Button>
 							}
 						/>
 					)}
@@ -1555,13 +1666,13 @@ export function NewsSettingsPanel() {
 						})}
 					</div>
 					{hasMore && !showAll ? (
-						<button
-							type="button"
-							className="ghost changelog-show-more"
+						<Button
+							variant="ghost"
+							className="changelog-show-more"
 							onClick={() => setShowAll(true)}
 						>
 							Mostrar todas las versiones
-						</button>
+						</Button>
 					) : null}
 				</>
 			)}

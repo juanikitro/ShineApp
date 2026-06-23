@@ -32,6 +32,7 @@ type VehicleFormProps = {
 		key: string,
 		openCombo?: boolean,
 	) => (event: KeyboardEvent<HTMLElement>) => void
+	fieldErrors?: Record<string, string>
 }
 
 export function VehicleForm({
@@ -50,6 +51,7 @@ export function VehicleForm({
 	focusField,
 	focusNextOnEnter,
 	submitting = false,
+	fieldErrors,
 }: VehicleFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
@@ -114,7 +116,7 @@ export function VehicleForm({
 				/>
 			</div>
 			<div className="form-row">
-				<Field label="Color">
+				<Field label="Color" error={fieldErrors?.['color']}>
 					<input
 						data-focus-key="vehicle.color"
 						name="vehicle_color"
@@ -130,7 +132,7 @@ export function VehicleForm({
 						onKeyDown={focusNextOnEnter('vehicle.license_plate')}
 					/>
 				</Field>
-				<Field label="Patente">
+				<Field label="Patente" error={fieldErrors?.['license_plate']}>
 					<input
 						data-focus-key="vehicle.license_plate"
 						name="vehicle_license_plate"

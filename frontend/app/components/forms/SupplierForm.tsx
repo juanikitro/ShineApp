@@ -17,6 +17,7 @@ type SupplierFormProps = {
 		key: string,
 	) => (event: KeyboardEvent<HTMLElement>) => void
 	submitting?: boolean
+	fieldErrors?: Record<string, string>
 }
 
 export function SupplierForm({
@@ -26,10 +27,11 @@ export function SupplierForm({
 	onSubmit,
 	focusNextOnEnter,
 	submitting = false,
+	fieldErrors,
 }: SupplierFormProps) {
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
-			<Field label="Nombre">
+			<Field label="Nombre" error={fieldErrors?.['name']}>
 				<input
 					data-focus-key="supplier.name"
 					required
@@ -43,7 +45,7 @@ export function SupplierForm({
 					}
 				/>
 			</Field>
-			<Field label="Razon social">
+			<Field label="Razon social" error={fieldErrors?.['legal_name']}>
 				<input
 					list="supplier-legal-name-options"
 					value={supplierForm.legal_name}
@@ -56,7 +58,7 @@ export function SupplierForm({
 				/>
 			</Field>
 			<div className="form-row">
-				<Field label="Rubro">
+				<Field label="Rubro" error={fieldErrors?.['category']}>
 					<input
 						list="supplier-category-options"
 						value={supplierForm.category}
@@ -68,7 +70,7 @@ export function SupplierForm({
 						}
 					/>
 				</Field>
-				<Field label="Condicion fiscal">
+				<Field label="Condicion fiscal" error={fieldErrors?.['tax_condition']}>
 					<input
 						list="supplier-tax-condition-options"
 						value={supplierForm.tax_condition}
@@ -82,7 +84,7 @@ export function SupplierForm({
 				</Field>
 			</div>
 			<div className="form-row">
-				<Field label="Contacto">
+				<Field label="Contacto" error={fieldErrors?.['contact_name']}>
 					<input
 						value={supplierForm.contact_name}
 						onChange={(event) =>
@@ -93,8 +95,11 @@ export function SupplierForm({
 						}
 					/>
 				</Field>
-				<Field label="Telefono">
+				<Field label="Telefono" error={fieldErrors?.['phone']}>
 					<input
+						type="tel"
+						inputMode="tel"
+						autoComplete="tel"
 						value={supplierForm.phone}
 						onChange={(event) =>
 							setSupplierForm({
@@ -106,9 +111,10 @@ export function SupplierForm({
 				</Field>
 			</div>
 			<div className="form-row">
-				<Field label="Email">
+				<Field label="Email" error={fieldErrors?.['email']}>
 					<input
 						type="email"
+						autoComplete="email"
 						value={supplierForm.email}
 						onChange={(event) =>
 							setSupplierForm({
@@ -118,7 +124,7 @@ export function SupplierForm({
 						}
 					/>
 				</Field>
-				<Field label="CUIT / tax id">
+				<Field label="CUIT / tax id" error={fieldErrors?.['tax_id']}>
 					<input
 						value={supplierForm.tax_id}
 						onChange={(event) =>
@@ -130,7 +136,7 @@ export function SupplierForm({
 					/>
 				</Field>
 			</div>
-			<Field label="Website">
+			<Field label="Website" error={fieldErrors?.['website']}>
 				<input
 					type="url"
 					value={supplierForm.website}
@@ -142,7 +148,7 @@ export function SupplierForm({
 					}
 				/>
 			</Field>
-			<Field label="Direccion">
+			<Field label="Direccion" error={fieldErrors?.['address']}>
 				<input
 					value={supplierForm.address}
 					onChange={(event) =>
@@ -153,7 +159,7 @@ export function SupplierForm({
 					}
 				/>
 			</Field>
-			<Field label="Notas">
+			<Field label="Notas" error={fieldErrors?.['notes']}>
 				<textarea
 					value={supplierForm.notes}
 					onChange={(event) =>

@@ -6,6 +6,7 @@ import { Package, Plus, Trash2 } from 'lucide-react'
 
 import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
+import { Toggle } from '@/app/components/ui/Toggle'
 import {
 	SearchSelect,
 	type SelectOption,
@@ -46,6 +47,7 @@ type StockMovementFormProps = {
 	flashClass: (key: string | null) => string
 	fieldFlashKey: (target: string) => string
 	submitting?: boolean
+	fieldErrors?: Record<string, string>
 }
 
 export function StockMovementForm({
@@ -77,6 +79,7 @@ export function StockMovementForm({
 	flashClass,
 	fieldFlashKey,
 	submitting = false,
+	fieldErrors,
 }: StockMovementFormProps) {
 	return (
 		<form className="form-grid stock-movement-form" onSubmit={onSubmit}>
@@ -93,7 +96,7 @@ export function StockMovementForm({
 						})
 					}
 				/>
-				<Field label="Fecha">
+				<Field label="Fecha" error={fieldErrors?.['occurred_on']}>
 					<input
 						type="date"
 						value={stockMovementForm.occurred_on}
@@ -171,7 +174,7 @@ export function StockMovementForm({
 			) : null}
 			{stockMovementRequiresSupplier ? (
 				<div className="form-row">
-					<Field label="Numero de comprobante">
+					<Field label="Numero de comprobante" error={fieldErrors?.['document_number']}>
 						<input
 							value={stockMovementForm.document_number}
 							onChange={(event) =>
@@ -282,32 +285,22 @@ export function StockMovementForm({
 			</div>
 			{stockMovementForm.movement_type === 'purchase' ? (
 				<div className="form-row">
-					<label>
-						<input
-							type="checkbox"
-							checked={stockMovementForm.products_received}
-							onChange={(event) =>
-								setStockMovementForm({
-									...stockMovementForm,
-									products_received: event.target.checked,
-								})
-							}
-						/>
+					<Toggle
+						checked={stockMovementForm.products_received}
+						onChange={(checked) =>
+							setStockMovementForm({ ...stockMovementForm, products_received: checked })
+						}
+					>
 						Productos recibidos
-					</label>
-					<label>
-						<input
-							type="checkbox"
-							checked={stockMovementForm.affects_cash}
-							onChange={(event) =>
-								setStockMovementForm({
-									...stockMovementForm,
-									affects_cash: event.target.checked,
-								})
-							}
-						/>
+					</Toggle>
+					<Toggle
+						checked={stockMovementForm.affects_cash}
+						onChange={(checked) =>
+							setStockMovementForm({ ...stockMovementForm, affects_cash: checked })
+						}
+					>
 						Impacta en caja
-					</label>
+					</Toggle>
 				</div>
 			) : null}
 			{stockMovementForm.movement_type === 'sale' ? (
@@ -323,7 +316,7 @@ export function StockMovementForm({
 					}
 				/>
 			) : null}
-			<Field label="Notas">
+			<Field label="Notas" error={fieldErrors?.['notes']}>
 				<textarea
 					value={stockMovementForm.notes}
 					onChange={(event) =>

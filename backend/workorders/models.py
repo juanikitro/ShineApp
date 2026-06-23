@@ -39,6 +39,8 @@ class WorkOrder(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-created_at"]
+        verbose_name = "orden de trabajo"
+        verbose_name_plural = "órdenes de trabajo"
         indexes = [
             models.Index(
                 fields=["business", "-created_at"],
@@ -91,6 +93,15 @@ class WorkOrder(SoftDeleteMixin):
                 payment.delete()
             self.deleted_at = timezone.now()
             self.save(update_fields=["deleted_at", "updated_at"])
+
+    def restore(self):
+        with transaction.atomic():
+            now = timezone.now()
+            WorkOrder.all_objects.filter(pk=self.pk).update(deleted_at=None, updated_at=now)
+            self.deleted_at = None
+            self.updated_at = now
+            for payment in self.payments(manager="all_objects").filter(deleted_at__isnull=False):
+                payment.restore()
 
     @property
     def paid_amount(self):

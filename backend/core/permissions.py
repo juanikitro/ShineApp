@@ -1,11 +1,12 @@
 import math
 
+from django.conf import settings
 from django.core.exceptions import DisallowedHost
 from django.utils import timezone
 from rest_framework import permissions, serializers
 
 from core.models import BusinessProfile, UserProfile
-
+from core.request_context import set_actor
 
 EMPLOYER_ROLE = "empleador"
 EMPLOYEE_ROLE = "empleado"
@@ -23,7 +24,10 @@ def business_for_user(user, *, create_missing=True):
         if not create_missing:
             return None
         profile = UserProfile.for_user(user)
-    return profile.business
+    business = profile.business
+    # Enriquece los logs/errores del request con quien lo hace (ver core.middleware).
+    set_actor(business_id=getattr(business, "id", "") or "", user_id=getattr(user, "id", "") or "")
+    return business
 
 
 def business_from_request(request):
@@ -70,7 +74,7 @@ def can_view_economy(user):
     if cached is not None:
         return cached
     allowed = user.groups.filter(name=EMPLOYER_ROLE).exists()
-    setattr(user, "_shineapp_can_view_economy", allowed)
+    user._shineapp_can_view_economy = allowed
     return allowed
 
 
@@ -116,6 +120,23 @@ def trial_expired(trial_ends_at, *, now=None):
     return trial_ends_at <= now
 
 
+def subscription_allows_access(business):
+    """Gate de acceso por suscripcion/trial vencido, detras de feature flag.
+
+    Default OFF (`ENFORCE_SUBSCRIPTION_ACCESS=False`): no cambia el comportamiento
+    actual. Cuando se active, solo bloquea negocios en TRIAL con el trial vencido;
+    los planes pagos nunca se bloquean (no deja afuera a clientes reales).
+    """
+    if business is None:
+        return False
+    if not getattr(settings, "ENFORCE_SUBSCRIPTION_ACCESS", False):
+        return True
+    profile = BusinessProfile.get_solo(business=business)
+    if profile.subscription_type != BusinessProfile.SubscriptionType.TRIAL:
+        return True
+    return not trial_expired(profile.trial_ends_at)
+
+
 def user_context_payload(user, request=None):
     profile = UserProfile.for_user(user)
     business = profile.business
@@ -159,8 +180,12 @@ class ActiveBusinessUser(permissions.BasePermission):
         if user.is_staff or user.is_superuser:
             self.message = "El superadmin debe acceder desde Django admin."
             return False
-        if not user_has_active_business(user):
+        business = business_for_user(user)
+        if not business or not business.is_active:
             self.message = "El negocio no esta activo."
+            return False
+        if not subscription_allows_access(business):
+            self.message = "El periodo de prueba finalizo. Actualiza tu plan para seguir usando ShineApp."
             return False
         return True
 

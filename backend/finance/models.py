@@ -29,10 +29,18 @@ class Payment(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-paid_at", "-id"]
+        verbose_name = "pago"
+        verbose_name_plural = "pagos"
         indexes = [
             models.Index(
                 fields=["business", "-paid_at"],
                 name="pay_biz_paid_at_idx",
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0),
+                name="payment_amount_positive",
             ),
         ]
 
@@ -58,6 +66,16 @@ class Payment(SoftDeleteMixin):
                 movement.delete()
             self.deleted_at = timezone.now()
             self.save(update_fields=["deleted_at"])
+
+    def restore(self):
+        with transaction.atomic():
+            Payment.all_objects.filter(pk=self.pk).update(deleted_at=None)
+            self.deleted_at = None
+            movement = (
+                CashMovement.all_objects.filter(payment_id=self.pk, deleted_at__isnull=False).first()
+            )
+            if movement is not None:
+                movement.restore()
 
 
 class CashMovement(SoftDeleteMixin):
@@ -96,10 +114,18 @@ class CashMovement(SoftDeleteMixin):
 
     class Meta(SoftDeleteMixin.Meta):
         ordering = ["-occurred_at", "-id"]
+        verbose_name = "movimiento de caja"
+        verbose_name_plural = "movimientos de caja"
         indexes = [
             models.Index(
                 fields=["business", "-occurred_at"],
                 name="cm_biz_occurred_at_idx",
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gte=0),
+                name="cashmovement_amount_non_negative",
             ),
         ]
 
@@ -143,6 +169,8 @@ class CashClosure(models.Model):
 
     class Meta:
         ordering = ["-day"]
+        verbose_name = "cierre de caja"
+        verbose_name_plural = "cierres de caja"
         constraints = [
             models.UniqueConstraint(fields=["business", "day"], name="unique_cash_closure_per_business_day"),
         ]

@@ -12,9 +12,52 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-23
 - [Turnera: el formulario publico pide nombre y apellido](docs/registro/cambios/2026-06-23-turnera-nombre-y-apellido.md)
+## 2026-06-18
+- [Detalle read-first al clickear items de listados](docs/registro/cambios/2026-06-18-detalle-read-first-listados.md)
+
+## 2026-06-17
+- [Sistema de alerta de duplicados](docs/registro/cambios/2026-06-17-sistema-anti-duplicados.md)
+- [Material: asignación de sector](docs/registro/cambios/2026-06-17-material-sector.md)
+- [Alternativas de material por servicio y override por reserva](docs/registro/cambios/2026-06-17-material-alternatives.md)
+- [Horarios de apertura por dia de semana](docs/registro/cambios/2026-06-17-horarios-por-dia-semana.md)
+- [Consumo de producto por servicio: registro historico (2026-06-17)](docs/registro/cambios/2026-06-17-consumo-de-producto-por-servicio.md)
+
+## 2026-06-16
+- [Tareas: CSS muerto, tints a tokens y errores inline (2026-06-16)](docs/registro/cambios/2026-06-16-tareas-css-muerto-tints-tokens-y-errores-inline.md)
+
+## 2026-06-13
+- [Tareas: accesibilidad, primitives y mobile (2026-06-13)](docs/registro/cambios/2026-06-13-tareas-accesibilidad-y-primitives.md)
+- [Performance Capa 2: useMemo en derivaciones caras](docs/registro/cambios/2026-06-13-perf-capa2-usememo-derivaciones.md)
+- [Performance Capa 2: Skeletons de carga en paneles faltantes](docs/registro/cambios/2026-06-13-perf-capa2-skeletons.md)
+- [Performance Capa 2: MutationObserver acotado al subárbol mutado](docs/registro/cambios/2026-06-13-perf-capa2-mutation-observer-acotado.md)
+- [Performance Capa 2: React.memo en AuditLogCard + useCallback para label mappers](docs/registro/cambios/2026-06-13-perf-capa2-memo-auditlog.md)
+- [Performance Capa 2: Gate en materialize_due por list GET](docs/registro/cambios/2026-06-13-perf-capa2-materialize-gate.md)
+- [Performance Capa 2: lookups O(1) en render (Map en vez de find)](docs/registro/cambios/2026-06-13-perf-capa2-map-lookups.md)
+- [Performance Capa 2: formatters Intl cacheados](docs/registro/cambios/2026-06-13-perf-capa2-intl-singletons.md)
+- [Performance Capa 2: Filtro de fecha por defecto en el historial de auditoría](docs/registro/cambios/2026-06-13-perf-capa2-audit-log-default-filter.md)
+- [Performance Capa 1: N+1 en viewsets (catalog, finance, customers, inventory)](docs/registro/cambios/2026-06-13-perf-capa1-nplus1-viewsets.md)
+- [Performance Capa 1: dashboard (periodo previo scalar-only + today aggregate)](docs/registro/cambios/2026-06-13-perf-capa1-dashboard.md)
 
 ## 2026-06-12
+- [UX: bloqueo de botones, loaders globales y confirmaciones in-app](docs/registro/cambios/2026-06-12-ux-loading-y-bloqueo-de-botones.md)
+- [UI/UX: pasada de consistencia, a11y y estados (2026-06-12)](docs/registro/cambios/2026-06-12-ui-audit-fixes.md)
+- [Mejoras al modulo de tareas (UI, interaccion y negocio)](docs/registro/cambios/2026-06-12-tareas-mejoras-ui-y-negocio.md)
+- [Endurecimiento de seguridad (auditoría completa, por fases)](docs/registro/cambios/2026-06-12-security-hardening.md)
 - [regen-docs: PR en lugar de push directo a main](docs/registro/cambios/2026-06-12-regen-docs-via-pr.md)
+- [Performance Capa 1: indices compuestos (business, ...)](docs/registro/cambios/2026-06-12-perf-capa1-indices-compuestos.md)
+- [Performance Capa 1: N+1 de Debt (annotate)](docs/registro/cambios/2026-06-12-perf-capa1-debt-nplus1.md)
+- [Performance Capa 0: bundle frontend + gzip de API](docs/registro/cambios/2026-06-12-perf-capa0-bundle-gzip.md)
+- [Papelera: ver, restaurar y purgar registros borrados](docs/registro/cambios/2026-06-12-papelera-restore-borrado-logico.md)
+- [Modulo de tareas para empleadores y empleados](docs/registro/cambios/2026-06-12-modulo-tareas.md)
+- [Endurecimiento de operabilidad (observabilidad, async/cron, consistencia)](docs/registro/cambios/2026-06-12-endurecimiento-operabilidad.md)
+- [Clientes: badge único de reserva y columnas alineadas](docs/registro/cambios/2026-06-12-clientes-listado-badge-y-columnas.md)
+- [UI: card de cliente accesible, sesion expirada y refactor de tokens (2026-06-12)](docs/registro/cambios/2026-06-12-card-cliente-accesibilidad-y-tokens.md)
+- [Caja: rediseno de KPIs y metricas consolidadas en dos columnas](docs/registro/cambios/2026-06-12-caja-rediseno-kpis-y-metricas-consolidadas.md)
+- [Caja: boton unico "Cargar movimiento" con toggle por tipo](docs/registro/cambios/2026-06-12-caja-cargar-movimiento-unificado.md)
+- [Buscador global ahora cubre tareas y se documenta la regla para modulos nuevos](docs/registro/cambios/2026-06-12-buscador-global-cubre-tareas.md)
+- [Agenda: toolbar de navegacion horizontal y altura de cards ajustada](docs/registro/cambios/2026-06-12-agenda-toolbar-y-altura-card.md)
+- [Agenda: cards de reservas más compactas](docs/registro/cambios/2026-06-12-agenda-cards-compactas.md)
+- [A11y: remediacion WCAG 2.1 AA del frontend (2026-06-12)](docs/registro/cambios/2026-06-12-a11y-wcag-aa.md)
 
 ## 2026-06-11
 - [Turnera: precios mostrados segun el tipo de vehiculo seleccionado](docs/registro/cambios/2026-06-11-turnera-precio-por-tipo-de-vehiculo.md)

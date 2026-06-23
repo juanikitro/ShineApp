@@ -73,6 +73,30 @@ test('simple structural UI components render labels, values and actions', async 
 	assert.ok(screen.getByText('Extra'))
 })
 
+test('Field expone error y requerido a tecnologia asistiva sin contaminar el nombre', () => {
+	const { rerender } = render(
+		<Field label="Email" error="Email invalido">
+			<input />
+		</Field>,
+	)
+	// El nombre accesible sigue siendo solo la etiqueta (el error queda fuera).
+	const input = screen.getByLabelText('Email')
+	const alert = screen.getByRole('alert')
+	assert.equal(alert.textContent, 'Email invalido')
+	assert.equal(input.getAttribute('aria-invalid'), 'true')
+	assert.ok((input.getAttribute('aria-describedby') ?? '').split(' ').includes(alert.id))
+
+	rerender(
+		<Field label="Clave" required>
+			<input />
+		</Field>,
+	)
+	const requiredInput = screen.getByRole('textbox')
+	assert.equal(requiredInput.getAttribute('aria-required'), 'true')
+	assert.equal(requiredInput.hasAttribute('required'), true)
+	assert.equal(screen.queryByRole('alert'), null)
+})
+
 test('structural UI components keep optional sections absent until needed', () => {
 	const { container } = render(
 		<>
@@ -474,10 +498,12 @@ test('DetailModal formats readonly data and swaps to edit form when editing', ()
 	)
 
 	assert.ok(screen.getByRole('dialog', { name: 'Detalle' }))
+	assert.ok(screen.getByText('Ana'))
 	assert.ok(screen.getByText('Si'))
 	assert.ok(screen.getByText('1 items'))
-	assert.ok(screen.getByText('{"visits":2}'))
-	assert.ok(screen.getByText('Sin dato'))
+	assert.ok(screen.getByText('Ver mas'))
+	// Los valores vacios y las claves internas se ocultan del detalle legible.
+	assert.equal(screen.queryByText('Sin dato'), null)
 	assert.equal(screen.queryByText('hidden'), null)
 
 	rerender(

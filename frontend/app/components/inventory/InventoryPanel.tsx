@@ -1,12 +1,18 @@
 'use client'
 
-import { type ReactNode } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 
-import { Package } from 'lucide-react'
+import { Package, Search } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
 import { Empty } from '@/app/components/ui/Empty'
+import { SkeletonList } from '@/app/components/ui/Skeleton'
 import { type QuickAction } from '@/app/components/ui/QuickActionsMenu'
+import { Button } from '@/app/components/ui/Button'
+import {
+	SegmentedControl,
+	type SegmentedOption,
+} from '@/app/components/ui/SegmentedControl'
 import { joinDisplayParts } from '@/lib/display-text'
 import {
 	money,
@@ -21,8 +27,21 @@ type MaterialUsageSummary = {
 	totalCost: number
 }
 
+type ServiceUsageBucket = {
+	key: string
+	materialName: string
+	materialUnit: string
+	unitCost: number
+	serviceName: string
+	unitsCount: number
+	totalJobs: number
+	totalQuantity: number
+}
+
 type InventoryPanelProps = {
 	inventorySummary: AnyRecord
+	loading?: boolean
+	sectors?: AnyRecord[]
 	stockMovements: AnyRecord[]
 	stockMovementTypeLabels: Record<string, string>
 	suppliers: AnyRecord[]
@@ -62,10 +81,13 @@ type InventoryPanelProps = {
 	onOpenSupplierDashboard: (item: AnyRecord) => void
 	onOpenSupplierForm: () => void
 	onOpenUnitForMaterial: (item: AnyRecord) => void
+	onOpenHistoricalUsage: () => void
 }
 
 export function InventoryPanel({
 	inventorySummary,
+	loading = false,
+	sectors = [],
 	stockMovements,
 	stockMovementTypeLabels,
 	suppliers,
@@ -97,26 +119,115 @@ export function InventoryPanel({
 	onOpenSupplierDashboard,
 	onOpenSupplierForm,
 	onOpenUnitForMaterial,
+	onOpenHistoricalUsage,
 }: InventoryPanelProps) {
+	const [selectedSectorKey, setSelectedSectorKey] = useState<string>('all')
+	const [materialSearch, setMaterialSearch] = useState('')
+
+	const activeSectors = useMemo(
+		() => sectors.filter((s) => s.is_active !== false),
+		[sectors],
+	)
+
+	const sectorTabOptions = useMemo<SegmentedOption<string>[]>(
+		() => [
+			{ value: 'all', label: 'Todos' },
+			...activeSectors.map((s) => ({
+				value: String(s.id),
+				label: String(s.name ?? ''),
+			})),
+			{ value: 'none', label: 'Sin sector' },
+		],
+		[activeSectors],
+	)
+
+	const filteredMaterials = useMemo(() => {
+		let result = materials
+		if (selectedSectorKey === 'none') result = result.filter((m) => !m.sector)
+		else if (selectedSectorKey !== 'all')
+			result = result.filter((m) => String(m.sector) === selectedSectorKey)
+		if (materialSearch.trim()) {
+			const q = materialSearch.toLowerCase()
+			result = result.filter((m) =>
+				String(m.name ?? '').toLowerCase().includes(q),
+			)
+		}
+		return result
+	}, [materials, selectedSectorKey, materialSearch])
+
+	// Map id -> material memoizado para el lookup O(1) de unidades abiertas
+	// (antes .find() por unidad sobre todo el dataset de materiales).
+	const materialsById = useMemo(() => {
+		const map = new Map<string, AnyRecord>()
+		for (const item of materials) map.set(String(item.id), item)
+		return map
+	}, [materials])
+
+	// Consumo estimado por servicio, derivado de las unidades historicas
+	// (is_historical) finalizadas: producto total / trabajos cubiertos.
+	const serviceUsageRows = useMemo(() => {
+		const grouped = new Map<string, ServiceUsageBucket>()
+		for (const unit of materialOpenUnits) {
+			if (!unit.is_historical || unit.status !== 'finished' || !unit.service) continue
+			const key = `${unit.material}:${unit.service}`
+			let bucket = grouped.get(key)
+			if (!bucket) {
+				const material = materialsById.get(String(unit.material))
+				bucket = {
+					key,
+					materialName: unit.material_name ?? material?.name ?? 'Material',
+					materialUnit: material?.unit ?? '',
+					unitCost: material ? numberValue(material.estimated_unit_cost) : 0,
+					serviceName: unit.service_name ?? 'Servicio',
+					unitsCount: 0,
+					totalJobs: 0,
+					totalQuantity: 0,
+				}
+				grouped.set(key, bucket)
+			}
+			bucket.unitsCount += 1
+			bucket.totalJobs += numberValue(unit.work_orders_count)
+			bucket.totalQuantity += numberValue(unit.stock_quantity_to_decrement)
+		}
+		return Array.from(grouped.values())
+			.map((bucket) => ({
+				...bucket,
+				consumptionPerService:
+					bucket.totalJobs > 0 ? bucket.totalQuantity / bucket.totalJobs : 0,
+			}))
+			.sort(
+				(a, b) =>
+					String(a.serviceName).localeCompare(String(b.serviceName)) ||
+					String(a.materialName).localeCompare(String(b.materialName)),
+			)
+	}, [materialOpenUnits, materialsById])
+
 	return (
 		<div className="grid">
 			<section className="panel">
 				<div className="panel-head">
 					<div className="record-actions">
-						<button
+						<Button
 							type="button"
-							className="primary"
+							variant="primary"
 							onClick={onOpenStockMovementForm}
 						>
 							<Package size={16} />
 							Nuevo movimiento
-						</button>
-						<button type="button" className="ghost" onClick={onOpenMaterialForm}>
+						</Button>
+						<Button type="button" variant="ghost" onClick={onOpenMaterialForm}>
 							Nuevo material
-						</button>
-						<button type="button" className="ghost" onClick={onOpenSupplierForm}>
+						</Button>
+						<Button type="button" variant="ghost" onClick={onOpenSupplierForm}>
 							Proveedor
-						</button>
+						</Button>
+						<Button
+							type="button"
+							variant="ghost"
+							onClick={onOpenHistoricalUsage}
+						>
+							Consumo historico
+						</Button>
 					</div>
 				</div>
 				<div className="inventory-metrics">
@@ -138,82 +249,35 @@ export function InventoryPanel({
 					</div>
 				</div>
 				<div className="records">
-					{stockMovements.slice(0, 8).map((item) => (
-						<MotionFlashSurface
-							className={recordClass('stock-movement', item.id)}
-							key={`sm-${item.id}`}
-						>
-							<div className="record-head">
-								<div>
-									<div className="record-title">
-										{stockMovementTypeLabels[item.movement_type] ??
-											item.movement_type}{' '}
-										- {money(item.total_amount)}
-									</div>
-									<div className="record-sub">
-										{item.occurred_on} -{' '}
-										{item.supplier_name ||
-											item.customer_name ||
-											item.reservation_label ||
-											'Movimiento interno'}
-									</div>
-									<div className="record-sub">
-										{(item.lines ?? []).length} producto
-										{(item.lines ?? []).length === 1 ? '' : 's'}
-										{item.movement_type === 'purchase'
-											? item.products_received
-												? ' - recibido'
-												: ' - pendiente de recepcion'
-											: ''}
-									</div>
-								</div>
-							</div>
-						</MotionFlashSurface>
-					))}
-					{stockMovements.length ? null : (
-						<Empty text="Sin movimientos de stock." />
+					{loading && !materials.length && !stockMovements.length ? (
+						<SkeletonList rows={6} columns={4} label="Cargando inventario" />
+					) : null}
+
+					{/* Materiales */}
+					<div className="inventory-section-head">
+						<span>Materiales</span>
+						<label className="inventory-search">
+							<Search size={13} aria-hidden />
+							<input
+								type="search"
+								placeholder="Buscar material…"
+								value={materialSearch}
+								onChange={(e) => setMaterialSearch(e.target.value)}
+							/>
+						</label>
+					</div>
+					{activeSectors.length > 0 && (
+						<SegmentedControl
+							ariaLabel="Filtrar materiales por sector"
+							className="inventory-sector-filter"
+							options={sectorTabOptions}
+							selectionMode="tabs"
+							value={selectedSectorKey}
+							onChange={setSelectedSectorKey}
+						/>
 					)}
-					{suppliers.slice(0, 5).map((item) => {
-						const quickActions = supplierQuickActions(item)
-						const insights = supplierListInsight(item)
-						return (
-							<MotionFlashSurface
-								className={recordClass('supplier', item.id)}
-								key={`supplier-${item.id}`}
-								{...interactiveRecordProps(() => onOpenSupplierDashboard(item))}
-								{...quickActionTargetProps(
-									'Acciones de proveedor',
-									quickActions,
-								)}
-							>
-								<div className="record-head">
-									<div>
-										<div className="record-title">Proveedor - {item.name}</div>
-										<div className="record-sub">
-											{supplierProfileSubtitle(item) ||
-												[item.contact_name, item.phone, item.email]
-													.filter(Boolean)
-													.join(' - ') ||
-												'Sin datos de contacto'}
-										</div>
-										<div className="record-sub">
-											Comprado {money(insights.total_purchased)} -{' '}
-											{insights.purchase_count ?? 0} compras
-										</div>
-									</div>
-									<div className="record-actions">
-										{renderQuickActionsTrigger(
-											'Acciones de proveedor',
-											quickActions,
-											'Acciones rapidas de proveedor',
-										)}
-									</div>
-								</div>
-							</MotionFlashSurface>
-						)
-					})}
-					{materials.length ? (
-						materials.map((item) => {
+					{filteredMaterials.length ? (
+						filteredMaterials.map((item) => {
 							const usage = materialUsageSummary(item)
 							const quickActions = materialQuickActions(item)
 							return (
@@ -230,55 +294,37 @@ export function InventoryPanel({
 										<div>
 											<div className="record-title">{item.name}</div>
 											<div className="record-sub">
-												Stock {quantity(item.stock_quantity, item.unit)} -
-												unidad {money(materialUnitValue(item))} - stock
-												valorizado {money(materialStockValue(item))}
+												Stock {quantity(item.stock_quantity, item.unit)} · {money(materialUnitValue(item))}/u · valorizado {money(materialStockValue(item))}
 											</div>
 											<div className="record-sub">
-												{usage.count} usos -{' '}
-												{quantity(usage.totalQuantity, item.unit)} consumidos -{' '}
-												{money(usage.totalCost)} imputados
-											</div>
-											<div className="record-sub">
-												{numberValue(item.open_units_active_count)} unidades
-												abiertas - {numberValue(item.open_units_finished_count)}{' '}
-												finalizadas - promedio{' '}
-												{numberValue(
-													item.average_jobs_per_finished_unit,
-												).toLocaleString('es-AR', {
-													maximumFractionDigits: 1,
-												})}{' '}
-												trabajos /{' '}
-												{numberValue(
-													item.average_days_per_finished_unit,
-												).toLocaleString('es-AR', {
-													maximumFractionDigits: 1,
-												})}{' '}
-												dias
+												{usage.count} usos · {quantity(usage.totalQuantity, item.unit)} consumidos · {money(usage.totalCost)} imputados
+												{numberValue(item.open_units_active_count) > 0
+													? ` · ${numberValue(item.open_units_active_count)} u. abiertas`
+													: ''}
 											</div>
 										</div>
 										<div className="record-actions">
-											<button
+											<Button
 												type="button"
-												className="ghost"
+												variant="ghost"
 												onClick={() => onOpenUnitForMaterial(item)}
 											>
 												Abrir unidad
-											</button>
-											<button
+											</Button>
+											<Button
 												type="button"
-												className="ghost"
+												variant="ghost"
 												onClick={() => onOpenMaterialDetail(item)}
 											>
 												Editar
-											</button>
-											<button
+											</Button>
+											<Button
 												type="button"
-												className="danger"
+												variant="danger"
 												onClick={() => onDeleteMaterial(item)}
 											>
 												Inactivar
-											</button>
+											</Button>
 											{renderQuickActionsTrigger(
 												'Acciones de material',
 												quickActions,
@@ -292,11 +338,13 @@ export function InventoryPanel({
 					) : (
 						<Empty text="Sin materiales." />
 					)}
+
+					{/* Unidades abiertas */}
+					<div className="inventory-section-head">
+						<span>Unidades abiertas</span>
+					</div>
 					{materialOpenUnits.slice(0, 8).map((item) => {
-						const material = materials.find(
-							(materialItem) =>
-								String(materialItem.id) === String(item.material),
-						)
+						const material = materialsById.get(String(item.material))
 						const quickActions = materialOpenUnitQuickActions(item)
 						return (
 							<MotionFlashSurface
@@ -308,34 +356,30 @@ export function InventoryPanel({
 								<div className="record-head">
 									<div>
 										<div className="record-title">
-											Unidad abierta - {item.material_name}
+											{item.material_name}
 										</div>
 										<div className="record-sub">
 											{item.status === 'open' ? 'Abierta' : 'Finalizada'} desde{' '}
 											{item.opened_at}
-											{item.finished_at ? ` - cierre ${item.finished_at}` : ''}
+											{item.finished_at ? ` · cierre ${item.finished_at}` : ''}
 										</div>
 										<div className="record-sub">
-											{item.consumptions_count ?? 0} usos -{' '}
-											{item.work_orders_count ?? 0} trabajos
-											{item.duration_days ? ` - ${item.duration_days} dias` : ''}{' '}
-											- descuenta{' '}
-											{quantity(
-												item.stock_quantity_to_decrement,
-												material?.unit,
-											)}
+											{item.consumptions_count ?? 0} usos · {item.work_orders_count ?? 0} trabajos
+											{item.duration_days ? ` · ${item.duration_days} días` : ''} · descuenta{' '}
+											{quantity(item.stock_quantity_to_decrement, material?.unit)}
 										</div>
 									</div>
 									{item.status === 'open' ||
 									availableQuickActions(quickActions).length ? (
 										<div className="record-actions">
 											{item.status === 'open' ? (
-												<button
-													className="primary"
+												<Button
+													type="button"
+													variant="primary"
 													onClick={() => onFinishOpenUnit(item)}
 												>
 													Finalizar
-												</button>
+												</Button>
 											) : null}
 											{renderQuickActionsTrigger(
 												'Acciones de unidad',
@@ -348,6 +392,88 @@ export function InventoryPanel({
 							</MotionFlashSurface>
 						)
 					})}
+					{!materialOpenUnits.length && (
+						<Empty text="Sin unidades abiertas." />
+					)}
+
+					{/* Consumo por servicio (solo si hay datos históricos) */}
+					{serviceUsageRows.length > 0 && (
+						<>
+							<div className="inventory-section-head">
+								<span>Consumo por servicio</span>
+							</div>
+							{serviceUsageRows.map((row) => (
+								<MotionFlashSurface className="record" key={`su-${row.key}`}>
+									<div className="record-head">
+										<div>
+											<div className="record-title">{row.serviceName}</div>
+											<div className="record-sub">
+												{row.materialName}: ~
+												{row.consumptionPerService.toLocaleString('es-AR', {
+													maximumFractionDigits: 3,
+												})}{' '}
+												{row.materialUnit} por servicio
+												{row.unitCost > 0
+													? ` · ${money(row.consumptionPerService * row.unitCost)}`
+													: ''}
+											</div>
+											<div className="record-sub">
+												{row.totalJobs} servicios en {row.unitsCount} unidad
+												{row.unitsCount === 1 ? '' : 'es'} histórica
+												{row.unitsCount === 1 ? '' : 's'}
+											</div>
+										</div>
+									</div>
+								</MotionFlashSurface>
+							))}
+						</>
+					)}
+
+					{/* Movimientos de stock */}
+					<div className="inventory-section-head">
+						<span>Movimientos recientes</span>
+					</div>
+					{stockMovements.slice(0, 8).map((item) => (
+						<MotionFlashSurface
+							className={recordClass('stock-movement', item.id)}
+							key={`sm-${item.id}`}
+							{...detailRecordProps('Movimiento de stock', item)}
+						>
+							<div className="record-head">
+								<div>
+									<div className="record-title">
+										{stockMovementTypeLabels[item.movement_type] ??
+											item.movement_type}{' '}
+										· {money(item.total_amount)}
+									</div>
+									<div className="record-sub">
+										{item.occurred_on} ·{' '}
+										{item.supplier_name ||
+											item.customer_name ||
+											item.reservation_label ||
+											'Movimiento interno'}
+									</div>
+									<div className="record-sub">
+										{(item.lines ?? []).length} producto
+										{(item.lines ?? []).length === 1 ? '' : 's'}
+										{item.movement_type === 'purchase'
+											? item.products_received
+												? ' · recibido'
+												: ' · pendiente de recepción'
+											: ''}
+									</div>
+								</div>
+							</div>
+						</MotionFlashSurface>
+					))}
+					{!stockMovements.length && (
+						<Empty text="Sin movimientos de stock." />
+					)}
+
+					{/* Compras */}
+					<div className="inventory-section-head">
+						<span>Compras recientes</span>
+					</div>
 					{purchases.slice(0, 5).map((item) => {
 						const quickActions = materialPurchaseQuickActions(item)
 						return (
@@ -381,36 +507,47 @@ export function InventoryPanel({
 							</MotionFlashSurface>
 						)
 					})}
-					{consumptions.slice(0, 5).map((item) => {
-						const quickActions = materialConsumptionQuickActions(item)
-						return (
-							<MotionFlashSurface
-								className={recordClass('material-consumption', item.id)}
-								key={`c-${item.id}`}
-								{...detailRecordProps('Consumo de material', item)}
-								{...quickActionTargetProps('Acciones de consumo', quickActions)}
-							>
-								<div className="record-head">
-									<div>
-										<div className="record-title">
-											{joinDisplayParts(['Consumo', item.material_name])}
+					{!purchases.length && (
+						<Empty text="Sin compras registradas." />
+					)}
+
+					{/* Consumos */}
+					{consumptions.length > 0 && (
+						<>
+							<div className="inventory-section-head">
+								<span>Consumos</span>
+							</div>
+							{consumptions.slice(0, 5).map((item) => {
+								const quickActions = materialConsumptionQuickActions(item)
+								return (
+									<MotionFlashSurface
+										className={recordClass('material-consumption', item.id)}
+										key={`c-${item.id}`}
+										{...detailRecordProps('Consumo de material', item)}
+										{...quickActionTargetProps('Acciones de consumo', quickActions)}
+									>
+										<div className="record-head">
+											<div>
+												<div className="record-title">
+													{joinDisplayParts(['Consumo', item.material_name])}
+												</div>
+												<div className="record-sub">
+													Trabajo asociado · {item.quantity} · {money(item.estimated_total_cost)}
+												</div>
+											</div>
+											<div className="record-actions">
+												{renderQuickActionsTrigger(
+													'Acciones de consumo',
+													quickActions,
+													'Acciones rapidas de consumo',
+												)}
+											</div>
 										</div>
-										<div className="record-sub">
-											Trabajo asociado - {item.quantity} -{' '}
-											{money(item.estimated_total_cost)}
-										</div>
-									</div>
-									<div className="record-actions">
-										{renderQuickActionsTrigger(
-											'Acciones de consumo',
-											quickActions,
-											'Acciones rapidas de consumo',
-										)}
-									</div>
-								</div>
-							</MotionFlashSurface>
-						)
-					})}
+									</MotionFlashSurface>
+								)
+							})}
+						</>
+					)}
 				</div>
 			</section>
 		</div>

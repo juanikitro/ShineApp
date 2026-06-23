@@ -1,9 +1,10 @@
 ﻿'use client'
 
-import { type FormEvent, type KeyboardEvent } from 'react'
+import { type FormEvent, type KeyboardEvent, useEffect, useState } from 'react'
 
 import { ReceiptText } from 'lucide-react'
 
+import { DuplicateWarning } from '@/app/components/DuplicateWarning'
 import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { NumericInput } from '@/app/components/ui/NumericInput'
@@ -11,6 +12,8 @@ import {
 	SearchSelect,
 	type SelectOption,
 } from '@/app/components/ui/SearchSelect'
+import { Toggle } from '@/app/components/ui/Toggle'
+import { apiFetch } from '@/lib/api'
 import {
 	type AnyRecord,
 	formatDateLabel,
@@ -40,6 +43,7 @@ type CashMovementFormProps = {
 		openCombo?: boolean,
 	) => (event: KeyboardEvent<HTMLElement>) => void
 	submitting?: boolean
+	fieldErrors?: Record<string, string>
 }
 
 export function CashMovementForm({
@@ -56,7 +60,61 @@ export function CashMovementForm({
 	focusField,
 	focusNextOnEnter,
 	submitting = false,
+	fieldErrors,
 }: CashMovementFormProps) {
+	const [duplicates, setDuplicates] = useState<AnyRecord[]>([])
+	const [dismissed, setDismissed] = useState(false)
+	const [correctsClosure, setCorrectsClosure] = useState(
+		Boolean(movementForm.adjusts_closed_day),
+	)
+
+	// Si el movimiento ya trae fecha de correccion (ej. edicion), activa el toggle
+	useEffect(() => {
+		if (movementForm.adjusts_closed_day) {
+			setCorrectsClosure(true)
+		}
+	}, [movementForm.adjusts_closed_day])
+
+	// Reset aviso cuando cambian los campos clave
+	useEffect(() => {
+		setDismissed(false)
+	}, [movementForm.amount, movementForm.category, movementForm.movement_type, movementForm.occurred_at])
+
+	// Chequea movimientos similares del mismo día
+	useEffect(() => {
+		if (dismissed) {
+			setDuplicates([])
+			return
+		}
+		const amount = String(movementForm.amount ?? '').trim()
+		const category = String(movementForm.category ?? '').trim()
+		const occurredAt = String(movementForm.occurred_at ?? '').trim()
+		const dateStr = occurredAt.split('T')[0]
+		if (!amount || Number(amount) <= 0 || !category || !dateStr) {
+			setDuplicates([])
+			return
+		}
+		const timer = setTimeout(async () => {
+			try {
+				const data = await apiFetch<{ results?: AnyRecord[] }>(
+					`cash-movements/?date=${encodeURIComponent(dateStr)}`,
+				)
+				const results = data.results ?? []
+				const numericAmount = Number(amount)
+				const matches = results.filter(
+					(m) =>
+						m.movement_type === movementForm.movement_type &&
+						m.category === category &&
+						Math.abs(Number(m.amount) - numericAmount) < 0.001,
+				)
+				setDuplicates(matches.slice(0, 3))
+			} catch {
+				setDuplicates([])
+			}
+		}, 700)
+		return () => clearTimeout(timer)
+	}, [movementForm.amount, movementForm.category, movementForm.movement_type, movementForm.occurred_at, dismissed])
+
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
 			<SearchSelect
@@ -129,7 +187,7 @@ export function CashMovementForm({
 				/>
 			</div>
 			<div className="form-row">
-				<Field label="Importe">
+				<Field label="Importe" error={fieldErrors?.['amount']}>
 					<NumericInput
 						data-focus-key="cash-movement.amount"
 						required
@@ -144,7 +202,7 @@ export function CashMovementForm({
 						onKeyDown={focusNextOnEnter('cash-movement.occurred_at')}
 					/>
 				</Field>
-				<Field label="Fecha que impacta">
+				<Field label="Fecha que impacta" error={fieldErrors?.['occurred_at']}>
 					<input
 						data-focus-key="cash-movement.occurred_at"
 						required
@@ -159,7 +217,26 @@ export function CashMovementForm({
 						onKeyDown={focusNextOnEnter('cash-movement.occurred_at')}
 					/>
 				</Field>
-				<Field label="Corrige cierre">
+			</div>
+			<Toggle
+				checked={correctsClosure}
+				onChange={(checked) => {
+					setCorrectsClosure(checked)
+					if (!checked) {
+						setMovementForm({
+							...movementForm,
+							adjusts_closed_day: '',
+						})
+					}
+				}}
+			>
+				Corrige cierre
+			</Toggle>
+			{correctsClosure ? (
+				<Field
+					label="Fecha correccion"
+					error={fieldErrors?.['adjusts_closed_day']}
+				>
 					<input
 						type="date"
 						value={movementForm.adjusts_closed_day ?? ''}
@@ -177,14 +254,14 @@ export function CashMovementForm({
 						}
 					/>
 				</Field>
-			</div>
+			) : null}
 			{movementForm.adjusts_closed_day ? (
 				<div className="info-note">
 					El ajuste impacta hoy y deja trazado que corrige el cierre de{' '}
 					<strong>{formatDateLabel(movementForm.adjusts_closed_day)}</strong>.
 				</div>
 			) : null}
-			<Field label="Detalle">
+			<Field label="Detalle" error={fieldErrors?.['description']}>
 				<textarea
 					data-focus-key="cash-movement.description"
 					value={movementForm.description}
@@ -196,6 +273,16 @@ export function CashMovementForm({
 					}
 				/>
 			</Field>
+			{!dismissed && duplicates.length > 0 && (
+				<DuplicateWarning
+					title="Ya existe un movimiento similar en ese día:"
+					items={duplicates.map((m) => ({
+						id: m.id as number,
+						label: `${m.movement_type === 'income' ? 'Ingreso' : 'Egreso'} · ${m.category} · $${m.amount} · ${formatDateLabel(String(m.occurred_at ?? '').split('T')[0])}`,
+					}))}
+					onDismiss={() => setDismissed(true)}
+				/>
+			)}
 			<Button
 				type="submit"
 				variant="primary"
