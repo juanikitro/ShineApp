@@ -3,6 +3,125 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+@media (min-width: 981px) and (max-width: 1440px) and (max-height: 900px) {
+  .agenda-panel {
+    gap: 12px;
+  }
+
+  .agenda-toolbar,
+  .work-view-strip {
+    gap: 10px;
+  }
+
+  .agenda-toolbar p,
+  .work-view-copy small {
+    line-height: 1.35;
+  }
+
+  .work-view-copy strong {
+    font-size: 15px;
+  }
+
+  .agenda-nav,
+  .agenda-nav-row,
+  .agenda-quick-actions {
+    gap: 4px;
+  }
+
+  .week-board {
+    --agenda-instance-card-height: 212px;
+    gap: 0 10px;
+    min-height: 460px;
+  }
+
+  .day-row {
+    min-height: 460px;
+  }
+
+  .agenda-day-head {
+    gap: 4px;
+    padding: 6px 4px 10px;
+  }
+
+  .day-row-date {
+    gap: 6px;
+    padding: 6px 10px;
+  }
+
+  .agenda-day-count,
+  .agenda-range-label,
+  .agenda-vehicle-model,
+  .agenda-inline-metrics {
+    font-size: 11px;
+  }
+
+  .agenda-row-records {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .agenda-board-card-shell {
+    height: calc(var(--agenda-instance-card-height, 212px) + 8px);
+    padding-top: 8px;
+  }
+
+  .workspace .record.agenda-operational-card {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .agenda-entry-card {
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .agenda-entry-copy {
+    gap: 4px;
+  }
+
+  .agenda-entry-time,
+  .agenda-service-name {
+    font-size: 13px;
+  }
+
+  .agenda-entry-tools .quick-actions-trigger {
+    --button-height-icon: 28px;
+  }
+
+  .agenda-workorder-summary {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .agenda-workorder-metrics {
+    gap: 8px;
+  }
+
+  .agenda-action-button {
+    gap: 4px;
+  }
+}
+
+@media (min-width: 981px) and (max-width: 1366px) and (max-height: 820px) {
+  .week-board {
+    --agenda-instance-card-height: 196px;
+    min-height: 424px;
+  }
+
+  .day-row {
+    min-height: 424px;
+  }
+
+  .agenda-service-name {
+    -webkit-line-clamp: 2;
+    font-size: 12px;
+  }
+
+  .agenda-entry-time {
+    font-size: 12px;
+  }
+}
+
 .agenda-panel {
   display: grid;
   gap: var(--space-4);

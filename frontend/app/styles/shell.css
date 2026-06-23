@@ -7,6 +7,226 @@
   min-height: 100vh;
 }
 
+@media (min-width: 981px) and (max-width: 1440px) and (max-height: 900px) {
+  .app-shell {
+    grid-template-columns: var(--compact-sidebar-width, 204px) minmax(0, 1fr);
+  }
+
+  .sidebar {
+    gap: 12px;
+    padding: 14px 10px;
+    width: var(--compact-sidebar-width, 204px);
+  }
+
+  .sidebar[data-collapsed='true'] {
+    width: 64px;
+  }
+
+  .sidebar-brand .app-brand-logo {
+    height: 40px;
+    width: 40px;
+  }
+
+  .sidebar-profile-button {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .sidebar-profile-avatar {
+    height: 38px;
+    width: 38px;
+  }
+
+  .sidebar-business-logo {
+    max-height: 52px;
+  }
+
+  .sidebar-footer-stack {
+    gap: 8px;
+  }
+
+  .nav {
+    gap: 4px;
+  }
+
+  .nav button {
+    font-size: var(--text-sm);
+    min-height: 38px;
+    padding-inline: 10px;
+  }
+
+  .nav button.nav-child {
+    min-height: 32px;
+  }
+
+  .workspace {
+    padding: 16px 18px 18px;
+  }
+
+  .topbar {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .topbar h1 {
+    font-size: 24px;
+  }
+
+  .toolbar {
+    gap: 8px;
+  }
+
+  .grid,
+  .settings-workspace {
+    gap: 14px;
+  }
+
+  .record,
+  .record-card,
+  .metric {
+    box-shadow: 0 8px 18px var(--color-shadow-soft);
+  }
+
+  .record,
+  .record-card {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .record.compact,
+  .record-card.compact {
+    padding: 10px;
+  }
+
+  .record-head {
+    gap: 10px;
+  }
+
+  .record-actions {
+    gap: 6px;
+  }
+
+  .panel-head {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .panel h2,
+  .panel h3 {
+    font-size: 17px;
+    margin-bottom: 10px;
+  }
+
+  .subsection-title {
+    margin: 14px 0 10px;
+  }
+
+  .mode-toggle.settings-section-toggle button {
+    min-height: 36px;
+    min-width: 116px;
+  }
+
+  .settings-operational-metrics {
+    gap: 8px;
+  }
+
+  .quick-actions-menu button.quick-actions-menu-item {
+    min-height: 38px;
+    padding: 8px;
+  }
+
+  .modal-panel {
+    gap: 12px;
+    max-width: 680px;
+    padding: 16px;
+    width: min(680px, 100%);
+  }
+
+  .modal-head h2 {
+    font-size: 18px;
+  }
+
+  .dashboard-executive-grid {
+    gap: 12px;
+  }
+
+  .dashboard-executive-metric,
+  .dashboard-composition-grid .metric,
+  .dashboard-comparison-record,
+  .dashboard-ranking-record,
+  .dashboard-status-record,
+  .dashboard-receivable-record,
+  .dashboard-alert-record,
+  .dashboard-insight-record {
+    min-height: 0;
+  }
+
+  .dashboard-insight-grid,
+  .dashboard-composition-grid,
+  .dashboard-aging-grid,
+  .dashboard-ranking-grid {
+    gap: 12px;
+  }
+
+  .dashboard-section-kicker {
+    gap: 5px;
+    margin-bottom: 8px;
+  }
+
+  .dashboard-aging-bars,
+  .dashboard-alert-records,
+  .dashboard-receivable-records,
+  .dashboard-insight-records,
+  .dashboard-ranking-records,
+  .dashboard-status-records,
+  .dashboard-comparison-records {
+    gap: 8px;
+  }
+
+  .dashboard-next-action {
+    gap: 10px;
+    padding: 12px;
+  }
+}
+
+@media (min-width: 981px) and (max-width: 1366px) and (max-height: 820px) {
+  .app-shell {
+    grid-template-columns: 196px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    gap: 10px;
+    padding: 12px 9px;
+    width: 196px;
+  }
+
+  .sidebar[data-collapsed='true'] {
+    width: 60px;
+  }
+
+  .nav button {
+    min-height: 36px;
+  }
+
+  .workspace {
+    padding: 14px 16px 16px;
+  }
+
+  .topbar h1 {
+    font-size: 22px;
+  }
+
+  .record,
+  .record-card {
+    padding: 10px;
+  }
+
+  .panel h2,
+  .panel h3 {
+    font-size: 16px;
+  }
+}
+
 .sidebar {
   background: var(--color-canvas-deep);
   border-right: 1px solid var(--shop-border);
