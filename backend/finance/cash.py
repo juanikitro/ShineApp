@@ -76,6 +76,8 @@ def cash_movement_source_kind(movement):
         if stock_type == "purchase":
             return "stock_purchase"
         return "stock_movement"
+    if related_fixed_expense_occurrence(movement):
+        return "fixed_expense"
     if related_debt(movement):
         return "debt_origin"
     return "manual"
@@ -84,6 +86,13 @@ def cash_movement_source_kind(movement):
 def related_debt(movement):
     try:
         return movement.debt
+    except Exception:
+        return None
+
+
+def related_fixed_expense_occurrence(movement):
+    try:
+        return movement.fixed_expense_occurrence
     except Exception:
         return None
 
