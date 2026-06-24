@@ -18,6 +18,10 @@ test('dataSetCacheKey scopes dashboard and cash by active date filters', () => {
 		'dashboard:2026-05-01:2026-05-31',
 	)
 	assert.equal(dataSetCacheKey('cash', scope), 'cash:2026-05-20:day')
+	assert.equal(
+		dataSetCacheKey('cash', { ...scope, cashViewMode: 'month' }),
+		'cash:2026-05-20:month',
+	)
 	assert.equal(dataSetCacheKey('customers', scope), 'customers')
 })
 
@@ -99,6 +103,27 @@ test('loadAppDataSets keeps the existing endpoint contract and entry order', asy
 		entries.map(([key]) => key),
 		keys,
 	)
+})
+
+test('loadAppDataSets uses cash endpoints for each cash view mode', async () => {
+	const calls = []
+	const loaders = {
+		apiFetch: async (path) => {
+			calls.push(path)
+			return { path }
+		},
+		apiList: async () => [],
+	}
+
+	await loadAppDataSets(['cash'], { ...scope, cashViewMode: 'day' }, loaders)
+	await loadAppDataSets(['cash'], { ...scope, cashViewMode: 'week' }, loaders)
+	await loadAppDataSets(['cash'], { ...scope, cashViewMode: 'month' }, loaders)
+
+	assert.deepEqual(calls, [
+		'/cash/daily/?date=2026-05-20',
+		'/cash/weekly/?date=2026-05-20',
+		'/cash/monthly/?date=2026-05-20',
+	])
 })
 
 test('loadAppDataSets propagates loader failures to the caller', async () => {

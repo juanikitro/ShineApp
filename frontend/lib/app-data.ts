@@ -1,4 +1,5 @@
 import { type DataSetKey } from './data-loading'
+import { type CashViewMode } from './cash-period'
 
 type AnyRecord = Record<string, any>
 
@@ -8,7 +9,7 @@ export type AppDataScope = {
 		to: string
 	}
 	selectedDay: string
-	cashViewMode?: 'day' | 'week'
+	cashViewMode?: CashViewMode
 }
 
 export type AppDataLoaders = {
@@ -40,9 +41,11 @@ export async function loadAppDataSet(
 			)
 		case 'cash':
 			return loaders.apiFetch<AnyRecord>(
-				scope.cashViewMode === 'week'
-					? `/cash/weekly/?date=${scope.selectedDay}`
-					: `/cash/daily/?date=${scope.selectedDay}`,
+				scope.cashViewMode === 'month'
+					? `/cash/monthly/?date=${scope.selectedDay}`
+					: scope.cashViewMode === 'week'
+						? `/cash/weekly/?date=${scope.selectedDay}`
+						: `/cash/daily/?date=${scope.selectedDay}`,
 			)
 		case 'tasks':
 			return loaders.apiList<AnyRecord>('/tasks/')

@@ -9,6 +9,7 @@ import {
 import {
 	ArrowDownRight,
 	ArrowUpRight,
+	CalendarDays,
 	ChevronDown,
 	ChevronLeft,
 	ChevronRight,
@@ -48,6 +49,10 @@ import {
 	cashQuickFilterOptions,
 	cashSortOptions,
 } from '@/lib/cash-entry'
+import {
+	type CashViewMode,
+	cashRangeLabel,
+} from '@/lib/cash-period'
 import {
 	type AnyRecord,
 	money,
@@ -121,17 +126,18 @@ type CashPanelProps = {
 		actions: QuickAction[],
 		ariaLabel: string,
 	) => ReactNode
-	cashViewMode: 'day' | 'week'
+	cashViewMode: CashViewMode
 	selectedDay: string
 	onCashFilterChange: (key: keyof CashFilterState, value: string) => void
 	onCashQuickFilterChange: (value: CashQuickFilter) => void
 	onCashSortChange: (value: CashSortKey) => void
 	onCashSummaryModeChange: (value: CashSummaryMode) => void
-	onCashViewModeChange: (value: 'day' | 'week') => void
+	onCashViewModeChange: (value: CashViewMode) => void
 	onClearCashFilters: () => void
 	onCloseDay: () => void
 	onReopenDay: () => void
 	onCreateMovement: () => void
+	onOpenAgendaForCashPeriod: () => void
 	onMoveSelectedDay: (offset: number) => void
 	onOpenCashEntryDetail: (entry: AnyRecord) => void
 	onQuickActionsContext: (
@@ -155,26 +161,11 @@ const cashSummaryModeOptions: Array<{
 	{ value: 'economic', label: 'Resultado del dia' },
 ]
 
-const cashViewModeOptions: Array<{ value: 'day' | 'week'; label: string }> = [
+const cashViewModeOptions: Array<{ value: CashViewMode; label: string }> = [
 	{ value: 'day', label: 'Día' },
 	{ value: 'week', label: 'Semana' },
+	{ value: 'month', label: 'Mes' },
 ]
-
-function weekBounds(day: string): { start: Date; end: Date } {
-	const d = new Date(day + 'T12:00')
-	const start = new Date(d)
-	start.setDate(d.getDate() - ((d.getDay() + 6) % 7))
-	const end = new Date(start)
-	end.setDate(start.getDate() + 6)
-	return { start, end }
-}
-
-function formatWeekLabel(day: string): string {
-	const { start, end } = weekBounds(day)
-	const fmt = (d: Date) =>
-		d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
-	return `${fmt(start)} – ${fmt(end)}`
-}
 
 const cashMovementTypeOptions = [
 	{ value: 'income', label: 'Ingresos' },
@@ -246,6 +237,7 @@ export function CashPanel({
 	onCloseDay,
 	onReopenDay,
 	onCreateMovement,
+	onOpenAgendaForCashPeriod,
 	onMoveSelectedDay,
 	onOpenCashEntryDetail,
 	onQuickActionsContext,
@@ -273,6 +265,15 @@ export function CashPanel({
 		cashFlowSummary.groups.find((group) => group.key === 'partner_withdrawals')?.amount ?? 0
 	const cashBalance = numberValue(cashflowTotals.balance)
 	const cashBalanceToneClass = cashBalanceTone(cashBalance)
+	const isDayMode = cashViewMode === 'day'
+	const rangeNoun =
+		cashViewMode === 'month'
+			? 'mes'
+			: cashViewMode === 'week'
+				? 'semana'
+				: 'dia'
+	const rangeLabel =
+		cashViewMode === 'day' ? selectedDay : cashRangeLabel(selectedDay, cashViewMode)
 
 	function renderCashSummaryLine(line: CashSummaryLine) {
 		return (
@@ -365,7 +366,13 @@ export function CashPanel({
 		<div className="grid">
 			<section
 				className="panel finance-panel cash-panel"
-				aria-label={cashViewMode === 'week' ? 'Caja semanal' : 'Caja diaria'}
+				aria-label={
+					cashViewMode === 'month'
+						? 'Caja mensual'
+						: cashViewMode === 'week'
+							? 'Caja semanal'
+							: 'Caja diaria'
+				}
 			>
 				<div className="toolbar toolbar-spaced cash-toolbar">
 					<SegmentedControl
@@ -374,19 +381,33 @@ export function CashPanel({
 						value={cashViewMode}
 						onChange={onCashViewModeChange}
 					/>
-					<Field label={cashViewMode === 'week' ? 'Semana' : 'Dia'}>
+					<Field
+						label={
+							cashViewMode === 'month'
+								? 'Mes'
+								: cashViewMode === 'week'
+									? 'Semana'
+									: 'Dia'
+						}
+					>
 						<div className="date-stepper">
 							<Button
 								variant="ghost"
 								className="date-stepper-button"
-								onClick={() => onMoveSelectedDay(cashViewMode === 'week' ? -7 : -1)}
-								aria-label={cashViewMode === 'week' ? 'Ver semana anterior' : 'Ver dia anterior'}
+								onClick={() => onMoveSelectedDay(-1)}
+								aria-label={
+									cashViewMode === 'month'
+										? 'Ver mes anterior'
+										: cashViewMode === 'week'
+											? 'Ver semana anterior'
+											: 'Ver dia anterior'
+								}
 							>
 								<ChevronLeft size={16} />
 							</Button>
-							{cashViewMode === 'week' ? (
+							{cashViewMode === 'week' || cashViewMode === 'month' ? (
 								<output className="date-stepper-week-label">
-									{formatWeekLabel(selectedDay)}
+									{rangeLabel}
 								</output>
 							) : (
 								<input
@@ -400,8 +421,14 @@ export function CashPanel({
 							<Button
 								variant="ghost"
 								className="date-stepper-button"
-								onClick={() => onMoveSelectedDay(cashViewMode === 'week' ? 7 : 1)}
-								aria-label={cashViewMode === 'week' ? 'Ver semana siguiente' : 'Ver dia siguiente'}
+								onClick={() => onMoveSelectedDay(1)}
+								aria-label={
+									cashViewMode === 'month'
+										? 'Ver mes siguiente'
+										: cashViewMode === 'week'
+											? 'Ver semana siguiente'
+											: 'Ver dia siguiente'
+								}
 							>
 								<ChevronRight size={16} />
 							</Button>
@@ -411,11 +438,15 @@ export function CashPanel({
 								onClick={() => onSelectedDayChange(todayStr)}
 								aria-pressed={selectedDay === todayStr}
 							>
-								{cashViewMode === 'week' ? 'Esta sem.' : 'Hoy'}
+								{cashViewMode === 'month'
+									? 'Este mes'
+									: cashViewMode === 'week'
+										? 'Esta sem.'
+										: 'Hoy'}
 							</Button>
 						</div>
 					</Field>
-					{cashViewMode === 'day' ? (
+					{isDayMode ? (
 						<span
 							className={`cash-status ${cashStatusClass}`}
 							role="status"
@@ -426,14 +457,21 @@ export function CashPanel({
 					) : null}
 					<div className="finance-action-rail cash-action-rail">
 						<Button
+							variant="ghost"
+							onClick={onOpenAgendaForCashPeriod}
+						>
+							<CalendarDays size={16} />
+							Ver en agenda
+						</Button>
+						<Button
 							variant="primary"
-							disabled={cashViewMode === 'day' && cashIsClosed}
+							disabled={isDayMode && cashIsClosed}
 							onClick={onCreateMovement}
 						>
 							<Plus size={16} />
 							Cargar movimiento
 						</Button>
-						{cashViewMode === 'day' ? (
+						{isDayMode ? (
 							<>
 								<Button
 									variant="ghost"
@@ -481,22 +519,24 @@ export function CashPanel({
 					/>
 				) : null}
 				{!loadBlocked && loading && !cashEntries.length ? (
-					<SkeletonList rows={6} columns={4} label={cashViewMode === 'week' ? 'Cargando caja de la semana' : 'Cargando caja del dia'} />
+					<SkeletonList rows={6} columns={4} label={`Cargando caja del ${rangeNoun}`} />
 				) : null}
 				{!loadBlocked && (!loading || cashEntries.length) ? (
 					<>
 						<div className="info-note">
 							{cashViewMode === 'week'
 								? 'Flujo de caja muestra el dinero que entro o salio en la semana. Resultado de la semana cuenta ingresos y gastos sin duplicar pagos de deudas.'
-								: <>
-									Flujo de caja muestra el dinero que entro o salio hoy: cobros,
-									pagos de deuda, compras, movimientos manuales y ajustes.
-									Resultado del dia cuenta ingresos y gastos sin duplicar pagos de
-									deudas.
-									{cashClosure
-										? ` Cierre guardado: flujo de caja ${money(cashClosure.cashflow_balance ?? cashClosure.balance)}.`
-										: ''}
-								</>}
+								: cashViewMode === 'month'
+									? 'Flujo de caja muestra el dinero que entro o salio en el mes. Resultado del mes cuenta ingresos y gastos sin duplicar pagos de deudas.'
+									: <>
+										Flujo de caja muestra el dinero que entro o salio hoy: cobros,
+										pagos de deuda, compras, movimientos manuales y ajustes.
+										Resultado del dia cuenta ingresos y gastos sin duplicar pagos de
+										deudas.
+										{cashClosure
+											? ` Cierre guardado: flujo de caja ${money(cashClosure.cashflow_balance ?? cashClosure.balance)}.`
+											: ''}
+									</>}
 						</div>
 						<section className="grid three section-block-end cash-metrics-primary">
 							<div className="metric cash-metric cash-metric--income">
@@ -555,11 +595,15 @@ export function CashPanel({
 								<div className="cash-flow-head">
 									<div>
 										<h3>
-											{cashViewMode === 'week' ? 'Flujo de dinero de la semana' : 'Flujo de dinero del dia'}
+											{cashViewMode === 'month'
+												? 'Flujo de dinero del mes'
+												: cashViewMode === 'week'
+													? 'Flujo de dinero de la semana'
+													: 'Flujo de dinero del dia'}
 											<Info size={16} aria-hidden="true" />
 										</h3>
 										<p>
-											Resumen completo {cashViewMode === 'week' ? 'de la semana' : 'del dia'} en modo {cashSummaryModeLabel}.
+											Resumen completo del {rangeNoun} en modo {cashSummaryModeLabel}.
 											Los filtros de abajo no alteran estos totales.
 										</p>
 									</div>
@@ -642,9 +686,9 @@ export function CashPanel({
 						>
 							<div className="cash-filters-head">
 								<div>
-									<h3 id="cash-filters-title">Movimientos del dia</h3>
+									<h3 id="cash-filters-title">Movimientos del {rangeNoun}</h3>
 									<p>
-										Listado cronologico de todas las operaciones del dia.
+										Listado cronologico de todas las operaciones del {rangeNoun}.
 										Los filtros no alteran los totales de arriba.
 									</p>
 								</div>
@@ -834,16 +878,20 @@ export function CashPanel({
 											? 'Sin entradas para los filtros aplicados.'
 											: cashViewMode === 'week'
 												? 'Sin movimientos en la semana.'
-												: 'Sin movimientos para el dia.'
+												: cashViewMode === 'month'
+													? 'Sin movimientos en el mes.'
+													: 'Sin movimientos para el dia.'
 									}
 									hint={
 										cashEntries.length
 											? 'Ajusta busqueda, origen, categoria o montos.'
 											: cashViewMode === 'week'
 												? 'Registra cobros, pagos de deuda o movimientos manuales para comenzar.'
-												: cashIsClosed
-													? 'La caja esta cerrada; si falta un movimiento, registra un ajuste para este dia.'
-													: 'Registra un cobro, pago de deuda o movimiento manual para comenzar.'
+												: cashViewMode === 'month'
+													? 'Registra cobros, pagos de deuda o movimientos manuales para comenzar.'
+													: cashIsClosed
+														? 'La caja esta cerrada; si falta un movimiento, registra un ajuste para este dia.'
+														: 'Registra un cobro, pago de deuda o movimiento manual para comenzar.'
 									}
 									action={
 										cashEntries.length ? undefined : cashIsClosed ? (
