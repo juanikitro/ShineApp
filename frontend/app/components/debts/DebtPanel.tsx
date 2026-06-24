@@ -13,7 +13,8 @@ import {
 } from 'lucide-react'
 
 import { FinanceRecordCard } from '@/app/components/finance/FinanceRecordCard'
-import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
+import { CollapsibleSection } from '@/app/components/ui/CollapsibleSection'
+import { Empty, ErrorState } from '@/app/components/ui/Empty'
 import { SkeletonList } from '@/app/components/ui/Skeleton'
 import { Field } from '@/app/components/ui/Field'
 import { Button } from '@/app/components/ui/Button'
@@ -119,6 +120,101 @@ export function DebtPanel({
 	onRefresh,
 	onSearchChange,
 }: DebtPanelProps) {
+	function renderDebtCard(item: AnyRecord) {
+		const quickActions = debtQuickActions(item)
+		const hasBalance = numberValue(item.balance_due) > 0
+		const badges = [
+			{
+				label: debtStatusLabels[item.status] ?? item.status,
+				className: `status ${item.status}`,
+			},
+			{
+				label: hasBalance ? 'Con saldo' : 'Saldada',
+				className: hasBalance ? 'status warning' : 'status paid',
+			},
+		]
+		return (
+			<FinanceRecordCard
+				amount={{
+					label: 'Saldo',
+					value: money(item.balance_due),
+					tone: hasBalance ? 'warning' : 'payment',
+				}}
+				badges={badges}
+				className={recordClass('debt', item.id, 'debt-record-card')}
+				key={item.id}
+				onContextMenu={(event) =>
+					onQuickActionsContext(event, 'Acciones de deuda', quickActions)
+				}
+				primaryAction={
+					hasBalance
+						? {
+								label: 'Registrar pago',
+								icon: <CreditCard size={15} />,
+								onClick: () => onOpenDebtPaymentForDebt(item),
+								variant: 'primary',
+							}
+						: {
+								label: 'Abrir detalle',
+								icon: <Eye size={15} />,
+								onClick: () => onOpenDebtDetail(item),
+								variant: 'primary',
+							}
+				}
+				secondaryActions={
+					hasBalance
+						? [
+								{
+									label: 'Detalle',
+									icon: <Eye size={15} />,
+									onClick: () => onOpenDebtDetail(item),
+									variant: 'ghost',
+								},
+							]
+						: []
+				}
+				quickActionsTrigger={renderQuickActionsTrigger(
+					'Acciones de deuda',
+					quickActions,
+					'Acciones rapidas de deuda',
+				)}
+				stats={[
+					{
+						label: 'Original',
+						value: money(item.principal_amount),
+						hint: item.origin_date
+							? `Origen ${formatDateLabel(item.origin_date)}`
+							: 'Sin fecha de origen',
+					},
+					{
+						label: 'Pagado',
+						value: money(item.total_paid),
+						hint: 'Pagos registrados',
+					},
+					{
+						label: 'Vencimiento',
+						value: item.due_date
+							? formatDateLabel(item.due_date)
+							: 'Sin limite',
+						hint: item.expense_subcategory || item.expense_category,
+					},
+				]}
+				subtitle={joinDisplayParts([
+					item.creditor || 'Sin acreedor',
+					item.supplier_name,
+				])}
+				title={item.concept}
+			/>
+		)
+	}
+
+	const openDebts = filteredDebts.filter(
+		(item) => numberValue(item.balance_due) > 0,
+	)
+	const settledDebts = filteredDebts.filter(
+		(item) => numberValue(item.balance_due) <= 0,
+	)
+
 	return (
 		<div className="grid">
 			<section
@@ -234,105 +330,18 @@ export function DebtPanel({
 						</section>
 						<div className="records finance-records debt-records">
 							{filteredDebts.length ? (
-								filteredDebts.map((item) => {
-									const quickActions = debtQuickActions(item)
-									const hasBalance = numberValue(item.balance_due) > 0
-									const baseBadges = [
-										{
-											label:
-												debtStatusLabels[item.status] ?? item.status,
-											className: `status ${item.status}`,
-										},
-										{
-											label: hasBalance ? 'Con saldo' : 'Saldada',
-											className: hasBalance
-												? 'status warning'
-												: 'status paid',
-										},
-									]
-									const badges = baseBadges
-									return (
-										<FinanceRecordCard
-											amount={{
-												label: 'Saldo',
-												value: money(item.balance_due),
-												tone: hasBalance ? 'warning' : 'payment',
-											}}
-											badges={badges}
-											className={recordClass(
-												'debt',
-												item.id,
-												'debt-record-card',
-											)}
-											key={item.id}
-											onContextMenu={(event) =>
-												onQuickActionsContext(
-													event,
-													'Acciones de deuda',
-													quickActions,
-												)
-											}
-											primaryAction={
-												hasBalance
-													? {
-															label: 'Registrar pago',
-															icon: <CreditCard size={15} />,
-															onClick: () => onOpenDebtPaymentForDebt(item),
-															variant: 'primary',
-														}
-													: {
-															label: 'Abrir detalle',
-															icon: <Eye size={15} />,
-															onClick: () => onOpenDebtDetail(item),
-															variant: 'primary',
-														}
-											}
-											secondaryActions={
-												hasBalance
-													? [
-															{
-																label: 'Detalle',
-																icon: <Eye size={15} />,
-																onClick: () => onOpenDebtDetail(item),
-																variant: 'ghost',
-															},
-														]
-													: []
-											}
-											quickActionsTrigger={renderQuickActionsTrigger(
-												'Acciones de deuda',
-												quickActions,
-												'Acciones rapidas de deuda',
-											)}
-											stats={[
-												{
-													label: 'Original',
-													value: money(item.principal_amount),
-													hint: item.origin_date
-														? `Origen ${formatDateLabel(item.origin_date)}`
-														: 'Sin fecha de origen',
-												},
-												{
-													label: 'Pagado',
-													value: money(item.total_paid),
-													hint: 'Pagos registrados',
-												},
-												{
-													label: 'Vencimiento',
-													value: item.due_date
-														? formatDateLabel(item.due_date)
-														: 'Sin limite',
-													hint: item.expense_subcategory || item.expense_category,
-												},
-											]}
-											subtitle={joinDisplayParts([
-												item.creditor || 'Sin acreedor',
-												item.supplier_name,
-											])}
-											title={item.concept}
-										/>
-									)
-								})
+								<>
+									{openDebts.map((item) => renderDebtCard(item))}
+									{settledDebts.length ? (
+										<CollapsibleSection
+											title="Deudas saldadas"
+											count={settledDebts.length}
+											defaultOpen={openDebts.length === 0}
+										>
+											{settledDebts.map((item) => renderDebtCard(item))}
+										</CollapsibleSection>
+									) : null}
+								</>
 							) : (
 								<Empty
 									text={

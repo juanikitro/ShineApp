@@ -6350,3 +6350,61 @@
   }
 }
 
+/* Desplegable para agrupar items finalizados/archivados al final de una lista. */
+.collapsible-section {
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-2);
+}
+
+.collapsible-summary {
+  align-items: center;
+  color: var(--color-text-soft);
+  cursor: pointer;
+  display: flex;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  gap: var(--space-2);
+  list-style: none;
+  padding: var(--space-3) var(--space-1);
+}
+
+.collapsible-summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsible-summary:hover {
+  color: var(--color-text);
+}
+
+.collapsible-summary:focus-visible {
+  border-radius: var(--radius-sm);
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+.collapsible-chevron {
+  color: var(--color-text-muted);
+  flex: 0 0 auto;
+  transition: transform 0.18s ease;
+}
+
+.collapsible-section[open] > .collapsible-summary .collapsible-chevron {
+  transform: rotate(180deg);
+}
+
+.collapsible-count {
+  background: var(--color-surface-soft);
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 650;
+  padding: 1px var(--space-2);
+}
+
+.collapsible-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-1);
+}
+
