@@ -126,7 +126,7 @@ const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 	search: [],
 }
 
-const shellDataSets: readonly DataSetKey[] = ['businessProfile', 'publicRequests']
+const shellDataSets: readonly DataSetKey[] = ['businessProfile', 'publicRequests', 'tasks']
 
 const economyOnlyDataSets = new Set<DataSetKey>([
 	'cash',

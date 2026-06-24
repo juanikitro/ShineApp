@@ -12,7 +12,7 @@ test('dashboard loads summary, cash and shell datasets for employers', () => {
 			section: 'dashboard',
 			canViewEconomy: true,
 		}),
-		['dashboard', 'cash', 'businessProfile', 'publicRequests'],
+		['dashboard', 'cash', 'businessProfile', 'publicRequests', 'tasks'],
 	)
 })
 
@@ -22,7 +22,7 @@ test('agenda keeps operational dependencies and gates economy-only datasets', ()
 			section: 'agenda',
 			canViewEconomy: false,
 		}),
-		['customers', 'vehicles', 'services', 'sectors', 'reservations', 'workOrders'],
+		['customers', 'vehicles', 'services', 'sectors', 'reservations', 'workOrders', 'tasks'],
 	)
 	assert.deepEqual(
 		dataSetKeysForSection({
@@ -41,6 +41,7 @@ test('agenda keeps operational dependencies and gates economy-only datasets', ()
 			'quotes',
 			'businessProfile',
 			'publicRequests',
+			'tasks',
 		],
 	)
 })
@@ -53,6 +54,7 @@ test('shell datasets load with every employer section', () => {
 		})
 		assert.equal(keys.includes('businessProfile'), true)
 		assert.equal(keys.includes('publicRequests'), true)
+		assert.equal(keys.includes('tasks'), true)
 	}
 })
 
@@ -62,14 +64,14 @@ test('customer and service dashboards keep editable linked records hydrated', ()
 			section: 'customers',
 			canViewEconomy: true,
 		}),
-		['customers', 'vehicles', 'services', 'businessProfile', 'publicRequests'],
+		['customers', 'vehicles', 'services', 'businessProfile', 'publicRequests', 'tasks'],
 	)
 	assert.deepEqual(
 		dataSetKeysForSection({
 			section: 'services',
 			canViewEconomy: true,
 		}),
-		['services', 'serviceMaterials', 'sectors', 'customers', 'vehicles', 'businessProfile', 'publicRequests'],
+		['services', 'serviceMaterials', 'sectors', 'customers', 'vehicles', 'businessProfile', 'publicRequests', 'tasks'],
 	)
 })
 
@@ -79,14 +81,14 @@ test('search section only loads shell datasets', () => {
 			section: 'search',
 			canViewEconomy: true,
 		}),
-		['businessProfile', 'publicRequests'],
+		['businessProfile', 'publicRequests', 'tasks'],
 	)
 	assert.deepEqual(
 		dataSetKeysForSection({
 			section: 'search',
 			canViewEconomy: false,
 		}),
-		[],
+		['tasks'],
 	)
 })
 
@@ -114,6 +116,7 @@ test('settings history does not eager-load audit logs', () => {
 		'services',
 		'sectors',
 		'publicRequests',
+		'tasks',
 	])
 	assert.equal(keys.includes('auditLogs'), false)
 })
@@ -131,6 +134,7 @@ test('settings whatsapp loads channel datasets only for employers', () => {
 			'services',
 			'sectors',
 			'publicRequests',
+			'tasks',
 			'whatsappConfig',
 			'whatsappTemplates',
 			'whatsappAutomationRules',
@@ -143,7 +147,7 @@ test('settings whatsapp loads channel datasets only for employers', () => {
 			settingsSection: 'whatsapp',
 			canViewEconomy: false,
 		}),
-		['services', 'sectors'],
+		['services', 'sectors', 'tasks'],
 	)
 })
 
