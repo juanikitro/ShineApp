@@ -43,6 +43,10 @@ No commitear valores reales. Usar `.env.example` solo como forma.
 - `DATABASE_CONNECT_TIMEOUT`: timeout de conexion a Postgres en segundos. Default `10`.
 - `EMAIL_TIMEOUT`: timeout del envio SMTP en segundos (evita requests colgados). Default `10`.
 - `PUSH_TIMEOUT_SECONDS`: timeout del envio de web push en segundos. Default `10`.
+- `WHATSAPP_TIMEOUT_SECONDS`: timeout del request a WhatsApp provider en segundos. Default `10`.
+- `WHATSAPP_META_API_VERSION`: version Graph API usada por Meta Cloud API. Default `v20.0`.
+- `WHATSAPP_META_ACCESS_TOKEN`: token server-side global para Meta Cloud API. Preferir config por negocio cuando cada cliente usa su propio numero.
+- `WHATSAPP_META_PHONE_NUMBER_ID`: Phone number ID global para Meta Cloud API. Preferir config por negocio cuando cada cliente usa su propio numero.
 - `FRONTEND_BASE_URL`: base publica del frontend usada en los links de emails (reset, bienvenida, avisos). Reemplaza el dominio hardcodeado. Default `https://shineapp-web.vercel.app`.
 - `CRON_SECRET`: secret compartido para autenticar el endpoint interno `POST /api/internal/maintenance/`, que dispara el workflow `maintenance.yml` (header `X-Cron-Token`). Vacio = endpoint deshabilitado (responde 503). En produccion, generar un valor aleatorio largo y cargarlo tanto en Vercel API como en los secrets de GitHub. Comparacion en tiempo constante.
 - `TRASH_RETENTION_DAYS`: dias que un registro soft-deleted debe tener antes de ser elegible para purga. Default `90`.
