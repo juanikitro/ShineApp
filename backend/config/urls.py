@@ -46,6 +46,12 @@ from scheduling.views import DailyAgendaView, ReservationMaterialOverrideViewSet
 from search.views import GlobalSearchView
 from tasks.views import TaskViewSet
 from workorders.views import WorkOrderViewSet
+from whatsapp.views import (
+    WhatsAppAutomationRuleViewSet,
+    WhatsAppConfigView,
+    WhatsAppMessageViewSet,
+    WhatsAppTemplateViewSet,
+)
 
 from .views import (
     BusinessProfileView,
@@ -87,6 +93,9 @@ router.register("material-consumptions", MaterialConsumptionViewSet, basename="m
 router.register("quotes", QuoteViewSet, basename="quote")
 router.register("tasks", TaskViewSet, basename="task")
 router.register("public-requests", PublicRequestViewSet, basename="publicrequest")
+router.register("whatsapp/templates", WhatsAppTemplateViewSet, basename="whatsapp-template")
+router.register("whatsapp/automation-rules", WhatsAppAutomationRuleViewSet, basename="whatsapp-automation-rule")
+router.register("whatsapp/messages", WhatsAppMessageViewSet, basename="whatsapp-message")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -117,6 +126,7 @@ urlpatterns = [
         BusinessProfileView.as_view(),
         name="business-profile",
     ),
+    path("api/whatsapp/config/", WhatsAppConfigView.as_view(), name="whatsapp-config"),
     path("api/agenda/daily/", DailyAgendaView.as_view(), name="agenda-daily"),
     path("api/cash/daily/", CashDailyView.as_view(), name="cash-daily"),
     path("api/cash/weekly/", CashWeeklyView.as_view(), name="cash-weekly"),

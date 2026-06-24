@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [WhatsApp MVP](2026-06-24-whatsapp-mvp.md)
 - [Turnera: el formulario publico pide nombre y apellido](2026-06-23-turnera-nombre-y-apellido.md)
 - [boton pantalla completa en sidebar](2026-06-23-sidebar-pantalla-completa.md)
 - [compact mode notebooks](2026-06-23-compact-mode-notebooks.md)

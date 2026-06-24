@@ -32,6 +32,7 @@ import {
 	LogOut,
 	Menu,
 	Maximize2,
+	MessageCircle,
 	Moon,
 	Minimize2,
 	MoreHorizontal,
@@ -517,6 +518,7 @@ type SettingsSection =
 	| 'cash'
 	| 'agenda'
 	| 'users'
+	| 'whatsapp'
 	| 'history'
 	| 'trash'
 	| 'novedades'
@@ -532,6 +534,7 @@ const settingsSectionOptions: Array<{
 	{ value: 'cash', label: 'Caja', icon: CreditCard },
 	{ value: 'agenda', label: 'Agenda', icon: CalendarDays },
 	{ value: 'users', label: 'Usuarios', icon: Users },
+	{ value: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
 	{ value: 'history', label: 'Historial', icon: History },
 	{ value: 'trash', label: 'Papelera', icon: Trash2 },
 	{ value: 'novedades', label: 'Novedades', icon: Sparkles },
@@ -847,6 +850,10 @@ export default function Home() {
 	const [quotes, setQuotes] = useState<AnyRecord[]>([])
 	const [tasks, setTasks] = useState<AnyRecord[]>([])
 	const [publicRequests, setPublicRequests] = useState<AnyRecord[]>([])
+	const [whatsappConfig, setWhatsappConfig] = useState<AnyRecord | null>(null)
+	const [whatsappTemplates, setWhatsappTemplates] = useState<AnyRecord[]>([])
+	const [whatsappAutomationRules, setWhatsappAutomationRules] = useState<AnyRecord[]>([])
+	const [whatsappMessages, setWhatsappMessages] = useState<AnyRecord[]>([])
 	const [publicRequestSelections, setPublicRequestSelections] = useState<
 		Record<string, { customer?: string; vehicle?: string }>
 	>({})
@@ -2372,6 +2379,10 @@ export default function Home() {
 		publicRequests: setPublicRequests,
 		businessProfile: syncBusinessProfile,
 		employees: setEmployees,
+		whatsappConfig: setWhatsappConfig,
+		whatsappTemplates: setWhatsappTemplates,
+		whatsappAutomationRules: setWhatsappAutomationRules,
+		whatsappMessages: setWhatsappMessages,
 	}
 
 	async function loadData(options: LoadDataOptions = {}) {
@@ -3191,6 +3202,7 @@ export default function Home() {
 					onCreateReservationFromQuote={createReservationFromQuote}
 					onDownloadQuotePdf={downloadQuotePdf}
 					onDownloadQuotePdfAndMarkSent={downloadQuotePdfAndMarkSent}
+					onSendQuoteWhatsapp={sendQuoteWhatsapp}
 					onOpenQuoteReservationInAgenda={openQuoteReservationInAgenda}
 				/>
 			</MotionFlashSurface>
@@ -3208,6 +3220,7 @@ export default function Home() {
 				onCreateReservationFromQuote={createReservationFromQuote}
 				onDownloadQuotePdf={downloadQuotePdf}
 				onDownloadQuotePdfAndMarkSent={downloadQuotePdfAndMarkSent}
+				onSendQuoteWhatsapp={sendQuoteWhatsapp}
 				onOpenQuoteReservationInAgenda={openQuoteReservationInAgenda}
 			/>
 		)
@@ -7067,6 +7080,95 @@ export default function Home() {
 		)
 	}
 
+	async function saveWhatsappConfig(patch: AnyRecord) {
+		return runAction(
+			async () => {
+				const saved = await apiFetch<AnyRecord>('/whatsapp/config/', {
+					method: 'PATCH',
+					body: JSON.stringify(patch),
+				})
+				setWhatsappConfig(saved)
+				return saved
+			},
+			{ successTitle: 'WhatsApp guardado' },
+		)
+	}
+
+	async function createWhatsappTemplate(data: AnyRecord) {
+		return runAction(
+			async () => {
+				const created = await apiFetch<AnyRecord>('/whatsapp/templates/', {
+					method: 'POST',
+					body: JSON.stringify(data),
+				})
+				setWhatsappTemplates((current) => [...current, created])
+				return created
+			},
+			{ successTitle: 'Template creado' },
+		)
+	}
+
+	async function updateWhatsappTemplate(id: number | string, patch: AnyRecord) {
+		return runAction(
+			async () => {
+				const saved = await apiFetch<AnyRecord>(`/whatsapp/templates/${id}/`, {
+					method: 'PATCH',
+					body: JSON.stringify(patch),
+				})
+				setWhatsappTemplates((current) =>
+					current.map((item) => (String(item.id) === String(id) ? saved : item)),
+				)
+				return saved
+			},
+			{ successTitle: 'Template actualizado' },
+		)
+	}
+
+	async function updateWhatsappAutomationRule(id: number | string, patch: AnyRecord) {
+		return runAction(
+			async () => {
+				const saved = await apiFetch<AnyRecord>(
+					`/whatsapp/automation-rules/${id}/`,
+					{
+						method: 'PATCH',
+						body: JSON.stringify(patch),
+					},
+				)
+				setWhatsappAutomationRules((current) =>
+					current.map((item) => (String(item.id) === String(id) ? saved : item)),
+				)
+				return saved
+			},
+			{ successTitle: 'Automatizacion actualizada' },
+		)
+	}
+
+	async function sendQuoteWhatsapp(quote: AnyRecord) {
+		return runAction(
+			async () => {
+				const result = await apiFetch<AnyRecord>(
+					`/quotes/${quote.id}/send-whatsapp/`,
+					{ method: 'POST' },
+				)
+				if (result?.quote) {
+					setQuotes((current) =>
+						current.map((item) =>
+							String(item.id) === String(quote.id) ? result.quote : item,
+						),
+					)
+				}
+				if (result?.message) {
+					setWhatsappMessages((current) => [result.message, ...current])
+				}
+				return result
+			},
+			{
+				flashTarget: recordFlashKey('quote', quote.id),
+				successTitle: 'Cotizacion enviada por WhatsApp',
+			},
+		)
+	}
+
 	async function saveBusinessProfile(event: FormEvent) {
 		event.preventDefault()
 		if (!canViewEconomy) return
@@ -7700,6 +7802,12 @@ export default function Home() {
 				icon: <FileText size={15} />,
 				hidden: !isDraft,
 				onSelect: () => downloadQuotePdfAndMarkSent(quote),
+			},
+			{
+				id: `quote:whatsapp:${quote.id}`,
+				label: 'Enviar WhatsApp',
+				icon: <MessageCircle size={15} />,
+				onSelect: () => sendQuoteWhatsapp(quote),
 			},
 			{
 				id: `quote:agenda:${quote.id}`,
@@ -14739,6 +14847,7 @@ export default function Home() {
 						onCreateReservationFromQuote={createReservationFromQuote}
 						onDownloadQuotePdf={downloadQuotePdf}
 						onDownloadQuotePdfAndMarkSent={downloadQuotePdfAndMarkSent}
+						onSendQuoteWhatsapp={sendQuoteWhatsapp}
 						onOpenQuoteReservationInAgenda={openQuoteReservationInAgenda}
 						onQuoteDragCancel={handleQuoteDragCancel}
 						onQuoteDragEnd={handleQuoteDragEnd}
@@ -14766,6 +14875,10 @@ export default function Home() {
 						businessProfile={businessProfile}
 						businessSlug={String(currentUser?.business?.slug ?? '')}
 						cashClassificationPairs={cashClassificationPairs}
+						whatsappAutomationRules={whatsappAutomationRules}
+						whatsappConfig={whatsappConfig}
+						whatsappMessages={whatsappMessages}
+						whatsappTemplates={whatsappTemplates}
 						incomeCategoryTree={incomeCategoryTree}
 						expenseCategoryTree={expenseCategoryTree}
 						currentUserId={currentUser?.id ?? null}
@@ -14827,11 +14940,15 @@ export default function Home() {
 						onRefreshAuditLogs={() => refreshAuditLogs()}
 						onRefreshData={() => loadData({ force: true })}
 						onSaveBusinessProfile={saveBusinessProfile}
+						onSaveWhatsappConfig={saveWhatsappConfig}
 						onSettingsSectionChange={(section) => {
 								setSettingsSection(section)
 								if (section !== 'users') deselectEmployee()
 							}}
 						onToggleAuditLog={setExpandedAuditLogId}
+						onCreateWhatsappTemplate={createWhatsappTemplate}
+						onUpdateWhatsappAutomationRule={updateWhatsappAutomationRule}
+						onUpdateWhatsappTemplate={updateWhatsappTemplate}
 						onUpdateAuditFilter={updateAuditFilter}
 					/>
 				) : null}

@@ -46,6 +46,10 @@ export type DataSetKey =
 	| 'publicRequests'
 	| 'businessProfile'
 	| 'employees'
+	| 'whatsappConfig'
+	| 'whatsappTemplates'
+	| 'whatsappAutomationRules'
+	| 'whatsappMessages'
 
 export type DataLoadingScope = {
 	section: string
@@ -143,6 +147,10 @@ const economyOnlyDataSets = new Set<DataSetKey>([
 	'businessProfile',
 	'employees',
 	'serviceMaterials',
+	'whatsappConfig',
+	'whatsappTemplates',
+	'whatsappAutomationRules',
+	'whatsappMessages',
 ])
 
 function isLoadDataSection(section: string): section is LoadDataSection {
@@ -151,10 +159,19 @@ function isLoadDataSection(section: string): section is LoadDataSection {
 
 export function dataSetKeysForSection({
 	section,
+	settingsSection,
 	canViewEconomy,
 }: DataLoadingScope): DataSetKey[] {
 	const targetSection = isLoadDataSection(section) ? section : 'dashboard'
 	const keys = [...sectionDataSets[targetSection], ...shellDataSets]
+	if (targetSection === 'settings' && settingsSection === 'whatsapp') {
+		keys.push(
+			'whatsappConfig',
+			'whatsappTemplates',
+			'whatsappAutomationRules',
+			'whatsappMessages',
+		)
+	}
 	const allowedKeys = canViewEconomy
 		? keys
 		: keys.filter((key) => !economyOnlyDataSets.has(key))
