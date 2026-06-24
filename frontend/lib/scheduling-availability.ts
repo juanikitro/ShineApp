@@ -250,7 +250,8 @@ export function selectedSectorsFromItems(
 		if (!Number.isFinite(serviceId) || serviceId <= 0) continue
 		const sectorId = sectorById.get(serviceId)
 		if (sectorId != null) {
-			result[sectorId] = (result[sectorId] ?? 0) + 1
+			result[sectorId] = 1
+			break
 		}
 	}
 	return result
