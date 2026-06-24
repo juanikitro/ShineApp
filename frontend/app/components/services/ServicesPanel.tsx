@@ -6,6 +6,7 @@ import { ChevronLeft, Plus } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
 import { Button } from '@/app/components/ui/Button'
+import { CollapsibleSection } from '@/app/components/ui/CollapsibleSection'
 import { Empty, LoadingState } from '@/app/components/ui/Empty'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { Panel } from '@/app/components/ui/Panel'
@@ -516,6 +517,59 @@ export function ServicesPanel({
 		)
 	}
 
+	function renderServiceCard(item: AnyRecord) {
+		const quickActions = serviceQuickActions(item)
+		return (
+			<MotionFlashSurface
+				className={recordClass('service', item.id)}
+				key={item.id}
+				{...quickActionTargetProps('Acciones de servicio', quickActions)}
+			>
+				{renderQuickActionsTrigger(
+					'Acciones de servicio',
+					quickActions,
+					'Acciones rapidas de servicio',
+				)}
+				<RecordCardHeader
+					title={serviceDisplayName(item)}
+					subtitle={joinDisplayParts([
+						sectorLabel(item),
+						formatDurationLabel(item.estimated_duration_minutes),
+					])}
+					primaryAction={{
+						ariaLabel: `Abrir servicio ${serviceDisplayName(item)}`,
+						onClick: () => onOpenServiceDashboard(item),
+					}}
+					actions={
+						canViewEconomy ? (
+							<>
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => onOpenServiceDetail(item)}
+								>
+									Editar
+								</Button>
+								<Button
+									type="button"
+									variant="danger"
+									onClick={() => onDeleteService(item)}
+								>
+									Inactivar
+								</Button>
+							</>
+						) : undefined
+					}
+				>
+					{renderServicePriceRow(item)}
+				</RecordCardHeader>
+			</MotionFlashSurface>
+		)
+	}
+
+	const activeServices = services.filter((item) => item.is_active !== false)
+	const inactiveServices = services.filter((item) => item.is_active === false)
+
 	return (
 		<div className="grid">
 			<section className="panel">
@@ -535,58 +589,18 @@ export function ServicesPanel({
 				</div>
 				<div className="records">
 					{services.length ? (
-						services.map((item) => {
-							const quickActions = serviceQuickActions(item)
-							return (
-								<MotionFlashSurface
-									className={recordClass('service', item.id)}
-									key={item.id}
-									{...quickActionTargetProps(
-										'Acciones de servicio',
-										quickActions,
-									)}
+						<>
+							{activeServices.map((item) => renderServiceCard(item))}
+							{inactiveServices.length ? (
+								<CollapsibleSection
+									title="Servicios inactivos"
+									count={inactiveServices.length}
+									defaultOpen={activeServices.length === 0}
 								>
-									{renderQuickActionsTrigger(
-										'Acciones de servicio',
-										quickActions,
-										'Acciones rapidas de servicio',
-									)}
-									<RecordCardHeader
-										title={serviceDisplayName(item)}
-										subtitle={joinDisplayParts([
-											sectorLabel(item),
-											formatDurationLabel(item.estimated_duration_minutes),
-										])}
-										primaryAction={{
-											ariaLabel: `Abrir servicio ${serviceDisplayName(item)}`,
-											onClick: () => onOpenServiceDashboard(item),
-										}}
-										actions={
-											canViewEconomy ? (
-												<>
-													<Button
-														type="button"
-														variant="ghost"
-														onClick={() => onOpenServiceDetail(item)}
-													>
-														Editar
-													</Button>
-													<Button
-														type="button"
-														variant="danger"
-														onClick={() => onDeleteService(item)}
-													>
-														Inactivar
-													</Button>
-												</>
-											) : undefined
-										}
-									>
-										{renderServicePriceRow(item)}
-									</RecordCardHeader>
-								</MotionFlashSurface>
-							)
-						})
+									{inactiveServices.map((item) => renderServiceCard(item))}
+								</CollapsibleSection>
+							) : null}
+						</>
 					) : (
 						<Empty
 							text="Sin servicios."

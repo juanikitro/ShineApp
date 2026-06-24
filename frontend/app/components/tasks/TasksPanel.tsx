@@ -3,6 +3,7 @@
 import { type ChangeEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
+	AlertTriangle,
 	CalendarClock,
 	CheckCircle2,
 	ListTodo,
@@ -132,6 +133,22 @@ const BUCKET_LABEL: Record<DateBucket, string> = {
 	none: 'Sin vencimiento',
 }
 
+const PRIORITY_CHIPS: Array<{ value: string; label: string }> = [
+	{ value: '', label: 'Todas' },
+	{ value: 'high', label: 'Alta' },
+	{ value: 'medium', label: 'Media' },
+	{ value: 'low', label: 'Baja' },
+]
+
+const DUE_CHIPS: Array<{ value: DueFilter; label: string }> = [
+	{ value: 'all', label: 'Todas' },
+	{ value: 'overdue', label: 'Vencidas' },
+	{ value: 'today', label: 'Hoy' },
+	{ value: 'week', label: 'Esta semana' },
+]
+
+const DESCRIPTION_THRESHOLD = 120
+
 function startOfToday(): number {
 	const today = new Date()
 	today.setHours(0, 0, 0, 0)
@@ -238,6 +255,7 @@ export function TasksPanel({
 	const [showDone, setShowDone] = useState(false)
 	const [busyTaskId, setBusyTaskId] = useState<number | null>(null)
 	const [openMenu, setOpenMenu] = useState<{ id: number; field: 'priority' | 'assignee' | 'due' } | null>(null)
+	const [expandedDescriptions, setExpandedDescriptions] = useState<Set<number>>(new Set())
 	const { requestConfirm, ConfirmDialog } = useConfirmDialog()
 	const popoverRef = useRef<HTMLDivElement>(null)
 
@@ -666,10 +684,29 @@ export function TasksPanel({
 						) : null}
 					</div>
 					{task.description ? (
-						<details className="task-description">
-							<summary>Ver descripcion</summary>
-							<p>{task.description}</p>
-						</details>
+						<div className="task-description">
+							<p className="task-description-text">
+								{!expandedDescriptions.has(task.id) && task.description.length > DESCRIPTION_THRESHOLD
+									? task.description.slice(0, DESCRIPTION_THRESHOLD) + '…'
+									: task.description}
+							</p>
+							{task.description.length > DESCRIPTION_THRESHOLD ? (
+								<button
+									type="button"
+									className="task-description-toggle"
+									onClick={() =>
+										setExpandedDescriptions((prev) => {
+											const next = new Set(prev)
+											if (next.has(task.id)) next.delete(task.id)
+											else next.add(task.id)
+											return next
+										})
+									}
+								>
+									{expandedDescriptions.has(task.id) ? 'Ver menos' : 'Ver mas'}
+								</button>
+							) : null}
+						</div>
 					) : null}
 				</div>
 				<div className="task-actions">
@@ -728,6 +765,7 @@ export function TasksPanel({
 					>
 						<header className="tasks-bucket-head">
 							<h3>
+								{bucket === 'overdue' ? <AlertTriangle size={14} aria-hidden /> : null}
 								{BUCKET_LABEL[bucket]}
 								<span className="tasks-bucket-count">{buckets[bucket].length}</span>
 							</h3>
@@ -801,30 +839,35 @@ export function TasksPanel({
 						/>
 					</div>
 					<div className="tasks-filter-row">
-						<label className="tasks-filter-label">
-							Prioridad
-							<select
-								value={priorityFilter}
-								onChange={(event) => setPriorityFilter(event.target.value)}
-							>
-								<option value="">Todas</option>
-								<option value="high">Alta</option>
-								<option value="medium">Media</option>
-								<option value="low">Baja</option>
-							</select>
-						</label>
-						<label className="tasks-filter-label">
-							Vencimiento
-							<select
-								value={dueFilter}
-								onChange={(event) => setDueFilter(event.target.value as DueFilter)}
-							>
-								<option value="all">Todas</option>
-								<option value="overdue">Vencidas</option>
-								<option value="today">Hoy</option>
-								<option value="week">Esta semana</option>
-							</select>
-						</label>
+						<div className="tasks-filter-chips" role="group" aria-label="Filtrar por prioridad">
+							<span className="tasks-filter-chips-label">Prioridad</span>
+							{PRIORITY_CHIPS.map(({ value, label }) => (
+								<button
+									key={value}
+									type="button"
+									className={`tasks-filter-chip${priorityFilter === value ? ' tasks-filter-chip--active' : ''}`}
+									onClick={() => setPriorityFilter(value)}
+								>
+									{value ? (
+										<span className={`task-priority-dot task-priority-dot--${value}`} aria-hidden />
+									) : null}
+									{label}
+								</button>
+							))}
+						</div>
+						<div className="tasks-filter-chips" role="group" aria-label="Filtrar por vencimiento">
+							<span className="tasks-filter-chips-label">Vencimiento</span>
+							{DUE_CHIPS.map(({ value, label }) => (
+								<button
+									key={value}
+									type="button"
+									className={`tasks-filter-chip${dueFilter === value ? ' tasks-filter-chip--active' : ''}${dueFilter === value && value === 'overdue' ? ' tasks-filter-chip--overdue' : ''}`}
+									onClick={() => setDueFilter(value)}
+								>
+									{label}
+								</button>
+							))}
+						</div>
 						{canViewEconomy && scope === 'assigned' ? (
 							<label className="tasks-filter-label">
 								Empleado

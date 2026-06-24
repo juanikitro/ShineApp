@@ -10,6 +10,7 @@ export type SidebarNavItem = {
 	label: string
 	icon: LucideIcon
 	badge?: number
+	badgeVariant?: 'default' | 'danger'
 	children?: SidebarNavItem[]
 }
 
@@ -104,7 +105,10 @@ export function SidebarNav({
 								<Icon size={16} />
 								{!collapsed ? item.label : null}
 								{item.badge ? (
-									<span className="nav-badge" aria-label={`${item.badge} pendientes`}>
+									<span
+										className={cx('nav-badge', item.badgeVariant === 'danger' && 'nav-badge--danger')}
+										aria-label={`${item.badge} pendientes`}
+									>
 										{item.badge > 99 ? '99+' : item.badge}
 									</span>
 								) : null}
@@ -137,7 +141,7 @@ export function SidebarNav({
 									) : null}
 									{item.badge ? (
 										<span
-											className="nav-badge"
+											className={cx('nav-badge', item.badgeVariant === 'danger' && 'nav-badge--danger')}
 											aria-label={`${item.badge} pendientes`}
 										>
 											{item.badge > 99 ? '99+' : item.badge}
@@ -190,7 +194,7 @@ export function SidebarNav({
 												{!collapsed ? child.label : null}
 												{child.badge ? (
 													<span
-														className="nav-badge"
+														className={cx('nav-badge', child.badgeVariant === 'danger' && 'nav-badge--danger')}
 														aria-label={`${child.badge} pendientes`}
 													>
 														{child.badge > 99 ? '99+' : child.badge}
