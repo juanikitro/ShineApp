@@ -13,6 +13,7 @@ from .cash import (
     cash_movement_source_kind,
     ensure_adjustment_target_closed,
     ensure_cash_day_open,
+    related_fixed_expense_occurrence,
     request_user_from_context,
     signed_amount_for,
 )
@@ -181,6 +182,8 @@ class CashMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSer
             return "Deuda original"
         if source_kind == "adjustment":
             return f"Ajuste de cierre {obj.adjusts_closed_day.isoformat()}"
+        if source_kind == "fixed_expense":
+            return "Gasto fijo"
         return "Movimiento manual"
 
     def get_signed_amount(self, obj):
@@ -268,6 +271,10 @@ class CashMovementSerializer(BusinessScopedSerializerMixin, serializers.ModelSer
         if source_kind == "adjustment":
             target = obj.adjusts_closed_day
             return f"Ajuste cierre {target.isoformat()}" if target else "Ajuste"
+        if source_kind == "fixed_expense":
+            occurrence = related_fixed_expense_occurrence(obj)
+            name = getattr(getattr(occurrence, "fixed_expense", None), "name", "") or ""
+            return name
         return ""
 
     def get_payment_method(self, obj):

@@ -24,6 +24,7 @@ const cashSourceKindLabels: Record<string, string> = {
 	adjustment: 'Ajuste',
 	debt_origin: 'Deuda original',
 	debt_payment: 'Pago de deuda',
+	fixed_expense: 'Gasto fijo',
 	manual: 'Manual',
 	material_purchase: 'Compra',
 	payment: 'Cobro',
