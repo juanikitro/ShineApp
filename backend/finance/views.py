@@ -323,6 +323,44 @@ class CashWeeklyView(APIView):
         })
 
 
+class CashMonthlyView(APIView):
+    permission_classes = [CanViewEconomy]
+
+    def get(self, request):
+        day = date.fromisoformat(request.query_params.get("date")) if request.query_params.get("date") else date.today()
+        business = business_from_request(request)
+        month_start = day.replace(day=1)
+        if month_start.month == 12:
+            next_month = month_start.replace(year=month_start.year + 1, month=1)
+        else:
+            next_month = month_start.replace(month=month_start.month + 1)
+        month_end = next_month - timedelta(days=1)
+        sync_past_cash_closures(reference_day=day, user=request.user if request.user.is_authenticated else None, business=business)
+        economic_totals = economic_totals_for_range(month_start, month_end, business)
+        cashflow_totals = cashflow_totals_for_range(month_start, month_end, business)
+        expense_category_tree = expense_category_tree_for_profile(business)
+        income_category_tree = income_category_tree_for_profile(business)
+        return response.Response({
+            "month_start": month_start.isoformat(),
+            "month_end": month_end.isoformat(),
+            "date": day.isoformat(),
+            "income": economic_totals["income"],
+            "expense": economic_totals["expense"],
+            "balance": economic_totals["balance"],
+            "is_closed": False,
+            "closure": None,
+            "entries": cash_entries_for_range(month_start, month_end, request=request, business=business),
+            "economic_totals": economic_totals,
+            "cashflow_totals": cashflow_totals,
+            "category_options": {
+                CashMovement.MovementType.INCOME: list(income_category_tree.keys()),
+                CashMovement.MovementType.EXPENSE: list(expense_category_tree.keys()),
+            },
+            "income_category_tree": income_category_tree,
+            "expense_category_tree": expense_category_tree,
+        })
+
+
 class CashCloseView(APIView):
     permission_classes = [CanViewEconomy]
 

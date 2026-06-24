@@ -17,7 +17,7 @@ from catalog.models import Service
 from core.models import BusinessProfile
 from customers.models import Customer, Vehicle
 from customers.serializers import VehicleSerializer
-from debts.models import Debt
+from debts.models import Debt, DebtPayment
 from finance.cash import cash_day
 from finance.models import CashClosure, CashMovement, Payment
 from inventory.models import Material, MaterialConsumption, MaterialOpenUnit, MaterialPurchase
@@ -498,6 +498,7 @@ def test_employee_is_denied_financial_endpoints(employee_client, base_data):
         (reverse("payment-list"), "get"),
         (reverse("cashmovement-list"), "get"),
         (reverse("cash-daily"), "get"),
+        (reverse("cash-monthly"), "get"),
         (reverse("cash-close"), "post"),
         (reverse("quote-list"), "get"),
         (reverse("quote-pdf", args=[quote.id]), "get"),
@@ -558,6 +559,7 @@ def test_employer_can_access_financial_endpoints(api_client, base_data):
         reverse("payment-list"),
         reverse("cashmovement-list"),
         reverse("cash-daily"),
+        reverse("cash-monthly"),
         reverse("dashboard-summary"),
         reverse("quote-list"),
         reverse("quote-pdf", args=[quote.id]),
@@ -2541,6 +2543,59 @@ def test_cash_daily_separates_cashflow_from_economic_totals(api_client, base_dat
     assert debt_payment_entry_data["counterparty_label"] == "Proveedor"
     assert debt_payment_entry_data["reference_label"] == "Pulidora financiada"
     assert debt_payment_entry_data["payment_method"]
+
+
+@pytest.mark.django_db
+def test_cash_monthly_summarizes_month_range_entries_and_debt_payments(api_client):
+    april_day = date(2026, 4, 15)
+    outside_day = date(2026, 5, 1)
+    CashMovement.objects.create(
+        movement_type=CashMovement.MovementType.INCOME,
+        category="Cobros",
+        amount=Decimal("12000.00"),
+        occurred_at=timezone.make_aware(datetime.combine(april_day, time(10, 0))),
+    )
+    CashMovement.objects.create(
+        movement_type=CashMovement.MovementType.EXPENSE,
+        category="Insumos",
+        amount=Decimal("2500.00"),
+        occurred_at=timezone.make_aware(datetime.combine(april_day, time(12, 0))),
+    )
+    CashMovement.objects.create(
+        movement_type=CashMovement.MovementType.INCOME,
+        category="Cobros",
+        amount=Decimal("9999.00"),
+        occurred_at=timezone.make_aware(datetime.combine(outside_day, time(9, 0))),
+    )
+    debt = Debt.objects.create(
+        concept="Pago mensual",
+        creditor="Proveedor",
+        principal_amount=Decimal("8000.00"),
+        origin_date=april_day,
+    )
+    DebtPayment.objects.create(
+        debt=debt,
+        amount=Decimal("3000.00"),
+        paid_at=april_day,
+        method="cash",
+    )
+
+    response = api_client.get(reverse("cash-monthly"), {"date": april_day.isoformat()})
+
+    assert response.status_code == 200, response.data
+    assert response.data["date"] == april_day.isoformat()
+    assert response.data["month_start"] == "2026-04-01"
+    assert response.data["month_end"] == "2026-04-30"
+    assert response.data["is_closed"] is False
+    assert response.data["closure"] is None
+    assert Decimal(response.data["economic_totals"]["income"]) == Decimal("12000.00")
+    assert Decimal(response.data["economic_totals"]["expense"]) == Decimal("2500.00")
+    assert Decimal(response.data["cashflow_totals"]["income"]) == Decimal("12000.00")
+    assert Decimal(response.data["cashflow_totals"]["expense"]) == Decimal("5500.00")
+    assert Decimal(response.data["cashflow_totals"]["balance"]) == Decimal("6500.00")
+    entry_kinds = {entry["source_kind"] for entry in response.data["entries"]}
+    assert {"manual", "debt_payment"}.issubset(entry_kinds)
+    assert all(not str(entry["occurred_at"]).startswith("2026-05-01") for entry in response.data["entries"])
 
 
 @pytest.mark.django_db
