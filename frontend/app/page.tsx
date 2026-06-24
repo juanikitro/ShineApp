@@ -919,6 +919,7 @@ export default function Home() {
 		price_combi: '',
 		price_camion: '',
 		estimated_duration_minutes: '60',
+		estimated_material_cost: '',
 		notes: '',
 	})
 	const [serviceMaterialLines, setServiceMaterialLines] = useState<AnyRecord[]>([])
@@ -6808,13 +6809,24 @@ export default function Home() {
 		})
 	}
 
+	// El costo estimado es opcional: enviar '' rompe el DecimalField del backend,
+	// así que lo normalizamos a null cuando viene vacío.
+	function serviceCreatePayload(form: AnyRecord) {
+		const payload = asPayload(form)
+		payload.estimated_material_cost =
+			String(payload.estimated_material_cost ?? '').trim() === ''
+				? null
+				: payload.estimated_material_cost
+		return payload
+	}
+
 	async function saveQuickService(event: FormEvent) {
 		event.preventDefault()
 		if (!quickCreate || !canViewEconomy) return
 		await runAction(async () => {
 			const created = await apiFetch<AnyRecord>('/services/', {
 				method: 'POST',
-				body: JSON.stringify(asPayload(serviceForm)),
+				body: JSON.stringify(serviceCreatePayload(serviceForm)),
 			})
 			applyQuickSelection(quickCreate.target, String(created.id))
 			setServiceForm({
@@ -8245,6 +8257,12 @@ export default function Home() {
 				? Number(payload.birthday_day)
 				: null
 		}
+		if (kind === 'service') {
+			payload.estimated_material_cost =
+				String(payload.estimated_material_cost ?? '').trim() === ''
+					? null
+					: payload.estimated_material_cost
+		}
 		if (kind === 'workorder') {
 			payload.estimated_delivery_at = payload.estimated_delivery_at || null
 		}
@@ -8641,6 +8659,22 @@ export default function Home() {
 								/>
 							</Field>
 						))}
+					</div>
+					<Field label="Costo estimado de materiales">
+						<input
+							type="number"
+							min="0"
+							value={data.estimated_material_cost ?? ''}
+							onChange={(event) =>
+								updateDetailEdit({
+									estimated_material_cost: event.target.value,
+								})
+							}
+						/>
+					</Field>
+					<div className="info-note">
+						Opcional. Solo se usa para estimar el ratio cuando el servicio no
+						tiene receta de materiales; ese valor se muestra con un “~”.
 					</div>
 					<Field label="Notas">
 						<textarea
@@ -10264,7 +10298,7 @@ export default function Home() {
 			const method = serviceForm.id ? 'PATCH' : 'POST'
 			const saved = await apiFetch<AnyRecord>(path, {
 				method,
-				body: JSON.stringify(asPayload(serviceForm)),
+				body: JSON.stringify(serviceCreatePayload(serviceForm)),
 			})
 			await syncServiceMaterialLines(String(saved.id))
 			setServiceForm({

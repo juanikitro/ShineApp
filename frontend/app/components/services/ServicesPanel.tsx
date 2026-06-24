@@ -13,6 +13,11 @@ import { type QuickAction } from '@/app/components/ui/QuickActionsMenu'
 import { RecordCardHeader } from '@/app/components/ui/RecordCard'
 import { StatusPill } from '@/app/components/ui/StatusPill'
 import { joinDisplayParts } from '@/lib/display-text'
+import {
+	formatRatioLabel,
+	serviceCostRatios,
+	serviceEstimatedCost,
+} from '@/lib/service-cost'
 import { serviceDisplayName } from '@/lib/service-display'
 import { formatDurationLabel } from '@/lib/service-duration'
 import {
@@ -131,18 +136,26 @@ export function ServicesPanel({
 			return val !== null && val !== undefined && String(val).trim() !== ''
 		})
 
-		const totalMaterialCost = (service.materials ?? []).reduce(
-			(sum: number, m: AnyRecord) =>
-				sum + Number(m.quantity || 0) * Number(m.material_unit_cost || 0),
-			0,
+		const { cost, isEstimated } = serviceEstimatedCost(service)
+		const { marginRate, costRatio } = serviceCostRatios(
+			service.base_price,
+			cost,
 		)
+		// El "~" solo aparece cuando el costo cae al estimado manual (sin receta).
+		const mark = isEstimated ? '~' : ''
 
 		const parts: string[] = [`Base: ${money(service.base_price)}`]
 		for (const t of setVehiclePrices) {
 			parts.push(`${t.label}: ${money(service[t.priceField])}`)
 		}
-		if (totalMaterialCost > 0) {
-			parts.push(`Mat: ${money(totalMaterialCost)}`)
+		if (cost !== null && cost > 0) {
+			parts.push(`${mark}Mat: ${money(cost)}`)
+			if (marginRate !== null) {
+				parts.push(`${mark}Margen ${formatRatioLabel(marginRate)}`)
+			}
+			if (costRatio !== null) {
+				parts.push(`${mark}Costo/precio ${formatRatioLabel(costRatio)}`)
+			}
 		}
 
 		return <div className="record-prices">{parts.join(' · ')}</div>
@@ -462,26 +475,49 @@ export function ServicesPanel({
 
 				{hasDashboardHistory ? (
 					<>
-						<div className="customer-dashboard-metrics service-dashboard-metrics">
-							<MetricCard
-								label="Ventas"
-								value={money(summary.sales_total ?? summary.billed_total)}
-							/>
-							<MetricCard label="Cobrado" value={money(summary.paid_total)} />
-							<MetricCard
-								label="Saldo"
-								value={money(summary.balance_due_total)}
-							/>
-							<MetricCard
-								label="Materiales"
-								value={money(summary.material_cost_total)}
-							/>
-							<MetricCard label="Margen" value={money(summary.margin_total)} />
-							<MetricCard
-								label="Trabajos"
-								value={summary.work_orders_count ?? 0}
-							/>
-						</div>
+						{(() => {
+							// "~" cuando algún costo del período cayó al estimado manual.
+							const mark = summary.material_cost_is_estimated ? '~' : ''
+							const salesTotal =
+								summary.sales_total ?? summary.billed_total
+							const { marginRate, costRatio } = serviceCostRatios(
+								salesTotal,
+								Number(summary.material_cost_total ?? 0),
+							)
+							return (
+								<div className="customer-dashboard-metrics service-dashboard-metrics">
+									<MetricCard label="Ventas" value={money(salesTotal)} />
+									<MetricCard
+										label="Cobrado"
+										value={money(summary.paid_total)}
+									/>
+									<MetricCard
+										label="Saldo"
+										value={money(summary.balance_due_total)}
+									/>
+									<MetricCard
+										label="Materiales"
+										value={`${mark}${money(summary.material_cost_total)}`}
+									/>
+									<MetricCard
+										label="Margen"
+										value={`${mark}${money(summary.margin_total)}`}
+									/>
+									<MetricCard
+										label="Margen %"
+										value={`${mark}${formatRatioLabel(marginRate)}`}
+									/>
+									<MetricCard
+										label="Costo/precio"
+										value={`${mark}${formatRatioLabel(costRatio)}`}
+									/>
+									<MetricCard
+										label="Trabajos"
+										value={summary.work_orders_count ?? 0}
+									/>
+								</div>
+							)
+						})()}
 
 						{renderServiceOperationalSnapshot(
 							history,

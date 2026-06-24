@@ -12,6 +12,7 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-24
 - [WhatsApp MVP](docs/registro/cambios/2026-06-24-whatsapp-mvp.md)
+- [Costo estimado por servicio para ratio estimado (~)](docs/registro/cambios/2026-06-24-costo-estimado-por-servicio.md)
 
 ## 2026-06-23
 - [Turnera: el formulario publico pide nombre y apellido](docs/registro/cambios/2026-06-23-turnera-nombre-y-apellido.md)

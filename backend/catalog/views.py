@@ -52,18 +52,39 @@ def service_history_bucket(**extra):
         "balance_due_total": Decimal("0.00"),
         "material_cost_total": Decimal("0.00"),
         "margin_total": Decimal("0.00"),
+        # True si algún costo del bucket cayó al costo estimado manual del servicio.
+        "material_cost_is_estimated": False,
     }
     bucket.update(extra)
     return bucket
 
 
-def add_service_history_amounts(bucket, order, paid_total, balance_due, material_total, margin):
+def add_service_history_amounts(
+    bucket, order, paid_total, balance_due, material_total, margin, is_estimated=False
+):
     bucket["work_orders_count"] += 1
     bucket["billed_total"] += order.total_amount
     bucket["paid_total"] += paid_total
     bucket["balance_due_total"] += balance_due
     bucket["material_cost_total"] += material_total
     bucket["margin_total"] += margin
+    if is_estimated:
+        bucket["material_cost_is_estimated"] = True
+
+
+def resolve_order_material_cost(real_cost, recipe_cost, manual_cost):
+    """Costo de materiales de una orden con jerarquía real > receta > manual.
+
+    Devuelve (costo, is_estimated). is_estimated es True solo cuando se usa el
+    costo estimado manual del servicio (sin consumo real ni receta).
+    """
+    if real_cost and real_cost > 0:
+        return real_cost, False
+    if recipe_cost is not None:
+        return recipe_cost, False
+    if manual_cost is not None:
+        return manual_cost, True
+    return Decimal("0.00"), False
 
 
 def service_history_ranking(rows, label_key):
@@ -210,13 +231,21 @@ class ServiceViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             }
         )
 
+        # Costos estimados a nivel servicio (iguales para todas sus órdenes): la
+        # receta y el costo manual son fallback cuando una orden no tiene consumo real.
+        recipe_cost = service.recipe_material_cost
+        manual_cost = service.estimated_material_cost
+
         for order in work_orders:
             order_payments = list(order.payments.all())
             order_consumptions = list(order.material_consumptions.all())
             paid_total = sum((payment.amount for payment in order_payments), Decimal("0.00"))
-            material_total = sum(
+            real_material_total = sum(
                 (consumption.estimated_total_cost for consumption in order_consumptions),
                 Decimal("0.00"),
+            )
+            material_total, is_estimated = resolve_order_material_cost(
+                real_material_total, recipe_cost, manual_cost
             )
             balance_due = max(order.total_amount - paid_total, Decimal("0.00"))
             margin = order.total_amount - material_total
@@ -227,6 +256,7 @@ class ServiceViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
                 balance_due,
                 material_total,
                 margin,
+                is_estimated,
             )
 
             customer_summary = top_customers[order.customer_id]
@@ -240,6 +270,7 @@ class ServiceViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
                 balance_due,
                 material_total,
                 margin,
+                is_estimated,
             )
 
             vehicle_summary = top_vehicles[order.vehicle_id]
@@ -255,6 +286,7 @@ class ServiceViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
                 balance_due,
                 material_total,
                 margin,
+                is_estimated,
             )
 
         totals["sales_total"] = totals["billed_total"]
