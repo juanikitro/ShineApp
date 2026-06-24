@@ -89,7 +89,7 @@ def test_whatsapp_config_is_employer_only(api_client, employee_client):
             "provider": "fake",
             "is_enabled": True,
             "phone_number_display": "+54 9 11 5555-5555",
-            "access_token": "secret-token",
+            "access_token": "not-a-real-token-for-tests",
         },
         format="json",
     )

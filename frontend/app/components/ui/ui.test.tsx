@@ -8,6 +8,7 @@ import { AuditLogCard } from './AuditLogCard'
 import { BirthdayFields } from './BirthdayFields'
 import { NumericInput } from './NumericInput'
 import { DetailModal } from './DetailModal'
+import { CollapsibleSection } from './CollapsibleSection'
 import { Empty, ErrorState, LoadingState, StateNotice } from './Empty'
 import { Field } from './Field'
 import { MetricCard } from './MetricCard'
@@ -71,6 +72,34 @@ test('simple structural UI components render labels, values and actions', async 
 	assert.equal(onPrimary.mock.calls.length, 1)
 	assert.ok(screen.getByRole('button', { name: 'Editar' }))
 	assert.ok(screen.getByText('Extra'))
+})
+
+test('CollapsibleSection agrupa items detras de un desplegable y respeta defaultOpen y count', () => {
+	const { container, rerender } = render(
+		<CollapsibleSection title="Deudas saldadas" count={2}>
+			<span>contenido oculto</span>
+		</CollapsibleSection>,
+	)
+
+	const details = container.querySelector('details.collapsible-section')
+	assert.ok(details)
+	// Cerrado por defecto: el atributo open no esta presente.
+	assert.equal(details?.hasAttribute('open'), false)
+	assert.ok(screen.getByText('Deudas saldadas'))
+	// El count se muestra cuando se provee.
+	assert.equal(screen.getByText('2').className, 'collapsible-count')
+
+	// defaultOpen abre el detalle y omite el count cuando no se pasa.
+	rerender(
+		<CollapsibleSection title="Gestionadas" defaultOpen className="extra">
+			<span>contenido visible</span>
+		</CollapsibleSection>,
+	)
+	const openDetails = container.querySelector('details.collapsible-section')
+	assert.equal(openDetails?.hasAttribute('open'), true)
+	assert.ok(openDetails?.classList.contains('extra'))
+	assert.equal(container.querySelector('.collapsible-count'), null)
+	assert.ok(screen.getByText('contenido visible'))
 })
 
 test('Field expone error y requerido a tecnologia asistiva sin contaminar el nombre', () => {

@@ -242,6 +242,23 @@ def login_lockout_key(username):
     return f"login_fail_{str(username).strip().lower()}"
 
 
+def resolve_login_username(username):
+    """Devuelve el username real para autenticar, sin distinguir mayusculas.
+
+    El empleador inicia sesion con su email (que es su username), y al tipearlo
+    con otra capitalizacion el lookup exacto de Django fallaba. La unicidad de
+    username ya se valida con ``iexact`` al crear cuentas, asi que un match
+    ``iexact`` no es ambiguo. Igual se prioriza la coincidencia exacta.
+    """
+    user_model = get_user_model()
+    if user_model.objects.filter(username=username).exists():
+        return username
+    matches = list(user_model.objects.filter(username__iexact=username)[:2])
+    if len(matches) == 1:
+        return matches[0].username
+    return username
+
+
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_scope = "login"
@@ -261,7 +278,7 @@ class LoginView(APIView):
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
 
-        user = authenticate(username=username, password=password)
+        user = authenticate(username=resolve_login_username(username), password=password)
         if user is None:
             # Cuenta solo credenciales invalidas (no el rechazo por negocio inactivo).
             if threshold:

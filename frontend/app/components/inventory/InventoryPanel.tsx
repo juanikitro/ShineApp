@@ -5,6 +5,7 @@ import { type ReactNode, useMemo, useState } from 'react'
 import { Package, Search } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
+import { CollapsibleSection } from '@/app/components/ui/CollapsibleSection'
 import { Empty } from '@/app/components/ui/Empty'
 import { SkeletonList } from '@/app/components/ui/Skeleton'
 import { type QuickAction } from '@/app/components/ui/QuickActionsMenu'
@@ -202,6 +203,61 @@ export function InventoryPanel({
 			)
 	}, [materialOpenUnits, materialsById])
 
+	function renderOpenUnitCard(item: AnyRecord) {
+		const material = materialsById.get(String(item.material))
+		const quickActions = materialOpenUnitQuickActions(item)
+		return (
+			<MotionFlashSurface
+				className={recordClass('material-open-unit', item.id)}
+				key={`ou-${item.id}`}
+				{...detailRecordProps('Unidad abierta', item)}
+				{...quickActionTargetProps('Acciones de unidad', quickActions)}
+			>
+				<div className="record-head">
+					<div>
+						<div className="record-title">{item.material_name}</div>
+						<div className="record-sub">
+							{item.status === 'open' ? 'Abierta' : 'Finalizada'} desde{' '}
+							{item.opened_at}
+							{item.finished_at ? ` · cierre ${item.finished_at}` : ''}
+						</div>
+						<div className="record-sub">
+							{item.consumptions_count ?? 0} usos · {item.work_orders_count ?? 0}{' '}
+							trabajos
+							{item.duration_days ? ` · ${item.duration_days} días` : ''} ·
+							descuenta{' '}
+							{quantity(item.stock_quantity_to_decrement, material?.unit)}
+						</div>
+					</div>
+					{item.status === 'open' ||
+					availableQuickActions(quickActions).length ? (
+						<div className="record-actions">
+							{item.status === 'open' ? (
+								<Button
+									type="button"
+									variant="primary"
+									onClick={() => onFinishOpenUnit(item)}
+								>
+									Finalizar
+								</Button>
+							) : null}
+							{renderQuickActionsTrigger(
+								'Acciones de unidad',
+								quickActions,
+								'Acciones rapidas de unidad',
+							)}
+						</div>
+					) : null}
+				</div>
+			</MotionFlashSurface>
+		)
+	}
+
+	const openUnits = materialOpenUnits.filter((item) => item.status === 'open')
+	const finishedUnits = materialOpenUnits.filter(
+		(item) => item.status !== 'open',
+	)
+
 	return (
 		<div className="grid">
 			<section className="panel">
@@ -343,58 +399,17 @@ export function InventoryPanel({
 					<div className="inventory-section-head">
 						<span>Unidades abiertas</span>
 					</div>
-					{materialOpenUnits.slice(0, 8).map((item) => {
-						const material = materialsById.get(String(item.material))
-						const quickActions = materialOpenUnitQuickActions(item)
-						return (
-							<MotionFlashSurface
-								className={recordClass('material-open-unit', item.id)}
-								key={`ou-${item.id}`}
-								{...detailRecordProps('Unidad abierta', item)}
-								{...quickActionTargetProps('Acciones de unidad', quickActions)}
-							>
-								<div className="record-head">
-									<div>
-										<div className="record-title">
-											{item.material_name}
-										</div>
-										<div className="record-sub">
-											{item.status === 'open' ? 'Abierta' : 'Finalizada'} desde{' '}
-											{item.opened_at}
-											{item.finished_at ? ` · cierre ${item.finished_at}` : ''}
-										</div>
-										<div className="record-sub">
-											{item.consumptions_count ?? 0} usos · {item.work_orders_count ?? 0} trabajos
-											{item.duration_days ? ` · ${item.duration_days} días` : ''} · descuenta{' '}
-											{quantity(item.stock_quantity_to_decrement, material?.unit)}
-										</div>
-									</div>
-									{item.status === 'open' ||
-									availableQuickActions(quickActions).length ? (
-										<div className="record-actions">
-											{item.status === 'open' ? (
-												<Button
-													type="button"
-													variant="primary"
-													onClick={() => onFinishOpenUnit(item)}
-												>
-													Finalizar
-												</Button>
-											) : null}
-											{renderQuickActionsTrigger(
-												'Acciones de unidad',
-												quickActions,
-												'Acciones rapidas de unidad',
-											)}
-										</div>
-									) : null}
-								</div>
-							</MotionFlashSurface>
-						)
-					})}
-					{!materialOpenUnits.length && (
-						<Empty text="Sin unidades abiertas." />
-					)}
+					{openUnits.slice(0, 8).map((item) => renderOpenUnitCard(item))}
+					{!openUnits.length && <Empty text="Sin unidades abiertas." />}
+					{finishedUnits.length ? (
+						<CollapsibleSection
+							title="Unidades finalizadas"
+							count={finishedUnits.length}
+							defaultOpen={openUnits.length === 0}
+						>
+							{finishedUnits.slice(0, 8).map((item) => renderOpenUnitCard(item))}
+						</CollapsibleSection>
+					) : null}
 
 					{/* Consumo por servicio (solo si hay datos históricos) */}
 					{serviceUsageRows.length > 0 && (

@@ -148,6 +148,7 @@ import { Field } from '@/app/components/ui/Field'
 import { Toggle } from '@/app/components/ui/Toggle'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { ModalFrame as Modal } from '@/app/components/ui/ModalFrame'
+import { CollapsibleSection } from '@/app/components/ui/CollapsibleSection'
 import { Panel } from '@/app/components/ui/Panel'
 import { SkeletonLine, SkeletonList } from '@/app/components/ui/Skeleton'
 import {
@@ -4650,6 +4651,8 @@ export default function Home() {
 		(item) => item.status !== 'pending',
 	)
 	const pendingPublicRequestsCount = pendingPublicRequests.length
+	const pendingTasksCount = tasks.filter((t) => (t as any).status === 'pending').length
+	const overdueTasksCount = tasks.filter((t) => (t as any).status === 'pending' && (t as any).is_overdue === true).length
 	const activeEmployeeCount = employees.filter(
 		(item) => item.is_active !== false,
 	).length
@@ -4662,7 +4665,10 @@ export default function Home() {
 		badge:
 			key === 'notifications' && pendingPublicRequestsCount
 				? pendingPublicRequestsCount
-				: undefined,
+				: key === 'tasks' && pendingTasksCount
+					? pendingTasksCount
+					: undefined,
+		badgeVariant: key === 'tasks' && overdueTasksCount > 0 ? 'danger' : undefined,
 	})
 	const navItems: SidebarNavItem[] = [
 		buildNavItem('dashboard'),
@@ -13816,30 +13822,27 @@ export default function Home() {
 										hint="Las solicitudes publicas nuevas van a aparecer aca."
 									/>
 								)}
-							</div>
-						</Panel>
-						<Panel title="Gestionadas">
-							<div className="records">
 								{managedPublicRequests.length ? (
-									managedPublicRequests.map((item) => (
-										<PublicRequestCard
-											key={item.id}
-											item={item}
-											selection={publicRequestSelection(item)}
-											onPatchSelection={(patch) =>
-												patchPublicRequestSelection(item, patch)
-											}
-											onConvert={() => convertPublicRequest(item)}
-											onArchive={() => archivePublicRequest(item)}
-											recordClass={recordClass}
-										/>
-									))
-								) : (
-									<Empty
-										text="Sin solicitudes gestionadas"
-										hint="Cuando conviertas o archives solicitudes, quedan registradas aca."
-									/>
-								)}
+									<CollapsibleSection
+										title="Gestionadas"
+										count={managedPublicRequests.length}
+										defaultOpen={pendingPublicRequests.length === 0}
+									>
+										{managedPublicRequests.map((item) => (
+											<PublicRequestCard
+												key={item.id}
+												item={item}
+												selection={publicRequestSelection(item)}
+												onPatchSelection={(patch) =>
+													patchPublicRequestSelection(item, patch)
+												}
+												onConvert={() => convertPublicRequest(item)}
+												onArchive={() => archivePublicRequest(item)}
+												recordClass={recordClass}
+											/>
+										))}
+									</CollapsibleSection>
+								) : null}
 							</div>
 						</Panel>
 					</div>
