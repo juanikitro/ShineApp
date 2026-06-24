@@ -98,6 +98,14 @@ export async function loadAppDataSet(
 			return loaders.apiFetch<AnyRecord>('/settings/business-profile/')
 		case 'employees':
 			return loaders.apiList<AnyRecord>('/auth/employees/')
+		case 'whatsappConfig':
+			return loaders.apiFetch<AnyRecord>('/whatsapp/config/')
+		case 'whatsappTemplates':
+			return loaders.apiList<AnyRecord>('/whatsapp/templates/')
+		case 'whatsappAutomationRules':
+			return loaders.apiList<AnyRecord>('/whatsapp/automation-rules/')
+		case 'whatsappMessages':
+			return loaders.apiList<AnyRecord>('/whatsapp/messages/')
 	}
 }
 

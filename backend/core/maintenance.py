@@ -23,6 +23,12 @@ def flush_notifications(limit: int = 200) -> dict:
     return flush_outbox(limit=limit)
 
 
+def flush_whatsapp(limit: int = 200) -> dict:
+    from whatsapp.services import flush_whatsapp_outbox
+
+    return flush_whatsapp_outbox(limit=limit)
+
+
 def materialize_fixed_expenses() -> dict:
     from fixed_expenses.materialization import materialize_due
 
@@ -96,6 +102,7 @@ def run_all(*, purge_apply: bool = False) -> dict:
     results = {}
     for name, job in (
         ("notifications", lambda: flush_notifications()),
+        ("whatsapp", lambda: flush_whatsapp()),
         ("fixed_expenses", lambda: materialize_fixed_expenses()),
         ("password_reset_tokens", lambda: prune_password_reset_tokens()),
         ("push_subscriptions", lambda: prune_push_subscriptions()),

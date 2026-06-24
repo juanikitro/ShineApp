@@ -9,6 +9,8 @@ from core.permissions import business_from_request
 from notifications.service import send_work_order_ready
 from scheduling.models import Reservation
 from scheduling.services import ensure_reservation_work_order
+from whatsapp.models import WhatsAppMessage
+from whatsapp.services import enqueue_automated_message
 
 from .metrics import build_work_order_financial_metrics
 from .models import WorkOrder
@@ -97,6 +99,9 @@ class WorkOrderViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
                 # El aviso al cliente se encola/envia recien si la transicion
                 # commitea: nunca "listo" en la DB sin haber intentado el email.
                 transaction.on_commit(lambda: send_work_order_ready(order))
+                enqueue_automated_message(event=WhatsAppMessage.Event.WORK_READY, source=order)
+            if new_status == Reservation.Status.DELIVERED:
+                enqueue_automated_message(event=WhatsAppMessage.Event.WORK_DELIVERED, source=order)
         record_audit_event(
             request=request,
             action="status",
