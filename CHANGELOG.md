@@ -12,6 +12,9 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-24
 - [WhatsApp MVP](docs/registro/cambios/2026-06-24-whatsapp-mvp.md)
+- [Mejoras de usabilidad del modulo de tareas](docs/registro/cambios/2026-06-24-tareas-usabilidad.md)
+- [items finalizados en desplegable al final de listados](docs/registro/cambios/2026-06-24-listados-finalizados-desplegable.md)
+- [Frontend: favicon del navegador en la turnera usa el logo del negocio](docs/registro/cambios/2026-06-24-favicon-turnera-logo-negocio.md)
 - [Costo estimado por servicio para ratio estimado (~)](docs/registro/cambios/2026-06-24-costo-estimado-por-servicio.md)
 
 ## 2026-06-23
