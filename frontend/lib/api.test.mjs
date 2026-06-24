@@ -69,7 +69,7 @@ test('apiFetch normalizes non-JSON error bodies without reading the stream twice
 test('publicApiFetch does not read localStorage or attach auth headers', async () => {
 	let authorizationHeader = null
 	const getItem = vi.spyOn(window.localStorage.__proto__, 'getItem')
-	setStoredToken('secret-token')
+	setStoredToken('sample-auth-value')
 	global.fetch = vi.fn(async (_url, options) => {
 		const headers = new Headers(options.headers)
 		authorizationHeader = headers.get('Authorization')

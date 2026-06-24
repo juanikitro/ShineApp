@@ -2260,6 +2260,7 @@
 .modal-backdrop {
   align-items: start;
   background: rgba(4, 12, 26, 0.72);
+  backdrop-filter: blur(6px);
   display: grid;
   inset: 0;
   justify-items: center;
