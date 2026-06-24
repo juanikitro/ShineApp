@@ -421,6 +421,10 @@
   padding: 0 6px;
 }
 
+.nav-badge--danger {
+  background: var(--color-danger);
+}
+
 .nav button:hover {
   background: var(--color-surface-soft);
   border-color: transparent;

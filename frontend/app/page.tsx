@@ -4649,6 +4649,8 @@ export default function Home() {
 		(item) => item.status !== 'pending',
 	)
 	const pendingPublicRequestsCount = pendingPublicRequests.length
+	const pendingTasksCount = tasks.filter((t) => (t as any).status === 'pending').length
+	const overdueTasksCount = tasks.filter((t) => (t as any).status === 'pending' && (t as any).is_overdue === true).length
 	const activeEmployeeCount = employees.filter(
 		(item) => item.is_active !== false,
 	).length
@@ -4661,7 +4663,10 @@ export default function Home() {
 		badge:
 			key === 'notifications' && pendingPublicRequestsCount
 				? pendingPublicRequestsCount
-				: undefined,
+				: key === 'tasks' && pendingTasksCount
+					? pendingTasksCount
+					: undefined,
+		badgeVariant: key === 'tasks' && overdueTasksCount > 0 ? 'danger' : undefined,
 	})
 	const navItems: SidebarNavItem[] = [
 		buildNavItem('dashboard'),
