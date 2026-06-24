@@ -296,7 +296,20 @@
   width: auto;
 }
 
+.sidebar-footer .sidebar-icon-button {
+  flex: 0 0 auto;
+  justify-content: center;
+  padding-inline: 10px;
+  width: auto;
+}
+
 .sidebar[data-collapsed='true'] .sidebar-footer .sidebar-collapse-toggle {
+  height: 36px;
+  padding-inline: 0;
+  width: 36px;
+}
+
+.sidebar[data-collapsed='true'] .sidebar-footer .sidebar-icon-button {
   height: 36px;
   padding-inline: 0;
   width: 36px;

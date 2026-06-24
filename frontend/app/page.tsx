@@ -31,7 +31,9 @@ import {
 	LockKeyhole,
 	LogOut,
 	Menu,
+	Maximize2,
 	Moon,
+	Minimize2,
 	MoreHorizontal,
 	Package,
 	Pencil,
@@ -198,6 +200,11 @@ import {
 	type AuditLogFilters,
 } from '@/lib/audit-log'
 import { joinDisplayParts } from '@/lib/display-text'
+import {
+	isFullscreenActive,
+	isFullscreenSupported,
+	toggleDocumentFullscreen,
+} from '@/lib/fullscreen'
 import {
 	type AgendaCalendarSegment,
 	type AgendaMonthChip,
@@ -738,6 +745,8 @@ export default function Home() {
 	const [themeMode, setThemeMode] = useState<ThemeMode>('light')
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 	const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
+	const [fullscreenActive, setFullscreenActive] = useState(false)
+	const [fullscreenSupported, setFullscreenSupported] = useState(false)
 	const sidebarMobileToggleRef = useRef<HTMLButtonElement>(null)
 	const sidebarReturnFocusRef = useRef<HTMLElement | null>(null)
 	const [settingsSection, setSettingsSection] =
@@ -1161,6 +1170,20 @@ export default function Home() {
 	useEffect(() => {
 		document.documentElement.dataset.theme = themeMode
 	}, [themeMode])
+
+	useEffect(() => {
+		setFullscreenSupported(isFullscreenSupported(document))
+		setFullscreenActive(isFullscreenActive(document))
+
+		const syncFullscreenState = () => {
+			setFullscreenActive(isFullscreenActive(document))
+		}
+
+		document.addEventListener('fullscreenchange', syncFullscreenState)
+		return () => {
+			document.removeEventListener('fullscreenchange', syncFullscreenState)
+		}
+	}, [])
 
 	useEffect(() => {
 		const handlePopState = () => {
@@ -4538,6 +4561,19 @@ export default function Home() {
 				: sidebarMobileToggleRef.current
 		setSidebarCollapsed(false)
 		setSidebarMobileOpen(true)
+	}
+
+	async function handleFullscreenToggle() {
+		if (!fullscreenSupported) return
+		try {
+			const nextState = await toggleDocumentFullscreen(document)
+			setFullscreenActive(nextState)
+		} catch {
+			showToast({
+				title: 'No se pudo cambiar la pantalla completa',
+				tone: 'error',
+			})
+		}
 	}
 
 	function handleSectionChange(key: string) {
@@ -13307,6 +13343,25 @@ export default function Home() {
 												</span>
 											</span>
 										)}
+									</button>
+									<button
+										type="button"
+										className="ghost sidebar-icon-button"
+										aria-label={
+											fullscreenActive
+												? 'Salir de pantalla completa'
+												: 'Activar pantalla completa'
+										}
+										aria-pressed={fullscreenActive}
+										title={
+											fullscreenActive
+												? 'Salir de pantalla completa'
+												: 'Activar pantalla completa'
+										}
+										onClick={handleFullscreenToggle}
+										disabled={!fullscreenSupported}
+									>
+										{fullscreenActive ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
 									</button>
 									<button
 										type="button"

@@ -12,6 +12,7 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-06-23
 - [Turnera: el formulario publico pide nombre y apellido](docs/registro/cambios/2026-06-23-turnera-nombre-y-apellido.md)
+- [boton pantalla completa en sidebar](docs/registro/cambios/2026-06-23-sidebar-pantalla-completa.md)
 - [compact mode notebooks](docs/registro/cambios/2026-06-23-compact-mode-notebooks.md)
 
 ## 2026-06-18
