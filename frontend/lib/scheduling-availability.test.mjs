@@ -6,6 +6,7 @@ import {
 	computeReservationFormItemsDuration,
 	formatCapacityLabel,
 	scheduleAvailabilityForDay,
+	selectedSectorsFromItems,
 	timeToMinutes,
 } from './scheduling-availability'
 
@@ -73,6 +74,20 @@ test('computeReservationFormItemsDuration sums duration by service id and quanti
 		{ service: 2, quantity: 1 },
 	]
 	assert.equal(computeReservationFormItemsDuration(items, services), 150)
+})
+
+test('selectedSectorsFromItems counts a multiservice reservation as one slot in its primary sector', () => {
+	const services = [
+		{ id: 1, sector: 7 },
+		{ id: 2, sector: 7 },
+		{ id: 3, sector: 9 },
+	]
+	const items = [
+		{ service: 1, quantity: 1 },
+		{ service: 2, quantity: 1 },
+		{ service: 3, quantity: 1 },
+	]
+	assert.deepEqual(selectedSectorsFromItems(items, services), { 7: 1 })
 })
 
 test('scheduleAvailabilityForDay computes used slots per sector', () => {

@@ -10,6 +10,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 - [Turnera: el formulario publico pide nombre y apellido](2026-06-23-turnera-nombre-y-apellido.md)
+- [boton pantalla completa en sidebar](2026-06-23-sidebar-pantalla-completa.md)
 - [compact mode notebooks](2026-06-23-compact-mode-notebooks.md)
 - [Detalle read-first al clickear items de listados](2026-06-18-detalle-read-first-listados.md)
 - [Agenda: vista mensual](2026-06-18-agenda-vista-mensual.md)

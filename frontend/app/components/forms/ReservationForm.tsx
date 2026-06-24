@@ -22,6 +22,7 @@ import {
 	formatCapacityLabel,
 	getHoursForDate,
 	scheduleAvailabilityForDay,
+	selectedSectorsFromItems,
 	timeToMinutes,
 	todayIsoDate,
 } from '@/lib/scheduling-availability'
@@ -197,27 +198,10 @@ export function ReservationForm({
 			}),
 		[effectiveClosingTime, effectiveOpeningTime, reservationForm.start_time, startTimeMinutes],
 	)
-	const selectedSectors = useMemo(() => {
-		const sectorById = new Map<number, number>()
-		for (const service of services) {
-			const id = Number(service.id)
-			if (!Number.isFinite(id) || id <= 0) continue
-			const sectorId = Number(service.sector)
-			if (Number.isFinite(sectorId) && sectorId > 0) {
-				sectorById.set(id, sectorId)
-			}
-		}
-		const result: Record<number, number> = {}
-		for (const item of items) {
-			const serviceId = Number(item.service)
-			if (!Number.isFinite(serviceId) || serviceId <= 0) continue
-			const sectorId = sectorById.get(serviceId)
-			if (sectorId != null) {
-				result[sectorId] = (result[sectorId] ?? 0) + 1
-			}
-		}
-		return result
-	}, [items, services])
+	const selectedSectors = useMemo(
+		() => selectedSectorsFromItems(items, services),
+		[items, services],
+	)
 	const capacityWarning = useMemo(() => {
 		if (!availability || !availability.enforceCapacity) return null
 		const sectorById = new Map<number, AnyRecord>()
