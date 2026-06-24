@@ -3202,6 +3202,7 @@ export default function Home() {
 					onCreateReservationFromQuote={createReservationFromQuote}
 					onDownloadQuotePdf={downloadQuotePdf}
 					onDownloadQuotePdfAndMarkSent={downloadQuotePdfAndMarkSent}
+					onSendQuoteWhatsapp={sendQuoteWhatsapp}
 					onOpenQuoteReservationInAgenda={openQuoteReservationInAgenda}
 				/>
 			</MotionFlashSurface>
@@ -3219,6 +3220,7 @@ export default function Home() {
 				onCreateReservationFromQuote={createReservationFromQuote}
 				onDownloadQuotePdf={downloadQuotePdf}
 				onDownloadQuotePdfAndMarkSent={downloadQuotePdfAndMarkSent}
+				onSendQuoteWhatsapp={sendQuoteWhatsapp}
 				onOpenQuoteReservationInAgenda={openQuoteReservationInAgenda}
 			/>
 		)
