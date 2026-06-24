@@ -54,8 +54,8 @@ class WhatsAppTemplate(models.Model):
     class Category(models.TextChoices):
         UTILITY = "utility", "Utility"
         MARKETING = "marketing", "Marketing"
-        AUTHENTICATION = "authentication", "Authentication"
-        SERVICE = "service", "Service"
+        AUTHENTICATION = "auth", "Auth"
+        SERVICE = "customer_service", "Customer service"
 
     business = models.ForeignKey(
         "core.BusinessAccount",

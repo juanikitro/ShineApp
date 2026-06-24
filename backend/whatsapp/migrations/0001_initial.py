@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
                 ("key", models.CharField(choices=[("reservation_confirmed", "Turno confirmado"), ("work_ready", "Trabajo listo"), ("work_delivered", "Trabajo entregado"), ("quote_sent", "Cotización enviada"), ("manual", "Manual")], max_length=32)),
                 ("provider_template_name", models.CharField(max_length=120)),
                 ("language", models.CharField(default="es_AR", max_length=16)),
-                ("category", models.CharField(choices=[("utility", "Utility"), ("marketing", "Marketing"), ("authentication", "Authentication"), ("service", "Service")], default="utility", max_length=20)),
+                ("category", models.CharField(choices=[("utility", "Utility"), ("marketing", "Marketing"), ("auth", "Auth"), ("customer_service", "Customer service")], default="utility", max_length=20)),
                 ("body_preview", models.TextField(blank=True)),
                 ("variables_schema", models.JSONField(blank=True, default=list)),
                 ("is_active", models.BooleanField(default=True)),
