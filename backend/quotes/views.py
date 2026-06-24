@@ -2,8 +2,10 @@ from django.http import FileResponse
 from rest_framework import decorators, response, status, viewsets
 
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
-from core.permissions import CanViewEconomy
+from core.permissions import CanViewEconomy, EmployerOnly
 from scheduling.serializers import ReservationSerializer
+from whatsapp.serializers import WhatsAppMessageSerializer
+from whatsapp.services import send_quote_whatsapp
 
 from .models import Quote
 from .pdf import build_quote_pdf
@@ -40,6 +42,39 @@ class QuoteViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             after=audit_snapshot(quote),
         )
         return response.Response(self.get_serializer(quote).data)
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="send-whatsapp",
+        permission_classes=[EmployerOnly],
+    )
+    def send_whatsapp(self, request, pk=None):
+        quote = self.get_object()
+        before = audit_snapshot(quote)
+        try:
+            message = send_quote_whatsapp(quote, user=request.user)
+        except Exception as exc:  # noqa: BLE001
+            return response.Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        quote.refresh_from_db()
+        record_audit_event(
+            request=request,
+            action="send_whatsapp",
+            instance=quote,
+            before=before,
+            after=audit_snapshot(quote),
+            metadata={"whatsapp_message": message.id},
+        )
+        return response.Response(
+            {
+                "quote": self.get_serializer(quote).data,
+                "message": WhatsAppMessageSerializer(message).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
     @decorators.action(detail=True, methods=["get"], url_path="pdf-mark-sent")
     def pdf_mark_sent(self, request, pk=None):
