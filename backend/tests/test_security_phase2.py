@@ -131,3 +131,23 @@ def test_login_success_clears_lockout_counter(default_business, django_user_mode
 
         assert cache.get(login_lockout_key("clear-me")) in (None, 0)
     cache.clear()
+
+
+# ---------------------------------------------------------------------------
+# Login case-insensitive del email/username.
+# ---------------------------------------------------------------------------
+@pytest.mark.django_db
+def test_login_username_is_case_insensitive(default_business, django_user_model):
+    make_employer(django_user_model, default_business, "Owner@Example.com", password="rightpass123")
+    cache.clear()
+    client = APIClient()
+
+    response = client.post(
+        reverse("auth-login"),
+        {"username": "owner@example.com", "password": "rightpass123"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert "token" in response.data
+    cache.clear()
