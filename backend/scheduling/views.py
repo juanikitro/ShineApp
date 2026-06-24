@@ -13,6 +13,8 @@ from finance.cash import cash_day, ensure_cash_day_open
 from notifications.service import send_public_request_push, send_reservation_confirmation
 from quotes.models import Quote, QuoteItem
 from quotes.serializers import QuoteSerializer
+from whatsapp.models import WhatsAppMessage
+from whatsapp.services import enqueue_automated_message
 from workorders.metrics import build_work_order_financial_metrics
 
 from .models import Reservation, ReservationMaterialOverride
@@ -140,6 +142,10 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         reservation = serializer.save()
         send_reservation_confirmation(reservation)
+        enqueue_automated_message(
+            event=WhatsAppMessage.Event.RESERVATION_CONFIRMED,
+            source=reservation,
+        )
         try:
             send_public_request_push(reservation.public_request)
         except ObjectDoesNotExist:

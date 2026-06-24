@@ -66,6 +66,10 @@ test('loadAppDataSets keeps the existing endpoint contract and entry order', asy
 		'publicRequests',
 		'businessProfile',
 		'employees',
+		'whatsappConfig',
+		'whatsappTemplates',
+		'whatsappAutomationRules',
+		'whatsappMessages',
 	]
 
 	const entries = await loadAppDataSets(keys, scope, loaders)
@@ -97,6 +101,10 @@ test('loadAppDataSets keeps the existing endpoint contract and entry order', asy
 			['list', '/public-requests/'],
 			['fetch', '/settings/business-profile/'],
 			['list', '/auth/employees/'],
+			['fetch', '/whatsapp/config/'],
+			['list', '/whatsapp/templates/'],
+			['list', '/whatsapp/automation-rules/'],
+			['list', '/whatsapp/messages/'],
 		],
 	)
 	assert.deepEqual(
@@ -165,6 +173,10 @@ test('applyAppDataEntry dispatches loaded data to the matching applier only', ()
 			'publicRequests',
 			'businessProfile',
 			'employees',
+			'whatsappConfig',
+			'whatsappTemplates',
+			'whatsappAutomationRules',
+			'whatsappMessages',
 		].map((key) => [
 			key,
 			(data) => {

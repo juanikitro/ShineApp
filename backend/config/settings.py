@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "fixed_expenses",
     "inventory",
     "quotes",
+    "whatsapp",
     "dashboard",
     "notifications",
     "tasks",
@@ -215,6 +216,10 @@ FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "https://shineapp-web.vercel.
 # Timeouts de dependencias externas (segundos). Evitan requests colgados.
 EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
 PUSH_TIMEOUT_SECONDS = int(os.getenv("PUSH_TIMEOUT_SECONDS", "10"))
+WHATSAPP_TIMEOUT_SECONDS = int(os.getenv("WHATSAPP_TIMEOUT_SECONDS", "10"))
+WHATSAPP_META_API_VERSION = os.getenv("WHATSAPP_META_API_VERSION", "v20.0")
+WHATSAPP_META_ACCESS_TOKEN = os.getenv("WHATSAPP_META_ACCESS_TOKEN", "")
+WHATSAPP_META_PHONE_NUMBER_ID = os.getenv("WHATSAPP_META_PHONE_NUMBER_ID", "")
 
 # Secret compartido para el endpoint interno de mantenimiento (cron de GitHub
 # Actions). Vacio = endpoint deshabilitado (responde 503).

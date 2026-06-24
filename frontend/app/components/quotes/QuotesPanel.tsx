@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core'
 import { type ReactNode } from 'react'
 
-import { CalendarDays, FileText, Plus } from 'lucide-react'
+import { CalendarDays, FileText, MessageCircle, Plus } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
 import { Button } from '@/app/components/ui/Button'
@@ -36,6 +36,7 @@ type QuoteCardContentProps = {
 	onCreateReservationFromQuote: (item: AnyRecord) => void
 	onDownloadQuotePdf: (item: AnyRecord) => void
 	onDownloadQuotePdfAndMarkSent: (item: AnyRecord) => void
+	onSendQuoteWhatsapp: (item: AnyRecord) => void
 	onOpenQuoteReservationInAgenda: (item: AnyRecord) => void
 }
 
@@ -49,6 +50,7 @@ export function QuoteCardContent({
 	onCreateReservationFromQuote,
 	onDownloadQuotePdf,
 	onDownloadQuotePdfAndMarkSent,
+	onSendQuoteWhatsapp,
 	onOpenQuoteReservationInAgenda,
 }: QuoteCardContentProps) {
 	const code = quoteCode(item)
@@ -119,6 +121,15 @@ export function QuoteCardContent({
 						<FileText size={16} />
 						PDF
 					</button>
+					<button
+						type="button"
+						className="ghost quote-action-button quote-action-button--outline"
+						aria-label="Enviar cotizacion por WhatsApp"
+						onClick={() => onSendQuoteWhatsapp(item)}
+					>
+						<MessageCircle size={16} />
+						WhatsApp
+					</button>
 					{isDraft ? (
 						<button
 							type="button"
@@ -159,6 +170,7 @@ type QuotesPanelProps = {
 	onCreateReservationFromQuote: (item: AnyRecord) => void
 	onDownloadQuotePdf: (item: AnyRecord) => void
 	onDownloadQuotePdfAndMarkSent: (item: AnyRecord) => void
+	onSendQuoteWhatsapp: (item: AnyRecord) => void
 	onOpenQuoteReservationInAgenda: (item: AnyRecord) => void
 	onQuoteDragCancel: () => void
 	onQuoteDragEnd: (event: DragEndEvent) => void
@@ -185,6 +197,7 @@ export function QuotesPanel({
 	onCreateReservationFromQuote,
 	onDownloadQuotePdf,
 	onDownloadQuotePdfAndMarkSent,
+	onSendQuoteWhatsapp,
 	onOpenQuoteReservationInAgenda,
 	onQuoteDragCancel,
 	onQuoteDragEnd,
@@ -199,6 +212,7 @@ export function QuotesPanel({
 		onCreateReservationFromQuote,
 		onDownloadQuotePdf,
 		onDownloadQuotePdfAndMarkSent,
+		onSendQuoteWhatsapp,
 		onOpenQuoteReservationInAgenda,
 	}
 

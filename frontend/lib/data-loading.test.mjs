@@ -118,6 +118,35 @@ test('settings history does not eager-load audit logs', () => {
 	assert.equal(keys.includes('auditLogs'), false)
 })
 
+test('settings whatsapp loads channel datasets only for employers', () => {
+	assert.deepEqual(
+		dataSetKeysForSection({
+			section: 'settings',
+			settingsSection: 'whatsapp',
+			canViewEconomy: true,
+		}),
+		[
+			'businessProfile',
+			'employees',
+			'services',
+			'sectors',
+			'publicRequests',
+			'whatsappConfig',
+			'whatsappTemplates',
+			'whatsappAutomationRules',
+			'whatsappMessages',
+		],
+	)
+	assert.deepEqual(
+		dataSetKeysForSection({
+			section: 'settings',
+			settingsSection: 'whatsapp',
+			canViewEconomy: false,
+		}),
+		['services', 'sectors'],
+	)
+})
+
 test('section dataset definitions do not emit duplicate keys', () => {
 	for (const section of loadDataSections) {
 		const keys = dataSetKeysForSection({

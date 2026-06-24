@@ -16,6 +16,7 @@ import {
 	Eye,
 	FileText,
 	KeyRound,
+	MessageCircle,
 	Pencil,
 	Plus,
 	RefreshCw,
@@ -37,6 +38,7 @@ import {
 	RecordCard,
 	RecordCardHeader,
 } from '@/app/components/ui/RecordCard'
+import { Toggle } from '@/app/components/ui/Toggle'
 import {
 	SegmentedControl,
 	type SegmentedOption,
@@ -59,6 +61,7 @@ export type SettingsSection =
 	| 'users'
 	| 'history'
 	| 'trash'
+	| 'whatsapp'
 	| 'novedades'
 
 type CashClassificationPair = AnyRecord & {
@@ -83,6 +86,10 @@ type SettingsWorkspaceProps = {
 	safeBusinessLogoPdfThumbnail: string | null
 	safeBusinessLogoPreview: string | null
 	cashClassificationPairs: CashClassificationPair[]
+	whatsappAutomationRules: AnyRecord[]
+	whatsappConfig: AnyRecord | null
+	whatsappMessages: AnyRecord[]
+	whatsappTemplates: AnyRecord[]
 	incomeCategoryTree: Record<string, string[]>
 	expenseCategoryTree: Record<string, string[]>
 	sectors: AnyRecord[]
@@ -134,6 +141,16 @@ type SettingsWorkspaceProps = {
 	onRefreshData: () => void
 	onRefreshAuditLogs: () => void
 	onApplyAuditFilters: (event: FormEvent) => void
+	onSaveWhatsappConfig: (patch: AnyRecord) => Promise<any>
+	onCreateWhatsappTemplate: (data: AnyRecord) => Promise<any>
+	onUpdateWhatsappAutomationRule: (
+		id: number | string,
+		patch: AnyRecord,
+	) => Promise<any>
+	onUpdateWhatsappTemplate: (
+		id: number | string,
+		patch: AnyRecord,
+	) => Promise<any>
 	onUpdateAuditFilter: (key: keyof AuditLogFilters, value: string) => void
 	onClearAuditFilters: () => void
 	onToggleAuditLog: (id: string | null) => void
@@ -157,6 +174,10 @@ export function SettingsWorkspace({
 	safeBusinessLogoPdfThumbnail,
 	safeBusinessLogoPreview,
 	cashClassificationPairs,
+	whatsappAutomationRules,
+	whatsappConfig,
+	whatsappMessages,
+	whatsappTemplates,
 	incomeCategoryTree,
 	expenseCategoryTree,
 	sectors,
@@ -204,6 +225,10 @@ export function SettingsWorkspace({
 	onRefreshData,
 	onRefreshAuditLogs,
 	onApplyAuditFilters,
+	onSaveWhatsappConfig,
+	onCreateWhatsappTemplate,
+	onUpdateWhatsappAutomationRule,
+	onUpdateWhatsappTemplate,
 	onUpdateAuditFilter,
 	onClearAuditFilters,
 	onToggleAuditLog,
@@ -271,6 +296,18 @@ export function SettingsWorkspace({
 						onOpenCashCategoryForm={onOpenCashCategoryForm}
 						onEditCashCategory={onEditCashCategory}
 						onDeleteCashCategory={onDeleteCashCategory}
+					/>
+				) : null}
+				{settingsSection === 'whatsapp' ? (
+					<WhatsappSettingsPanel
+						automationRules={whatsappAutomationRules}
+						config={whatsappConfig}
+						messages={whatsappMessages}
+						templates={whatsappTemplates}
+						onCreateTemplate={onCreateWhatsappTemplate}
+						onSaveConfig={onSaveWhatsappConfig}
+						onUpdateAutomationRule={onUpdateWhatsappAutomationRule}
+						onUpdateTemplate={onUpdateWhatsappTemplate}
 					/>
 				) : null}
 				{settingsSection === 'agenda' ? (
@@ -444,6 +481,481 @@ function QuotesSettingsPanel({
 				</Field>
 			</form>
 		</section>
+	)
+}
+
+const whatsappTemplateKeyOptions = [
+	{ value: 'reservation_confirmed', label: 'Turno confirmado' },
+	{ value: 'work_ready', label: 'Trabajo listo' },
+	{ value: 'work_delivered', label: 'Trabajo finalizado' },
+	{ value: 'quote_sent', label: 'Cotizacion enviada' },
+	{ value: 'manual', label: 'Manual' },
+]
+
+const whatsappProviderOptions = [
+	{ value: 'meta', label: 'Meta Cloud API' },
+	{ value: 'fake', label: 'Fake' },
+	{ value: 'twilio', label: 'Twilio' },
+]
+
+function splitTemplateVariables(value: string) {
+	return value
+		.split(',')
+		.map((item) => item.trim())
+		.filter(Boolean)
+}
+
+function templateVariablesText(value: unknown) {
+	return Array.isArray(value) ? value.join(', ') : ''
+}
+
+function WhatsappSettingsPanel({
+	automationRules,
+	config,
+	messages,
+	templates,
+	onCreateTemplate,
+	onSaveConfig,
+	onUpdateAutomationRule,
+	onUpdateTemplate,
+}: {
+	automationRules: AnyRecord[]
+	config: AnyRecord | null
+	messages: AnyRecord[]
+	templates: AnyRecord[]
+	onCreateTemplate: (data: AnyRecord) => Promise<any>
+	onSaveConfig: (patch: AnyRecord) => Promise<any>
+	onUpdateAutomationRule: (
+		id: number | string,
+		patch: AnyRecord,
+	) => Promise<any>
+	onUpdateTemplate: (id: number | string, patch: AnyRecord) => Promise<any>
+}) {
+	const [configDraft, setConfigDraft] = useState<AnyRecord>({
+		provider: 'meta',
+		is_enabled: false,
+		phone_number_display: '',
+		phone_number_id: '',
+		business_account_id: '',
+		default_country_code: '54',
+		access_token: '',
+	})
+	const [templateDraft, setTemplateDraft] = useState<AnyRecord>({
+		key: 'reservation_confirmed',
+		provider_template_name: '',
+		language: 'es_AR',
+		category: 'utility',
+		body_preview: '',
+		variables_schema: '',
+		is_active: true,
+	})
+
+	useEffect(() => {
+		setConfigDraft({
+			provider: config?.provider ?? 'meta',
+			is_enabled: Boolean(config?.is_enabled),
+			phone_number_display: config?.phone_number_display ?? '',
+			phone_number_id: config?.phone_number_id ?? '',
+			business_account_id: config?.business_account_id ?? '',
+			default_country_code: config?.default_country_code ?? '54',
+			access_token: '',
+		})
+	}, [config])
+
+	function patchConfigDraft(patch: AnyRecord) {
+		setConfigDraft((current) => ({ ...current, ...patch }))
+	}
+
+	function patchTemplateDraft(patch: AnyRecord) {
+		setTemplateDraft((current) => ({ ...current, ...patch }))
+	}
+
+	async function submitTemplate(event: FormEvent) {
+		event.preventDefault()
+		await onCreateTemplate({
+			...templateDraft,
+			variables_schema: splitTemplateVariables(
+				String(templateDraft.variables_schema ?? ''),
+			),
+		})
+		setTemplateDraft((current) => ({
+			...current,
+			provider_template_name: '',
+			body_preview: '',
+			variables_schema: '',
+		}))
+	}
+
+	return (
+		<>
+			<section className="panel">
+				<div className="panel-head">
+					<div>
+						<span className="panel-kicker">Canal operativo</span>
+						<h2>WhatsApp</h2>
+						<p>
+							Configura el provider, los templates transaccionales y los
+							envios automaticos.
+						</p>
+					</div>
+					<div className="settings-action-rail">
+						<div className="settings-primary-actions">
+							<Button type="submit" variant="primary" form="whatsapp-config-form">
+								<MessageCircle size={16} />
+								Guardar conexion
+							</Button>
+						</div>
+					</div>
+				</div>
+				<form
+					className="form-grid"
+					id="whatsapp-config-form"
+					onSubmit={(event) => {
+						event.preventDefault()
+						void onSaveConfig(configDraft)
+					}}
+				>
+					<div className="form-row">
+						<Field label="Provider">
+							<select
+								value={configDraft.provider}
+								onChange={(event) =>
+									patchConfigDraft({ provider: event.target.value })
+								}
+							>
+								{whatsappProviderOptions.map((option) => (
+									<option key={option.value} value={option.value}>
+										{option.label}
+									</option>
+								))}
+							</select>
+						</Field>
+						<Field label="Numero visible">
+							<input
+								value={configDraft.phone_number_display}
+								onChange={(event) =>
+									patchConfigDraft({
+										phone_number_display: event.target.value,
+									})
+								}
+							/>
+						</Field>
+						<Field label="Codigo pais default">
+							<input
+								value={configDraft.default_country_code}
+								onChange={(event) =>
+									patchConfigDraft({
+										default_country_code: event.target.value,
+									})
+								}
+							/>
+						</Field>
+					</div>
+					<div className="form-row">
+						<Field label="Phone number ID">
+							<input
+								value={configDraft.phone_number_id}
+								onChange={(event) =>
+									patchConfigDraft({ phone_number_id: event.target.value })
+								}
+							/>
+						</Field>
+						<Field label="Business account ID">
+							<input
+								value={configDraft.business_account_id}
+								onChange={(event) =>
+									patchConfigDraft({
+										business_account_id: event.target.value,
+									})
+								}
+							/>
+						</Field>
+						<Field label="Token">
+							<input
+								type="password"
+								placeholder={config?.has_access_token ? 'Configurado' : ''}
+								value={configDraft.access_token}
+								onChange={(event) =>
+									patchConfigDraft({ access_token: event.target.value })
+								}
+							/>
+						</Field>
+					</div>
+					<Toggle
+						checked={Boolean(configDraft.is_enabled)}
+						onChange={(checked) => patchConfigDraft({ is_enabled: checked })}
+					>
+						Canal habilitado
+					</Toggle>
+				</form>
+			</section>
+
+			<section className="panel">
+				<div className="panel-head">
+					<div>
+						<span className="panel-kicker">Templates aprobados</span>
+						<h2>Mensajes</h2>
+						<p>Administra los nombres de provider y previews usados por evento.</p>
+					</div>
+					<div className="settings-action-rail">
+						<div className="settings-primary-actions">
+							<Button type="submit" variant="primary" form="whatsapp-template-form">
+								<Plus size={16} />
+								Crear template
+							</Button>
+						</div>
+					</div>
+				</div>
+				<form
+					className="form-grid section-block-end"
+					id="whatsapp-template-form"
+					onSubmit={submitTemplate}
+				>
+					<div className="form-row">
+						<Field label="Evento">
+							<select
+								value={templateDraft.key}
+								onChange={(event) => patchTemplateDraft({ key: event.target.value })}
+							>
+								{whatsappTemplateKeyOptions.map((option) => (
+									<option key={option.value} value={option.value}>
+										{option.label}
+									</option>
+								))}
+							</select>
+						</Field>
+						<Field label="Nombre provider">
+							<input
+								value={templateDraft.provider_template_name}
+								onChange={(event) =>
+									patchTemplateDraft({
+										provider_template_name: event.target.value,
+									})
+								}
+							/>
+						</Field>
+						<Field label="Idioma">
+							<input
+								value={templateDraft.language}
+								onChange={(event) =>
+									patchTemplateDraft({ language: event.target.value })
+								}
+							/>
+						</Field>
+					</div>
+					<Field label="Preview">
+						<textarea
+							value={templateDraft.body_preview}
+							onChange={(event) =>
+								patchTemplateDraft({ body_preview: event.target.value })
+							}
+						/>
+					</Field>
+					<Field label="Variables">
+						<input
+							value={templateDraft.variables_schema}
+							onChange={(event) =>
+								patchTemplateDraft({ variables_schema: event.target.value })
+							}
+						/>
+					</Field>
+				</form>
+				{templates.length ? (
+					<div className="records">
+						{templates.map((template) => (
+							<WhatsappTemplateRow
+								key={template.id}
+								template={template}
+								onUpdateTemplate={onUpdateTemplate}
+							/>
+						))}
+					</div>
+				) : (
+					<Empty text="Sin templates" />
+				)}
+			</section>
+
+			<section className="panel">
+				<div className="panel-head">
+					<div>
+						<span className="panel-kicker">Automatizacion</span>
+						<h2>Envios automaticos</h2>
+						<p>Activa los eventos que deben generar mensajes de WhatsApp.</p>
+					</div>
+				</div>
+				{automationRules.length ? (
+					<div className="records">
+						{automationRules.map((rule) => (
+							<RecordCard key={rule.id}>
+								<RecordCardHeader
+									title={rule.template_label ?? 'Sin template'}
+									subtitle={`${rule.event_label ?? rule.event} - ${
+										rule.enabled ? 'Activo' : 'Inactivo'
+									}`}
+								/>
+								<div className="record-actions">
+									<Toggle
+										checked={Boolean(rule.enabled)}
+										onChange={(checked) =>
+											void onUpdateAutomationRule(rule.id, { enabled: checked })
+										}
+									>
+										Enviar automatico
+									</Toggle>
+									<select
+										value={rule.template ?? ''}
+										onChange={(event) =>
+											void onUpdateAutomationRule(rule.id, {
+												template: event.target.value || null,
+											})
+										}
+									>
+										<option value="">Sin template</option>
+										{templates.map((template) => (
+											<option key={template.id} value={template.id}>
+												{template.provider_template_name || template.key}
+											</option>
+										))}
+									</select>
+								</div>
+							</RecordCard>
+						))}
+					</div>
+				) : (
+					<Empty text="Sin reglas" />
+				)}
+			</section>
+
+			<section className="panel">
+				<div className="panel-head">
+					<div>
+						<span className="panel-kicker">Auditoria</span>
+						<h2>Historial WhatsApp</h2>
+						<p>Ultimos mensajes registrados por el outbox.</p>
+					</div>
+				</div>
+				{messages.length ? (
+					<div className="records">
+						{messages.slice(0, 10).map((message) => (
+							<RecordCard key={message.id}>
+								<RecordCardHeader
+									title={message.recipient_name || message.recipient_phone}
+									subtitle={`${message.event_label ?? message.event} - ${
+										message.status_label ?? message.status
+									}`}
+								/>
+								<p className="record-sub">
+									{formatDateTimeLabel(message.created_at)} -{' '}
+									{message.provider ?? 'provider'}
+								</p>
+								{message.last_error ? (
+									<p className="record-sub danger">{message.last_error}</p>
+								) : null}
+							</RecordCard>
+						))}
+					</div>
+				) : (
+					<Empty text="Sin mensajes" />
+				)}
+			</section>
+		</>
+	)
+}
+
+function WhatsappTemplateRow({
+	template,
+	onUpdateTemplate,
+}: {
+	template: AnyRecord
+	onUpdateTemplate: (id: number | string, patch: AnyRecord) => Promise<any>
+}) {
+	const [draft, setDraft] = useState<AnyRecord>({
+		provider_template_name: '',
+		language: '',
+		body_preview: '',
+		variables_schema: '',
+		is_active: true,
+	})
+
+	useEffect(() => {
+		setDraft({
+			provider_template_name: template.provider_template_name ?? '',
+			language: template.language ?? '',
+			body_preview: template.body_preview ?? '',
+			variables_schema: templateVariablesText(template.variables_schema),
+			is_active: Boolean(template.is_active),
+		})
+	}, [template])
+
+	function patchDraft(patch: AnyRecord) {
+		setDraft((current) => ({ ...current, ...patch }))
+	}
+
+	return (
+		<RecordCard>
+			<RecordCardHeader
+				title={template.provider_template_name || 'Template sin nombre'}
+				subtitle={`${template.key_label ?? template.key} - ${
+					template.is_active ? 'Activo' : 'Inactivo'
+				}`}
+			/>
+			<div className="form-grid">
+				<div className="form-row">
+					<Field label="Nombre provider">
+						<input
+							value={draft.provider_template_name}
+							onChange={(event) =>
+								patchDraft({ provider_template_name: event.target.value })
+							}
+						/>
+					</Field>
+					<Field label="Idioma">
+						<input
+							value={draft.language}
+							onChange={(event) => patchDraft({ language: event.target.value })}
+						/>
+					</Field>
+				</div>
+				<Field label="Preview">
+					<textarea
+						value={draft.body_preview}
+						onChange={(event) =>
+							patchDraft({ body_preview: event.target.value })
+						}
+					/>
+				</Field>
+				<Field label="Variables">
+					<input
+						value={draft.variables_schema}
+						onChange={(event) =>
+							patchDraft({ variables_schema: event.target.value })
+						}
+					/>
+				</Field>
+				<div className="record-actions">
+					<Toggle
+						checked={Boolean(draft.is_active)}
+						onChange={(checked) => patchDraft({ is_active: checked })}
+					>
+						Activo
+					</Toggle>
+					<Button
+						variant="ghost"
+						onClick={() =>
+							void onUpdateTemplate(template.id, {
+								...draft,
+								variables_schema: splitTemplateVariables(
+									String(draft.variables_schema ?? ''),
+								),
+							})
+						}
+					>
+						<FileText size={16} />
+						Guardar template
+					</Button>
+				</div>
+			</div>
+		</RecordCard>
 	)
 }
 
