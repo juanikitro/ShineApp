@@ -1,6 +1,7 @@
 'use client'
 
 import {
+	CalendarDays,
 	ChevronLeft,
 	ChevronRight,
 	ChevronsLeft,
@@ -17,6 +18,7 @@ type AgendaBoardToolbarProps = {
 	onMove: (offset: number) => void
 	onToday: () => void
 	onGoToDate: (isoDate: string) => void
+	onOpenCashForRange: () => void
 }
 
 export function AgendaBoardToolbar({
@@ -29,6 +31,7 @@ export function AgendaBoardToolbar({
 	onMove,
 	onToday,
 	onGoToDate,
+	onOpenCashForRange,
 }: AgendaBoardToolbarProps) {
 	const isMonth = rangeMode === 'month'
 	const heading = title ?? `Agenda del ${startLabel} al ${endLabel}`
@@ -49,6 +52,16 @@ export function AgendaBoardToolbar({
 						onChange={(e) => e.target.value && onGoToDate(e.target.value)}
 					/>
 					<div className="agenda-nav" aria-label="Navegar agenda">
+						<button
+							type="button"
+							className="ghost"
+							aria-label="Ver este rango en caja"
+							title="Ver este rango en caja"
+							onClick={onOpenCashForRange}
+						>
+							<CalendarDays size={16} />
+							Ver en caja
+						</button>
 						{isMonth ? null : (
 							<button
 								type="button"

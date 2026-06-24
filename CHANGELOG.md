@@ -14,6 +14,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Turnera: el formulario publico pide nombre y apellido](docs/registro/cambios/2026-06-23-turnera-nombre-y-apellido.md)
 - [boton pantalla completa en sidebar](docs/registro/cambios/2026-06-23-sidebar-pantalla-completa.md)
 - [compact mode notebooks](docs/registro/cambios/2026-06-23-compact-mode-notebooks.md)
+- [Caja y agenda conectadas por rango](docs/registro/cambios/2026-06-23-caja-agenda-rangos-conectados.md)
 
 ## 2026-06-18
 - [Detalle read-first al clickear items de listados](docs/registro/cambios/2026-06-18-detalle-read-first-listados.md)

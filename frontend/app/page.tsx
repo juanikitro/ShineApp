@@ -289,6 +289,12 @@ import {
 	sortCashEntries,
 } from '@/lib/cash-entry'
 import {
+	type CashViewMode,
+	addCashPeriod,
+	cashMonthStart,
+	cashWeekStart,
+} from '@/lib/cash-period'
+import {
 	debtMatchesFilters,
 	hasDebtFilters,
 } from '@/lib/debt-filters'
@@ -789,8 +795,8 @@ export default function Home() {
 		useState<WorkOrderViewMode>('agenda')
 	const [selectedDay, setSelectedDay] = useState(today)
 	const prevSelectedDayRef = useRef(today)
-	const [cashViewMode, setCashViewMode] = useState<'day' | 'week'>('day')
-	const prevCashViewModeRef = useRef<'day' | 'week'>('day')
+	const [cashViewMode, setCashViewMode] = useState<CashViewMode>('day')
+	const prevCashViewModeRef = useRef<CashViewMode>('day')
 	const [cashSummaryMode, setCashSummaryMode] =
 		useState<CashSummaryMode>('cashflow')
 	const [cashFilters, setCashFilters] =
@@ -6514,7 +6520,34 @@ export default function Home() {
 	}
 
 	function moveSelectedCashDay(offset: number) {
-		setSelectedDay((current) => addDays(current || today, offset))
+		setSelectedDay((current) => addCashPeriod(current || today, cashViewMode, offset))
+	}
+
+	function openAgendaForCashPeriod() {
+		setWorkViewMode('agenda')
+		if (cashViewMode === 'month') {
+			const monthStart = cashMonthStart(selectedDay)
+			setAgendaRangeMode('month')
+			setAgendaStartDay(monthStart)
+			setSelectedDay(monthStart)
+			setAgendaOverlapSuppressedStartDay(null)
+		} else {
+			setAgendaRangeMode('week')
+			goToDate(cashViewMode === 'week' ? cashWeekStart(selectedDay) : selectedDay)
+		}
+		setActive('agenda')
+	}
+
+	function openCashForAgendaPeriod() {
+		if (agendaRangeMode === 'month') {
+			const monthStart = cashMonthStart(agendaStartDay)
+			setCashViewMode('month')
+			setSelectedDay(monthStart)
+		} else {
+			setCashViewMode('week')
+			setSelectedDay(cashWeekStart(agendaStartDay))
+		}
+		setActive('cash')
 	}
 
 	function closeCashDay() {
@@ -14114,6 +14147,7 @@ export default function Home() {
 								onMove={handleAgendaToolbarMove}
 								onToday={goToToday}
 								onGoToDate={goToDate}
+								onOpenCashForRange={openCashForAgendaPeriod}
 							/>
 							{agendaLoadError ? (
 								<ErrorState
@@ -14391,6 +14425,7 @@ export default function Home() {
 						onCloseDay={closeCashDay}
 						onReopenDay={reopenCashDay}
 						onCreateMovement={() => openFormModal('cash-load')}
+						onOpenAgendaForCashPeriod={openAgendaForCashPeriod}
 						onMoveSelectedDay={moveSelectedCashDay}
 						onOpenCashEntryDetail={openCashEntryDetail}
 						onQuickActionsContext={openQuickActionsFromContext}
