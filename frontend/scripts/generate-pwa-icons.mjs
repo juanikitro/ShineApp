@@ -18,14 +18,25 @@ async function renderLogoBuffer(source, size) {
 		.toBuffer()
 }
 
-async function writeAnyIcon(size, filename) {
-	const buffer = await renderLogoBuffer(logoLight, size)
+async function writeAnyIcon(size, filename, { logoRatio = 0.86, background = LIGHT_BG } = {}) {
+	const inner = Math.round(size * logoRatio)
+	const logo = await renderLogoBuffer(logoLight, inner)
 	const target = path.join(outputDir, filename)
-	await writeFile(target, buffer)
+	await sharp({
+		create: {
+			width: size,
+			height: size,
+			channels: 4,
+			background,
+		},
+	})
+		.composite([{ input: logo, gravity: 'center' }])
+		.png()
+		.toFile(target)
 	return target
 }
 
-async function writeMaskableIcon(size, filename, { safeAreaRatio = 0.7, background = LIGHT_BG } = {}) {
+async function writeMaskableIcon(size, filename, { safeAreaRatio = 0.8, background = LIGHT_BG } = {}) {
 	const inner = Math.round(size * safeAreaRatio)
 	const logo = await renderLogoBuffer(logoLight, inner)
 	const target = path.join(outputDir, filename)
@@ -44,7 +55,7 @@ async function writeMaskableIcon(size, filename, { safeAreaRatio = 0.7, backgrou
 }
 
 async function writeAppleTouchIcon(size, filename) {
-	const inner = Math.round(size * 0.78)
+	const inner = Math.round(size * 0.82)
 	const logo = await renderLogoBuffer(logoLight, inner)
 	const target = path.join(outputDir, filename)
 	await sharp({
