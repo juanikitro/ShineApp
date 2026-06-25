@@ -2923,6 +2923,42 @@ def test_quote_creation_snapshots_defaults_and_calculates_commercial_totals(api_
 
 
 @pytest.mark.django_db
+def test_quote_public_code_is_editable_and_unique(api_client, base_data):
+    customer, vehicle, _ = base_data
+    first = Quote.objects.create(customer=customer, vehicle=vehicle)
+    second = Quote.objects.create(customer=customer, vehicle=vehicle)
+    original_second_code = second.public_code
+
+    rename = api_client.patch(
+        reverse("quote-detail", args=[first.id]),
+        {"public_code": "PRESUPUESTO-001"},
+        format="json",
+    )
+    assert rename.status_code == 200, rename.data
+    assert rename.data["public_code"] == "PRESUPUESTO-001"
+    first.refresh_from_db()
+    assert first.public_code == "PRESUPUESTO-001"
+
+    blank = api_client.patch(
+        reverse("quote-detail", args=[first.id]),
+        {"public_code": "   "},
+        format="json",
+    )
+    assert blank.status_code == 200, blank.data
+    assert blank.data["public_code"] == "PRESUPUESTO-001"
+
+    duplicate = api_client.patch(
+        reverse("quote-detail", args=[second.id]),
+        {"public_code": "PRESUPUESTO-001"},
+        format="json",
+    )
+    assert duplicate.status_code == 400
+    assert "public_code" in duplicate.data
+    second.refresh_from_db()
+    assert second.public_code == original_second_code
+
+
+@pytest.mark.django_db
 def test_quote_can_be_marked_sent_and_downloaded_with_sent_status(api_client, base_data):
     customer, vehicle, service = base_data
     quote = Quote.objects.create(customer=customer, vehicle=vehicle)
