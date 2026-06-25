@@ -97,3 +97,27 @@ test('CashPanel renders monthly range copy without day-only close actions', () =
 	assert.ok(screen.getByText('Movimientos del mes'))
 	assert.equal(screen.queryByRole('button', { name: 'Cerrar dia' }), null)
 })
+
+test('CashPanel shows movement day in period lists', () => {
+	const entry = {
+		id: 1,
+		amount: 45000,
+		category: 'Pago',
+		counterparty_kind: 'customer',
+		counterparty_label: 'Mariano Mansilla',
+		movement_type: 'income',
+		occurred_at: '2026-06-22T19:20:00',
+		source_kind: 'payment',
+		source_label: 'Cobro de orden',
+	}
+	renderCashPanel({
+		cashEntries: [entry],
+		cashViewMode: 'week',
+		filteredCashEntries: [entry],
+	})
+
+	assert.ok(screen.getByText('Dia'))
+	assert.ok(screen.getByText(/22\/06\/2026|22\/6\/2026/))
+	assert.ok(screen.getByText('Cobro de orden'))
+	assert.ok(screen.getByText('Mariano Mansilla'))
+})

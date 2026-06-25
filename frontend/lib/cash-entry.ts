@@ -1,5 +1,6 @@
 import {
 	type AnyRecord,
+	formatDateLabel,
 	formatDateTimeLabel,
 	numberValue,
 } from '@/lib/page-support'
@@ -151,6 +152,11 @@ export function cashEntryOccurredTime(item: AnyRecord) {
 		hour: '2-digit',
 		minute: '2-digit',
 	})
+}
+
+export function cashEntryOccurredDate(item: AnyRecord) {
+	if (!item.occurred_at) return ''
+	return formatDateLabel(item.occurred_at)
 }
 
 export function cashEntryDescriptionText(item: AnyRecord) {

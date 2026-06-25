@@ -920,6 +920,7 @@ export default function Home() {
 		price_combi: '',
 		price_camion: '',
 		estimated_duration_minutes: '60',
+		estimated_material_cost: '',
 		notes: '',
 	})
 	const [serviceMaterialLines, setServiceMaterialLines] = useState<AnyRecord[]>([])
@@ -2773,6 +2774,14 @@ export default function Home() {
 	const shouldSuppressEnteringAgendaOverlap =
 		agendaOverlapSuppressedStartDay === agendaBoardModel.startDay &&
 		agendaSlideWindowsOverlap(agendaSlideMotion, AGENDA_VISIBLE_DAYS)
+
+	// Mientras se cargan los movimientos (skeleton activo) ocultamos las
+	// cabeceras reales del tablero para que no se vean las fechas todavia.
+	const agendaWeekSkeletonActive =
+		agendaRangeMode === 'week' &&
+		loading &&
+		!agendaLoadError &&
+		!agendaBoardModel.segments.length
 
 	function shouldHideEnteringAgendaColumn(column: number) {
 		if (!shouldSuppressEnteringAgendaOverlap) return false
@@ -6815,13 +6824,24 @@ export default function Home() {
 		})
 	}
 
+	// El costo estimado es opcional: enviar '' rompe el DecimalField del backend,
+	// así que lo normalizamos a null cuando viene vacío.
+	function serviceCreatePayload(form: AnyRecord) {
+		const payload = asPayload(form)
+		payload.estimated_material_cost =
+			String(payload.estimated_material_cost ?? '').trim() === ''
+				? null
+				: payload.estimated_material_cost
+		return payload
+	}
+
 	async function saveQuickService(event: FormEvent) {
 		event.preventDefault()
 		if (!quickCreate || !canViewEconomy) return
 		await runAction(async () => {
 			const created = await apiFetch<AnyRecord>('/services/', {
 				method: 'POST',
-				body: JSON.stringify(asPayload(serviceForm)),
+				body: JSON.stringify(serviceCreatePayload(serviceForm)),
 			})
 			applyQuickSelection(quickCreate.target, String(created.id))
 			setServiceForm({
@@ -8198,6 +8218,7 @@ export default function Home() {
 				'observations',
 			],
 			quote: [
+				'public_code',
 				'status',
 				'observations',
 				'valid_until',
@@ -8252,6 +8273,12 @@ export default function Home() {
 			payload.birthday_day = payload.birthday_day
 				? Number(payload.birthday_day)
 				: null
+		}
+		if (kind === 'service') {
+			payload.estimated_material_cost =
+				String(payload.estimated_material_cost ?? '').trim() === ''
+					? null
+					: payload.estimated_material_cost
 		}
 		if (kind === 'workorder') {
 			payload.estimated_delivery_at = payload.estimated_delivery_at || null
@@ -8649,6 +8676,22 @@ export default function Home() {
 								/>
 							</Field>
 						))}
+					</div>
+					<Field label="Costo estimado de materiales">
+						<input
+							type="number"
+							min="0"
+							value={data.estimated_material_cost ?? ''}
+							onChange={(event) =>
+								updateDetailEdit({
+									estimated_material_cost: event.target.value,
+								})
+							}
+						/>
+					</Field>
+					<div className="info-note">
+						Opcional. Solo se usa para estimar el ratio cuando el servicio no
+						tiene receta de materiales; ese valor se muestra con un “~”.
 					</div>
 					<Field label="Notas">
 						<textarea
@@ -9389,6 +9432,16 @@ export default function Home() {
 							</div>
 						) : null}
 					</div>
+					<Field label="Nombre de la cotizacion">
+						<input
+							type="text"
+							maxLength={20}
+							value={data.public_code ?? ''}
+							onChange={(event) =>
+								updateDetailEdit({ public_code: event.target.value })
+							}
+						/>
+					</Field>
 					<SearchSelect
 						label="Estado"
 						value={String(data.status ?? '')}
@@ -10272,7 +10325,7 @@ export default function Home() {
 			const method = serviceForm.id ? 'PATCH' : 'POST'
 			const saved = await apiFetch<AnyRecord>(path, {
 				method,
-				body: JSON.stringify(asPayload(serviceForm)),
+				body: JSON.stringify(serviceCreatePayload(serviceForm)),
 			})
 			await syncServiceMaterialLines(String(saved.id))
 			setServiceForm({
@@ -14295,10 +14348,7 @@ export default function Home() {
 									}
 								/>
 							) : null}
-							{agendaRangeMode === "week" &&
-							loading &&
-							!agendaLoadError &&
-							!agendaBoardModel.segments.length ? (
+							{agendaWeekSkeletonActive ? (
 								<div
 									className="agenda-skeleton-grid"
 									role="status"
@@ -14376,9 +14426,10 @@ export default function Home() {
 															agendaBoardModel.rowsByDay[day]?.length ?? 0
 														}
 														day={day}
-														hiddenDuringEnter={shouldHideEnteringAgendaColumn(
-															index + 1,
-														)}
+														hiddenDuringEnter={
+															agendaWeekSkeletonActive ||
+															shouldHideEnteringAgendaColumn(index + 1)
+														}
 														interactive={agendaBoardModel.isInteractive}
 														key={`head:${agendaBoardModel.key}:${day}`}
 													/>

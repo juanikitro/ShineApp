@@ -1308,6 +1308,7 @@ def test_service_history_returns_operational_summary_and_separates_additional_us
         "balance_due_total": Decimal("10000.00"),
         "material_cost_total": Decimal("2500.00"),
         "margin_total": Decimal("30500.00"),
+        "material_cost_is_estimated": False,
     }
     assert response.data["insights"] == {
         "last_used_at": used_last,
@@ -2944,6 +2945,42 @@ def test_quote_creation_snapshots_defaults_and_calculates_commercial_totals(api_
 
     assert quote.business_name == "THE KING SHINE"
     assert quote.tax_rate == Decimal("21.00")
+
+
+@pytest.mark.django_db
+def test_quote_public_code_is_editable_and_unique(api_client, base_data):
+    customer, vehicle, _ = base_data
+    first = Quote.objects.create(customer=customer, vehicle=vehicle)
+    second = Quote.objects.create(customer=customer, vehicle=vehicle)
+    original_second_code = second.public_code
+
+    rename = api_client.patch(
+        reverse("quote-detail", args=[first.id]),
+        {"public_code": "PRESUPUESTO-001"},
+        format="json",
+    )
+    assert rename.status_code == 200, rename.data
+    assert rename.data["public_code"] == "PRESUPUESTO-001"
+    first.refresh_from_db()
+    assert first.public_code == "PRESUPUESTO-001"
+
+    blank = api_client.patch(
+        reverse("quote-detail", args=[first.id]),
+        {"public_code": "   "},
+        format="json",
+    )
+    assert blank.status_code == 200, blank.data
+    assert blank.data["public_code"] == "PRESUPUESTO-001"
+
+    duplicate = api_client.patch(
+        reverse("quote-detail", args=[second.id]),
+        {"public_code": "PRESUPUESTO-001"},
+        format="json",
+    )
+    assert duplicate.status_code == 400
+    assert "public_code" in duplicate.data
+    second.refresh_from_db()
+    assert second.public_code == original_second_code
 
 
 @pytest.mark.django_db

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
@@ -90,6 +92,11 @@ class Service(SoftDeleteMixin):
     price_combi = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     price_camion = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     estimated_duration_minutes = models.PositiveIntegerField(default=60)
+    # Costo de materiales estimado manualmente. Solo se usa como fallback para
+    # calcular el ratio cuando el servicio NO tiene receta (`materials`) cargada.
+    estimated_material_cost = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -105,6 +112,40 @@ class Service(SoftDeleteMixin):
 
     def __str__(self):
         return self.name
+
+    @property
+    def recipe_material_cost(self):
+        """Costo de la receta: suma de `cantidad x costo_unitario` de cada material.
+
+        Devuelve None cuando el servicio no tiene receta cargada (no hay datos de
+        qué/cuántos materiales consume). Si tiene receta, devuelve el total aunque
+        sea 0 (la receta es "dato existente", no estimación).
+        """
+        lines = list(self.materials.all())
+        if not lines:
+            return None
+        total = Decimal("0")
+        for line in lines:
+            unit_cost = line.material.estimated_unit_cost or Decimal("0")
+            total += (line.quantity or Decimal("0")) * unit_cost
+        return total.quantize(Decimal("0.01"))
+
+    @property
+    def effective_material_cost(self):
+        """Costo de materiales a usar para el ratio: receta si existe, si no el manual.
+
+        Jerarquía a nivel servicio: receta > costo estimado manual. (El consumo real
+        vive por orden de trabajo, no acá). None si no hay ninguno de los dos.
+        """
+        recipe = self.recipe_material_cost
+        if recipe is not None:
+            return recipe
+        return self.estimated_material_cost
+
+    @property
+    def material_cost_is_estimated(self):
+        """True solo cuando el costo cae al estimado manual (sin receta)."""
+        return self.recipe_material_cost is None and self.estimated_material_cost is not None
 
     def price_for(self, vehicle_type=None):
         prices = {

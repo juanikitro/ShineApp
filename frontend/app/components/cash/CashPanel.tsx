@@ -681,7 +681,7 @@ export function CashPanel({
 							</aside>
 						</section>
 						<section
-							className="cash-filters section-block-end"
+							className="cash-movements section-block-end"
 							aria-labelledby="cash-filters-title"
 						>
 							<div className="cash-filters-head">
@@ -833,93 +833,95 @@ export function CashPanel({
 									</Field>
 								</div>
 							) : null}
-						</section>
-						{filteredCashEntries.length ? (
-							<div
-								className="cash-entry-columns"
-								aria-hidden="true"
-								role="presentation"
-							>
-								<span>Hora</span>
-								<span>Concepto / Categoria</span>
-								<span>Cliente / Detalle</span>
-								<span className="cash-entry-columns__amount">Monto</span>
-							</div>
-						) : null}
-						<div className="cash-entry-list">
 							{filteredCashEntries.length ? (
-								filteredCashEntries.map((item: AnyRecord) => {
-									const quickActions = cashEntryQuickActions(item)
-									return (
-										<CashEntryRow
-											className={recordClass('cash-movement', item.id)}
-											entry={item}
-											key={cashEntryKey(item)}
-											onClick={() => onOpenCashEntryDetail(item)}
-											onContextMenu={(event) =>
-												onQuickActionsContext(
-													event,
+								<div
+									className="cash-entry-columns"
+									aria-hidden="true"
+									role="presentation"
+								>
+									<span />
+									<span>Dia</span>
+									<span>Hora</span>
+									<span>Concepto / Categoria</span>
+									<span>Cliente / Detalle</span>
+									<span className="cash-entry-columns__amount">Monto</span>
+								</div>
+							) : null}
+							<div className="cash-entry-list">
+								{filteredCashEntries.length ? (
+									filteredCashEntries.map((item: AnyRecord) => {
+										const quickActions = cashEntryQuickActions(item)
+										return (
+											<CashEntryRow
+												className={recordClass('cash-movement', item.id)}
+												entry={item}
+												key={cashEntryKey(item)}
+												onClick={() => onOpenCashEntryDetail(item)}
+												onContextMenu={(event) =>
+													onQuickActionsContext(
+														event,
+														'Acciones de caja',
+														quickActions,
+													)
+												}
+												quickActionsTrigger={renderQuickActionsTrigger(
 													'Acciones de caja',
 													quickActions,
-												)
-											}
-											quickActionsTrigger={renderQuickActionsTrigger(
-												'Acciones de caja',
-												quickActions,
-												'Acciones rapidas de caja',
-											)}
-										/>
-									)
-								})
-							) : (
-								<Empty
-									text={
-										cashEntries.length
-											? 'Sin entradas para los filtros aplicados.'
-											: cashViewMode === 'week'
-												? 'Sin movimientos en la semana.'
-												: cashViewMode === 'month'
-													? 'Sin movimientos en el mes.'
-													: 'Sin movimientos para el dia.'
-									}
-									hint={
-										cashEntries.length
-											? 'Ajusta busqueda, origen, categoria o montos.'
-											: cashViewMode === 'week'
-												? 'Registra cobros, pagos de deuda o movimientos manuales para comenzar.'
-												: cashViewMode === 'month'
-													? 'Registra cobros, pagos de deuda o movimientos manuales para comenzar.'
-													: cashIsClosed
-														? 'La caja esta cerrada; si falta un movimiento, registra un ajuste para este dia.'
-														: 'Registra un cobro, pago de deuda o movimiento manual para comenzar.'
-									}
-									action={
-										cashEntries.length ? undefined : cashIsClosed ? (
-											<Button
-												variant="ghost"
-												onClick={onRegisterAdjustment}
-											>
-												<ReceiptText size={16} />
-												Registrar ajuste hoy
-											</Button>
-										) : (
-											<Button
-												variant="primary"
-												onClick={onCreateMovement}
-											>
-												<Plus size={16} />
-												Cargar movimiento
-											</Button>
+													'Acciones rapidas de caja',
+												)}
+											/>
 										)
-									}
-								/>
-							)}
-						</div>
-						{filteredCashEntries.length ? (
-							<div className="cash-entry-footer" role="status" aria-live="polite">
-								Mostrando {filteredCashEntries.length} de {cashEntries.length} movimientos
+									})
+								) : (
+									<Empty
+										text={
+											cashEntries.length
+												? 'Sin entradas para los filtros aplicados.'
+												: cashViewMode === 'week'
+													? 'Sin movimientos en la semana.'
+													: cashViewMode === 'month'
+														? 'Sin movimientos en el mes.'
+														: 'Sin movimientos para el dia.'
+										}
+										hint={
+											cashEntries.length
+												? 'Ajusta busqueda, origen, categoria o montos.'
+												: cashViewMode === 'week'
+													? 'Registra cobros, pagos de deuda o movimientos manuales para comenzar.'
+													: cashViewMode === 'month'
+														? 'Registra cobros, pagos de deuda o movimientos manuales para comenzar.'
+														: cashIsClosed
+															? 'La caja esta cerrada; si falta un movimiento, registra un ajuste para este dia.'
+															: 'Registra un cobro, pago de deuda o movimiento manual para comenzar.'
+										}
+										action={
+											cashEntries.length ? undefined : cashIsClosed ? (
+												<Button
+													variant="ghost"
+													onClick={onRegisterAdjustment}
+												>
+													<ReceiptText size={16} />
+													Registrar ajuste hoy
+												</Button>
+											) : (
+												<Button
+													variant="primary"
+													onClick={onCreateMovement}
+												>
+													<Plus size={16} />
+													Cargar movimiento
+												</Button>
+											)
+										}
+									/>
+								)}
 							</div>
-						) : null}
+							{filteredCashEntries.length ? (
+								<div className="cash-entry-footer" role="status" aria-live="polite">
+									Mostrando {filteredCashEntries.length} de {cashEntries.length} movimientos
+								</div>
+							) : null}
+						</section>
 					</>
 				) : null}
 			</section>

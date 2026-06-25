@@ -141,6 +141,8 @@ class ServiceMaterialSerializer(BusinessScopedSerializerMixin, serializers.Model
 
 class ServiceSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):
     materials = ServiceMaterialSerializer(many=True, read_only=True)
+    effective_material_cost = serializers.SerializerMethodField()
+    material_cost_is_estimated = serializers.SerializerMethodField()
 
     class Meta:
         model = Service
@@ -152,17 +154,39 @@ class ServiceSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializ
             "base_price",
             *PRICE_BY_TYPE_FIELDS,
             "estimated_duration_minutes",
+            "estimated_material_cost",
+            "effective_material_cost",
+            "material_cost_is_estimated",
             "is_active",
             "notes",
             "materials",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "materials", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "effective_material_cost",
+            "material_cost_is_estimated",
+            "materials",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_effective_material_cost(self, obj):
+        value = obj.effective_material_cost
+        return str(value) if value is not None else None
+
+    def get_material_cost_is_estimated(self, obj):
+        return obj.material_cost_is_estimated
 
     def validate_base_price(self, value):
         if value < 0:
             raise serializers.ValidationError("El precio no puede ser negativo.")
+        return value
+
+    def validate_estimated_material_cost(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("El costo estimado no puede ser negativo.")
         return value
 
     def validate(self, attrs):

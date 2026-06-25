@@ -18,6 +18,7 @@ import {
 	cashCounterpartyKindLabel,
 	cashEntryClassificationLabel,
 	cashEntryCounterparty,
+	cashEntryOccurredDate,
 	cashEntryMatchesQuickFilter,
 	cashEntryReferenceLabel,
 	cashEntryOccurredTime,
@@ -465,6 +466,15 @@ test('cashEntryOccurredTime returns formatted HH:MM', () => {
 
 test('cashEntryOccurredTime returns empty when missing', () => {
 	assert.equal(cashEntryOccurredTime({}), '')
+})
+
+test('cashEntryOccurredDate returns formatted date for period lists', () => {
+	const date = cashEntryOccurredDate({ occurred_at: '2026-06-05T15:30:00' })
+	assert.match(date, /05\/06\/2026|5\/6\/2026/)
+})
+
+test('cashEntryOccurredDate returns empty when missing', () => {
+	assert.equal(cashEntryOccurredDate({}), '')
 })
 
 // cashEntryMatchesQuickFilter

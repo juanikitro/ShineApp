@@ -141,6 +141,26 @@ export function ServiceForm({
 					</Field>
 				))}
 			</div>
+			<Field
+				label="Costo estimado de materiales"
+				error={fieldErrors?.['estimated_material_cost']}
+			>
+				<NumericInput
+					prefix="$"
+					value={serviceForm.estimated_material_cost ?? ''}
+					onChange={(raw) =>
+						setServiceForm({
+							...serviceForm,
+							estimated_material_cost: raw,
+						})
+					}
+				/>
+			</Field>
+			<div className="info-note">
+				Opcional. Solo se usa para estimar el ratio (margen y costo/precio)
+				cuando el servicio no tiene receta de materiales cargada. Ese valor se
+				muestra con un “~”.
+			</div>
 			<Field label="Notas" error={fieldErrors?.['notes']}>
 				<textarea
 					data-focus-key="service.notes"

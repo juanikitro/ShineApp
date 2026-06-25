@@ -17,6 +17,7 @@ import {
 	type CashCounterparty,
 	cashCounterpartyKindLabel,
 	cashEntryClassificationLabel,
+	cashEntryOccurredDate,
 	cashEntryOccurredTime,
 	cashEntryPaymentMethod,
 	cashEntryReferenceLabel,
@@ -57,6 +58,7 @@ export function CashEntryRow({
 	const counterparty = cashEntryCounterparty(entry)
 	const reference = cashEntryReferenceLabel(entry)
 	const classification = cashEntryClassificationLabel(entry)
+	const date = cashEntryOccurredDate(entry)
 	const time = cashEntryOccurredTime(entry)
 	const paymentMethod = cashEntryPaymentMethod(entry)
 	const sourceLabel =
@@ -82,49 +84,55 @@ export function CashEntryRow({
 				type="button"
 				className="cash-entry-row__open"
 				onClick={onClick}
-				aria-label={`Ver detalle del movimiento: ${classification}, ${formattedAmount}`}
+				aria-label={`Ver detalle del movimiento: ${date || 'sin fecha'}, ${classification}, ${formattedAmount}`}
 			/>
 			<span className="cash-entry-row__direction" aria-hidden="true">
 				{isIncome ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
 			</span>
-			<div className="cash-entry-row__main">
-				<div className="cash-entry-row__top">
-					<span className="cash-entry-row__time">{time || 'Sin hora'}</span>
-					<span
-						className={cx(
-							'cash-entry-row__source',
-							`cash-entry-row__source--${entry.source_kind ?? 'manual'}`,
-						)}
-					>
-						{sourceLabel}
+			<span className="cash-entry-row__date">{date || 'Sin fecha'}</span>
+			<span className="cash-entry-row__time">{time || 'Sin hora'}</span>
+			<div className="cash-entry-row__concept">
+				<span
+					className={cx(
+						'cash-entry-row__source',
+						`cash-entry-row__source--${entry.source_kind ?? 'manual'}`,
+					)}
+					title={sourceLabel}
+				>
+					{sourceLabel}
+				</span>
+				<div className="cash-entry-row__classification-line">
+					<span className="cash-entry-row__classification" title={classification}>
+						{classification}
 					</span>
-					{counterparty.label ? (
-						<span
-							className={cx(
-								'cash-entry-row__counterparty',
-								`cash-entry-row__counterparty--${counterparty.kind || 'none'}`,
-							)}
-							title={`${cashCounterpartyKindLabel(counterparty.kind) || counterpartyVerb}: ${counterparty.label}`}
-						>
-							{counterpartyIcon(counterparty)}
-							<span className="cash-entry-row__counterparty-prefix">
-								{cashCounterpartyKindLabel(counterparty.kind) || counterpartyVerb}
-							</span>
-							<span className="cash-entry-row__counterparty-name">
-								{counterparty.label}
-							</span>
-						</span>
-					) : null}
 					{muted ? (
 						<span className="cash-entry-row__chip cash-entry-row__chip--muted">
 							Solo resultado
 						</span>
 					) : null}
 				</div>
-				<div className="cash-entry-row__meta">
-					<span className="cash-entry-row__classification" title={classification}>
-						{classification}
+			</div>
+			<div className="cash-entry-row__detail-cell">
+				{counterparty.label ? (
+					<span
+						className={cx(
+							'cash-entry-row__counterparty',
+							`cash-entry-row__counterparty--${counterparty.kind || 'none'}`,
+						)}
+						title={`${cashCounterpartyKindLabel(counterparty.kind) || counterpartyVerb}: ${counterparty.label}`}
+					>
+						{counterpartyIcon(counterparty)}
+						<span className="cash-entry-row__counterparty-prefix">
+							{cashCounterpartyKindLabel(counterparty.kind) || counterpartyVerb}
+						</span>
+						<span className="cash-entry-row__counterparty-name">
+							{counterparty.label}
+						</span>
 					</span>
+				) : (
+					<span className="cash-entry-row__counterparty-empty">Sin cliente</span>
+				)}
+				<div className="cash-entry-row__meta">
 					{reference ? (
 						<span className="cash-entry-row__reference" title={reference}>
 							<Hash size={12} aria-hidden="true" />
