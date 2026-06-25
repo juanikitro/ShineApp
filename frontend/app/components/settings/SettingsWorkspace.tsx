@@ -1060,7 +1060,7 @@ function CashSettingsPanel({
 					},
 				]}
 			/>
-			<div className="settings-classification-list settings-category-accordion">
+			<div className="settings-category-accordion">
 				{categories.length ? (
 					categories.map((category) => {
 						const key = `${activeType}:${category}`

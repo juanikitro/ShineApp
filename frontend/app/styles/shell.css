@@ -1289,6 +1289,19 @@
   margin: 0;
 }
 
+.turnera-two-col {
+  align-items: start;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 900px) {
+  .turnera-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
 .working-hours-grid {
   background: var(--color-surface-soft);
   border: 1px solid var(--shop-border);
@@ -1310,15 +1323,23 @@
 }
 
 .working-hours-rows {
+  align-items: center;
+  column-gap: var(--space-3);
   display: grid;
-  gap: var(--space-2);
+  grid-template-columns: minmax(100px, auto) 110px 110px;
+  row-gap: var(--space-2);
 }
 
+.working-hours-header,
 .working-hours-row {
-  align-items: center;
-  display: flex;
-  gap: var(--space-3);
-  min-height: 36px;
+  display: contents;
+}
+
+.working-hours-header span {
+  color: var(--shop-ink-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  padding-bottom: var(--space-1);
 }
 
 .working-hours-row .toggle-label {
@@ -1326,23 +1347,10 @@
   min-width: 100px;
 }
 
-.working-hours-times {
-  align-items: flex-end;
-  display: flex;
-  gap: var(--space-2);
-}
-
-.working-hours-times .field {
-  margin: 0;
-}
-
-.working-hours-times input[type="time"] {
-  width: 110px;
-}
-
 .working-hours-closed {
   color: var(--shop-ink-muted);
   font-size: var(--text-base);
+  grid-column: 2 / 4;
 }
 
 .usage-reservation-list {
@@ -4393,20 +4401,6 @@
   }
 }
 
-.settings-classification-list {
-  background:
-    linear-gradient(var(--color-workspace-surface), var(--color-workspace-surface)) padding-box,
-    linear-gradient(to bottom, transparent 0, rgba(17, 24, 39, 0.16) 100%) border-box;
-  border: 1px solid var(--color-workspace-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-raise);
-  max-height: min(496px, 58vh);
-  overscroll-behavior: contain;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: 10px 8px 12px 10px;
-}
-
 .settings-classification-card {
   background: var(--color-workspace-surface);
   border: 1px solid var(--color-workspace-border);
@@ -4423,6 +4417,10 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: min(496px, 58vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .settings-category-item {
@@ -4469,7 +4467,9 @@
 }
 
 .settings-category-name {
+  flex: 1 1 auto;
   font-weight: 600;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -282,10 +282,16 @@ export function TurneraSettingsPanel({
 						Solapar turnos
 					</Toggle>
 				</div>
+				<div className="turnera-two-col">
 				<div className="working-hours-grid">
 					<h3>Dias y horarios de atencion</h3>
 					<p>Configura que dias trabaja el negocio y en que horario. La agenda bloqueara los dias cerrados.</p>
 					<div className="working-hours-rows">
+						<div className="working-hours-header">
+							<span />
+							<span>Apertura</span>
+							<span>Cierre</span>
+						</div>
 						{workingHours.map((entry) => (
 							<div key={entry.day_of_week} className="working-hours-row">
 								<Toggle
@@ -297,30 +303,26 @@ export function TurneraSettingsPanel({
 									{DAY_LABELS[entry.day_of_week]}
 								</Toggle>
 								{entry.is_open ? (
-									<div className="working-hours-times">
-										<Field label="Apertura">
-											<input
-												type="time"
-												value={entry.opening_time ?? ''}
-												onChange={(e) =>
-													patchWorkingHoursDay(entry.day_of_week, {
-														opening_time: e.target.value || null,
-													})
-												}
-											/>
-										</Field>
-										<Field label="Cierre">
-											<input
-												type="time"
-												value={entry.closing_time ?? ''}
-												onChange={(e) =>
-													patchWorkingHoursDay(entry.day_of_week, {
-														closing_time: e.target.value || null,
-													})
-												}
-											/>
-										</Field>
-									</div>
+									<>
+										<input
+											type="time"
+											value={entry.opening_time ?? ''}
+											onChange={(e) =>
+												patchWorkingHoursDay(entry.day_of_week, {
+													opening_time: e.target.value || null,
+												})
+											}
+										/>
+										<input
+											type="time"
+											value={entry.closing_time ?? ''}
+											onChange={(e) =>
+												patchWorkingHoursDay(entry.day_of_week, {
+													closing_time: e.target.value || null,
+												})
+											}
+										/>
+									</>
 								) : (
 									<span className="working-hours-closed">Cerrado</span>
 								)}
@@ -395,6 +397,7 @@ export function TurneraSettingsPanel({
 							correspondiente para poder elegir cuales mostrar.
 						</p>
 					) : null}
+				</div>
 				</div>
 			</form>
 		</section>
