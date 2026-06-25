@@ -866,7 +866,7 @@
 .settings-grid,
 .finance-panel,
 .cash-flow-card,
-.cash-filters {
+.cash-movements {
   min-width: 0;
 }
 
@@ -3621,7 +3621,7 @@
 }
 
 .cash-flow-card,
-.cash-filters {
+.cash-movements {
   background: var(--color-workspace-surface);
   border: 1px solid var(--color-workspace-border);
   border-radius: var(--radius-lg);
@@ -3635,12 +3635,12 @@
   gap: 14px;
 }
 
-.cash-filters {
+.cash-movements {
   gap: 14px;
   padding: var(--space-4);
 }
 
-.cash-filters:focus-within {
+.cash-movements:focus-within {
   z-index: calc(var(--z-popover) + 1);
 }
 
@@ -4126,9 +4126,9 @@
   font-size: var(--text-xs);
   font-weight: 750;
   gap: 10px;
-  grid-template-columns: 60px minmax(0, 1.5fr) minmax(0, 1.2fr) auto;
+  grid-template-columns: 22px 84px 68px minmax(0, 1.2fr) minmax(0, 1.15fr) minmax(120px, auto) 28px;
   letter-spacing: 0.06em;
-  margin-top: var(--space-3);
+  margin-top: 2px;
   padding: 8px 12px;
   text-transform: uppercase;
 }
@@ -4166,7 +4166,7 @@
   cursor: pointer;
   display: grid;
   gap: 10px;
-  grid-template-columns: 22px minmax(0, 1fr) auto auto;
+  grid-template-columns: 22px 84px 68px minmax(0, 1.2fr) minmax(0, 1.15fr) minmax(120px, auto) 28px;
   padding: 8px 10px;
   position: relative;
   transition: background 0.12s ease, border-color 0.12s ease;
@@ -4235,13 +4235,14 @@
   color: var(--shop-danger);
 }
 
-.cash-entry-row__main {
+.cash-entry-row__concept,
+.cash-entry-row__detail-cell {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.cash-entry-row__top {
+.cash-entry-row__classification-line {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
@@ -4249,70 +4250,62 @@
   min-width: 0;
 }
 
+.cash-entry-row__date,
 .cash-entry-row__time {
   color: var(--shop-ink-soft);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   letter-spacing: 0.02em;
-  min-width: 38px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.cash-entry-row__date {
+  color: var(--shop-ink);
 }
 
 .cash-entry-row__source {
-  background: var(--color-workspace-surface-raised);
-  border: 1px solid var(--shop-border);
-  border-radius: var(--radius-full);
   color: var(--shop-ink);
-  font-size: var(--text-xs);
-  font-weight: 700;
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 800;
   letter-spacing: 0.02em;
-  padding: 2px 8px;
-  text-transform: uppercase;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cash-entry-row__source--payment {
-  background: rgba(16, 185, 129, 0.12);
-  border-color: rgba(16, 185, 129, 0.32);
   color: #047857;
 }
 
 .cash-entry-row__source--material_purchase,
 .cash-entry-row__source--stock_purchase {
-  background: rgba(99, 102, 241, 0.12);
-  border-color: rgba(99, 102, 241, 0.32);
   color: #4338ca;
 }
 
 .cash-entry-row__source--stock_sale {
-  background: rgba(14, 165, 233, 0.14);
-  border-color: rgba(14, 165, 233, 0.32);
   color: var(--status-confirmed-text);
 }
 
 .cash-entry-row__source--debt_origin,
 .cash-entry-row__source--debt_payment {
-  background: rgba(244, 114, 182, 0.16);
-  border-color: rgba(244, 114, 182, 0.34);
   color: #be185d;
 }
 
 .cash-entry-row__source--adjustment {
-  background: rgba(234, 179, 8, 0.16);
-  border-color: rgba(234, 179, 8, 0.34);
   color: #a16207;
 }
 
 .cash-entry-row__source--manual {
-  background: var(--color-workspace-surface-raised);
-  border-color: var(--shop-border);
   color: var(--shop-ink-soft);
 }
 
 .cash-entry-row__counterparty {
   align-items: center;
-  background: var(--color-workspace-surface);
-  border: 1px dashed var(--color-workspace-active-border);
-  border-radius: var(--radius-full);
   color: var(--shop-ink);
   display: inline-flex;
   font-size: var(--text-sm);
@@ -4321,7 +4314,7 @@
   max-width: 100%;
   min-width: 0;
   overflow: hidden;
-  padding: 2px 8px;
+  padding: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4342,6 +4335,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cash-entry-row__counterparty-empty {
+  color: var(--shop-ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 650;
 }
 
 .cash-entry-row__chip {
@@ -4384,7 +4383,7 @@
 .cash-entry-row__classification {
   color: var(--shop-ink);
   font-weight: 700;
-  max-width: min(260px, 60%);
+  max-width: 100%;
 }
 
 .cash-entry-row__reference {
@@ -4404,7 +4403,7 @@
 
 .cash-entry-row__detail {
   color: var(--shop-ink-soft);
-  max-width: min(320px, 60%);
+  max-width: min(320px, 100%);
 }
 
 .cash-entry-row__amount {
@@ -4447,9 +4446,27 @@
     grid-column: 3;
     grid-row: 1;
   }
+  .cash-entry-row__date,
+  .cash-entry-row__time,
+  .cash-entry-row__concept,
+  .cash-entry-row__detail-cell {
+    grid-column: 2 / 3;
+  }
+  .cash-entry-row__date {
+    grid-row: 1;
+  }
+  .cash-entry-row__time {
+    grid-row: 2;
+  }
+  .cash-entry-row__concept {
+    grid-row: 3;
+  }
+  .cash-entry-row__detail-cell {
+    grid-row: 4;
+  }
   .cash-entry-row__amount {
     grid-column: 1 / -1;
-    grid-row: 2;
+    grid-row: 5;
     justify-self: start;
     padding-left: 30px;
   }
@@ -5732,7 +5749,7 @@
   }
 
   .cash-flow-card,
-  .cash-filters {
+  .cash-movements {
     padding: 14px;
   }
 

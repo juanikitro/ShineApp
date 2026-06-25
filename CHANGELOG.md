@@ -15,7 +15,8 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Mejoras de usabilidad del modulo de tareas](docs/registro/cambios/2026-06-24-tareas-usabilidad.md)
 - [Precarga del badge de tareas](docs/registro/cambios/2026-06-24-tareas-badge-precarga.md)
 - [items finalizados en desplegable al final de listados](docs/registro/cambios/2026-06-24-listados-finalizados-desplegable.md)
-- [Frontend: favicon del navegador en la turnera usa el logo del negocio](docs/registro/cambios/2026-06-24-favicon-turnera-logo-negocio.md)
+- [Detalle generico de instancias con estetica de la app](docs/registro/cambios/2026-06-24-detalle-generico-estetica.md)
+- [Cotizacion: codigo/nombre editable](docs/registro/cambios/2026-06-24-cotizacion-codigo-editable.md)
 - [Costo estimado por servicio para ratio estimado (~)](docs/registro/cambios/2026-06-24-costo-estimado-por-servicio.md)
 
 ## 2026-06-23
