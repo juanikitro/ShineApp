@@ -38,6 +38,7 @@ const detailFieldLabels: Record<string, string> = {
 	service_name: 'Servicio',
 	material_name: 'Material',
 	tool_name: 'Herramienta',
+	vehicle_label: 'Vehiculo',
 	quantity: 'Cantidad',
 	unit: 'Unidad',
 	unit_label: 'Unidad',
@@ -53,6 +54,51 @@ const detailFieldLabels: Record<string, string> = {
 	birthday_label: 'Cumpleanos',
 	estimated_duration_minutes: 'Duracion estimada (min)',
 	scheduled_at: 'Agendado',
+	day: 'Dia',
+	exit_day: 'Salida',
+	entry_day: 'Ingreso',
+	items: 'Items',
+	material_overrides: 'Materiales personalizados',
+	public_code: 'Codigo',
+	valid_until: 'Validez',
+	sent_at: 'Enviada',
+	reservation_day: 'Dia de reserva',
+	start_time: 'Hora de inicio',
+}
+
+// Etiquetas legibles para los valores de estado mas comunes (reservas, ordenes,
+// deudas, herramientas, cotizaciones). Si el backend ya envia `status_label`,
+// se prefiere ese; este mapa es el fallback.
+const statusValueLabels: Record<string, string> = {
+	pending: 'Pendiente',
+	confirmed: 'Confirmada',
+	in_progress: 'En proceso',
+	ready: 'Listo',
+	delivered: 'Entregada',
+	completed: 'Completada',
+	canceled: 'Cancelada',
+	cancelled: 'Cancelada',
+	partial: 'En pago',
+	paid: 'Pagada',
+	overdue: 'Vencida',
+	expired: 'Vencida',
+	in_use: 'En uso',
+	maintenance: 'Mantenimiento',
+	retired: 'Retirada',
+	draft: 'Borrador',
+	sent: 'Enviada',
+	accepted: 'Aceptada',
+	rejected: 'Rechazada',
+	active: 'Activo',
+	inactive: 'Inactivo',
+}
+
+// Traduce un valor de estado a su etiqueta legible. Si no esta en el mapa,
+// devuelve el valor crudo (no inventa traducciones).
+export function detailStatusLabel(value: unknown): string {
+	const raw = String(value ?? '').trim()
+	if (!raw) return 'Sin dato'
+	return statusValueLabels[raw.toLowerCase()] ?? raw
 }
 
 // Claves que no aportan al detalle legible (ids, banderas internas, redundantes).
@@ -69,6 +115,8 @@ const hiddenDetailFields = new Set<string>([
 	'economic_effect',
 	'signed_amount',
 	'icon',
+	'service_icon',
+	'status_label',
 	'sector',
 	'customer',
 	'supplier',
@@ -115,7 +163,8 @@ export function formatDetailValue(key: string, value: unknown): string {
 	if (value === null || value === undefined || value === '') return 'Sin dato'
 	if (typeof value === 'boolean') return value ? 'Si' : 'No'
 	if (Array.isArray(value)) {
-		return value.length ? `${value.length} items` : 'Sin items'
+		if (!value.length) return 'Sin items'
+		return value.length === 1 ? '1 item' : `${value.length} items`
 	}
 	if (typeof value === 'object') {
 		const named = (value as AnyRecord).name ?? (value as AnyRecord).label
@@ -130,16 +179,29 @@ export function formatDetailValue(key: string, value: unknown): string {
 	return String(value)
 }
 
-export type DetailField = { key: string; label: string; value: string }
+// `status` lleva el valor crudo (ej. "confirmed") para que la UI pueda pintar el
+// chip de estado con el color correcto reutilizando las clases `.status`.
+export type DetailField = { key: string; label: string; value: string; status?: string }
 
 // Convierte un registro plano en una lista ordenada de campos legibles,
 // descartando el ruido tecnico.
 export function buildDetailFields(data: AnyRecord): DetailField[] {
 	return Object.entries(data)
 		.filter(([key, value]) => !isHiddenDetailField(key, value))
-		.map(([key, value]) => ({
-			key,
-			label: detailFieldLabel(key),
-			value: formatDetailValue(key, value),
-		}))
+		.map(([key, value]) => {
+			if (key === 'status') {
+				const raw = String(value).trim().toLowerCase()
+				return {
+					key,
+					label: detailFieldLabel(key),
+					value: data.status_label ? String(data.status_label) : detailStatusLabel(raw),
+					status: raw,
+				}
+			}
+			return {
+				key,
+				label: detailFieldLabel(key),
+				value: formatDetailValue(key, value),
+			}
+		})
 }

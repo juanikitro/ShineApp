@@ -4,6 +4,7 @@ import { test } from 'vitest'
 import {
 	buildDetailFields,
 	detailFieldLabel,
+	detailStatusLabel,
 	formatDetailValue,
 	isHiddenDetailField,
 } from './detail-format'
@@ -40,12 +41,27 @@ test('isHiddenDetailField keeps legible fields', () => {
 	assert.equal(isHiddenDetailField('amount', 0), false)
 })
 
+test('isHiddenDetailField hides the decorative icon and the redundant status label', () => {
+	assert.equal(isHiddenDetailField('service_icon', '🚗'), true)
+	assert.equal(isHiddenDetailField('status_label', 'Confirmada'), true)
+})
+
+// detailStatusLabel
+test('detailStatusLabel translates known statuses and falls back to the raw value', () => {
+	assert.equal(detailStatusLabel('confirmed'), 'Confirmada')
+	assert.equal(detailStatusLabel('IN_PROGRESS'), 'En proceso')
+	assert.equal(detailStatusLabel('weird_state'), 'weird_state')
+	assert.equal(detailStatusLabel(''), 'Sin dato')
+	assert.equal(detailStatusLabel(null), 'Sin dato')
+})
+
 // formatDetailValue
 test('formatDetailValue handles empty, boolean and array values', () => {
 	assert.equal(formatDetailValue('notes', ''), 'Sin dato')
 	assert.equal(formatDetailValue('active', true), 'Si')
 	assert.equal(formatDetailValue('active', false), 'No')
-	assert.equal(formatDetailValue('tags', ['vip']), '1 items')
+	assert.equal(formatDetailValue('tags', ['vip']), '1 item')
+	assert.equal(formatDetailValue('tags', ['a', 'b']), '2 items')
 	assert.equal(formatDetailValue('tags', []), 'Sin items')
 })
 
@@ -90,4 +106,19 @@ test('buildDetailFields drops noise and formats the remaining fields', () => {
 	assert.equal(byKey.name, 'Ana')
 	assert.equal(byKey.active, 'Si')
 	assert.ok(byKey.total_amount.includes('1.500'))
+})
+
+test('buildDetailFields exposes the raw status and prefers the server status label', () => {
+	const [field] = buildDetailFields({ status: 'confirmed' })
+	assert.equal(field.key, 'status')
+	assert.equal(field.label, 'Estado')
+	assert.equal(field.value, 'Confirmada')
+	assert.equal(field.status, 'confirmed')
+
+	const [labeled] = buildDetailFields({
+		status: 'confirmed',
+		status_label: 'Confirmada a mano',
+	})
+	assert.equal(labeled.value, 'Confirmada a mano')
+	assert.equal(labeled.status, 'confirmed')
 })
