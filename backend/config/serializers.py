@@ -462,6 +462,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
 
 class MeUpdateSerializer(serializers.Serializer):
     avatar = serializers.FileField(required=False)
+    username = serializers.CharField(required=False, max_length=150)
     email = serializers.EmailField(required=False, allow_blank=True)
     phone_country_code = serializers.ChoiceField(
         choices=UserProfile.PhoneCountryCode.choices,
@@ -478,6 +479,19 @@ class MeUpdateSerializer(serializers.Serializer):
 
     def validate_avatar(self, value):
         return validate_profile_asset_upload(value)
+
+    def validate_username(self, value):
+        username = value.strip()
+        if not username:
+            raise serializers.ValidationError("El usuario es obligatorio.")
+        user_model = get_user_model()
+        existing = user_model.objects.filter(username__iexact=username)
+        current_user = self.context.get("user")
+        if current_user is not None:
+            existing = existing.exclude(pk=current_user.pk)
+        if existing.exists():
+            raise serializers.ValidationError("Ya existe una cuenta con ese usuario.")
+        return username
 
     def validate_phone_number(self, value):
         return value.strip()

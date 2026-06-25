@@ -348,6 +348,7 @@ def test_employer_can_update_own_profile_and_subscription_type(api_client, tmp_p
         response = api_client.patch(
             reverse("auth-me"),
             {
+                "username": "admin-renombrado",
                 "email": "admin@shineapp.test",
                 "phone_country_code": "+598",
                 "phone_number": "987654321",
@@ -358,12 +359,35 @@ def test_employer_can_update_own_profile_and_subscription_type(api_client, tmp_p
         )
 
         assert response.status_code == 200, response.data
+        assert response.data["username"] == "admin-renombrado"
         assert response.data["email"] == "admin@shineapp.test"
         assert response.data["phone_country_code"] == "+598"
         assert response.data["phone_number"] == "987654321"
         assert response.data["phone_display"] == "+598 987654321"
         assert response.data["subscription_type"] == "trial"
         assert "/media/user-profiles/" in response.data["avatar_url"]
+
+
+@pytest.mark.django_db
+def test_auth_me_rejects_duplicate_username_case_insensitive(
+    api_client, django_user_model
+):
+    django_user_model.objects.create_user(
+        username="usuario-existente",
+        password="secreto123",
+    )
+
+    response = api_client.patch(
+        reverse("auth-me"),
+        {
+            "username": "USUARIO-EXISTENTE",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "username" in response.data
+    assert "Ya existe una cuenta con ese usuario." in response.data["username"][0]
 
 
 @pytest.mark.django_db

@@ -1485,6 +1485,7 @@ export default function Home() {
 	}
 
 	function openProfileModal() {
+		syncProfileForm(currentUser)
 		resetProfileAvatarSelection()
 		setProfileModalOpen(true)
 	}
@@ -7291,6 +7292,7 @@ export default function Home() {
 		if (!currentUser) return
 		setError(null)
 		const payload = new FormData()
+		payload.append('username', String(profileForm.username ?? '').trim())
 		payload.append('email', String(profileForm.email ?? '').trim())
 		payload.append(
 			'phone_country_code',

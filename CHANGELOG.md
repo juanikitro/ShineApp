@@ -14,6 +14,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [WhatsApp MVP](docs/registro/cambios/2026-06-24-whatsapp-mvp.md)
 - [Mejoras de usabilidad del modulo de tareas](docs/registro/cambios/2026-06-24-tareas-usabilidad.md)
 - [Precarga del badge de tareas](docs/registro/cambios/2026-06-24-tareas-badge-precarga.md)
+- [Perfil: usuario editable y datos precargados](docs/registro/cambios/2026-06-24-perfil-usuario-editable.md)
 - [items finalizados en desplegable al final de listados](docs/registro/cambios/2026-06-24-listados-finalizados-desplegable.md)
 - [Detalle generico de instancias con estetica de la app](docs/registro/cambios/2026-06-24-detalle-generico-estetica.md)
 - [Cotizacion: codigo/nombre editable](docs/registro/cambios/2026-06-24-cotizacion-codigo-editable.md)

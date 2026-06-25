@@ -11,6 +11,7 @@ const userRoleLabels: Record<string, string> = {
 
 export function blankProfileForm(user?: AnyRecord | null) {
 	return {
+		username: String(user?.username ?? ''),
 		email: String(user?.email ?? ''),
 		phone_country_code: String(user?.phone_country_code ?? '+54'),
 		phone_number: String(user?.phone_number ?? ''),
