@@ -832,9 +832,9 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 					</p>
 				</div>
 
-				<div className="public-body">
+				<form className="public-body" onSubmit={submitRequest}>
 					{/* LEFT – form */}
-					<form className="public-form-col" onSubmit={submitRequest}>
+					<div className="public-form-col">
 						<input
 							className="public-honeypot"
 							tabIndex={-1}
@@ -1083,42 +1083,7 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 								/>
 							</label>
 						</div>
-
-						{/* Resumen + enviar */}
-						<div className="public-card public-summary">
-							<div className="public-summary-header">Resumen de solicitud</div>
-							<div className="public-summary-row">
-								<span>
-									Turno para:{' '}
-									<strong>{form.customer_name || 'Pendiente'}</strong>
-								</span>
-								<span className="public-summary-total">
-									{selectedTotal > 0 ? formatPublicPrice(selectedTotal) : '$0'}
-								</span>
-							</div>
-							{errorNotice ? (
-								<PublicFormErrorNotice notice={errorNotice} />
-							) : null}
-							{success ? (
-								<div className="public-form-success">
-									<CheckCircle2 size={18} aria-hidden="true" />
-									Solicitud enviada.
-								</div>
-							) : null}
-							<button
-								type="submit"
-								className="public-btn-submit"
-								disabled={submitting || blockSubmit}
-							>
-								<Send size={16} aria-hidden="true" />
-								{submitting ? 'Enviando...' : 'Enviar solicitud'}
-							</button>
-							<p className="public-summary-note">
-								* Al enviar, estás solicitando una cotización/reserva sujeta a
-								disponibilidad.
-							</p>
-						</div>
-					</form>
+					</div>
 
 					{/* RIGHT – services */}
 					<div className="public-services-col">
@@ -1262,7 +1227,42 @@ export function PublicLandingClient({ slug }: { slug: string }) {
 							})}
 						</div>
 					</div>
-				</div>
+
+					{/* Resumen + enviar */}
+					<div className="public-card public-summary">
+						<div className="public-summary-header">Resumen de solicitud</div>
+						<div className="public-summary-row">
+							<span>
+								Turno para:{' '}
+								<strong>{form.customer_name || 'Pendiente'}</strong>
+							</span>
+							<span className="public-summary-total">
+								{selectedTotal > 0 ? formatPublicPrice(selectedTotal) : '$0'}
+							</span>
+						</div>
+						{errorNotice ? (
+							<PublicFormErrorNotice notice={errorNotice} />
+						) : null}
+						{success ? (
+							<div className="public-form-success">
+								<CheckCircle2 size={18} aria-hidden="true" />
+								Solicitud enviada.
+							</div>
+						) : null}
+						<button
+							type="submit"
+							className="public-btn-submit"
+							disabled={submitting || blockSubmit}
+						>
+							<Send size={16} aria-hidden="true" />
+							{submitting ? 'Enviando...' : 'Enviar solicitud'}
+						</button>
+						<p className="public-summary-note">
+							* Al enviar, estás solicitando una cotización/reserva sujeta a
+							disponibilidad.
+						</p>
+					</div>
+				</form>
 			</main>
 
 			{/* ── Footer ─────────────────────────────────────────────── */}
