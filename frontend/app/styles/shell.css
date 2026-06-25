@@ -2398,6 +2398,60 @@
   gap: var(--space-3);
 }
 
+.detail-fields {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.detail-field {
+  align-items: center;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--shop-border);
+  border-radius: var(--radius-md);
+  column-gap: var(--space-3);
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  padding: 11px 14px;
+  row-gap: 1px;
+}
+
+.detail-field__icon {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  display: inline-flex;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.detail-field dt {
+  color: var(--shop-ink-muted);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  grid-column: 2;
+  grid-row: 1;
+  line-height: 1.2;
+}
+
+.detail-field dd {
+  color: var(--shop-ink);
+  font-weight: 650;
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.detail-field dd .status {
+  font-size: var(--text-sm);
+}
+
 .detail-view__actions {
   display: flex;
   justify-content: flex-end;

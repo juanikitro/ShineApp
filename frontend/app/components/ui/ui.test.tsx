@@ -517,6 +517,7 @@ test('DetailModal formats readonly data and swaps to edit form when editing', ()
 			onClose={onClose}
 			data={{
 				name: 'Ana',
+				status: 'confirmed',
 				active: true,
 				tags: ['vip'],
 				extra: { visits: 2 },
@@ -529,8 +530,12 @@ test('DetailModal formats readonly data and swaps to edit form when editing', ()
 	assert.ok(screen.getByRole('dialog', { name: 'Detalle' }))
 	assert.ok(screen.getByText('Ana'))
 	assert.ok(screen.getByText('Si'))
-	assert.ok(screen.getByText('1 items'))
+	assert.ok(screen.getByText('1 item'))
 	assert.ok(screen.getByText('Ver mas'))
+	// El estado se traduce y se pinta como chip con la clase de tono.
+	const statusChip = screen.getByText('Confirmada')
+	assert.ok(statusChip.classList.contains('status'))
+	assert.ok(statusChip.classList.contains('confirmed'))
 	// Los valores vacios y las claves internas se ocultan del detalle legible.
 	assert.equal(screen.queryByText('Sin dato'), null)
 	assert.equal(screen.queryByText('hidden'), null)
