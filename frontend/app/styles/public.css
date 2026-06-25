@@ -180,16 +180,25 @@
   display: grid;
   gap: var(--space-5);
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  grid-template-areas:
+    'form services'
+    'summary services';
 }
 
 .public-form-col {
   display: grid;
   gap: var(--space-4);
+  grid-area: form;
 }
 
 .public-services-col {
+  grid-area: services;
   position: sticky;
   top: 76px;
+}
+
+.public-body > .public-summary {
+  grid-area: summary;
 }
 
 /* ── Cards ───────────────────────────────────────────────────── */
@@ -684,6 +693,10 @@
 @media (max-width: 900px) {
   .public-body {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      'form'
+      'services'
+      'summary';
   }
 
   .public-services-col {
