@@ -116,10 +116,25 @@ export function ProfileModal({
 					<span>ID</span>
 					<strong>{currentUser.id}</strong>
 				</div>
-				<div className="detail-row">
+				<label className="detail-row" htmlFor="profile-username">
 					<span>Usuario</span>
-					<strong>{currentUser.username}</strong>
-				</div>
+					<div className="profile-detail-control">
+						<input
+							id="profile-username"
+							name="profile_username"
+							className="profile-detail-input"
+							type="text"
+							autoComplete="username"
+							value={profileForm.username}
+							onChange={(event) =>
+								setProfileForm({
+									...profileForm,
+									username: event.target.value,
+								})
+							}
+						/>
+					</div>
+				</label>
 				<label className="detail-row" htmlFor="profile-email">
 					<span>Email</span>
 					<div className="profile-detail-control">
