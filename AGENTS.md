@@ -1,128 +1,85 @@
 # AGENTS.md
 
-Guia raiz para IAs que trabajen en ShineApp. Este archivo es mapa y reglas de comportamiento; el detalle tecnico vive en `docs/`.
+Guia compacta para IAs en ShineApp. Detalle tecnico en `docs/`.
 
-## Prioridad
+## Contexto
 
-- Segui primero la instruccion mas local y especifica.
-- Specs, ADRs y docs tecnicas relevantes son fuente de verdad.
-- Si falta contexto critico, explicita supuesto, impacto y segui con la opcion mas segura.
+Antes de editar: lee `AGENTS.md`, `docs/indice.md`, archivos objetivo, tests cercanos si existen y una guia relevante de `docs/ia/`.
 
-## Lectura minima
+Usa `docs/ia/CONTEXT_HYGIENE.md`. Preferi `docs/agent-context.compact.md` y luego `*.compact.md` si alcanza. Si compacto contradice codigo, tests, specs, ADRs, `docs/registro/**`, `docs/ia/**` o este archivo, gana la fuente fuerte.
 
-Antes de editar:
-1. `AGENTS.md`
-2. `docs/indice.md`
-3. archivo(s) objetivo
-4. tests cercanos si existen
-5. una sola guia de `docs/ia/` segun la tarea
-
-Usa `docs/ia/CONTEXT_HYGIENE.md` para decidir que abrir. Expandi contexto solo con evidencia concreta: endpoint, serializer/model, consumidor frontend, permiso, side effect o doc de contexto.
-
-## Contexto compacto
-
-- Para ahorrar tokens, preferi `docs/agent-context.compact.md` y luego `*.compact.md` cuando alcance como contexto liviano.
-- Si un compacto contradice codigo, tests, specs, ADRs, `docs/registro/**`, `docs/ia/**` o este archivo, ignora el compacto.
-- Nuevos registros spec-as-source deben escribirse compactos estilo caveman, preservando exactos comandos, paths, endpoints, permisos y snippets.
-
-## Boundaries del repo
+## Repo
 
 - Backend: Django + DRF en `backend/`.
 - Frontend: Next.js App Router en `frontend/`.
-- Runtime local: `docker-compose.yml` levanta `db`, `backend` y `frontend`.
-- Postgres corre en Docker; el backend tiene fallback SQLite para validacion local.
-- API publicada desde `backend/config/urls.py`.
-- UI principal en `frontend/app/page.tsx`, `frontend/lib/page-support.tsx` y `frontend/app/styles/*.css`.
+- Runtime local: `docker-compose.yml` con `db`, `backend`, `frontend`.
+- DB: Postgres en Docker; backend puede validar con SQLite.
+- API: `backend/config/urls.py`.
+- UI principal: `frontend/app/page.tsx`, `frontend/lib/page-support.tsx`, `frontend/app/styles/*.css`.
+- No inventes endpoints, payloads, permisos, modelos, migraciones, capas `services/` obligatorias ni tooling inexistente.
 
-No inventes endpoints, payloads, permisos, modelos, migraciones, capas `services/` obligatorias ni tooling que no exista en el repo.
+## Cambios
 
-## Cambios seguros
+- Diffs chicos, patron existente, sin refactor/formateo masivo.
+- Si tocas API, serializer, modelo, permiso o migracion: revisa backend + consumidor frontend, conserva compatibilidad o justifica el cambio, agrega/ajusta tests y documenta contrato.
+- Si tocas side effects (stock, caja, pagos, estados, emails, notificaciones): hacelos visibles y cubri con tests cuando sea viable.
+- Si es trivial y no amerita doc, decilo.
 
-- Mantene diffs chicos y alineados al patron existente.
-- No mezcles feature, refactor amplio y formateo masivo.
-- Si cambias API, serializer, modelo, permiso o migracion: revisa backend + consumidor frontend, conserva compatibilidad o justifica el cambio, agrega/ajusta tests y documenta el contrato.
-- Si tocas side effects como stock, caja, pagos, estado de ordenes, emails o notificaciones, hacelos visibles y cubri el caso con tests cuando sea viable.
-- Si el cambio es trivial y no amerita doc nueva, decilo en la entrega.
+## Tests
 
-## Tests obligatorios
-
-- Todo codigo nuevo se entrega con tests en el mismo cambio. Sin excepcion. Un PR con logica nueva sin tests esta incompleto.
-- Si agregas o modificas una funcion exportada, helper, modulo, endpoint o componente con logica: agregas tests que cubran caso normal, bordes (vacio, null, 0, invalido) y cada rama (if / ternario / switch).
-- Por que: CI tiene un gate **bloqueante** de cobertura `branches >= 80%` global en frontend y esta al filo. Un modulo nuevo sin tests baja el global y rompe el check `frontend` para todo el repo. No es opcional.
-- Convenciones del repo:
-  - Helpers de `frontend/lib/`: archivo `*.test.mjs` al lado (ej. `lib/cash-entry.test.mjs`, `lib/detail-format.test.mjs`).
-  - Componentes con comportamiento: `*.test.tsx` (ej. `app/components/ui/ui.test.tsx`).
-  - Backend: pytest en `backend/tests/`, cubriendo permisos y casos de error de cada vista nueva o modificada.
-- Antes de cerrar: corre `npm run test` y, si creaste o tocaste modulos, `npm run test:coverage` para confirmar que el gate de branches sigue `>= 80%`. Reporta numeros reales (tests passed, % cobertura).
-- Si un test es genuinamente inviable (infra ausente, etc.): declaralo explicito con la razon en la entrega. Nunca lo omitas en silencio.
-- Detalle de comandos y criterios en `docs/ia/TESTING.md`.
+- Todo codigo nuevo o logica modificada lleva tests en el mismo cambio.
+- Cubre caso normal, bordes (`vacio`, `null`, `0`, invalido) y ramas (`if`, ternario, `switch`).
+- Frontend CI exige `branches >= 80%`; no agregues modulos sin tests.
+- Convenciones: `frontend/lib/*.test.mjs`; componentes `*.test.tsx`; backend en `backend/tests/`.
+- Ejecuta solo tests especificos del cambio. No corras suites completas, coverage global, builds ni validaciones amplias sin permiso explicito.
+- Si no podes testear, declara razon, impacto y alternativa. No lo omitas.
 
 ## UI
 
-- Para UI lee `docs/ia/UI_CONTEXT.md`, el archivo objetivo y la partial CSS relevante.
-- Lee `docs/design-brief.md`, `docs/design-system.md`, `docs/inspiration.md` o `docs/ui-review-checklist.md` solo cuando el alcance lo pida.
-- Reusa componentes, tokens y partials existentes; evita estilos inline u one-off si la regla puede vivir en `frontend/app/styles/*.css`.
-- Mantene el default visual como CRM claro y sobrio; el dark navy queda como variante soportada.
+Para UI lee `docs/ia/UI_CONTEXT.md`, archivo objetivo y CSS parcial relevante. Reusa componentes, tokens y partials; evita inline/one-off. Default visual: CRM claro y sobrio; dark navy solo variante.
 
 ## Validacion
 
-Restriccion frontend: antes de correr comandos Node/Vitest/Next, revisa `docs/ia/TESTING.md#restriccion-de-recursos-frontend`. No ejecutes tests, coverage, build o dev server frontend en paralelo.
+- Antes de Node/Vitest/Next, revisa `docs/ia/TESTING.md#restriccion-de-recursos-frontend`.
+- No inicies tests, coverage, build o dev server frontend en paralelo entre si.
+- Pedi permiso antes de comandos pesados/lentos/amplios/con impacto externo: suites completas, coverage, builds, Docker, migraciones, E2E, validaciones globales.
+- Si un comando autorizado supera 5 minutos, dejalo corriendo en paralelo, informa estado y pregunta si cortar o seguir.
+- `scripts/validate.ps1` es amplio: usar solo con permiso explicito.
 
-Comando recomendado desde la raiz:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\validate.ps1
-```
-
-Checks puntuales:
-- Backend: `cd backend` + `py -3 -m pytest` o `.\.venv\Scripts\python.exe -m pytest`
-- Backend salud: `cd backend` + `.\.venv\Scripts\python.exe manage.py check`
-- Frontend tests: `cd frontend` + `npm run test`
+Checks puntuales utiles:
+- Backend tests: `cd backend` + `py -3 -m pytest` o `.\.venv\Scripts\python.exe -m pytest`
+- Backend check: `cd backend` + `.\.venv\Scripts\python.exe manage.py check`
+- Frontend tests especificos: `cd frontend` + comando puntual para archivo/patron afectado
 - Frontend build: `cd frontend` + `npm run build`
 - Compose: `docker compose config --quiet`
 
-Si no podes validar, informa causa, impacto y alternativa razonable. No confundas validacion parcial con cierre total.
-
 ## Deploy
 
-- No hagas deploy a produccion ni promociones de Vercel sin confirmacion humana explicita.
-- No escribas, pegues ni commitees secrets reales. Usa `.env.example` solo con placeholders.
-- No uses filesystem local para media persistente; en demo/prod debe ir a Supabase Storage u otro storage remoto documentado.
-- No asumas que Vercel es un servidor persistente: sin workers largos, sin estado local, sin migraciones automaticas en cada cold start.
-- Antes de cerrar tareas de deploy prep, corre checks relevantes de `scripts/deploy/` o explica el bloqueo.
-- Si queda algo manual, agregalo o mantenelo en `docs/deployment/manual-steps.md` con que hacer, donde, por que, valor a copiar y como validar.
+- No deploy/prod/promociones Vercel sin confirmacion humana.
+- No exponer, pegar, commitear ni loguear secrets; usa placeholders en `.env.example`.
+- No filesystem local para media persistente; demo/prod usa storage remoto documentado.
+- Vercel no es servidor persistente: sin workers largos, estado local ni migraciones automaticas en cold start.
+- Para deploy prep, corre checks relevantes de `scripts/deploy/` o explica bloqueo. Manuales van en `docs/deployment/manual-steps.md`.
 
 ## Git
 
-Regla local de ramas:
-- Trabaja por defecto sobre `development`; este entorno debe mantenerse abierto en esa rama.
-- `main` queda reservada como branch de publicacion.
-- No crees ramas nuevas ni worktrees salvo que el usuario lo pida explicitamente. Si aparece un bloqueo tecnico que realmente lo requiera, explicalo antes de actuar.
+- Por tarea, crea rama basada en `development`.
+- Nombre estructurado: `feat/...`, `fix/...`, `docs/...`, `chore/...` segun el trabajo.
+- `main` es publicacion.
+- Si hay Git: trabaja, commitea y pushea la rama de tarea en unidades chicas y validadas.
+- Antes de commit: revisa diff y validacion minima relevante.
+- Si push bloquea, reporta y pedi confirmacion de ruta de publicacion.
+- Si no hay Git, no inventes ramas/commits/PRs.
+- Si es solo lectura o el usuario pide no versionar, no commit ni push.
 
-Versionado durante las tareas:
-- Si este checkout tiene Git inicializado, commitea y pushea sistematicamente a `origin/development` a medida que avances.
-- Usa commits chicos por unidades coherentes y validadas; no acumules cambios locales grandes si ya hay un bloque listo para publicar.
-- Antes de cada commit revisa el diff y ejecuta la validacion minima relevante; si no podes validar, dejalo explicito en el mensaje de entrega.
-- Si el push directo a `development` esta bloqueado por permisos, protecciones o conflictos remotos, no improvises otra rama: reporta el bloqueo y pedi confirmacion de la ruta de publicacion.
-- Si no hay Git inicializado, no inventes ramas, commits ni PRs.
+## Final
 
-Si la tarea es solo lectura o el usuario pide explicitamente no versionar, no hagas commit ni push.
+- Contexto minimo leido.
+- Sin contratos publicos rotos sin justificar.
+- Tests nuevos/ajustados para logica nueva.
+- Solo tests especificos autorizados corridos, o bloqueo explicado.
+- Docs actualizadas si el cambio lo exige.
 
-## Checklist final
+## Fuentes
 
-- Lei solo el contexto necesario.
-- No cambie contratos publicos sin justificar compatibilidad.
-- Agregue tests para todo lo nuevo (ver `## Tests obligatorios`) y confirme que el gate de cobertura sigue `>= 80%`.
-- Ejecute validacion relevante o explique el bloqueo.
-- Documente cambios importantes en `docs/`.
-- Entregue resumen compacto con cambio, validacion y riesgos.
-
-## Fuentes utiles
-
-- `docs/indice.md`: mapa de fuentes de verdad.
-- `docs/ia/CONTEXT_HYGIENE.md`: matriz de carga minima.
-- `docs/ia/TESTING.md`: comandos y criterios de testing.
-- `docs/ia/UI_CONTEXT.md`: reglas de UI y superficies reales.
-- `docs/ia/ARCHITECTURE.md`: boundaries y contratos.
-- `docs/registro/errores-agentes.md`: errores repetidos que el harness busca prevenir.
-- `CHANGELOG.md`: changelog generado por fecha; se regenera solo en cada commit via `.githooks/pre-commit`. Vos segui creando la entrada del cambio en `docs/registro/cambios/`; la vista agregada se actualiza sola.
+`docs/indice.md`, `docs/ia/CONTEXT_HYGIENE.md`, `docs/ia/TESTING.md`, `docs/ia/UI_CONTEXT.md`, `docs/ia/ARCHITECTURE.md`, `docs/registro/errores-agentes.md`, `CHANGELOG.md`.

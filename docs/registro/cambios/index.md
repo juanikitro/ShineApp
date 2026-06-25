@@ -14,6 +14,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Precarga del badge de tareas](2026-06-24-tareas-badge-precarga.md)
 - [items finalizados en desplegable al final de listados](2026-06-24-listados-finalizados-desplegable.md)
 - [Frontend: favicon del navegador en la turnera usa el logo del negocio](2026-06-24-favicon-turnera-logo-negocio.md)
+- [Costo estimado por servicio para ratio estimado (~)](2026-06-24-costo-estimado-por-servicio.md)
 - [Turnera: el formulario publico pide nombre y apellido](2026-06-23-turnera-nombre-y-apellido.md)
 - [boton pantalla completa en sidebar](2026-06-23-sidebar-pantalla-completa.md)
 - [compact mode notebooks](2026-06-23-compact-mode-notebooks.md)

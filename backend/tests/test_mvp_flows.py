@@ -1284,6 +1284,7 @@ def test_service_history_returns_operational_summary_and_separates_additional_us
         "balance_due_total": Decimal("10000.00"),
         "material_cost_total": Decimal("2500.00"),
         "margin_total": Decimal("30500.00"),
+        "material_cost_is_estimated": False,
     }
     assert response.data["insights"] == {
         "last_used_at": used_last,
