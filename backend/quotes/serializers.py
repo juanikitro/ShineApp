@@ -50,6 +50,7 @@ class QuoteSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer
     vehicle_label = serializers.SerializerMethodField()
     status_label = serializers.CharField(read_only=True)
     has_reservation = serializers.BooleanField(read_only=True)
+    public_code = serializers.CharField(required=False, allow_blank=True, max_length=20)
     items = QuoteItemSerializer(many=True)
 
     class Meta:
@@ -98,7 +99,6 @@ class QuoteSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer
         ]
         read_only_fields = [
             "id",
-            "public_code",
             "customer_name",
             "vehicle_label",
             "reservation",
@@ -117,6 +117,17 @@ class QuoteSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer
     def get_vehicle_label(self, obj):
         return str(obj.vehicle) if obj.vehicle else ""
 
+    def validate_public_code(self, value):
+        code = (value or "").strip()
+        if not code:
+            return ""
+        duplicate = Quote.all_objects.filter(public_code=code)
+        if self.instance is not None:
+            duplicate = duplicate.exclude(pk=self.instance.pk)
+        if duplicate.exists():
+            raise serializers.ValidationError("Ya existe una cotización con ese código.")
+        return code
+
     def validate(self, attrs):
         customer = attrs.get("customer") or getattr(self.instance, "customer", None)
         vehicle = attrs.get("vehicle") or getattr(self.instance, "vehicle", None)
@@ -133,6 +144,8 @@ class QuoteSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer
     @transaction.atomic
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])
+        if not validated_data.get("public_code"):
+            validated_data.pop("public_code", None)
         quote = Quote(**self._with_quote_defaults(validated_data))
         quote._skip_snapshot_defaults = True
         quote.save()
@@ -145,6 +158,8 @@ class QuoteSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer
     @transaction.atomic
     def update(self, instance, validated_data):
         items_data = validated_data.pop("items", None)
+        if "public_code" in validated_data and not validated_data["public_code"]:
+            validated_data.pop("public_code")
         recalculation_fields = {"tax_rate", "discount_rate"}
         should_recalculate = items_data is not None or bool(recalculation_fields.intersection(validated_data))
         for attr, value in validated_data.items():

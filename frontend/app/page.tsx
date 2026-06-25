@@ -8216,6 +8216,7 @@ export default function Home() {
 				'observations',
 			],
 			quote: [
+				'public_code',
 				'status',
 				'observations',
 				'valid_until',
@@ -9429,6 +9430,16 @@ export default function Home() {
 							</div>
 						) : null}
 					</div>
+					<Field label="Nombre de la cotizacion">
+						<input
+							type="text"
+							maxLength={20}
+							value={data.public_code ?? ''}
+							onChange={(event) =>
+								updateDetailEdit({ public_code: event.target.value })
+							}
+						/>
+					</Field>
 					<SearchSelect
 						label="Estado"
 						value={String(data.status ?? '')}
