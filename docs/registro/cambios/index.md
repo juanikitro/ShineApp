@@ -12,6 +12,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [WhatsApp MVP](2026-06-24-whatsapp-mvp.md)
 - [Mejoras de usabilidad del modulo de tareas](2026-06-24-tareas-usabilidad.md)
 - [Precarga del badge de tareas](2026-06-24-tareas-badge-precarga.md)
+- [Perfil: usuario editable y datos precargados](2026-06-24-perfil-usuario-editable.md)
 - [items finalizados en desplegable al final de listados](2026-06-24-listados-finalizados-desplegable.md)
 - [Frontend: favicon del navegador en la turnera usa el logo del negocio](2026-06-24-favicon-turnera-logo-negocio.md)
 - [Turnera: el formulario publico pide nombre y apellido](2026-06-23-turnera-nombre-y-apellido.md)

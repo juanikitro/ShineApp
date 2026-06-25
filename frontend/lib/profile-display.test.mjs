@@ -15,6 +15,7 @@ import {
 // blankProfileForm
 test('blankProfileForm returns defaults when user is null', () => {
 	const form = blankProfileForm(null)
+	assert.equal(form.username, '')
 	assert.equal(form.email, '')
 	assert.equal(form.phone_country_code, '+54')
 	assert.equal(form.phone_number, '')
@@ -23,12 +24,14 @@ test('blankProfileForm returns defaults when user is null', () => {
 
 test('blankProfileForm extracts values from user', () => {
 	const user = {
+		username: 'juan',
 		email: 'test@example.com',
 		phone_country_code: '+1',
 		phone_number: '555-1234',
 		subscription_type: 'premium',
 	}
 	const form = blankProfileForm(user)
+	assert.equal(form.username, 'juan')
 	assert.equal(form.email, 'test@example.com')
 	assert.equal(form.phone_country_code, '+1')
 	assert.equal(form.phone_number, '555-1234')

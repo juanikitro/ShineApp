@@ -357,16 +357,26 @@ class MeView(APIView):
         return Response(user_context_payload(request.user, request=request))
 
     def patch(self, request):
-        serializer = MeUpdateSerializer(data=request.data, partial=True)
+        serializer = MeUpdateSerializer(
+            data=request.data,
+            partial=True,
+            context={"user": request.user},
+        )
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
         before = user_account_audit_snapshot(request.user)
         with transaction.atomic():
             profile = UserProfile.for_user(request.user)
+            user_fields = []
+            if "username" in validated_data:
+                request.user.username = validated_data["username"]
+                user_fields.append("username")
             if "email" in validated_data:
                 request.user.email = validated_data["email"]
-                request.user.save(update_fields=["email"])
+                user_fields.append("email")
+            if user_fields:
+                request.user.save(update_fields=user_fields)
             if "avatar" in validated_data:
                 profile.avatar = validated_data["avatar"]
             if "phone_country_code" in validated_data:
