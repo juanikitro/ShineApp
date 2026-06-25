@@ -2774,6 +2774,14 @@ export default function Home() {
 		agendaOverlapSuppressedStartDay === agendaBoardModel.startDay &&
 		agendaSlideWindowsOverlap(agendaSlideMotion, AGENDA_VISIBLE_DAYS)
 
+	// Mientras se cargan los movimientos (skeleton activo) ocultamos las
+	// cabeceras reales del tablero para que no se vean las fechas todavia.
+	const agendaWeekSkeletonActive =
+		agendaRangeMode === 'week' &&
+		loading &&
+		!agendaLoadError &&
+		!agendaBoardModel.segments.length
+
 	function shouldHideEnteringAgendaColumn(column: number) {
 		if (!shouldSuppressEnteringAgendaOverlap) return false
 		const offset = Math.abs(agendaSlideMotion.offsetDays)
@@ -14327,10 +14335,7 @@ export default function Home() {
 									}
 								/>
 							) : null}
-							{agendaRangeMode === "week" &&
-							loading &&
-							!agendaLoadError &&
-							!agendaBoardModel.segments.length ? (
+							{agendaWeekSkeletonActive ? (
 								<div
 									className="agenda-skeleton-grid"
 									role="status"
@@ -14408,9 +14413,10 @@ export default function Home() {
 															agendaBoardModel.rowsByDay[day]?.length ?? 0
 														}
 														day={day}
-														hiddenDuringEnter={shouldHideEnteringAgendaColumn(
-															index + 1,
-														)}
+														hiddenDuringEnter={
+															agendaWeekSkeletonActive ||
+															shouldHideEnteringAgendaColumn(index + 1)
+														}
 														interactive={agendaBoardModel.isInteractive}
 														key={`head:${agendaBoardModel.key}:${day}`}
 													/>
