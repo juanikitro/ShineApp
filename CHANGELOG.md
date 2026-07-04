@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-07-04
+- [Fase 1 - demo vendible vehicular](docs/registro/cambios/2026-07-04-fase-1-demo-vendible.md)
+
 ## 2026-06-24
 - [WhatsApp MVP](docs/registro/cambios/2026-06-24-whatsapp-mvp.md)
 - [Mejoras de usabilidad del modulo de tareas](docs/registro/cambios/2026-06-24-tareas-usabilidad.md)
