@@ -192,6 +192,10 @@ import {
 } from '@/lib/demo-readiness'
 import { buildStarterServicesPlan } from '@/lib/onboarding-services'
 import {
+	buildWhatsAppAutomationRuleUpdates,
+	buildWhatsAppDemoBootstrapPlan,
+} from '@/lib/whatsapp-onboarding'
+import {
 	type ApiErrorNotice,
 	createValidationNotice,
 	formatApiError,
@@ -7253,6 +7257,73 @@ export default function Home() {
 				return saved
 			},
 			{ successTitle: 'Automatizacion actualizada' },
+		)
+	}
+
+	async function prepareWhatsappDemo() {
+		return runAction(
+			async () => {
+				const initialPlan = buildWhatsAppDemoBootstrapPlan({
+					config: whatsappConfig,
+					templates: whatsappTemplates,
+					automationRules: whatsappAutomationRules,
+				})
+				const savedConfig = await apiFetch<AnyRecord>('/whatsapp/config/', {
+					method: 'PATCH',
+					body: JSON.stringify(initialPlan.configPatch),
+				})
+				setWhatsappConfig(savedConfig)
+
+				const latestRules = await apiList<AnyRecord>('/whatsapp/automation-rules/')
+				setWhatsappAutomationRules(latestRules)
+
+				const templatePlan = buildWhatsAppDemoBootstrapPlan({
+					config: savedConfig,
+					templates: whatsappTemplates,
+					automationRules: latestRules,
+				})
+				const createdTemplates: AnyRecord[] = []
+				for (const template of templatePlan.templatesToCreate) {
+					const created = await apiFetch<AnyRecord>('/whatsapp/templates/', {
+						method: 'POST',
+						body: JSON.stringify(template),
+					})
+					createdTemplates.push(created)
+				}
+				const nextTemplates = [...whatsappTemplates]
+				for (const template of createdTemplates) {
+					if (!nextTemplates.some((item) => String(item.id) === String(template.id))) {
+						nextTemplates.push(template)
+					}
+				}
+				setWhatsappTemplates(nextTemplates)
+
+				let nextRules = latestRules
+				const ruleUpdates = buildWhatsAppAutomationRuleUpdates({
+					automationRules: latestRules,
+					templates: nextTemplates,
+				})
+				for (const update of ruleUpdates) {
+					const savedRule = await apiFetch<AnyRecord>(
+						`/whatsapp/automation-rules/${update.id}/`,
+						{
+							method: 'PATCH',
+							body: JSON.stringify(update.patch),
+						},
+					)
+					nextRules = nextRules.map((rule) =>
+						String(rule.id) === String(update.id) ? savedRule : rule,
+					)
+				}
+				setWhatsappAutomationRules(nextRules)
+
+				return {
+					config: savedConfig,
+					templates: nextTemplates,
+					automationRules: nextRules,
+				}
+			},
+			{ successTitle: 'WhatsApp demo preparado' },
 		)
 	}
 
@@ -15093,6 +15164,7 @@ export default function Home() {
 						onRefreshAuditLogs={() => refreshAuditLogs()}
 						onRefreshData={() => loadData({ force: true })}
 						onSaveBusinessProfile={saveBusinessProfile}
+						onPrepareWhatsappDemo={prepareWhatsappDemo}
 						onSaveWhatsappConfig={saveWhatsappConfig}
 						onSettingsSectionChange={(section) => {
 								setSettingsSection(section)

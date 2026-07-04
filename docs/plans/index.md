@@ -21,3 +21,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Plan De Implementacion: UX Para Infraestructura Lenta](2026-06-05-ux-infra-lenta-implementation-plan.md)
 - [Plan de refactor de mantenibilidad (2026-06)](2026-06-12-refactor-mantenibilidad.md)
 - [Fase 2A - Onboarding real guiado](2026-07-04-fase-2a-onboarding-real-design.md)
+- [Fase 2B - WhatsApp onboarding operativo](2026-07-04-fase-2b-whatsapp-onboarding-design.md)
