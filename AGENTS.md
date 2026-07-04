@@ -6,6 +6,8 @@ Guia compacta para IAs en ShineApp. Detalle tecnico en `docs/`.
 
 Antes de editar: lee `AGENTS.md`, `docs/indice.md`, archivos objetivo, tests cercanos si existen y una guia relevante de `docs/ia/`.
 
+En cada cambio, trata la documentacion como `spec-as-source`: identifica la fuente documental que describe el contrato o comportamiento afectado, actualizala en el mismo diff si el cambio altera reglas, flujos, permisos, payloads, estados, comandos operativos, decisiones tecnicas o expectativas de UI, y crea una nota breve en `docs/` cuando no exista una fuente clara. Si el cambio es puramente mecanico o no amerita documentacion, dejalo explicitado en el reporte final.
+
 Usa `docs/ia/CONTEXT_HYGIENE.md`. Preferi `docs/agent-context.compact.md` y luego `*.compact.md` si alcanza. Si compacto contradice codigo, tests, specs, ADRs, `docs/registro/**`, `docs/ia/**` o este archivo, gana la fuente fuerte.
 
 ## Repo
@@ -23,6 +25,7 @@ Usa `docs/ia/CONTEXT_HYGIENE.md`. Preferi `docs/agent-context.compact.md` y lueg
 - Diffs chicos, patron existente, sin refactor/formateo masivo.
 - Si tocas API, serializer, modelo, permiso o migracion: revisa backend + consumidor frontend, conserva compatibilidad o justifica el cambio, agrega/ajusta tests y documenta contrato.
 - Si tocas side effects (stock, caja, pagos, estados, emails, notificaciones): hacelos visibles y cubri con tests cuando sea viable.
+- En implementaciones que lleven diseno de sistemas, usa la skill `grill-with-docs` antes de cerrar el plan o el diff; si no esta instalada/disponible, reportalo y aplica el mejor fallback con documentacion revisada.
 - Si es trivial y no amerita doc, decilo.
 
 ## Tests
@@ -38,20 +41,16 @@ Usa `docs/ia/CONTEXT_HYGIENE.md`. Preferi `docs/agent-context.compact.md` y lueg
 
 Para UI lee `docs/ia/UI_CONTEXT.md`, archivo objetivo y CSS parcial relevante. Reusa componentes, tokens y partials; evita inline/one-off. Default visual: CRM claro y sobrio; dark navy solo variante.
 
-## Validacion
+## Operacion critica
 
-- Antes de Node/Vitest/Next, revisa `docs/ia/TESTING.md#restriccion-de-recursos-frontend`.
-- No inicies tests, coverage, build o dev server frontend en paralelo entre si.
-- Pedi permiso antes de comandos pesados/lentos/amplios/con impacto externo: suites completas, coverage, builds, Docker, migraciones, E2E, validaciones globales.
-- Si un comando autorizado supera 5 minutos, dejalo corriendo en paralelo, informa estado y pregunta si cortar o seguir.
-- `scripts/validate.ps1` es amplio: usar solo con permiso explicito.
-
-Checks puntuales utiles:
-- Backend tests: `cd backend` + `py -3 -m pytest` o `.\.venv\Scripts\python.exe -m pytest`
-- Backend check: `cd backend` + `.\.venv\Scripts\python.exe manage.py check`
-- Frontend tests especificos: `cd frontend` + comando puntual para archivo/patron afectado
-- Frontend build: `cd frontend` + `npm run build`
-- Compose: `docker compose config --quiet`
+- No edites manualmente `CHANGELOG.md` ni indices generados en `docs/registro/**`; si agregas registros, regenera con `py -3 scripts/check_docs.py --write --skip-build` o explica el bloqueo.
+- Antes de correr Vitest, Next, coverage, build o dev server frontend, revisa procesos `node.exe` scoped a `ShineApp/frontend`; no ejecutes Node/Vitest/Next en paralelo.
+- Si agregas logica frontend nueva, evita enterrarla en `frontend/app/page.tsx`: extraela a `frontend/lib/**` o a un componente testeable cuando sea razonable.
+- Para reglas dependientes de fecha de caja/local, usa `cash_day(...)`; no uses `.date()` UTC como reemplazo.
+- Para endpoints o serializers por negocio/tenant, reutiliza los mixins y patrones existentes de scoping/permisos antes de crear filtros manuales.
+- No ocultes silenciosamente errores de API ni expongas trazas, secretos o payloads sensibles en mensajes/logs.
+- Si un side effect toca stock, caja, pagos, estados, emails o notificaciones, hacelo explicito y cubrilo con tests cuando sea viable.
+- Si detectas un fallo recurrente de agentes, registra patron, causa, prevencion y validacion en `docs/registro/errores-agentes.md`.
 
 ## Deploy
 
@@ -71,14 +70,6 @@ Checks puntuales utiles:
 - Si push bloquea, reporta y pedi confirmacion de ruta de publicacion.
 - Si no hay Git, no inventes ramas/commits/PRs.
 - Si es solo lectura o el usuario pide no versionar, no commit ni push.
-
-## Final
-
-- Contexto minimo leido.
-- Sin contratos publicos rotos sin justificar.
-- Tests nuevos/ajustados para logica nueva.
-- Solo tests especificos autorizados corridos, o bloqueo explicado.
-- Docs actualizadas si el cambio lo exige.
 
 ## Fuentes
 
