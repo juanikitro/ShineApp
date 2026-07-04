@@ -18,7 +18,14 @@ Con dos opciones: **Usar mis datos** (completa el formulario) o **Descartar** (l
 
 ### 2. Lookup por teléfono o email (servidor)
 
-Para visitas desde otro dispositivo, el formulario tiene un link "¿Ya sos cliente? Recuperar mis datos" que expande un campo donde el usuario puede ingresar su teléfono o email. El backend busca coincidencia exacta y, si la encuentra, devuelve los datos del cliente y sus vehículos.
+El alcance original permitia que, desde otro dispositivo, el usuario ingresara
+su teléfono o email y el backend devolviera datos del cliente si habia
+coincidencia exacta.
+
+> Nota posterior, 2026-07-04: por hardening de seguridad, el endpoint publico de
+> recall ya no devuelve PII ni confirma si el contacto existe. El autocompletado
+> seguro queda limitado al `localStorage` del mismo dispositivo. Ver
+> `docs/registro/cambios/2026-06-12-security-hardening.md`.
 
 ## Seguridad
 
