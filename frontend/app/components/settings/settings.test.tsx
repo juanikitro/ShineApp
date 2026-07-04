@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { test } from 'vitest'
+import { test, vi } from 'vitest'
 
-import { NewsSettingsPanel } from './SettingsWorkspace'
+import { NewsSettingsPanel, WhatsappSettingsPanel } from './SettingsWorkspace'
 
 test('NewsSettingsPanel renders the panel heading and kicker', () => {
 	render(<NewsSettingsPanel />)
@@ -60,4 +60,28 @@ test('NewsSettingsPanel renders at least one date group button', () => {
 	render(<NewsSettingsPanel />)
 	const buttons = screen.getAllByRole('button')
 	assert.ok(buttons.length >= 1)
+})
+
+test('WhatsappSettingsPanel shows demo onboarding and calls prepare action', async () => {
+	const user = userEvent.setup()
+	const onPrepareDemo = vi.fn().mockResolvedValue(undefined)
+
+	render(
+		<WhatsappSettingsPanel
+			automationRules={[]}
+			config={null}
+			messages={[]}
+			templates={[]}
+			onCreateTemplate={vi.fn().mockResolvedValue({})}
+			onPrepareDemo={onPrepareDemo}
+			onSaveConfig={vi.fn().mockResolvedValue({})}
+			onUpdateAutomationRule={vi.fn().mockResolvedValue({})}
+			onUpdateTemplate={vi.fn().mockResolvedValue({})}
+		/>,
+	)
+
+	assert.ok(screen.getByRole('heading', { name: 'WhatsApp listo para probar' }))
+	await user.click(screen.getByRole('button', { name: /Preparar WhatsApp demo/ }))
+	assert.equal(onPrepareDemo.mock.calls.length, 1)
+	assert.ok(screen.getByText('Primer arranque'))
 })
