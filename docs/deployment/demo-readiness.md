@@ -34,7 +34,7 @@ Estado: lista para una demo publica comercial con limites. Supabase, Vercel web,
 
 ## Evidencia De Demo Vendible Fase 1
 
-- Trial signup existe como `POST /api/auth/trial-signup/` publico en `backend/config/urls.py`. `TrialSignupSerializer` crea `BusinessAccount`, `BusinessProfile` con `subscription_type=trial`, fechas trial, membership al group empleador y `UserProfile`; `TrialSignupView` retorna token y contexto de usuario.
+- Trial signup existe como `POST /api/auth/trial-signup/` publico en `backend/config/urls.py`. Cualquier negocio puede pedir una prueba gratuita libre de 14 dias. `TrialSignupSerializer` crea `BusinessAccount`, `BusinessProfile` con `subscription_type=trial`, fechas trial, membership al group empleador y `UserProfile`; `TrialSignupView` retorna token y contexto de usuario.
 - La UI de login tiene modo trial en `frontend/lib/page-support.tsx`. Llama a `/auth/trial-signup/`, guarda el token devuelto y entra a la app sin un paso extra de login.
 - `GET /api/auth/me/` retorna el mismo contexto tenant propiedad del backend: negocio, rol, `can_view_economy`, `subscription_type`, fechas trial y estado trial.
 - Los empleadores pueden crear usuarios empleados mediante `POST /api/auth/employees/`; los empleados creados reciben rol `empleado`, pueden loguearse y reciben `can_view_economy=false`.
@@ -99,7 +99,7 @@ Correr esto antes de un walkthrough comercial despues de deployar cambios de sig
 - Validar un flujo de upload/logo/documento o ejecutar la prueba manual de media en `manual-steps.md` antes de demoear flujos media/PDF.
 - Confirmar credenciales demo por fuera de banda y confirmar que sean temporales. No mostrar ni pegar passwords reales en la llamada.
 - Si se usan usuarios seed demo, preferir passwords rotados para `admin`, `empleado` y `recepcion`. No usar passwords default en demos para clientes salvo que la base sea descartable y el riesgo se haya aceptado explicitamente.
-- Presentar el trial como prueba operativa sin tarjeta y sin cargo. No describir `subscription_type` como billing cliente.
+- Presentar el trial como prueba operativa libre de 14 dias, sin tarjeta y sin cargo. No describir `subscription_type` como billing cliente.
 - Eliminar el proyecto Vercel accidental llamado `backend` para evitar confusion operativa.
 
 ## Riesgos Demo Conocidos

@@ -1,7 +1,7 @@
-# Fases 0 a 2C - guia de verificacion en demo-production
+# Fases 0 a Beta 1A - guia de verificacion en demo-production
 
 Artifact vivo para probar en `https://shineapp-web.vercel.app` todo lo publicado
-desde Fase 0 hasta Fase 2C.
+desde Fase 0 hasta Beta 1A.
 
 ## Estado de publicacion
 
@@ -13,7 +13,8 @@ desde Fase 0 hasta Fase 2C.
 | Release a `main` | Completado | PR #198, merge commit `6ba9e0d` |
 | Deploy demo-production | Completado | Workflow `deploy-vercel-demo.yml`, run `28711067373` |
 | Smoke publico | Completado | Web 200, API health `database=ok` |
-| Fase 2C | En este PR | Primer turno y primer cobro guiados |
+| Fase 2C | Publicado en `main` | PR #200 y release PR #201 |
+| Beta 1A | En este PR | Signup publico libre por 14 dias |
 
 ## URLs
 
@@ -29,6 +30,8 @@ desde Fase 0 hasta Fase 2C.
 4. No pegar tokens reales de Meta en Fase 2B.
 5. Si se crea un negocio de prueba, usar un nombre reconocible, por ejemplo
    `QA Vehicular Fase 2`.
+6. Para Beta 1A, usar un email disposable/controlado y no cargar datos reales
+   de clientes.
 
 ## Smoke base de produccion
 
@@ -302,6 +305,43 @@ Resultado esperado:
 - No hay textos cortados en botones.
 - Los paneles nuevos mantienen el estilo CRM claro y sobrio.
 
+## Beta 1A - signup publico libre por 14 dias
+
+Objetivo a verificar: cualquier negocio puede pedir una prueba gratuita de 14
+dias desde el login, sin invitacion previa ni tarjeta.
+
+1. Abrir `https://shineapp-web.vercel.app`.
+2. Hacer click en `Probar gratis 14 dias`.
+3. Confirmar que el formulario muestra `Prueba gratuita por 14 dias`.
+4. Cargar un negocio de prueba controlado:
+   - Negocio: `QA Beta 1A <fecha>`.
+   - Rubro: `Detailing`.
+   - Responsable: `QA Owner`.
+   - Email: email disposable/controlado.
+   - WhatsApp/telefono, ciudad y pais: valores de prueba.
+   - Contrasena: temporal y guardada fuera de banda.
+5. Hacer click en `Crear prueba gratis`.
+6. Confirmar que la app entra automaticamente al Dashboard.
+7. Abrir Mi perfil y confirmar que figura como prueba activa.
+8. Abrir Configuracion > Negocio y confirmar que el negocio esta vacio y guiado.
+9. Abrir Dashboard y confirmar que aparece `Alta guiada`.
+10. Opcional API: consultar `/api/auth/me/` con el token de ese usuario y
+    confirmar `subscription_type=trial`, `trial_expired=false` y
+    `trial_days_remaining` cercano a 14.
+
+Resultado esperado:
+
+- El signup publico crea un negocio real vacio de prueba.
+- La duracion visible y backend es 14 dias.
+- No se solicita invitacion, tarjeta ni pago.
+- El onboarding real vacio sigue guiando la primera configuracion.
+
+Evidencia sugerida:
+
+- Screenshot del login con `Probar gratis 14 dias`.
+- Screenshot del formulario de prueba.
+- Screenshot del Dashboard con `Alta guiada` tras crear la cuenta.
+
 ## Matriz de cierre
 
 Marcar cada item antes de considerar verificada la publicacion:
@@ -315,6 +355,7 @@ Marcar cada item antes de considerar verificada la publicacion:
 | Fase 2A | Negocio vacio guiado | Pendiente de QA manual |
 | Fase 2B | WhatsApp demo/local preparado | Pendiente de QA manual |
 | Fase 2C | Primer turno y primer cobro guiados | Pendiente de QA manual |
+| Beta 1A | Signup publico 14 dias | Pendiente de QA manual |
 | Visual desktop | Sin overlap ni cortes | Pendiente de QA manual |
 | Visual mobile | Una columna y controles tocables | Pendiente de QA manual |
 
@@ -336,5 +377,6 @@ La publicacion queda aceptada si:
 - Fase 2A guia un negocio real vacio sin seed demo.
 - Fase 2B prepara WhatsApp demo/local sin tokens reales.
 - Fase 2C permite crear primer turno y registrar primer cobro desde la guia.
+- Beta 1A permite crear una prueba publica libre de 14 dias.
 - Dashboard, Servicios, Turnera, WhatsApp y Caja se ven correctos en desktop y
   mobile.
