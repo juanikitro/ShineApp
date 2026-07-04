@@ -187,6 +187,15 @@ import {
 	type DataSetKey,
 } from '@/lib/data-loading'
 import {
+	buildDemoReadiness,
+	type DemoReadinessSettingsSection,
+} from '@/lib/demo-readiness'
+import { buildStarterServicesPlan } from '@/lib/onboarding-services'
+import {
+	buildWhatsAppAutomationRuleUpdates,
+	buildWhatsAppDemoBootstrapPlan,
+} from '@/lib/whatsapp-onboarding'
+import {
 	type ApiErrorNotice,
 	createValidationNotice,
 	formatApiError,
@@ -5091,6 +5100,43 @@ export default function Home() {
 			),
 		[cashEntries, cashFilters, cashQuickFilter, cashSortKey],
 	)
+	const demoReadiness = useMemo(
+		() =>
+			buildDemoReadiness({
+				businessForm,
+				businessProfile,
+				businessSlug: String(currentUser?.business?.slug ?? ''),
+				dashboard,
+				payments,
+				publicRequests,
+				reservations,
+				sectors,
+				services,
+				whatsappAutomationRules,
+				whatsappConfig,
+				whatsappTemplates,
+				workOrders,
+			}),
+		[
+			businessForm,
+			businessProfile,
+			currentUser?.business?.slug,
+			dashboard,
+			payments,
+			publicRequests,
+			reservations,
+			sectors,
+			services,
+			whatsappAutomationRules,
+			whatsappConfig,
+			whatsappTemplates,
+			workOrders,
+		],
+	)
+	const starterServicesPlan = useMemo(
+		() => buildStarterServicesPlan({ services, sectors }),
+		[services, sectors],
+	)
 
 	if (!token) {
 		return <LoginScreen onLogin={handleLogin} sessionExpired={sessionExpired} />
@@ -6828,11 +6874,55 @@ export default function Home() {
 	// así que lo normalizamos a null cuando viene vacío.
 	function serviceCreatePayload(form: AnyRecord) {
 		const payload = asPayload(form)
+		delete payload.templateId
 		payload.estimated_material_cost =
 			String(payload.estimated_material_cost ?? '').trim() === ''
 				? null
 				: payload.estimated_material_cost
 		return payload
+	}
+
+	async function createStarterServices() {
+		if (!canViewEconomy) return
+		const plan = buildStarterServicesPlan({ services, sectors })
+		if (!plan.drafts.length) {
+			handleSectionChange('services')
+			return
+		}
+		await runAction(
+			async () => {
+				const created: AnyRecord[] = []
+				for (const draft of plan.drafts) {
+					const service = await apiFetch<AnyRecord>('/services/', {
+						method: 'POST',
+						body: JSON.stringify(serviceCreatePayload(draft)),
+					})
+					created.push(service)
+				}
+				setServices((current) => {
+					const byId = new Map<string, AnyRecord>()
+					for (const item of current) byId.set(String(item.id), item)
+					for (const item of created) byId.set(String(item.id), item)
+					return Array.from(byId.values())
+				})
+				handleSectionChange('services')
+				return {
+					created,
+					existingCount: plan.existingTemplates.length,
+				}
+			},
+			{
+				key: 'onboarding:starter-services',
+				flashTarget: (result) =>
+					recordFlashKey('service', result.created[0]?.id ?? null),
+				successTitle: (result) =>
+					result.created.length === 1
+						? 'Servicio base creado'
+						: 'Servicios base creados',
+				successDescription: (result) =>
+					`${result.created.length} servicios quedaron listos para editar precios, duracion y detalle.`,
+			},
+		)
 	}
 
 	async function saveQuickService(event: FormEvent) {
@@ -7167,6 +7257,73 @@ export default function Home() {
 				return saved
 			},
 			{ successTitle: 'Automatizacion actualizada' },
+		)
+	}
+
+	async function prepareWhatsappDemo() {
+		return runAction(
+			async () => {
+				const initialPlan = buildWhatsAppDemoBootstrapPlan({
+					config: whatsappConfig,
+					templates: whatsappTemplates,
+					automationRules: whatsappAutomationRules,
+				})
+				const savedConfig = await apiFetch<AnyRecord>('/whatsapp/config/', {
+					method: 'PATCH',
+					body: JSON.stringify(initialPlan.configPatch),
+				})
+				setWhatsappConfig(savedConfig)
+
+				const latestRules = await apiList<AnyRecord>('/whatsapp/automation-rules/')
+				setWhatsappAutomationRules(latestRules)
+
+				const templatePlan = buildWhatsAppDemoBootstrapPlan({
+					config: savedConfig,
+					templates: whatsappTemplates,
+					automationRules: latestRules,
+				})
+				const createdTemplates: AnyRecord[] = []
+				for (const template of templatePlan.templatesToCreate) {
+					const created = await apiFetch<AnyRecord>('/whatsapp/templates/', {
+						method: 'POST',
+						body: JSON.stringify(template),
+					})
+					createdTemplates.push(created)
+				}
+				const nextTemplates = [...whatsappTemplates]
+				for (const template of createdTemplates) {
+					if (!nextTemplates.some((item) => String(item.id) === String(template.id))) {
+						nextTemplates.push(template)
+					}
+				}
+				setWhatsappTemplates(nextTemplates)
+
+				let nextRules = latestRules
+				const ruleUpdates = buildWhatsAppAutomationRuleUpdates({
+					automationRules: latestRules,
+					templates: nextTemplates,
+				})
+				for (const update of ruleUpdates) {
+					const savedRule = await apiFetch<AnyRecord>(
+						`/whatsapp/automation-rules/${update.id}/`,
+						{
+							method: 'PATCH',
+							body: JSON.stringify(update.patch),
+						},
+					)
+					nextRules = nextRules.map((rule) =>
+						String(rule.id) === String(update.id) ? savedRule : rule,
+					)
+				}
+				setWhatsappAutomationRules(nextRules)
+
+				return {
+					config: savedConfig,
+					templates: nextTemplates,
+					automationRules: nextRules,
+				}
+			},
+			{ successTitle: 'WhatsApp demo preparado' },
 		)
 	}
 
@@ -13802,9 +13959,17 @@ export default function Home() {
 						birthdayAlerts={renderBirthdayAlerts()}
 						canViewEconomy={canViewEconomy}
 						dashboard={dashboard}
+						demoReadiness={demoReadiness}
+						starterServicesLoading={isActionPending('onboarding:starter-services')}
+						starterServicesPlan={starterServicesPlan}
 						loading={loading}
+						onCreateStarterServices={createStarterServices}
 						onOpenPaymentForOrder={openPaymentForOrder}
-						onOpenSection={setActive}
+						onOpenSection={handleSectionChange}
+						onOpenSettingsSection={(section: DemoReadinessSettingsSection) => {
+							setSettingsSection(section as SettingsSection)
+							handleSectionChange('settings')
+						}}
 					/>
 				) : null}
 
@@ -14236,8 +14401,11 @@ export default function Home() {
 						serviceTypeLabels={serviceTypeLabels}
 						sectors={sectors}
 						services={services}
+						starterServicesLoading={isActionPending('onboarding:starter-services')}
+						starterServicesPlan={starterServicesPlan}
 						workOrders={workOrders}
 						onBackToServices={() => setServiceDashboard(null)}
+						onCreateStarterServices={createStarterServices}
 						onCreateService={() => openFormModal('service')}
 						onDeleteService={(item) =>
 							runAction(
@@ -14996,6 +15164,7 @@ export default function Home() {
 						onRefreshAuditLogs={() => refreshAuditLogs()}
 						onRefreshData={() => loadData({ force: true })}
 						onSaveBusinessProfile={saveBusinessProfile}
+						onPrepareWhatsappDemo={prepareWhatsappDemo}
 						onSaveWhatsappConfig={saveWhatsappConfig}
 						onSettingsSectionChange={(section) => {
 								setSettingsSection(section)

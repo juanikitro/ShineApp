@@ -277,7 +277,7 @@ class PublicLandingRecallView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, slug):
-        business, _ = public_business_or_404(slug)
+        public_business_or_404(slug)
         ip_address = client_ip(request)
         if ip_address:
             key = recall_cache_key(ip_address)
@@ -297,52 +297,12 @@ class PublicLandingRecallView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        customer = self._find_customer(business, phone, email)
-        vehicles = []
-        if customer:
-            from customers.models import Vehicle
-
-            vehicles = list(
-                Vehicle.objects.filter(
-                    business=business,
-                    customer=customer,
-                    is_active=True,
-                ).order_by("license_plate")[:5]
-            )
-
         return response.Response({
-            "customer_name": customer.name if customer else None,
-            "customer_phone": customer.phone if customer else None,
-            "customer_email": customer.email if customer else None,
-            "vehicles": [
-                {
-                    "license_plate": v.license_plate,
-                    "brand": v.brand,
-                    "model": v.model,
-                    "vehicle_type": v.vehicle_type,
-                }
-                for v in vehicles
-            ],
+            "customer_name": None,
+            "customer_phone": None,
+            "customer_email": None,
+            "vehicles": [],
         })
-
-    @staticmethod
-    def _find_customer(business, phone, email):
-        from customers.models import Customer
-
-        qs = Customer.objects.filter(business=business, is_active=True)
-
-        if email:
-            customer = qs.filter(email__iexact=email).first()
-            if customer:
-                return customer
-
-        phone_digits = "".join(c for c in phone if c.isdigit())
-        if phone_digits:
-            for customer in qs.exclude(phone="").only("id", "name", "phone", "email"):
-                if "".join(c for c in customer.phone if c.isdigit()) == phone_digits:
-                    return customer
-
-        return None
 
 
 class PublicRequestViewSet(

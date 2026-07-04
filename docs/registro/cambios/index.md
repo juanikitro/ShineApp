@@ -9,6 +9,9 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Fase 2B - onboarding WhatsApp](2026-07-04-fase-2b-whatsapp-onboarding.md)
+- [Fase 2A - onboarding real guiado](2026-07-04-fase-2a-onboarding-real.md)
+- [Fase 1 - demo vendible vehicular](2026-07-04-fase-1-demo-vendible.md)
 - [WhatsApp MVP](2026-06-24-whatsapp-mvp.md)
 - [Mejoras de usabilidad del modulo de tareas](2026-06-24-tareas-usabilidad.md)
 - [Precarga del badge de tareas](2026-06-24-tareas-badge-precarga.md)

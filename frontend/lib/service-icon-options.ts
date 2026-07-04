@@ -9,7 +9,7 @@ export type ServiceIconCustomEmoji = {
 	imgUrl: string
 }
 
-export const serviceIconCustomCategoryName = 'Lavadero & detailing'
+export const serviceIconCustomCategoryName = 'Lavadero, detailing y lubricentro'
 
 export const serviceIconSuggestions: ServiceIconSuggestion[] = [
 	{ emoji: '🧽', label: 'Esponja' },
@@ -59,6 +59,7 @@ export const serviceIconCustomEmojis: ServiceIconCustomEmoji[] =
 			serviceIconCustomCategoryName,
 			'lavadero',
 			'detailing',
+			'lubricentro',
 		],
 		imgUrl: serviceEmojiSvgDataUrl(option.emoji),
 	}))
