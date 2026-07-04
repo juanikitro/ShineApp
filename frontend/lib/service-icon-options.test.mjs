@@ -9,8 +9,8 @@ import {
 	serviceIconSuggestions,
 } from './service-icon-options'
 
-test('keeps a curated custom category for car wash services', () => {
-	assert.equal(serviceIconCustomCategoryName, 'Lavadero & detailing')
+test('keeps a curated custom category for vehicle service businesses', () => {
+	assert.equal(serviceIconCustomCategoryName, 'Lavadero, detailing y lubricentro')
 	assert.ok(serviceIconSuggestions.length >= 12)
 	assert.equal(
 		new Set(serviceIconSuggestions.map((option) => option.emoji)).size,
@@ -34,6 +34,7 @@ test('custom picker category maps dedicated emojis back to unicode values', () =
 		assert.match(customEmoji.imgUrl, /^data:image\/svg\+xml;utf8,/)
 		assert.doesNotMatch(customEmoji.imgUrl, /\.gif($|\?)/i)
 		assert.ok(customEmoji.names.includes('lavadero'))
+		assert.ok(customEmoji.names.includes('lubricentro'))
 		assert.ok(serviceIconFromCustomEmojiId(customEmoji.id))
 	}
 })

@@ -7,7 +7,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
 	title: 'ShineApp',
-	description: 'Gestion operativa para detailing y lavado de autos',
+	description: 'Gestion operativa para negocios vehiculares',
 	applicationName: 'ShineApp',
 	appleWebApp: {
 		capable: true,
