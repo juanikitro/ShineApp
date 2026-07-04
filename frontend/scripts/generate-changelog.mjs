@@ -1,23 +1,39 @@
 import { spawnSync } from 'child_process'
-import { fileURLToPath } from 'url'
+import { existsSync, mkdirSync, writeFileSync } from 'fs'
 import path from 'path'
-import fs from 'fs'
+import { fileURLToPath } from 'url'
+
+import { resolveCheckDocsPath } from '../lib/changelog-script-paths.mjs'
 
 const dir = path.dirname(fileURLToPath(import.meta.url))
-const scriptPath = path.resolve(dir, '../../scripts/check_docs.py')
 const changelogPath = path.resolve(dir, '../app/data/changelog.generated.json')
 const cmds = process.platform === 'win32' ? ['py', 'python', 'python3'] : ['python3', 'python']
+const scriptPath = resolveCheckDocsPath({
+	scriptDir: dir,
+	cwd: process.cwd(),
+	existsSync,
+})
 
-for (const cmd of cmds) {
-  const result = spawnSync(cmd, [scriptPath, '--write', '--skip-build'], { stdio: 'inherit' })
-  if (result.status === 0) process.exit(0)
+if (scriptPath) {
+	for (const cmd of cmds) {
+		const result = spawnSync(cmd, [scriptPath, '--write', '--skip-build'], {
+			cwd: path.dirname(scriptPath),
+			stdio: 'inherit',
+		})
+		if (result.status === 0) process.exit(0)
+	}
+
+	console.warn(
+		`generate:changelog: no se pudo ejecutar ${path.relative(process.cwd(), scriptPath) || scriptPath} con ${cmds.join(', ')}; usando changelog placeholder.`,
+	)
+} else {
+	console.warn(
+		'generate:changelog: no se encontro scripts/check_docs.py; usando changelog placeholder.',
+	)
 }
 
-// Si Python no está disponible en Vercel, crear un placeholder mínimo
-// El changelog será vacío pero el build no fallará
-console.warn('⚠️  Python no disponible, creando changelog placeholder...')
-if (!fs.existsSync(changelogPath)) {
-  fs.mkdirSync(path.dirname(changelogPath), { recursive: true })
-  fs.writeFileSync(changelogPath, '[]')
+if (!existsSync(changelogPath)) {
+	mkdirSync(path.dirname(changelogPath), { recursive: true })
+	writeFileSync(changelogPath, '[]')
 }
 process.exit(0)
