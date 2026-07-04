@@ -58,7 +58,16 @@ export type DataLoadingScope = {
 }
 
 const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
-	dashboard: ['dashboard', 'cash', 'businessProfile'],
+	dashboard: [
+		'dashboard',
+		'cash',
+		'businessProfile',
+		'services',
+		'sectors',
+		'whatsappConfig',
+		'whatsappTemplates',
+		'whatsappAutomationRules',
+	],
 	agenda: [
 		'customers',
 		'vehicles',

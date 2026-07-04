@@ -987,7 +987,7 @@ const sectionMeta: Record<
 	services: {
 		label: 'Servicios',
 		icon: Wrench,
-		subtitle: 'Lavados, detailing y combos',
+		subtitle: 'Lavadero, detailing y lubricentro',
 	},
 	notifications: {
 		label: 'Notificaciones',

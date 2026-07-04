@@ -381,6 +381,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "expense_category_tree",
             "working_hours",
         ]
+        read_only_fields = ["subscription_type"]
 
     def get_logo_url(self, obj):
         return file_url(obj.logo, request=self.context.get("request"))

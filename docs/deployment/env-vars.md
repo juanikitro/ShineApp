@@ -14,8 +14,13 @@ No commitear valores reales. Usar `.env.example` solo como forma.
 - `CSRF_TRUSTED_ORIGINS`: origenes web confiables para Django CSRF, separados por coma.
 - `DATABASE_URL`: connection string de Supabase Postgres.
 - `DATABASE_SSL_REQUIRE`: `1` para conexiones productivas Supabase.
+- `DJANGO_NUM_PROXIES`: cantidad de proxies confiables delante de Django. En Vercel usar `1`; impacta `X-Forwarded-For` y throttling DRF.
 - `DJANGO_THROTTLE_ANON_RATE`: tasa de throttle anonimo DRF en configuracion de produccion, default `60/min`.
 - `DJANGO_THROTTLE_USER_RATE`: tasa de throttle autenticado DRF en configuracion de produccion, default `600/min`.
+- `DJANGO_AUTH_TOKEN_TTL_SECONDS`: expiracion absoluta del token DRF. Default `2592000` (30 dias); `0` desactiva expiracion.
+- `DJANGO_LOGIN_LOCKOUT_THRESHOLD`: intentos fallidos antes del lockout de login. Default `8`; `0` desactiva lockout.
+- `DJANGO_LOGIN_LOCKOUT_WINDOW_SECONDS`: ventana del lockout de login en segundos. Default `900`.
+- `DJANGO_ENFORCE_SUBSCRIPTION_ACCESS`: `1` bloquea negocios en trial vencido; default `0` hasta que billing sea fuente de verdad.
 - `SUPABASE_STORAGE_ENABLED`: `1` en demo/prod cuando media debe persistir.
 - `SUPABASE_STORAGE_BUCKET`: bucket Storage para uploads.
 - `SUPABASE_S3_ENDPOINT_URL`: `https://<project-ref>.storage.supabase.co/storage/v1/s3`.

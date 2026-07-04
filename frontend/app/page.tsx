@@ -187,6 +187,10 @@ import {
 	type DataSetKey,
 } from '@/lib/data-loading'
 import {
+	buildDemoReadiness,
+	type DemoReadinessSettingsSection,
+} from '@/lib/demo-readiness'
+import {
 	type ApiErrorNotice,
 	createValidationNotice,
 	formatApiError,
@@ -5090,6 +5094,39 @@ export default function Home() {
 				cashSortKey,
 			),
 		[cashEntries, cashFilters, cashQuickFilter, cashSortKey],
+	)
+	const demoReadiness = useMemo(
+		() =>
+			buildDemoReadiness({
+				businessForm,
+				businessProfile,
+				businessSlug: String(currentUser?.business?.slug ?? ''),
+				dashboard,
+				payments,
+				publicRequests,
+				reservations,
+				sectors,
+				services,
+				whatsappAutomationRules,
+				whatsappConfig,
+				whatsappTemplates,
+				workOrders,
+			}),
+		[
+			businessForm,
+			businessProfile,
+			currentUser?.business?.slug,
+			dashboard,
+			payments,
+			publicRequests,
+			reservations,
+			sectors,
+			services,
+			whatsappAutomationRules,
+			whatsappConfig,
+			whatsappTemplates,
+			workOrders,
+		],
 	)
 
 	if (!token) {
@@ -13802,9 +13839,14 @@ export default function Home() {
 						birthdayAlerts={renderBirthdayAlerts()}
 						canViewEconomy={canViewEconomy}
 						dashboard={dashboard}
+						demoReadiness={demoReadiness}
 						loading={loading}
 						onOpenPaymentForOrder={openPaymentForOrder}
 						onOpenSection={setActive}
+						onOpenSettingsSection={(section: DemoReadinessSettingsSection) => {
+							setSettingsSection(section as SettingsSection)
+							handleSectionChange('settings')
+						}}
 					/>
 				) : null}
 

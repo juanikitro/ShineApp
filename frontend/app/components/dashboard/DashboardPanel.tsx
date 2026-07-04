@@ -11,6 +11,7 @@ import { Empty } from '@/app/components/ui/Empty'
 import { CajaSparkline } from '@/app/components/ui/CajaSparkline'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { RiskMeter } from '@/app/components/ui/RiskMeter'
+import { DemoReadinessPanel } from './DemoReadinessPanel'
 import { DashboardCashByCategory } from './DashboardCashByCategory'
 import { DashboardCrossReadings } from './DashboardCrossReadings'
 import { Panel } from '@/app/components/ui/Panel'
@@ -18,6 +19,10 @@ import { RecordCard } from '@/app/components/ui/RecordCard'
 import { SkeletonLine } from '@/app/components/ui/Skeleton'
 import { cx } from '@/app/components/utils'
 import { deltaHintVariants } from '@/lib/motion-spec'
+import {
+	type DemoReadiness,
+	type DemoReadinessSettingsSection,
+} from '@/lib/demo-readiness'
 import {
 	type AnyRecord,
 	type Section,
@@ -34,9 +39,11 @@ type DashboardPanelProps = {
 	birthdayAlerts: ReactNode
 	canViewEconomy: boolean
 	dashboard: AnyRecord
+	demoReadiness: DemoReadiness
 	loading: boolean
 	onOpenPaymentForOrder: (workOrder: AnyRecord) => void
 	onOpenSection: (section: Section) => void
+	onOpenSettingsSection: (section: DemoReadinessSettingsSection) => void
 }
 
 function dashboardCountText(count: number, singular: string, plural: string) {
@@ -92,9 +99,11 @@ export function DashboardPanel({
 	birthdayAlerts,
 	canViewEconomy,
 	dashboard,
+	demoReadiness,
 	loading,
 	onOpenPaymentForOrder,
 	onOpenSection,
+	onOpenSettingsSection,
 }: DashboardPanelProps) {
 	const dashboardWorkStatusEntries = Object.entries(orderLabels)
 	const dashboardWorkStatusTotal = dashboardWorkStatusEntries.reduce(
@@ -415,6 +424,11 @@ export function DashboardPanel({
 		<div className="grid">
 			{canViewEconomy ? (
 				<>
+					<DemoReadinessPanel
+						readiness={demoReadiness}
+						onOpenSection={onOpenSection}
+						onOpenSettingsSection={onOpenSettingsSection}
+					/>
 					{loading && !dashboardHasBusinessActivity ? (
 						<div
 							className="dashboard-executive-grid"
