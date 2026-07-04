@@ -11,12 +11,13 @@ desde Fase 0 hasta Beta 1A.
 | Fase 2A en `development` | Completado | PR #196 |
 | Fase 2B en `development` | Completado | PR #197, merge commit `de284d1` |
 | Release a `main` | Completado | PR #198, merge commit `6ba9e0d` |
-| Deploy demo-production | Completado | Workflow `deploy-vercel-demo.yml`, run `28711067373` |
+| Deploy demo-production Fase 2B/2C | Completado | Workflow `deploy-vercel-demo.yml`, run `28711067373` |
 | Smoke publico Fase 2B/2C | Completado | Web 200, API health `database=ok` |
 | Fase 2C | Publicado en `main` | PR #200 y release PR #201 |
 | Beta 1A en `development` | Completado | PR #204 |
-| Release Beta 1A a `main` | Preparado | Este release publica signup publico libre por 14 dias |
-| Smoke Beta 1A post-release | Pendiente | Ejecutar cuando Vercel despliegue el merge a `main` |
+| Release Beta 1A a `main` | Completado | PR #205, merge commit `e89220e` |
+| Deploy demo-production Beta 1A | Completado | Workflow `deploy-vercel-demo.yml`, run `28720568410` |
+| Smoke Beta 1A post-release | Completado | Web 200 con CTA, API health/deep OK, maintenance 403 sin secret |
 
 ## URLs
 
@@ -82,6 +83,15 @@ Evidencia sugerida:
 
 - Screenshot del login con `Probar gratis 14 dias`.
 - Screenshot o copia del JSON de health sin secretos.
+
+Evidencia tecnica ya verificada post-release:
+
+- `Deploy Vercel Demo` run `28720568410`: OK.
+- Web publica: HTTP 200 y CTA `Probar gratis 14 dias` visible en HTML.
+- API health: HTTP 200, `status=ok`, `checks.database=ok`.
+- API deep health: HTTP 200, `status=ok`, `checks.database=ok`,
+  `checks.storage=ok`.
+- API maintenance sin secret: HTTP 403 esperado.
 
 ## Fase 0 - foco de producto vehicular
 
@@ -383,7 +393,7 @@ Marcar cada item antes de considerar verificada la publicacion:
 | Fase 2A | Negocio vacio guiado | Pendiente de QA manual |
 | Fase 2B | WhatsApp demo/local preparado | Pendiente de QA manual |
 | Fase 2C | Primer turno y primer cobro guiados | Pendiente de QA manual |
-| Smoke Beta 1A post-release | CTA visible y API health OK | Pendiente post-release |
+| Smoke Beta 1A post-release | CTA visible y API health OK | Verificado post-release |
 | Beta 1A | Signup publico 14 dias | Pendiente de QA manual |
 | Visual desktop | Sin overlap ni cortes | Pendiente de QA manual |
 | Visual mobile | Una columna y controles tocables | Pendiente de QA manual |
