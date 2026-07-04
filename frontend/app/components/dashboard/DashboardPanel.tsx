@@ -41,10 +41,13 @@ type DashboardPanelProps = {
 	canViewEconomy: boolean
 	dashboard: AnyRecord
 	demoReadiness: DemoReadiness
+	firstChargeableWorkOrder?: AnyRecord | null
 	starterServicesLoading?: boolean
 	starterServicesPlan?: StarterServicesPlan
 	loading: boolean
+	onCreateFirstReservation?: () => void
 	onCreateStarterServices?: () => Promise<unknown> | unknown
+	onOpenFirstPayment?: (workOrder: AnyRecord) => void
 	onOpenPaymentForOrder: (workOrder: AnyRecord) => void
 	onOpenSection: (section: Section) => void
 	onOpenSettingsSection: (section: DemoReadinessSettingsSection) => void
@@ -104,10 +107,13 @@ export function DashboardPanel({
 	canViewEconomy,
 	dashboard,
 	demoReadiness,
+	firstChargeableWorkOrder,
 	starterServicesLoading,
 	starterServicesPlan,
 	loading,
+	onCreateFirstReservation,
 	onCreateStarterServices,
+	onOpenFirstPayment,
 	onOpenPaymentForOrder,
 	onOpenSection,
 	onOpenSettingsSection,
@@ -432,10 +438,13 @@ export function DashboardPanel({
 			{canViewEconomy ? (
 				<>
 					<DemoReadinessPanel
+						firstChargeableWorkOrder={firstChargeableWorkOrder}
 						readiness={demoReadiness}
 						starterServicesLoading={starterServicesLoading}
 						starterServicesPlan={starterServicesPlan}
+						onCreateFirstReservation={onCreateFirstReservation}
 						onCreateStarterServices={onCreateStarterServices}
+						onOpenFirstPayment={onOpenFirstPayment}
 						onOpenSection={onOpenSection}
 						onOpenSettingsSection={onOpenSettingsSection}
 					/>

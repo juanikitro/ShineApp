@@ -1,7 +1,7 @@
-# Fases 0 a 2B - guia de verificacion en demo-production
+# Fases 0 a 2C - guia de verificacion en demo-production
 
 Artifact vivo para probar en `https://shineapp-web.vercel.app` todo lo publicado
-desde Fase 0 hasta Fase 2B.
+desde Fase 0 hasta Fase 2C.
 
 ## Estado de publicacion
 
@@ -13,6 +13,7 @@ desde Fase 0 hasta Fase 2B.
 | Release a `main` | Completado | PR #198, merge commit `6ba9e0d` |
 | Deploy demo-production | Completado | Workflow `deploy-vercel-demo.yml`, run `28711067373` |
 | Smoke publico | Completado | Web 200, API health `database=ok` |
+| Fase 2C | En este PR | Primer turno y primer cobro guiados |
 
 ## URLs
 
@@ -226,6 +227,52 @@ Evidencia sugerida:
 - Screenshot de la accion de enviar WhatsApp en Cotizaciones.
 - Screenshot del Historial WhatsApp con provider `fake`.
 
+## Fase 2C - primer turno y primer cobro guiados
+
+Objetivo a verificar: un negocio real vacio puede completar el primer recorrido
+operativo sin adivinar pantallas: crear un turno/trabajo y registrar el primer
+cobro desde la guia del dashboard.
+
+Usar un negocio de prueba con Fase 2A y 2B listas o casi listas.
+
+1. Entrar al Dashboard.
+2. Confirmar que el panel `Alta guiada` muestra el bloque
+   `Primer recorrido operativo`.
+3. Si el paso `Primer turno o trabajo` esta pendiente, hacer click en
+   `Crear primer turno`.
+4. Confirmar que se abre el modal de nueva reserva con el dia actual
+   precargado.
+5. Cargar cliente, vehiculo y al menos un servicio.
+6. Guardar la reserva.
+7. Confirmar que la Agenda muestra el turno creado.
+8. Volver al Dashboard.
+9. Confirmar que el paso `Primer turno o trabajo` queda marcado como listo.
+10. Si el paso `Primer cobro` esta pendiente y existe un trabajo con saldo,
+    hacer click en `Cobrar primer trabajo`.
+11. Confirmar que se abre el modal `Cobrar trabajo de la reserva`.
+12. Revisar importe, tipo y medio de pago.
+13. Guardar el cobro.
+14. Confirmar que Caja muestra el cobro.
+15. Volver al Dashboard.
+16. Confirmar que `Primer cobro` queda listo y los indicadores economicos se
+    actualizan.
+17. Si todavia no existe trabajo cobrable, confirmar que el boton de caja guia a
+    `Crear turno primero` en vez de abrir una caja vacia.
+
+Resultado esperado:
+
+- El usuario puede empezar desde el dashboard.
+- La app no lo manda a Caja si todavia no hay trabajo cobrable.
+- Agenda, Caja y Dashboard quedan conectados por datos reales.
+- No se crean cobros automaticos sin confirmacion del usuario.
+
+Evidencia sugerida:
+
+- Screenshot del bloque `Primer recorrido operativo`.
+- Screenshot del modal de nueva reserva abierto desde el dashboard.
+- Screenshot del modal de cobro abierto desde el dashboard.
+- Screenshot de Caja con el cobro registrado.
+
 ## Regresion visual obligatoria
 
 Desktop:
@@ -236,6 +283,8 @@ Desktop:
 4. Configuracion > WhatsApp: el panel nuevo no debe tapar la configuracion
    avanzada.
 5. Caja: indicadores y botones principales deben seguir operativos.
+6. Dashboard: el bloque `Primer recorrido operativo` debe quedar alineado y sin
+   duplicar acciones confusas.
 
 Mobile/responsive:
 
@@ -244,6 +293,8 @@ Mobile/responsive:
 3. Configuracion > WhatsApp: checks en una columna.
 4. Boton `Preparar WhatsApp demo`: visible, tocable y sin texto cortado.
 5. Navegacion lateral/topbar: usable sin tapar contenido.
+6. Bloque `Primer recorrido operativo`: acciones en una columna y botones de
+   ancho completo.
 
 Resultado esperado:
 
@@ -263,6 +314,7 @@ Marcar cada item antes de considerar verificada la publicacion:
 | Fase 1 | Demo vendible precargado | Pendiente de QA manual |
 | Fase 2A | Negocio vacio guiado | Pendiente de QA manual |
 | Fase 2B | WhatsApp demo/local preparado | Pendiente de QA manual |
+| Fase 2C | Primer turno y primer cobro guiados | Pendiente de QA manual |
 | Visual desktop | Sin overlap ni cortes | Pendiente de QA manual |
 | Visual mobile | Una columna y controles tocables | Pendiente de QA manual |
 
@@ -283,5 +335,6 @@ La publicacion queda aceptada si:
 - Fase 1 permite vender el demo sin carga manual.
 - Fase 2A guia un negocio real vacio sin seed demo.
 - Fase 2B prepara WhatsApp demo/local sin tokens reales.
+- Fase 2C permite crear primer turno y registrar primer cobro desde la guia.
 - Dashboard, Servicios, Turnera, WhatsApp y Caja se ven correctos en desktop y
   mobile.

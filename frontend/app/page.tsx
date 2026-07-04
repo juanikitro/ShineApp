@@ -188,6 +188,7 @@ import {
 } from '@/lib/data-loading'
 import {
 	buildDemoReadiness,
+	findFirstChargeableWorkOrder,
 	type DemoReadinessSettingsSection,
 } from '@/lib/demo-readiness'
 import { buildStarterServicesPlan } from '@/lib/onboarding-services'
@@ -5132,6 +5133,10 @@ export default function Home() {
 			whatsappTemplates,
 			workOrders,
 		],
+	)
+	const firstChargeableWorkOrder = useMemo(
+		() => findFirstChargeableWorkOrder(workOrders),
+		[workOrders],
 	)
 	const starterServicesPlan = useMemo(
 		() => buildStarterServicesPlan({ services, sectors }),
@@ -13960,10 +13965,13 @@ export default function Home() {
 						canViewEconomy={canViewEconomy}
 						dashboard={dashboard}
 						demoReadiness={demoReadiness}
+						firstChargeableWorkOrder={firstChargeableWorkOrder}
 						starterServicesLoading={isActionPending('onboarding:starter-services')}
 						starterServicesPlan={starterServicesPlan}
 						loading={loading}
+						onCreateFirstReservation={() => openQuickReservation(selectedDay, true)}
 						onCreateStarterServices={createStarterServices}
+						onOpenFirstPayment={openPaymentForOrder}
 						onOpenPaymentForOrder={openPaymentForOrder}
 						onOpenSection={handleSectionChange}
 						onOpenSettingsSection={(section: DemoReadinessSettingsSection) => {

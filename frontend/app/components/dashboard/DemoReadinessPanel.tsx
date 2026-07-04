@@ -23,14 +23,17 @@ import {
 	type DemoReadinessStepId,
 } from '@/lib/demo-readiness'
 import { type StarterServicesPlan } from '@/lib/onboarding-services'
-import { type Section } from '@/lib/page-support'
+import { type AnyRecord, type Section } from '@/lib/page-support'
 
 type DemoReadinessPanelProps = {
+	firstChargeableWorkOrder?: AnyRecord | null
 	readiness: DemoReadiness
 	starterServicesLoading?: boolean
 	starterServicesPlan?: StarterServicesPlan
+	onCreateFirstReservation?: () => void
 	onOpenSection: (section: Section) => void
 	onOpenSettingsSection: (section: DemoReadinessSettingsSection) => void
+	onOpenFirstPayment?: (workOrder: AnyRecord) => void
 	onCreateStarterServices?: () => Promise<unknown> | unknown
 }
 
@@ -48,10 +51,13 @@ function stepProgressText(readiness: DemoReadiness) {
 }
 
 export function DemoReadinessPanel({
+	firstChargeableWorkOrder = null,
 	readiness,
 	starterServicesLoading = false,
 	starterServicesPlan,
+	onCreateFirstReservation,
 	onCreateStarterServices,
+	onOpenFirstPayment,
 	onOpenSection,
 	onOpenSettingsSection,
 }: DemoReadinessPanelProps) {
@@ -63,12 +69,67 @@ export function DemoReadinessPanel({
 		onOpenSection(step.target.section)
 	}
 
+	function actionLabelForStep(step: DemoReadinessStep) {
+		if (!firstOperationActive) return step.actionLabel
+		if (!step.done && step.id === 'agenda' && onCreateFirstReservation) {
+			return 'Crear primer turno'
+		}
+		if (!step.done && step.id === 'cash-dashboard') {
+			if (firstChargeableWorkOrder && onOpenFirstPayment) {
+				return 'Cobrar primer trabajo'
+			}
+			if (onCreateFirstReservation) return 'Crear turno primero'
+		}
+		return step.actionLabel
+	}
+
+	function runStepAction(step: DemoReadinessStep) {
+		if (
+			firstOperationActive &&
+			!step.done &&
+			step.id === 'agenda' &&
+			onCreateFirstReservation
+		) {
+			onCreateFirstReservation()
+			return
+		}
+		if (firstOperationActive && !step.done && step.id === 'cash-dashboard') {
+			if (firstChargeableWorkOrder && onOpenFirstPayment) {
+				onOpenFirstPayment(firstChargeableWorkOrder)
+				return
+			}
+			if (onCreateFirstReservation) {
+				onCreateFirstReservation()
+				return
+			}
+		}
+		openStep(step)
+	}
+
 	const primaryStep =
 		readiness.firstPendingStep ??
 		readiness.steps.find((step) => step.id === 'agenda') ??
 		readiness.steps[0]
-	const PrimaryIcon = primaryStep ? stepIcons[primaryStep.id] : CalendarDays
+	const PrimaryIcon =
+		primaryStep?.id === 'cash-dashboard' && !firstChargeableWorkOrder
+			? CalendarDays
+			: primaryStep
+				? stepIcons[primaryStep.id]
+				: CalendarDays
 	const servicesStep = readiness.steps.find((step) => step.id === 'services')
+	const agendaStep = readiness.steps.find((step) => step.id === 'agenda')
+	const cashStep = readiness.steps.find((step) => step.id === 'cash-dashboard')
+	const firstOperationActive =
+		primaryStep?.id === 'agenda' ||
+		primaryStep?.id === 'cash-dashboard' ||
+		Boolean(agendaStep?.done && cashStep && !cashStep.done)
+	const showFirstOperationGuide = Boolean(
+		firstOperationActive &&
+			((agendaStep && !agendaStep.done) || (cashStep && !cashStep.done)),
+	)
+	const showCashOperationAction = Boolean(
+		cashStep && (cashStep.done || agendaStep?.done || !agendaStep),
+	)
 	const starterServicesAvailable = Boolean(
 		servicesStep &&
 			!servicesStep.done &&
@@ -86,12 +147,35 @@ export function DemoReadinessPanel({
 			? 'Crear servicios base'
 			: readiness.ready
 				? 'Ver agenda'
-				: primaryStep?.actionLabel
+				: primaryStep
+					? actionLabelForStep(primaryStep)
+					: undefined
 	const handlePrimaryAction = () => {
 		if (starterServicesAvailable && primaryStep?.id === 'services') {
 			return onCreateStarterServices?.()
 		}
-		if (primaryStep) openStep(primaryStep)
+		if (primaryStep) runStepAction(primaryStep)
+	}
+
+	function stepListActionLabel(step: DemoReadinessStep) {
+		if (
+			showFirstOperationGuide &&
+			(step.id === 'agenda' || step.id === 'cash-dashboard')
+		) {
+			return step.id === 'agenda' ? 'Ver agenda' : 'Ver caja'
+		}
+		return step.done ? step.actionLabel : actionLabelForStep(step)
+	}
+
+	function runStepListAction(step: DemoReadinessStep) {
+		if (
+			showFirstOperationGuide &&
+			(step.id === 'agenda' || step.id === 'cash-dashboard')
+		) {
+			openStep(step)
+			return
+		}
+		runStepAction(step)
 	}
 
 	return (
@@ -100,7 +184,7 @@ export function DemoReadinessPanel({
 			title={title}
 			subtitle={subtitle}
 			actions={
-				primaryStep ? (
+				primaryStep && !showFirstOperationGuide ? (
 					<Button
 						type="button"
 						variant="primary"
@@ -195,6 +279,46 @@ export function DemoReadinessPanel({
 					</Button>
 				</div>
 			) : null}
+			{showFirstOperationGuide ? (
+				<div className="demo-readiness-operation">
+					<div className="demo-readiness-operation-copy">
+						<span className="demo-readiness-starter-icon" aria-hidden="true">
+							<CalendarDays size={16} />
+						</span>
+						<div>
+							<strong>Primer recorrido operativo</strong>
+							<p>
+								Carga un turno y despues cobra ese trabajo para que Agenda, Caja
+								y Dashboard queden conectados desde el primer uso.
+							</p>
+						</div>
+					</div>
+					<div className="demo-readiness-operation-actions">
+						{agendaStep ? (
+							<Button
+								type="button"
+								variant={agendaStep.done ? 'ghost' : 'primary'}
+								size="sm"
+								leadingIcon={<CalendarDays size={16} />}
+								onClick={() => runStepAction(agendaStep)}
+							>
+								{agendaStep.done ? 'Ver agenda' : actionLabelForStep(agendaStep)}
+							</Button>
+						) : null}
+						{showCashOperationAction && cashStep ? (
+							<Button
+								type="button"
+								variant={cashStep.done ? 'ghost' : 'primary'}
+								size="sm"
+								leadingIcon={<CreditCard size={16} />}
+								onClick={() => runStepAction(cashStep)}
+							>
+								{cashStep.done ? 'Ver caja' : actionLabelForStep(cashStep)}
+							</Button>
+						) : null}
+					</div>
+				</div>
+			) : null}
 			<div className="demo-readiness-steps">
 				{readiness.steps.map((step) => {
 					const StepIcon = stepIcons[step.id]
@@ -225,9 +349,9 @@ export function DemoReadinessPanel({
 								type="button"
 								variant={step.done ? 'ghost' : 'primary'}
 								size="sm"
-								onClick={() => openStep(step)}
+								onClick={() => runStepListAction(step)}
 							>
-								{step.actionLabel}
+								{stepListActionLabel(step)}
 							</Button>
 						</div>
 					)
