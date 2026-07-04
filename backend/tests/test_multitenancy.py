@@ -1,4 +1,6 @@
+from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from django.contrib import admin
@@ -6,10 +8,12 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.db import IntegrityError, transaction
 from django.urls import reverse
+from django.utils import timezone
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 from catalog.models import Service
-from core.admin import BusinessAccountAdmin
+from core.admin import BusinessAccountAdmin, BusinessProfileAdmin
 from core.models import BusinessAccount, BusinessProfile, UserProfile
 from customers.models import Customer, Vehicle
 from inventory.models import Material
@@ -65,6 +69,79 @@ def test_admin_provisioning_creates_business_profile_and_initial_employer(rf):
     assert employer.is_superuser is False
     assert employer.groups.filter(name="empleador").exists()
     assert employer.profile.business == business
+
+
+@pytest.mark.django_db
+def test_admin_can_extend_trial_without_changing_paid_profiles(rf):
+    superuser = get_user_model().objects.create_superuser(
+        username="platform-admin",
+        password="admin123",
+        email="platform@example.com",
+    )
+    trial_business = create_business("Trial A", "trial-a")
+    paid_business = create_business("Premium B", "premium-b")
+    now = timezone.now()
+    trial_profile = trial_business.profile
+    trial_profile.subscription_type = BusinessProfile.SubscriptionType.TRIAL
+    trial_profile.trial_ends_at = now + timedelta(days=1)
+    trial_profile.save(update_fields=["subscription_type", "trial_ends_at", "updated_at"])
+    paid_profile = paid_business.profile
+    paid_profile.subscription_type = BusinessProfile.SubscriptionType.PREMIUM
+    paid_profile.trial_ends_at = now + timedelta(days=1)
+    paid_profile.save(update_fields=["subscription_type", "trial_ends_at", "updated_at"])
+
+    request = rf.post("/admin/core/businessprofile/")
+    request.user = superuser
+    model_admin = BusinessProfileAdmin(BusinessProfile, admin.AdminSite())
+    with patch.object(model_admin, "message_user") as message_user:
+        model_admin.extend_trials_7_days(
+            request,
+            BusinessProfile.objects.filter(pk__in=[trial_profile.pk, paid_profile.pk]),
+        )
+
+    trial_profile.refresh_from_db()
+    paid_profile.refresh_from_db()
+    assert timedelta(days=7) < trial_profile.trial_ends_at - now <= timedelta(days=8)
+    assert paid_profile.trial_ends_at <= now + timedelta(days=1, seconds=1)
+    message_user.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_admin_can_suspend_only_expired_trial_businesses_and_invalidate_tokens(rf):
+    superuser = get_user_model().objects.create_superuser(
+        username="platform-admin",
+        password="admin123",
+        email="platform@example.com",
+    )
+    expired_business = create_business("Trial vencido", "trial-vencido")
+    active_business = create_business("Trial activo", "trial-activo")
+    expired_owner = create_business_user("dueno-vencido", expired_business, password="dueno123")
+    active_owner = create_business_user("dueno-activo", active_business, password="dueno123")
+    expired_token = Token.objects.create(user=expired_owner)
+    active_token = Token.objects.create(user=active_owner)
+    now = timezone.now()
+    expired_business.profile.trial_ends_at = now - timedelta(days=1)
+    expired_business.profile.save(update_fields=["trial_ends_at", "updated_at"])
+    active_business.profile.trial_ends_at = now + timedelta(days=5)
+    active_business.profile.save(update_fields=["trial_ends_at", "updated_at"])
+
+    request = rf.post("/admin/core/businessprofile/")
+    request.user = superuser
+    model_admin = BusinessProfileAdmin(BusinessProfile, admin.AdminSite())
+    with patch.object(model_admin, "message_user") as message_user:
+        model_admin.suspend_expired_trial_businesses(
+            request,
+            BusinessProfile.objects.filter(pk__in=[expired_business.profile.pk, active_business.profile.pk]),
+        )
+
+    expired_business.refresh_from_db()
+    active_business.refresh_from_db()
+    assert expired_business.is_active is False
+    assert expired_business.deactivation_reason == "Trial vencido desde Django admin"
+    assert active_business.is_active is True
+    assert not Token.objects.filter(pk=expired_token.pk).exists()
+    assert Token.objects.filter(pk=active_token.pk).exists()
+    message_user.assert_called_once()
 
 
 @pytest.mark.django_db

@@ -1,7 +1,7 @@
-# Fases 0 a Beta 1A - guia de verificacion en demo-production
+# Fases 0 a Beta 1B - guia de verificacion en demo-production
 
 Artifact vivo para probar en `https://shineapp-web.vercel.app` todo lo publicado
-desde Fase 0 hasta Beta 1A.
+desde Fase 0 hasta Beta 1B.
 
 ## Estado de publicacion
 
@@ -18,6 +18,8 @@ desde Fase 0 hasta Beta 1A.
 | Release Beta 1A a `main` | Completado | PR #205, merge commit `e89220e` |
 | Deploy demo-production Beta 1A | Completado | Workflow `deploy-vercel-demo.yml`, run `28720568410` |
 | Smoke Beta 1A post-release | Completado | Web 200 con CTA, API health/deep OK, maintenance 403 sin secret |
+| Sync `main` -> `development` | Completado | PR #207 |
+| Beta 1B en `development` | En este PR | Guardrails operativos para signup publico y trials |
 
 ## URLs
 
@@ -33,7 +35,7 @@ desde Fase 0 hasta Beta 1A.
 4. No pegar tokens reales de Meta en Fase 2B.
 5. Si se crea un negocio de prueba, usar un nombre reconocible, por ejemplo
    `QA Vehicular Fase 2`.
-6. Para Beta 1A, usar un email disposable/controlado y no cargar datos reales
+6. Para Beta 1A/Beta 1B, usar un email disposable/controlado y no cargar datos reales
    de clientes.
 
 ## Smoke base de produccion
@@ -380,6 +382,51 @@ Evidencia sugerida:
 - Screenshot del formulario de prueba.
 - Screenshot del Dashboard con `Alta guiada` tras crear la cuenta.
 
+## Beta 1B - guardrails operativos de trials
+
+Objetivo a verificar: el signup publico debe quedar operable para una beta
+abierta sin activar billing ni bloquear clientes por defecto.
+
+Usar un superusuario de Django admin y un negocio trial descartable.
+
+1. Crear un trial publico desde el login, como en Beta 1A.
+2. Entrar a Django admin.
+3. Abrir `Perfiles de negocio`.
+4. Confirmar que la lista muestra:
+   - estado trial;
+   - dias trial restantes;
+   - owner/email;
+   - negocio activo.
+5. Filtrar por `Trial activo`, `Trial por vencer`, `Trial vencido` y `Premium`.
+6. Seleccionar un perfil trial descartable y ejecutar
+   `Extender trials seleccionados 7 dias`.
+7. Confirmar que `trial_ends_at` avanza y que el negocio sigue activo.
+8. Preparar o seleccionar un trial vencido descartable.
+9. Ejecutar `Suspender negocios con trial vencido`.
+10. Confirmar que solo se suspenden negocios trial vencidos y que los tokens de
+    esos usuarios quedan invalidados.
+11. Abrir `Registros de auditoria`.
+12. Buscar accion `trial_signup`.
+13. Confirmar que el evento queda vinculado al negocio y que la metadata muestra
+    dominio de email, duracion del trial y origen `public_signup`.
+14. Confirmar que el audit log no contiene passwords, tokens ni secretos.
+15. Confirmar que `DJANGO_ENFORCE_SUBSCRIPTION_ACCESS` sigue apagado salvo
+    decision explicita de activar bloqueo por trial vencido.
+
+Resultado esperado:
+
+- El operador puede ver y filtrar trials sin consultar la DB a mano.
+- Puede extender pruebas o suspender vencidos con acciones explicitas.
+- El signup publico deja trazabilidad operativa sin datos sensibles.
+- No se agrega cobro, Stripe ni billing portal.
+- No se bloquean trials vencidos globalmente si el feature flag sigue apagado.
+
+Evidencia sugerida:
+
+- Screenshot de `Perfiles de negocio` con columnas de trial.
+- Screenshot del filtro por estado de prueba.
+- Screenshot de un `AuditLog` `trial_signup` sin datos sensibles.
+
 ## Matriz de cierre
 
 Marcar cada item antes de considerar verificada la publicacion:
@@ -395,6 +442,7 @@ Marcar cada item antes de considerar verificada la publicacion:
 | Fase 2C | Primer turno y primer cobro guiados | Pendiente de QA manual |
 | Smoke Beta 1A post-release | CTA visible y API health OK | Verificado post-release |
 | Beta 1A | Signup publico 14 dias | Pendiente de QA manual |
+| Beta 1B | Guardrails operativos de trials | Pendiente de QA manual |
 | Visual desktop | Sin overlap ni cortes | Pendiente de QA manual |
 | Visual mobile | Una columna y controles tocables | Pendiente de QA manual |
 
@@ -417,5 +465,6 @@ La publicacion queda aceptada si:
 - Fase 2B prepara WhatsApp demo/local sin tokens reales.
 - Fase 2C permite crear primer turno y registrar primer cobro desde la guia.
 - Beta 1A permite crear una prueba publica libre de 14 dias.
+- Beta 1B deja visibilidad, auditoria y acciones admin para operar trials.
 - Dashboard, Servicios, Turnera, WhatsApp y Caja se ven correctos en desktop y
   mobile.
