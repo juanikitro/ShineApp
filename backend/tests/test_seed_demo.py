@@ -22,6 +22,7 @@ from inventory.models import (
 from notifications.models import PublicRequest, PublicRequestItem
 from quotes.models import Quote, QuoteItem
 from scheduling.models import Reservation, ReservationItem
+from whatsapp.models import WhatsAppAutomationRule, WhatsAppConfig, WhatsAppTemplate
 from workorders.models import WorkOrder
 
 
@@ -53,9 +54,11 @@ def test_seed_demo_populates_realistic_dataset_across_modules():
     assert Vehicle.objects.filter(business=business, is_active=True).count() >= 5
     from catalog.models import Sector
     assert Service.objects.filter(business=business, sector__key="detailing").count() >= 3
+    assert Service.objects.filter(business=business, sector__key="lubricentro").count() >= 2
     assert profile.enforce_capacity_limit is True
     assert Sector.objects.filter(business=business, key="detailing").values_list("default_capacity", flat=True).first() == 4
     assert Sector.objects.filter(business=business, key="lavadero").values_list("default_capacity", flat=True).first() == 8
+    assert Sector.objects.filter(business=business, key="lubricentro").values_list("default_capacity", flat=True).first() == 3
 
     reservation_statuses = set(Reservation.objects.filter(business=business).values_list("status", flat=True))
     assert {
@@ -104,6 +107,14 @@ def test_seed_demo_populates_realistic_dataset_across_modules():
         PublicRequest.Status.ARCHIVED,
     }.issubset(request_statuses)
     assert PublicRequestItem.objects.filter(public_request__business=business).count() >= 5
+
+    whatsapp_config = WhatsAppConfig.objects.get(business=business)
+    assert whatsapp_config.provider == WhatsAppConfig.Provider.FAKE
+    assert whatsapp_config.is_enabled is True
+    assert whatsapp_config.phone_number_display == "+54 9 11 5555-0100"
+    assert WhatsAppTemplate.objects.filter(business=business, is_active=True).count() >= 4
+    assert WhatsAppAutomationRule.objects.filter(business=business, enabled=True).count() >= 4
+
     assert AuditLog.objects.filter(business=business).count() >= 5
 
 
@@ -129,6 +140,9 @@ def test_seed_demo_is_idempotent_for_demo_records():
         "quote_items": QuoteItem.objects.count(),
         "public_requests": PublicRequest.objects.count(),
         "public_request_items": PublicRequestItem.objects.count(),
+        "whatsapp_configs": WhatsAppConfig.objects.count(),
+        "whatsapp_templates": WhatsAppTemplate.objects.count(),
+        "whatsapp_rules": WhatsAppAutomationRule.objects.count(),
         "audit_logs": AuditLog.objects.count(),
     }
 
@@ -153,5 +167,8 @@ def test_seed_demo_is_idempotent_for_demo_records():
         "quote_items": QuoteItem.objects.count(),
         "public_requests": PublicRequest.objects.count(),
         "public_request_items": PublicRequestItem.objects.count(),
+        "whatsapp_configs": WhatsAppConfig.objects.count(),
+        "whatsapp_templates": WhatsAppTemplate.objects.count(),
+        "whatsapp_rules": WhatsAppAutomationRule.objects.count(),
         "audit_logs": AuditLog.objects.count(),
     } == first_counts

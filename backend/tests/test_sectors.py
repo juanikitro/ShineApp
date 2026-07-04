@@ -16,9 +16,9 @@ def _rows(response):
 def test_ensure_default_sectors_is_idempotent(default_business):
     first = ensure_default_sectors(default_business)
     second = ensure_default_sectors(default_business)
-    assert set(first) == {"lavadero", "detailing"}
+    assert set(first) == {"lavadero", "detailing", "lubricentro"}
     assert {sector.id for sector in first.values()} == {sector.id for sector in second.values()}
-    assert Sector.objects.filter(business=default_business).count() == 2
+    assert Sector.objects.filter(business=default_business).count() == 3
 
 
 @pytest.mark.django_db
@@ -50,7 +50,7 @@ def test_sector_list_scoped_to_business(api_client, default_business):
     response = api_client.get(reverse("sector-list"))
     assert response.status_code == 200
     keys = {row["key"] for row in _rows(response)}
-    assert keys == {"lavadero", "detailing"}
+    assert keys == {"lavadero", "detailing", "lubricentro"}
 
 
 @pytest.mark.django_db
