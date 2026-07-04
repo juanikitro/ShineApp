@@ -7,7 +7,7 @@ desde Fase 0/1 hasta Fase 2B.
 
 | Paso | Estado | Evidencia |
 | --- | --- | --- |
-| Artifact de QA creado | En curso | Pendiente de commit en PR #197 |
+| Artifact de QA creado | Completado | Commit `1ed18e1` en PR #197 |
 | PR #197 listo para merge | Pendiente | Fase 2B: WhatsApp onboarding operativo |
 | Fase 2B en `development` | Pendiente | Merge de PR #197 |
 | Release a `main` | Pendiente | PR release `development` -> `main` |
