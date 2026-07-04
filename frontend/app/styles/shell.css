@@ -3235,6 +3235,7 @@
 }
 
 .demo-readiness-starter,
+.demo-readiness-operation,
 .services-starter-banner {
   align-items: center;
   background: var(--color-surface-raised);
@@ -3248,6 +3249,7 @@
 }
 
 .demo-readiness-starter-copy,
+.demo-readiness-operation-copy,
 .services-starter-copy {
   align-items: flex-start;
   display: flex;
@@ -3270,11 +3272,19 @@
 }
 
 .demo-readiness-starter-copy strong,
+.demo-readiness-operation-copy strong,
 .services-starter-copy strong {
   color: var(--shop-ink);
   display: block;
   font-size: var(--text-sm);
   margin-bottom: 3px;
+}
+
+.demo-readiness-operation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
 }
 
 .demo-readiness-starter-services {
@@ -5927,6 +5937,7 @@
   .demo-readiness-summary,
   .demo-readiness-steps,
   .demo-readiness-starter,
+  .demo-readiness-operation,
   .services-starter-banner,
   .whatsapp-setup-grid,
   .whatsapp-setup-checks {
@@ -6100,6 +6111,7 @@
   .dashboard-next-action button,
   .demo-readiness-step button,
   .demo-readiness-starter button,
+  .demo-readiness-operation button,
   .services-starter-banner button,
   .services-empty-onboarding button,
   .whatsapp-setup-panel button,
@@ -6125,6 +6137,10 @@
 
   .demo-readiness-step button {
     grid-column: 1 / -1;
+  }
+
+  .demo-readiness-operation-actions {
+    justify-content: stretch;
   }
 
   .modal-backdrop {

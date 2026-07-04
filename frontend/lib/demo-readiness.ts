@@ -73,6 +73,34 @@ function truthyFlag(value: unknown) {
 	return value === true || value === 'true' || value === 1 || value === '1'
 }
 
+function workOrderBalanceDue(workOrder: AnyRecord) {
+	const explicitBalance = numberValue(
+		workOrder.balance_due ?? workOrder.remaining_balance,
+	)
+	if (explicitBalance > 0) return explicitBalance
+
+	const total = numberValue(
+		workOrder.total_amount ?? workOrder.amount ?? workOrder.price,
+	)
+	if (total <= 0) return 0
+
+	const paid = numberValue(workOrder.paid_amount ?? workOrder.total_paid)
+	return Math.max(total - paid, 0)
+}
+
+export function findFirstChargeableWorkOrder(workOrders: AnyRecord[] = []) {
+	return (
+		(workOrders ?? []).find((workOrder) => {
+			const status = String(workOrder.status ?? '')
+			return (
+				isActiveRecord(workOrder) &&
+				status !== 'canceled' &&
+				workOrderBalanceDue(workOrder) > 0
+			)
+		}) ?? null
+	)
+}
+
 export function buildDemoReadiness(input: DemoReadinessInput): DemoReadiness {
 	const profile = input.businessProfile ?? input.businessForm ?? {}
 	const activeServices = (input.services ?? []).filter(isActiveRecord)
@@ -157,15 +185,15 @@ export function buildDemoReadiness(input: DemoReadinessInput): DemoReadiness {
 		{
 			id: 'agenda',
 			title: 'Primer turno o trabajo',
-			description: 'La agenda muestra demanda real o datos demo para vender el flujo.',
+			description: 'Carga el primer vehiculo para activar la agenda operativa.',
 			actionLabel: 'Ver agenda',
 			done: agendaDone,
 			target: { kind: 'section', section: 'agenda' },
 		},
 		{
 			id: 'cash-dashboard',
-			title: 'Caja y dashboard',
-			description: 'Pagos registrados para mostrar caja diaria e indicadores.',
+			title: 'Primer cobro',
+			description: 'Registra un cobro real para encender caja y dashboard.',
 			actionLabel: 'Ver caja',
 			done: cashDone,
 			target: { kind: 'section', section: 'cash' },
