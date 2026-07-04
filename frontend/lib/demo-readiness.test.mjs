@@ -19,9 +19,12 @@ test('guides an empty real business from the first setup step', () => {
 	const readiness = buildDemoReadiness({})
 
 	assert.equal(readiness.completedCount, 0)
+	assert.equal(readiness.remainingCount, readiness.totalCount)
 	assert.equal(readiness.percent, 0)
 	assert.equal(readiness.ready, false)
+	assert.equal(readiness.mode, 'onboarding')
 	assert.equal(readiness.firstPendingStep?.id, 'business')
+	assert.match(readiness.nextStepHint, /Negocio listo/)
 })
 
 test('marks demo data as sellable but keeps WhatsApp pending when disabled', () => {
@@ -41,7 +44,9 @@ test('marks demo data as sellable but keeps WhatsApp pending when disabled', () 
 	})
 
 	assert.equal(readiness.completedCount, 5)
+	assert.equal(readiness.remainingCount, 1)
 	assert.equal(readiness.ready, false)
+	assert.equal(readiness.mode, 'onboarding')
 	assert.equal(readiness.firstPendingStep?.id, 'whatsapp')
 })
 
@@ -62,7 +67,10 @@ test('returns a ready checklist when every commercial surface is configured', ()
 	})
 
 	assert.equal(readiness.completedCount, readiness.totalCount)
+	assert.equal(readiness.remainingCount, 0)
 	assert.equal(readiness.percent, 100)
 	assert.equal(readiness.ready, true)
+	assert.equal(readiness.mode, 'sellable')
 	assert.equal(readiness.firstPendingStep, null)
+	assert.match(readiness.nextStepHint, /lista para vender/)
 })

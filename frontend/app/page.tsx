@@ -190,6 +190,7 @@ import {
 	buildDemoReadiness,
 	type DemoReadinessSettingsSection,
 } from '@/lib/demo-readiness'
+import { buildStarterServicesPlan } from '@/lib/onboarding-services'
 import {
 	type ApiErrorNotice,
 	createValidationNotice,
@@ -5128,6 +5129,10 @@ export default function Home() {
 			workOrders,
 		],
 	)
+	const starterServicesPlan = useMemo(
+		() => buildStarterServicesPlan({ services, sectors }),
+		[services, sectors],
+	)
 
 	if (!token) {
 		return <LoginScreen onLogin={handleLogin} sessionExpired={sessionExpired} />
@@ -6865,11 +6870,55 @@ export default function Home() {
 	// así que lo normalizamos a null cuando viene vacío.
 	function serviceCreatePayload(form: AnyRecord) {
 		const payload = asPayload(form)
+		delete payload.templateId
 		payload.estimated_material_cost =
 			String(payload.estimated_material_cost ?? '').trim() === ''
 				? null
 				: payload.estimated_material_cost
 		return payload
+	}
+
+	async function createStarterServices() {
+		if (!canViewEconomy) return
+		const plan = buildStarterServicesPlan({ services, sectors })
+		if (!plan.drafts.length) {
+			handleSectionChange('services')
+			return
+		}
+		await runAction(
+			async () => {
+				const created: AnyRecord[] = []
+				for (const draft of plan.drafts) {
+					const service = await apiFetch<AnyRecord>('/services/', {
+						method: 'POST',
+						body: JSON.stringify(serviceCreatePayload(draft)),
+					})
+					created.push(service)
+				}
+				setServices((current) => {
+					const byId = new Map<string, AnyRecord>()
+					for (const item of current) byId.set(String(item.id), item)
+					for (const item of created) byId.set(String(item.id), item)
+					return Array.from(byId.values())
+				})
+				handleSectionChange('services')
+				return {
+					created,
+					existingCount: plan.existingTemplates.length,
+				}
+			},
+			{
+				key: 'onboarding:starter-services',
+				flashTarget: (result) =>
+					recordFlashKey('service', result.created[0]?.id ?? null),
+				successTitle: (result) =>
+					result.created.length === 1
+						? 'Servicio base creado'
+						: 'Servicios base creados',
+				successDescription: (result) =>
+					`${result.created.length} servicios quedaron listos para editar precios, duracion y detalle.`,
+			},
+		)
 	}
 
 	async function saveQuickService(event: FormEvent) {
@@ -13840,9 +13889,12 @@ export default function Home() {
 						canViewEconomy={canViewEconomy}
 						dashboard={dashboard}
 						demoReadiness={demoReadiness}
+						starterServicesLoading={isActionPending('onboarding:starter-services')}
+						starterServicesPlan={starterServicesPlan}
 						loading={loading}
+						onCreateStarterServices={createStarterServices}
 						onOpenPaymentForOrder={openPaymentForOrder}
-						onOpenSection={setActive}
+						onOpenSection={handleSectionChange}
 						onOpenSettingsSection={(section: DemoReadinessSettingsSection) => {
 							setSettingsSection(section as SettingsSection)
 							handleSectionChange('settings')
@@ -14278,8 +14330,11 @@ export default function Home() {
 						serviceTypeLabels={serviceTypeLabels}
 						sectors={sectors}
 						services={services}
+						starterServicesLoading={isActionPending('onboarding:starter-services')}
+						starterServicesPlan={starterServicesPlan}
 						workOrders={workOrders}
 						onBackToServices={() => setServiceDashboard(null)}
+						onCreateStarterServices={createStarterServices}
 						onCreateService={() => openFormModal('service')}
 						onDeleteService={(item) =>
 							runAction(

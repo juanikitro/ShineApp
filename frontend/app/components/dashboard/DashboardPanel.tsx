@@ -23,6 +23,7 @@ import {
 	type DemoReadiness,
 	type DemoReadinessSettingsSection,
 } from '@/lib/demo-readiness'
+import { type StarterServicesPlan } from '@/lib/onboarding-services'
 import {
 	type AnyRecord,
 	type Section,
@@ -40,7 +41,10 @@ type DashboardPanelProps = {
 	canViewEconomy: boolean
 	dashboard: AnyRecord
 	demoReadiness: DemoReadiness
+	starterServicesLoading?: boolean
+	starterServicesPlan?: StarterServicesPlan
 	loading: boolean
+	onCreateStarterServices?: () => Promise<unknown> | unknown
 	onOpenPaymentForOrder: (workOrder: AnyRecord) => void
 	onOpenSection: (section: Section) => void
 	onOpenSettingsSection: (section: DemoReadinessSettingsSection) => void
@@ -100,7 +104,10 @@ export function DashboardPanel({
 	canViewEconomy,
 	dashboard,
 	demoReadiness,
+	starterServicesLoading,
+	starterServicesPlan,
 	loading,
+	onCreateStarterServices,
 	onOpenPaymentForOrder,
 	onOpenSection,
 	onOpenSettingsSection,
@@ -426,6 +433,9 @@ export function DashboardPanel({
 				<>
 					<DemoReadinessPanel
 						readiness={demoReadiness}
+						starterServicesLoading={starterServicesLoading}
+						starterServicesPlan={starterServicesPlan}
+						onCreateStarterServices={onCreateStarterServices}
 						onOpenSection={onOpenSection}
 						onOpenSettingsSection={onOpenSettingsSection}
 					/>
