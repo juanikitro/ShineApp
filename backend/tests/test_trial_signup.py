@@ -10,7 +10,7 @@ from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
-from core.models import BusinessAccount, BusinessProfile, UserProfile
+from core.models import AuditLog, BusinessAccount, BusinessProfile, UserProfile
 
 
 def trial_payload(**overrides):
@@ -93,6 +93,29 @@ def test_trial_signup_returns_token_and_user_context_with_trial_state():
     assert me_response.status_code == 200
     assert me_response.data["trial_ends_at"] == response.data["user"]["trial_ends_at"]
     assert me_response.data["trial_expired"] is False
+
+
+@pytest.mark.django_db(transaction=True)
+def test_trial_signup_records_operational_audit_without_sensitive_payload():
+    response = APIClient().post(
+        reverse("auth-trial-signup"),
+        trial_payload(email="audit@kingshine.test"),
+        format="json",
+    )
+
+    assert response.status_code == 201, response.data
+    business = BusinessAccount.objects.get(slug="king-shine")
+    audit = AuditLog.objects.get(action="trial_signup")
+    assert audit.business == business
+    assert audit.module == "auth"
+    assert audit.entity_type == "BusinessAccount"
+    assert audit.entity_label == "King Shine"
+    assert audit.metadata["email_domain"] == "kingshine.test"
+    assert audit.metadata["trial_days"] == settings.TRIAL_SIGNUP_DAYS
+    assert audit.metadata["source"] == "public_signup"
+    serialized = str(audit.before) + str(audit.after) + str(audit.metadata)
+    assert "ClaveSegura123" not in serialized
+    assert response.data["token"] not in serialized
 
 
 @pytest.mark.django_db

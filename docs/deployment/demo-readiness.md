@@ -41,6 +41,11 @@ Estado: lista para una demo publica comercial con limites. Supabase, Vercel web,
 - Economia sigue bloqueada por backend. `can_view_economy` es true solo para `empleador`; endpoints de finance/cash/debt/quote/material/supplier/tool history estan cubiertos por tests de empleado `403`. El frontend tambien oculta secciones de empleador/economia para usuarios empleados.
 - Todavia no hay bloqueo de cuenta por trials vencidos, por diseno. `trial_expired` es informativo en Fase 1.
 - No existen Stripe, billing portal, planes reales ni automatizacion de pagos en Fase 1. `subscription_type` es un estado interno/demo y no debe venderse como billing.
+- Beta 1B agrega guardrails operativos sin cambiar ese contrato: cada signup
+  publico deja un `AuditLog` `trial_signup` vinculado al negocio, Django admin
+  permite filtrar trials activos/por vencer/vencidos, ver owner/dias restantes,
+  extender pruebas 7 dias y suspender negocios con trial vencido. El throttling
+  `signup` sigue configurado por `DJANGO_THROTTLE_SIGNUP_RATE` en produccion.
 
 ## Smoke End-To-End Del Dia De Demo
 
@@ -83,6 +88,13 @@ Correr esto antes de un walkthrough comercial despues de deployar cambios de sig
 
    Esperado: `403` con el mensaje de permisos para informacion economica.
 9. Despues del walkthrough, rotar/eliminar credenciales del empleado descartable y mantener o desactivar el negocio trial segun seguimiento comercial.
+10. Para revisar guardrails Beta 1B, entrar al Django admin con un superusuario:
+    - En `Perfiles de negocio`, filtrar por `estado de prueba`.
+    - Confirmar que el negocio creado muestra owner y dias trial.
+    - Si es un negocio descartable, usar acciones admin para extenderlo 7 dias
+      o suspenderlo solo si ya esta vencido.
+    - En `Registros de auditoria`, buscar `trial_signup` y confirmar que no
+      contiene passwords ni tokens.
 
 ## Limitaciones De Free Tier
 

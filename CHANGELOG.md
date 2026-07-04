@@ -15,6 +15,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Fase 2B - onboarding WhatsApp](docs/registro/cambios/2026-07-04-fase-2b-whatsapp-onboarding.md)
 - [Fase 2A - onboarding real guiado](docs/registro/cambios/2026-07-04-fase-2a-onboarding-real.md)
 - [Fase 1 - demo vendible vehicular](docs/registro/cambios/2026-07-04-fase-1-demo-vendible.md)
+- [Beta 1B: guardrails operativos para trials publicos](docs/registro/cambios/2026-07-04-beta-1b-guardrails-trials.md)
 - [Beta 1A: signup publico de prueba por 14 dias](docs/registro/cambios/2026-07-04-beta-1a-signup-publico-14-dias.md)
 
 ## 2026-06-24
