@@ -9,6 +9,7 @@ import json
 from datetime import timedelta
 from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
@@ -181,7 +182,7 @@ class TrialSignupSerializer(serializers.Serializer):
     def create(self, validated_data):
         user_model = get_user_model()
         now = timezone.now()
-        trial_ends_at = now + timedelta(days=30)
+        trial_ends_at = now + timedelta(days=settings.TRIAL_SIGNUP_DAYS)
         first_name, last_name = split_owner_name(validated_data["owner_name"])
         with transaction.atomic():
             business = BusinessAccount.objects.create(

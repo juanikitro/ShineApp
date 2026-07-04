@@ -1939,7 +1939,7 @@ function LoginScreen({
 				>
 					<AppBrand
 						className="login-brand"
-						subtitle={signupMode ? 'Prueba gratuita por 30 dias' : 'Acceso operativo'}
+						subtitle={signupMode ? 'Prueba gratuita por 14 dias' : 'Acceso operativo'}
 						titleAs="h1"
 					/>
 					{sessionExpired && !signupMode ? (
@@ -1950,8 +1950,8 @@ function LoginScreen({
 					{signupMode ? (
 						<div className="form-grid login-trial-grid">
 							<p className="login-trial-note">
-								Sin tarjeta ni cobro automatico. Crea un espacio de prueba
-								para operar ShineApp durante 30 dias.
+								Sin tarjeta ni cobro automatico. Cualquier negocio puede crear
+								una prueba de 14 dias para operar ShineApp.
 							</p>
 							<Field label="Negocio">
 								<input
@@ -2071,7 +2071,7 @@ function LoginScreen({
 							</Field>
 							<div className="login-actions">
 								<button type="submit" className="primary" disabled={loading}>
-									Crear prueba
+									Crear prueba gratis
 								</button>
 								<button
 									type="button"
@@ -2122,7 +2122,7 @@ function LoginScreen({
 									disabled={loading}
 									onClick={() => setMode('trial')}
 								>
-									Solicitar prueba
+									Probar gratis 14 dias
 								</button>
 							</div>
 							<button
