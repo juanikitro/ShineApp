@@ -21,6 +21,7 @@ No commitear valores reales. Usar `.env.example` solo como forma.
 - `DJANGO_LOGIN_LOCKOUT_THRESHOLD`: intentos fallidos antes del lockout de login. Default `8`; `0` desactiva lockout.
 - `DJANGO_LOGIN_LOCKOUT_WINDOW_SECONDS`: ventana del lockout de login en segundos. Default `900`.
 - `DJANGO_ENFORCE_SUBSCRIPTION_ACCESS`: `1` bloquea negocios en trial vencido; default `0` hasta que billing sea fuente de verdad.
+- `DJANGO_TRIAL_SIGNUP_DAYS`: duracion de la prueba creada por signup publico. Default `14`.
 - `SUPABASE_STORAGE_ENABLED`: `1` en demo/prod cuando media debe persistir.
 - `SUPABASE_STORAGE_BUCKET`: bucket Storage para uploads.
 - `SUPABASE_S3_ENDPOINT_URL`: `https://<project-ref>.storage.supabase.co/storage/v1/s3`.

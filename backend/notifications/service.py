@@ -75,9 +75,11 @@ def _send_customer_email(customer, subject, body, *, event=""):
 def send_trial_welcome_email(owner_email, business_name):
     """Encola el email de bienvenida al owner tras el trial signup."""
     subject = "Bienvenido a ShineApp — tu prueba gratuita est\xe1 lista"
+    trial_days = getattr(settings, "TRIAL_SIGNUP_DAYS", 14)
     body = (
         f"Hola,\n\n"
-        f"Tu negocio \"{business_name}\" ya est\xe1 listo en ShineApp.\n\n"
+        f"Tu prueba gratuita de {trial_days} dias para \"{business_name}\" "
+        f"ya est\xe1 lista en ShineApp.\n\n"
         f"Accede aqu\xed: {_frontend_url()}\n\n"
         f"Si ten\xe9s alguna duda, escrib\xednos a soporte@shineapp.com.ar\n\n"
         f"Bienvenido al equipo ShineApp."
