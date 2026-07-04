@@ -35,11 +35,14 @@ export type DemoReadinessStep = {
 export type DemoReadiness = {
 	completedCount: number
 	totalCount: number
+	remainingCount: number
 	percent: number
 	ready: boolean
+	mode: 'onboarding' | 'sellable'
 	firstPendingStep: DemoReadinessStep | null
 	steps: DemoReadinessStep[]
 	channelHint: string
+	nextStepHint: string
 }
 
 export type DemoReadinessInput = {
@@ -170,16 +173,24 @@ export function buildDemoReadiness(input: DemoReadinessInput): DemoReadiness {
 	]
 	const completedCount = steps.filter((step) => step.done).length
 	const totalCount = steps.length
+	const remainingCount = totalCount - completedCount
 	const percent = Math.round((completedCount / totalCount) * 100)
+	const firstPendingStep = steps.find((step) => !step.done) ?? null
+	const ready = completedCount === totalCount
 
 	return {
 		completedCount,
 		totalCount,
+		remainingCount,
 		percent,
-		ready: completedCount === totalCount,
-		firstPendingStep: steps.find((step) => !step.done) ?? null,
+		ready,
+		mode: ready ? 'sellable' : 'onboarding',
+		firstPendingStep,
 		steps,
 		channelHint:
 			'Canales de venta: link publico para Instagram y referidos; WhatsApp para confirmar y recuperar consultas.',
+		nextStepHint: firstPendingStep
+			? `${firstPendingStep.title}: ${firstPendingStep.description}`
+			: 'El negocio ya tiene la base lista para vender y operar.',
 	}
 }

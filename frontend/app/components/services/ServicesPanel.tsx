@@ -2,7 +2,7 @@
 
 import { type ReactNode, useMemo } from 'react'
 
-import { ChevronLeft, Plus } from 'lucide-react'
+import { ChevronLeft, Plus, Sparkles } from 'lucide-react'
 
 import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
 import { Button } from '@/app/components/ui/Button'
@@ -31,6 +31,7 @@ import {
 	money,
 	type AnyRecord,
 } from '@/lib/page-support'
+import { type StarterServicesPlan } from '@/lib/onboarding-services'
 
 type ServicesPanelProps = {
 	canViewEconomy: boolean
@@ -46,6 +47,8 @@ type ServicesPanelProps = {
 	serviceTypeLabels: Record<string, string>
 	sectors: AnyRecord[]
 	services: AnyRecord[]
+	starterServicesLoading?: boolean
+	starterServicesPlan?: StarterServicesPlan
 	workOrders: AnyRecord[]
 	customerDaysAgoText: (value: any, fallback: string) => string
 	customerScheduleLabel: (reservation: AnyRecord | null | undefined) => string
@@ -63,6 +66,7 @@ type ServicesPanelProps = {
 		ariaLabel?: string,
 	) => ReactNode
 	onBackToServices: () => void
+	onCreateStarterServices?: () => Promise<unknown> | unknown
 	onCreateService: () => void
 	onDeleteService: (service: AnyRecord) => void
 	onOpenQuoteDetail: (quote: AnyRecord) => void
@@ -86,6 +90,8 @@ export function ServicesPanel({
 	serviceTypeLabels,
 	sectors,
 	services,
+	starterServicesLoading = false,
+	starterServicesPlan,
 	workOrders,
 	customerDaysAgoText,
 	customerScheduleLabel,
@@ -94,6 +100,7 @@ export function ServicesPanel({
 	renderCustomerRankingPanel,
 	renderQuickActionsTrigger,
 	onBackToServices,
+	onCreateStarterServices,
 	onCreateService,
 	onDeleteService,
 	onOpenQuoteDetail,
@@ -605,6 +612,11 @@ export function ServicesPanel({
 
 	const activeServices = services.filter((item) => item.is_active !== false)
 	const inactiveServices = services.filter((item) => item.is_active === false)
+	const canCreateStarterServices = Boolean(
+		canViewEconomy &&
+			starterServicesPlan?.drafts.length &&
+			onCreateStarterServices,
+	)
 
 	return (
 		<div className="grid">
@@ -623,6 +635,31 @@ export function ServicesPanel({
 						</Button>
 					) : null}
 				</div>
+				{canCreateStarterServices ? (
+					<div className="services-starter-banner">
+						<div className="services-starter-copy">
+							<span className="services-starter-icon" aria-hidden="true">
+								<Sparkles size={16} />
+							</span>
+							<div>
+								<strong>Base lista en un paso</strong>
+								<p>
+									Agrega servicios iniciales para lavadero, detailing y
+									lubricentro. Despues podes ajustar precios y duracion.
+								</p>
+							</div>
+						</div>
+						<Button
+							type="button"
+							variant="primary"
+							size="sm"
+							loading={starterServicesLoading}
+							onClickAsync={onCreateStarterServices}
+						>
+							Crear {starterServicesPlan?.drafts.length} servicios base
+						</Button>
+					</div>
+				) : null}
 				<div className="records">
 					{services.length ? (
 						<>
@@ -638,10 +675,22 @@ export function ServicesPanel({
 							) : null}
 						</>
 					) : (
-						<Empty
-							text="Sin servicios."
-							hint="Crea el primer servicio para reservar o cotizar."
-						/>
+						<div className="services-empty-onboarding">
+							<Empty
+								text="Sin servicios."
+								hint="Crea el primer servicio para reservar o cotizar."
+							/>
+							{canCreateStarterServices ? (
+								<Button
+									type="button"
+									variant="primary"
+									loading={starterServicesLoading}
+									onClickAsync={onCreateStarterServices}
+								>
+									Crear servicios base
+								</Button>
+							) : null}
+						</div>
 					)}
 				</div>
 			</section>
