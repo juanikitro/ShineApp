@@ -12,9 +12,11 @@ desde Fase 0 hasta Beta 1A.
 | Fase 2B en `development` | Completado | PR #197, merge commit `de284d1` |
 | Release a `main` | Completado | PR #198, merge commit `6ba9e0d` |
 | Deploy demo-production | Completado | Workflow `deploy-vercel-demo.yml`, run `28711067373` |
-| Smoke publico | Completado | Web 200, API health `database=ok` |
+| Smoke publico Fase 2B/2C | Completado | Web 200, API health `database=ok` |
 | Fase 2C | Publicado en `main` | PR #200 y release PR #201 |
-| Beta 1A | En este PR | Signup publico libre por 14 dias |
+| Beta 1A en `development` | Completado | PR #204 |
+| Release Beta 1A a `main` | Preparado | Este release publica signup publico libre por 14 dias |
+| Smoke Beta 1A post-release | Pendiente | Ejecutar cuando Vercel despliegue el merge a `main` |
 
 ## URLs
 
@@ -54,6 +56,32 @@ Evidencia sugerida:
 
 - Screenshot del login o dashboard.
 - Copia del JSON de health sin secretos.
+
+## Smoke post-release Beta 1A
+
+Objetivo a verificar: confirmar que el release de Beta 1A quedo desplegado y
+que el signup publico esta visible antes de crear cuentas de prueba.
+
+1. Abrir `https://shineapp-web.vercel.app`.
+2. Confirmar que el login muestra `Probar gratis 14 dias`.
+3. Hacer click en `Probar gratis 14 dias`.
+4. Confirmar que el formulario muestra `Prueba gratuita por 14 dias`.
+5. Abrir `https://shineapp-api.vercel.app/api/health/`.
+6. Confirmar `status=ok` y `database=ok`.
+7. Confirmar que la respuesta de health incluye un header `X-Request-Id`.
+8. Opcional sin datos reales: abrir `/api/health/?deep=1` y confirmar que
+   responde OK.
+
+Resultado esperado:
+
+- La web ya contiene el CTA publico de prueba.
+- La API sigue saludable despues del deploy.
+- No hace falta crear una cuenta real para completar este smoke tecnico.
+
+Evidencia sugerida:
+
+- Screenshot del login con `Probar gratis 14 dias`.
+- Screenshot o copia del JSON de health sin secretos.
 
 ## Fase 0 - foco de producto vehicular
 
@@ -355,6 +383,7 @@ Marcar cada item antes de considerar verificada la publicacion:
 | Fase 2A | Negocio vacio guiado | Pendiente de QA manual |
 | Fase 2B | WhatsApp demo/local preparado | Pendiente de QA manual |
 | Fase 2C | Primer turno y primer cobro guiados | Pendiente de QA manual |
+| Smoke Beta 1A post-release | CTA visible y API health OK | Pendiente post-release |
 | Beta 1A | Signup publico 14 dias | Pendiente de QA manual |
 | Visual desktop | Sin overlap ni cortes | Pendiente de QA manual |
 | Visual mobile | Una columna y controles tocables | Pendiente de QA manual |
