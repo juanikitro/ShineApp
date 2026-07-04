@@ -85,7 +85,7 @@ Reglas vivas:
 - `docs/deployment/supabase.md`: Postgres y Storage.
 - `docs/deployment/media-static.md`: media persistente y archivos estaticos.
 - `docs/deployment/whatsapp.md`: setup WhatsApp Cloud API, tokens, templates y uso operativo.
-- `docs/deployment/fase-2b-production-qa.md`: artifact de QA para publicar y verificar Fase 0/1 a 2B.
+- `docs/deployment/fase-2b-production-qa.md`: artifact de QA para publicar y verificar Fase 0 a 2C.
 - `docs/deployment/manual-steps.md`: pasos manuales obligatorios antes de deploy.
 - `docs/deployment/demo-readiness.md`: estado real de recursos demo y bloqueadores.
 

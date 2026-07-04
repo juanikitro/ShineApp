@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
-import { buildDemoReadiness } from './demo-readiness'
+import { buildDemoReadiness, findFirstChargeableWorkOrder } from './demo-readiness'
 
 const coreSectors = [
 	{ id: 1, key: 'lavadero', name: 'Lavadero', is_active: true },
@@ -73,4 +73,24 @@ test('returns a ready checklist when every commercial surface is configured', ()
 	assert.equal(readiness.mode, 'sellable')
 	assert.equal(readiness.firstPendingStep, null)
 	assert.match(readiness.nextStepHint, /lista para vender/)
+})
+
+test('findFirstChargeableWorkOrder skips inactive paid or canceled work orders', () => {
+	const workOrder = findFirstChargeableWorkOrder([
+		{ id: 1, balance_due: '2500.00', is_active: false },
+		{ id: 2, balance_due: '0.00', total_amount: '12000.00', paid_amount: '12000.00' },
+		{ id: 3, balance_due: '9000.00', status: 'canceled' },
+		{ id: 4, total_amount: '18000.00', paid_amount: '6000.00', status: 'ready' },
+	])
+
+	assert.equal(workOrder?.id, 4)
+})
+
+test('findFirstChargeableWorkOrder prefers explicit pending balance', () => {
+	const workOrder = findFirstChargeableWorkOrder([
+		{ id: 5, balance_due: '4500.00', total_amount: '1000.00', paid_amount: '1000.00' },
+		{ id: 6, total_amount: '8000.00', paid_amount: '0.00' },
+	])
+
+	assert.equal(workOrder?.id, 5)
 })
