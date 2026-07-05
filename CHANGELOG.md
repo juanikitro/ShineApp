@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-07-05
+- [Beta 1C: lifecycle visible del trial](docs/registro/cambios/2026-07-05-beta-1c-trial-lifecycle.md)
+
 ## 2026-07-04
 - [Fase 2C: primer turno y primer cobro guiados](docs/registro/cambios/2026-07-04-fase-2c-primer-turno-cobro.md)
 - [Fase 2B - onboarding WhatsApp](docs/registro/cambios/2026-07-04-fase-2b-whatsapp-onboarding.md)

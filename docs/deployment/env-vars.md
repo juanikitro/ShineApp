@@ -65,6 +65,7 @@ No commitear valores reales. Usar `.env.example` solo como forma.
 - `NEXT_PUBLIC_SHINEAPP_DEMO_USERNAME`: usuario demo opcional para prellenar cuando `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN=1`. Nunca poner un password en env vars publicas de frontend.
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`: clave publica VAPID expuesta al navegador. Debe coincidir exactamente con `VAPID_PUBLIC_KEY` del backend. Si esta vacia, ni el dashboard del negocio ni la turnera publica registran suscripciones push.
 - `NEXT_PUBLIC_SHINEAPP_TOKEN_TTL_DAYS`: dias que el token de sesion sobrevive en `localStorage` antes de forzar re-login. Default `30` cuando no se setea o el valor no es un entero positivo. En el demo subirlo (ej. `30`) reduce friccion; en produccion bajarlo si la politica lo exige.
+- `NEXT_PUBLIC_TRIAL_UPGRADE_URL`: URL publica opcional para el CTA de continuidad del trial dentro del Dashboard. Debe ser `http(s)` (por ejemplo una URL de WhatsApp, agenda comercial o landing). Si esta vacia, la UI mantiene el estado del trial y permite copiar un mensaje manual, sin abrir un link externo.
 
 Toda variable `NEXT_PUBLIC_` se bundlea en JavaScript del navegador. Nunca poner secretos de servidor ahi.
 
