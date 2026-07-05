@@ -50,6 +50,10 @@ Estado: lista para una demo publica comercial con limites. Supabase, Vercel web,
   prueba activa, por vencer o vencida. La UI no bloquea el negocio ni agrega
   billing; ofrece copiar un mensaje manual de continuidad y, si
   `NEXT_PUBLIC_TRIAL_UPGRADE_URL` esta configurada, abre ese canal comercial.
+- Beta 1D agrega seguimiento comercial manual en Django admin: la seccion
+  `Seguimiento de trials` lista solo negocios en prueba, permite registrar
+  estado, ultimo contacto, proximo seguimiento y notas internas. No expone esos
+  datos al cliente ni cambia `subscription_type`.
 
 ## Smoke End-To-End Del Dia De Demo
 
@@ -104,6 +108,13 @@ Correr esto antes de un walkthrough comercial despues de deployar cambios de sig
     - Usar `Copiar pedido` y verificar que el mensaje no contenga secretos.
     - Si `NEXT_PUBLIC_TRIAL_UPGRADE_URL` esta configurada, probar
       `Coordinar continuidad`.
+12. Para revisar Beta 1D, entrar al Django admin:
+    - Abrir `Seguimiento de trials`.
+    - Confirmar que aparece el trial creado y que no aparecen negocios premium.
+    - Cargar estado comercial, proximo seguimiento y una nota interna sin
+      datos sensibles.
+    - Probar una accion masiva de seguimiento sobre un trial descartable y
+      confirmar que el plan sigue como `trial`.
 
 ## Limitaciones De Free Tier
 

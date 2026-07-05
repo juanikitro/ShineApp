@@ -1,7 +1,7 @@
-# Fases 0 a Beta 1C - guia de verificacion en demo-production
+# Fases 0 a Beta 1D - guia de verificacion en demo-production
 
 Artifact vivo para probar en `https://shineapp-web.vercel.app` todo lo publicado
-desde Fase 0 hasta Beta 1C.
+desde Fase 0 hasta Beta 1D.
 
 ## Estado de publicacion
 
@@ -20,7 +20,8 @@ desde Fase 0 hasta Beta 1C.
 | Smoke Beta 1A post-release | Completado | Web 200 con CTA, API health/deep OK, maintenance 403 sin secret |
 | Sync `main` -> `development` | Completado | PR #207 |
 | Beta 1B en `development` | Completado | PR #208 |
-| Beta 1C en `development` | En este PR | Lifecycle visible del trial y CTA manual de continuidad |
+| Beta 1C en `development` | Completado | PR #209 |
+| Beta 1D en `development` | En este PR | Seguimiento manual interno de trials |
 
 ## URLs
 
@@ -36,8 +37,8 @@ desde Fase 0 hasta Beta 1C.
 4. No pegar tokens reales de Meta en Fase 2B.
 5. Si se crea un negocio de prueba, usar un nombre reconocible, por ejemplo
    `QA Vehicular Fase 2`.
-6. Para Beta 1A/Beta 1B/Beta 1C, usar un email disposable/controlado y no cargar
-   datos reales de clientes.
+6. Para Beta 1A/Beta 1B/Beta 1C/Beta 1D, usar un email
+   disposable/controlado y no cargar datos reales de clientes.
 
 ## Smoke base de produccion
 
@@ -475,6 +476,62 @@ Evidencia sugerida:
 - Screenshot del estado `Prueba vencida`.
 - Captura del mensaje copiado sin secretos.
 
+## Beta 1D - seguimiento manual interno de trials
+
+Objetivo a verificar: el equipo interno puede dar seguimiento comercial manual
+a cada trial abierto desde Django admin, sin exponer datos internos al cliente y
+sin activar billing automatico.
+
+Usar un superusuario de Django admin y al menos un negocio trial descartable.
+
+1. Crear o reutilizar un negocio trial desde Beta 1A.
+2. Entrar a Django admin.
+3. Abrir `Seguimiento de trials`.
+4. Confirmar que la lista muestra:
+   - nombre del negocio;
+   - estado del trial;
+   - dias restantes;
+   - estado de seguimiento;
+   - owner/email;
+   - telefono;
+   - ultimo contacto;
+   - proximo seguimiento;
+   - activo/inactivo.
+5. Confirmar que la lista no muestra negocios `premium`.
+6. Usar el filtro `seguimiento trial` y probar al menos `Nuevo`,
+   `Contactado`, `Demo agendada`, `Convertido` y `Perdido` si hay datos.
+7. Usar el filtro `proximo seguimiento` y probar:
+   - vencido o para hoy;
+   - proximo;
+   - sin proximo paso.
+8. Editar desde la grilla un trial descartable:
+   - cambiar `estado de seguimiento`;
+   - cargar `proximo seguimiento`.
+9. Abrir el detalle del mismo trial y cargar una nota interna breve sin
+   passwords, tokens ni datos reales de clientes.
+10. Ejecutar una accion masiva de seguimiento, por ejemplo
+    `Marcar seguimiento como demo agendada`.
+11. Confirmar que `ultimo contacto` se actualiza cuando corresponde.
+12. Confirmar que `subscription_type` sigue siendo `trial`; marcar
+    `Convertido` no debe cambiar plan ni activar billing.
+13. Volver al Dashboard del owner y confirmar que no aparecen notas internas ni
+    cambios nuevos del seguimiento comercial.
+
+Resultado esperado:
+
+- El panel interno permite operar el pipeline manual de trials.
+- Solo aparecen perfiles en prueba en `Seguimiento de trials`.
+- Las notas y fechas comerciales quedan restringidas a Django admin.
+- Ninguna accion comercial cambia billing, plan ni bloqueo de acceso.
+
+Evidencia sugerida:
+
+- Screenshot de `Seguimiento de trials` con columnas visibles.
+- Screenshot de filtros de estado/proximo seguimiento.
+- Screenshot del detalle con una nota interna de prueba sin datos sensibles.
+- Screenshot o registro de que `subscription_type` sigue como `trial` tras
+  marcar un seguimiento como `Convertido`.
+
 ## Matriz de cierre
 
 Marcar cada item antes de considerar verificada la publicacion:
@@ -492,6 +549,7 @@ Marcar cada item antes de considerar verificada la publicacion:
 | Beta 1A | Signup publico 14 dias | Pendiente de QA manual |
 | Beta 1B | Guardrails operativos de trials | Pendiente de QA manual |
 | Beta 1C | Lifecycle visible del trial y CTA manual | Pendiente de QA manual |
+| Beta 1D | Seguimiento manual interno de trials | Pendiente de QA manual |
 | Visual desktop | Sin overlap ni cortes | Pendiente de QA manual |
 | Visual mobile | Una columna y controles tocables | Pendiente de QA manual |
 
@@ -517,5 +575,7 @@ La publicacion queda aceptada si:
 - Beta 1B deja visibilidad, auditoria y acciones admin para operar trials.
 - Beta 1C muestra el lifecycle del trial en Dashboard y permite coordinar
   continuidad manual.
+- Beta 1D permite dar seguimiento comercial manual en Django admin sin exponer
+  notas internas ni cambiar billing.
 - Dashboard, Servicios, Turnera, WhatsApp y Caja se ven correctos en desktop y
   mobile.
