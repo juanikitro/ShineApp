@@ -21,7 +21,7 @@ desde Fase 0 hasta Beta 1D.
 | Sync `main` -> `development` | Completado | PR #207 |
 | Beta 1B en `development` | Completado | PR #208 |
 | Beta 1C en `development` | Completado | PR #209 |
-| Beta 1D en `development` | En este PR | Seguimiento manual interno de trials |
+| Beta 1D en `development` | Completado | PR #210 |
 
 ## URLs
 
