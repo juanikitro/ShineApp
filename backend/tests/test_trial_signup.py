@@ -52,6 +52,10 @@ def test_trial_signup_creates_business_profile_employer_userprofile_and_group():
     assert profile.subscription_type == BusinessProfile.SubscriptionType.TRIAL
     assert profile.trial_started_at is not None
     assert profile.trial_ends_at is not None
+    assert profile.trial_followup_status == BusinessProfile.TrialFollowUpStatus.NEW
+    assert profile.trial_last_contacted_at is None
+    assert profile.trial_next_followup_at is None
+    assert profile.trial_followup_notes == ""
     assert (
         timedelta(days=settings.TRIAL_SIGNUP_DAYS - 1)
         < profile.trial_ends_at - profile.trial_started_at

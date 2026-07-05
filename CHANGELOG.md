@@ -11,6 +11,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-07-05
+- [Beta 1D: seguimiento manual interno de trials](docs/registro/cambios/2026-07-05-beta-1d-trial-followup.md)
 - [Beta 1C: lifecycle visible del trial](docs/registro/cambios/2026-07-05-beta-1c-trial-lifecycle.md)
 
 ## 2026-07-04

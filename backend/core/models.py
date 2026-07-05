@@ -247,6 +247,13 @@ class BusinessProfile(models.Model):
         TRIAL = "trial", "Prueba"
         PREMIUM = "premium", "Premium"
 
+    class TrialFollowUpStatus(models.TextChoices):
+        NEW = "new", "Nuevo"
+        CONTACTED = "contacted", "Contactado"
+        DEMO_SCHEDULED = "demo_scheduled", "Demo agendada"
+        CONVERTED = "converted", "Convertido"
+        LOST = "lost", "Perdido"
+
     class VatCondition(models.TextChoices):
         RESPONSABLE_INSCRIPTO = "responsable_inscripto", "Responsable inscripto"
         MONOTRIBUTO = "monotributo", "Monotributo"
@@ -284,6 +291,15 @@ class BusinessProfile(models.Model):
     maps_url = models.URLField(max_length=500, blank=True)
     trial_started_at = models.DateTimeField(null=True, blank=True)
     trial_ends_at = models.DateTimeField(null=True, blank=True)
+    trial_followup_status = models.CharField(
+        max_length=24,
+        choices=TrialFollowUpStatus.choices,
+        default=TrialFollowUpStatus.NEW,
+        db_index=True,
+    )
+    trial_last_contacted_at = models.DateTimeField(null=True, blank=True)
+    trial_next_followup_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    trial_followup_notes = models.TextField(blank=True)
     default_quote_validity_days = models.PositiveSmallIntegerField(default=7)
     default_quote_tax_rate = models.DecimalField(
         max_digits=5,
@@ -352,6 +368,13 @@ class BusinessProfile(models.Model):
         if profile and profile.name:
             return profile.name
         return getattr(settings, "BUSINESS_NAME", "ShineApp")
+
+
+class TrialFollowUp(BusinessProfile):
+    class Meta:
+        proxy = True
+        verbose_name = "seguimiento de trial"
+        verbose_name_plural = "seguimiento de trials"
 
 
 class BusinessHours(models.Model):
