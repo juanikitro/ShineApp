@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Beta 1C: lifecycle visible del trial](2026-07-05-beta-1c-trial-lifecycle.md)
 - [Fase 2C: primer turno y primer cobro guiados](2026-07-04-fase-2c-primer-turno-cobro.md)
 - [Fase 2B - onboarding WhatsApp](2026-07-04-fase-2b-whatsapp-onboarding.md)
 - [Fase 2A - onboarding real guiado](2026-07-04-fase-2a-onboarding-real.md)

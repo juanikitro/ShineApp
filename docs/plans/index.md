@@ -24,3 +24,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Fase 2A - Onboarding real guiado](2026-07-04-fase-2a-onboarding-real-design.md)
 - [Fase 2B - WhatsApp onboarding operativo](2026-07-04-fase-2b-whatsapp-onboarding-design.md)
 - [Fase 2C - Primer turno y primer cobro guiados](2026-07-04-fase-2c-primer-turno-cobro-design.md)
+- [Beta 1C - Lifecycle visible del trial](2026-07-05-beta-1c-trial-lifecycle-design.md)

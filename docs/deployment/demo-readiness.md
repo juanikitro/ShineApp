@@ -46,6 +46,10 @@ Estado: lista para una demo publica comercial con limites. Supabase, Vercel web,
   permite filtrar trials activos/por vencer/vencidos, ver owner/dias restantes,
   extender pruebas 7 dias y suspender negocios con trial vencido. El throttling
   `signup` sigue configurado por `DJANGO_THROTTLE_SIGNUP_RATE` en produccion.
+- Beta 1C hace visible el lifecycle del trial en el Dashboard del owner:
+  prueba activa, por vencer o vencida. La UI no bloquea el negocio ni agrega
+  billing; ofrece copiar un mensaje manual de continuidad y, si
+  `NEXT_PUBLIC_TRIAL_UPGRADE_URL` esta configurada, abre ese canal comercial.
 
 ## Smoke End-To-End Del Dia De Demo
 
@@ -95,6 +99,11 @@ Correr esto antes de un walkthrough comercial despues de deployar cambios de sig
       o suspenderlo solo si ya esta vencido.
     - En `Registros de auditoria`, buscar `trial_signup` y confirmar que no
       contiene passwords ni tokens.
+11. Para revisar Beta 1C, volver al Dashboard del owner trial:
+    - Confirmar que el banner de prueba aparece arriba de `Alta guiada`.
+    - Usar `Copiar pedido` y verificar que el mensaje no contenga secretos.
+    - Si `NEXT_PUBLIC_TRIAL_UPGRADE_URL` esta configurada, probar
+      `Coordinar continuidad`.
 
 ## Limitaciones De Free Tier
 
@@ -112,6 +121,9 @@ Correr esto antes de un walkthrough comercial despues de deployar cambios de sig
 - Confirmar credenciales demo por fuera de banda y confirmar que sean temporales. No mostrar ni pegar passwords reales en la llamada.
 - Si se usan usuarios seed demo, preferir passwords rotados para `admin`, `empleado` y `recepcion`. No usar passwords default en demos para clientes salvo que la base sea descartable y el riesgo se haya aceptado explicitamente.
 - Presentar el trial como prueba operativa libre de 14 dias, sin tarjeta y sin cargo. No describir `subscription_type` como billing cliente.
+- Configurar `NEXT_PUBLIC_TRIAL_UPGRADE_URL` solo si ya existe un canal
+  comercial publico para continuidad del trial; usar una URL `https://` de
+  WhatsApp, agenda o landing, nunca secretos.
 - Eliminar el proyecto Vercel accidental llamado `backend` para evitar confusion operativa.
 
 ## Riesgos Demo Conocidos

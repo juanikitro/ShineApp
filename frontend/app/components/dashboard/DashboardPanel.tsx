@@ -12,6 +12,7 @@ import { CajaSparkline } from '@/app/components/ui/CajaSparkline'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { RiskMeter } from '@/app/components/ui/RiskMeter'
 import { DemoReadinessPanel } from './DemoReadinessPanel'
+import { TrialLifecycleBanner } from './TrialLifecycleBanner'
 import { DashboardCashByCategory } from './DashboardCashByCategory'
 import { DashboardCrossReadings } from './DashboardCrossReadings'
 import { Panel } from '@/app/components/ui/Panel'
@@ -39,6 +40,7 @@ import { serviceDisplayName } from '@/lib/service-display'
 type DashboardPanelProps = {
 	birthdayAlerts: ReactNode
 	canViewEconomy: boolean
+	currentUser?: AnyRecord | null
 	dashboard: AnyRecord
 	demoReadiness: DemoReadiness
 	firstChargeableWorkOrder?: AnyRecord | null
@@ -105,6 +107,7 @@ function dashboardAgingBar(bucket: AnyRecord, maxValue: unknown) {
 export function DashboardPanel({
 	birthdayAlerts,
 	canViewEconomy,
+	currentUser,
 	dashboard,
 	demoReadiness,
 	firstChargeableWorkOrder,
@@ -437,6 +440,7 @@ export function DashboardPanel({
 		<div className="grid">
 			{canViewEconomy ? (
 				<>
+					<TrialLifecycleBanner currentUser={currentUser} />
 					<DemoReadinessPanel
 						firstChargeableWorkOrder={firstChargeableWorkOrder}
 						readiness={demoReadiness}

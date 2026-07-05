@@ -1,7 +1,7 @@
-# Fases 0 a Beta 1B - guia de verificacion en demo-production
+# Fases 0 a Beta 1C - guia de verificacion en demo-production
 
 Artifact vivo para probar en `https://shineapp-web.vercel.app` todo lo publicado
-desde Fase 0 hasta Beta 1B.
+desde Fase 0 hasta Beta 1C.
 
 ## Estado de publicacion
 
@@ -19,7 +19,8 @@ desde Fase 0 hasta Beta 1B.
 | Deploy demo-production Beta 1A | Completado | Workflow `deploy-vercel-demo.yml`, run `28720568410` |
 | Smoke Beta 1A post-release | Completado | Web 200 con CTA, API health/deep OK, maintenance 403 sin secret |
 | Sync `main` -> `development` | Completado | PR #207 |
-| Beta 1B en `development` | En este PR | Guardrails operativos para signup publico y trials |
+| Beta 1B en `development` | Completado | PR #208 |
+| Beta 1C en `development` | En este PR | Lifecycle visible del trial y CTA manual de continuidad |
 
 ## URLs
 
@@ -35,8 +36,8 @@ desde Fase 0 hasta Beta 1B.
 4. No pegar tokens reales de Meta en Fase 2B.
 5. Si se crea un negocio de prueba, usar un nombre reconocible, por ejemplo
    `QA Vehicular Fase 2`.
-6. Para Beta 1A/Beta 1B, usar un email disposable/controlado y no cargar datos reales
-   de clientes.
+6. Para Beta 1A/Beta 1B/Beta 1C, usar un email disposable/controlado y no cargar
+   datos reales de clientes.
 
 ## Smoke base de produccion
 
@@ -427,6 +428,53 @@ Evidencia sugerida:
 - Screenshot del filtro por estado de prueba.
 - Screenshot de un `AuditLog` `trial_signup` sin datos sensibles.
 
+## Beta 1C - lifecycle visible del trial
+
+Objetivo a verificar: el dueno del negocio debe entender desde el Dashboard si
+su prueba esta activa, por vencer o vencida, y debe tener una accion manual para
+coordinar continuidad sin billing automatico.
+
+Usar un negocio trial descartable creado desde el signup publico.
+
+1. Entrar al Dashboard con el owner del negocio trial.
+2. Confirmar que aparece una franja de estado de prueba arriba de `Alta guiada`.
+3. Para un trial activo con mas de 3 dias restantes, confirmar:
+   - badge `Prueba activa`;
+   - texto con dias restantes;
+   - barra de progreso visible;
+   - boton `Copiar pedido`.
+4. Hacer click en `Copiar pedido`.
+5. Confirmar que el texto cambia a `Mensaje copiado`.
+6. Pegar el mensaje en un bloc de notas temporal y confirmar que incluye:
+   - nombre del negocio;
+   - estado del trial;
+   - fecha de vencimiento si esta disponible;
+   - usuario/email no sensibles.
+7. Preparar un trial por vencer (3 dias o menos) desde Django admin o fixture.
+8. Volver al Dashboard y confirmar badge `Por vencer` y tono de advertencia.
+9. Preparar un trial vencido descartable.
+10. Volver al Dashboard y confirmar badge `Prueba vencida`.
+11. Confirmar que el negocio no queda bloqueado solo por ver el banner.
+12. Si `NEXT_PUBLIC_TRIAL_UPGRADE_URL` esta configurada en el frontend, confirmar
+    que aparece `Coordinar continuidad` y abre el canal comercial definido.
+13. Si `NEXT_PUBLIC_TRIAL_UPGRADE_URL` esta vacia, confirmar que no aparece un
+    link externo inventado y que `Copiar pedido` sigue disponible.
+14. Confirmar que un negocio `premium` no muestra la franja de trial.
+
+Resultado esperado:
+
+- El estado de la prueba es visible sin abrir Mi perfil.
+- El copy y color cambian segun activo, por vencer o vencido.
+- Hay accion manual de continuidad sin activar Stripe ni billing.
+- No se exponen passwords, tokens ni datos sensibles.
+
+Evidencia sugerida:
+
+- Screenshot del Dashboard con `Prueba activa`.
+- Screenshot del estado `Por vencer`.
+- Screenshot del estado `Prueba vencida`.
+- Captura del mensaje copiado sin secretos.
+
 ## Matriz de cierre
 
 Marcar cada item antes de considerar verificada la publicacion:
@@ -443,6 +491,7 @@ Marcar cada item antes de considerar verificada la publicacion:
 | Smoke Beta 1A post-release | CTA visible y API health OK | Verificado post-release |
 | Beta 1A | Signup publico 14 dias | Pendiente de QA manual |
 | Beta 1B | Guardrails operativos de trials | Pendiente de QA manual |
+| Beta 1C | Lifecycle visible del trial y CTA manual | Pendiente de QA manual |
 | Visual desktop | Sin overlap ni cortes | Pendiente de QA manual |
 | Visual mobile | Una columna y controles tocables | Pendiente de QA manual |
 
@@ -466,5 +515,7 @@ La publicacion queda aceptada si:
 - Fase 2C permite crear primer turno y registrar primer cobro desde la guia.
 - Beta 1A permite crear una prueba publica libre de 14 dias.
 - Beta 1B deja visibilidad, auditoria y acciones admin para operar trials.
+- Beta 1C muestra el lifecycle del trial en Dashboard y permite coordinar
+  continuidad manual.
 - Dashboard, Servicios, Turnera, WhatsApp y Caja se ven correctos en desktop y
   mobile.
