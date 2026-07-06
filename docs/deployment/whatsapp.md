@@ -21,7 +21,7 @@ Automatismos:
 Provider:
 - `meta`: Meta WhatsApp Cloud API real.
 - `fake`: dev/test, no llama servicios externos.
-- `twilio`: reservado; devuelve error en este MVP.
+- `twilio`: Twilio WhatsApp API; envía el texto renderizado como mensaje (sandbox soportado).
 
 ## Variables de entorno backend
 
@@ -64,6 +64,27 @@ Campos que ShineApp necesita:
 - Business account ID: WABA ID de Meta.
 - Token: token de acceso server-side.
 - Codigo pais default: por ejemplo `+54`.
+
+## Twilio (sandbox y produccion)
+
+Alternativa a Meta directo cuando no se puede completar el alta de Meta Developer o se prefiere un intermediario.
+
+Mapeo de campos en Configuracion > WhatsApp (no requiere migraciones ni env vars nuevas):
+- Provider: `Twilio`.
+- Business account ID: **Account SID** de Twilio (empieza con `AC`).
+- Token: **Auth Token** de Twilio.
+- Phone number ID: numero emisor; acepta `whatsapp:+14155238886`, `+14155238886` o solo digitos.
+
+Sandbox (para probar hoy, sin numero propio):
+1. Crear cuenta en Twilio y abrir Messaging > Try it out > Send a WhatsApp message.
+2. Anotar el numero sandbox (`+1 415 523 8886`) y el codigo `join <palabras>`.
+3. Cada destinatario de prueba debe mandar ese `join <palabras>` por WhatsApp al numero sandbox (opt-in valido por 72 horas, renovable).
+4. Cargar SID, token y numero sandbox en Configuracion > WhatsApp y activar el canal.
+
+Limitaciones del MVP con Twilio:
+- Se envia el `body_preview` renderizado como texto libre (no usa templates aprobados ni Content API; queda como trabajo futuro).
+- En sandbox solo reciben los numeros que hicieron `join`; fuera de la ventana de sesion de 24 h WhatsApp puede exigir template aprobado en numeros de produccion.
+- Para produccion real: comprar/registrar numero WhatsApp en Twilio (Twilio gestiona el alta contra Meta via embedded signup, sin registro personal de Meta Developer) y evaluar Content API para templates.
 
 ## Configurar WhatsApp del cliente
 

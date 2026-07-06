@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [WhatsApp: provider Twilio funcional (MVP sandbox)](2026-07-06-whatsapp-twilio-provider.md)
 - [WhatsApp MVP](2026-06-24-whatsapp-mvp.md)
 - [Mejoras de usabilidad del modulo de tareas](2026-06-24-tareas-usabilidad.md)
 - [Precarga del badge de tareas](2026-06-24-tareas-badge-precarga.md)
