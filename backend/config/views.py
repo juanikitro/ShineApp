@@ -325,6 +325,23 @@ class TrialSignupView(APIView):
         owner_email = serializer.validated_data["email"]
         business_name = serializer.validated_data["business_name"]
         user = serializer.save()
+        business = user.profile.business
+        profile = BusinessProfile.get_solo(business=business)
+        email_domain = owner_email.rsplit("@", 1)[-1].lower() if "@" in owner_email else ""
+        record_audit_event(
+            request=request,
+            action="trial_signup",
+            instance=business,
+            after=audit_snapshot(business),
+            module="auth",
+            business=business,
+            metadata={
+                "email_domain": email_domain,
+                "trial_days": settings.TRIAL_SIGNUP_DAYS,
+                "trial_ends_at": profile.trial_ends_at,
+                "source": "public_signup",
+            },
+        )
         update_last_login(None, user)
         token, _ = Token.objects.get_or_create(user=user)
         send_trial_welcome_email(

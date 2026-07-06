@@ -130,6 +130,7 @@ def record_audit_event(
     entity_id=None,
     entity_label=None,
     metadata=None,
+    business=None,
 ):
     entity = audit_entity_payload(instance)
     before_payload = before
@@ -152,6 +153,8 @@ def record_audit_event(
         "changes": changes,
         "metadata": serialize_audit_value(metadata or {}),
     }
+    if business is not None:
+        payload["business"] = business
 
     def create_log():
         AuditLog.objects.create(**payload)

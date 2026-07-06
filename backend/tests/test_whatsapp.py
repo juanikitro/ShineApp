@@ -1,4 +1,10 @@
+import base64
+import io
+import json
 from decimal import Decimal
+from unittest import mock
+from urllib.error import HTTPError
+from urllib.parse import parse_qs
 
 import pytest
 from django.urls import reverse
@@ -13,7 +19,7 @@ from whatsapp.models import (
     WhatsAppMessage,
     WhatsAppTemplate,
 )
-from whatsapp.services import flush_whatsapp_outbox
+from whatsapp.services import create_message, flush_whatsapp_outbox, send_message
 
 
 @pytest.fixture
@@ -198,3 +204,127 @@ def test_quote_send_whatsapp_marks_quote_sent(api_client, whatsapp_data):
     assert quote.status == Quote.Status.SENT
     assert response.data["message"]["status"] == WhatsAppMessage.Status.SENT
     assert response.data["message"]["quote"] == quote.id
+
+
+class _FakeTwilioResponse:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def read(self):
+        return json.dumps(self._payload).encode("utf-8")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+
+@pytest.fixture
+def twilio_config(default_business):
+    config = WhatsAppConfig.get_solo(default_business)
+    config.provider = WhatsAppConfig.Provider.TWILIO
+    config.is_enabled = True
+    config.business_account_id = "AC123456789"
+    config.access_token = "twilio-auth-token"
+    config.phone_number_id = "whatsapp:+14155238886"
+    config.default_country_code = "+54"
+    config.save()
+    return config
+
+
+def _twilio_template_message(business):
+    template = WhatsAppTemplate.objects.create(
+        business=business,
+        key=WhatsAppTemplate.Key.MANUAL,
+        provider_template_name="tpl_manual",
+        body_preview="Hola {cliente}, tu vehículo está listo.",
+        variables_schema=["cliente"],
+    )
+    return create_message(
+        business=business,
+        event=WhatsAppMessage.Event.MANUAL,
+        recipient_phone="11 2233-4455",
+        recipient_name="Juan Perez",
+        template=template,
+        variables={"cliente": "Juan Perez"},
+    )
+
+
+@pytest.mark.django_db
+def test_twilio_template_message_sends_rendered_body(twilio_config, default_business):
+    message = _twilio_template_message(default_business)
+
+    fake = _FakeTwilioResponse({"sid": "SM123", "status": "queued"})
+    with mock.patch("whatsapp.providers.urlopen", return_value=fake) as mocked:
+        send_message(message)
+
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.SENT
+    assert message.provider_message_id == "SM123"
+
+    request = mocked.call_args[0][0]
+    assert request.full_url == "https://api.twilio.com/2010-04-01/Accounts/AC123456789/Messages.json"
+    expected_auth = base64.b64encode(b"AC123456789:twilio-auth-token").decode("ascii")
+    assert request.get_header("Authorization") == f"Basic {expected_auth}"
+    form = parse_qs(request.data.decode("utf-8"))
+    assert form["From"] == ["whatsapp:+14155238886"]
+    assert form["To"] == ["whatsapp:+541122334455"]
+    assert form["Body"] == ["Hola Juan Perez, tu vehículo está listo."]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("raw_from", ["+14155238886", "14155238886", "whatsapp:+1 415 523-8886"])
+def test_twilio_from_number_formats_are_normalized(twilio_config, default_business, raw_from):
+    twilio_config.phone_number_id = raw_from
+    twilio_config.save()
+    message = create_message(
+        business=default_business,
+        event=WhatsAppMessage.Event.MANUAL,
+        recipient_phone="11 2233-4455",
+        rendered_body="Hola!",
+        message_type=WhatsAppMessage.MessageType.FREE_TEXT,
+    )
+
+    fake = _FakeTwilioResponse({"sid": "SM456", "status": "queued"})
+    with mock.patch("whatsapp.providers.urlopen", return_value=fake) as mocked:
+        send_message(message)
+
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.SENT
+    form = parse_qs(mocked.call_args[0][0].data.decode("utf-8"))
+    assert form["From"] == ["whatsapp:+14155238886"]
+    assert form["Body"] == ["Hola!"]
+
+
+@pytest.mark.django_db
+def test_twilio_http_error_marks_message_failed(twilio_config, default_business):
+    message = _twilio_template_message(default_business)
+
+    error_body = json.dumps({"code": 21212, "message": "Invalid From number"}).encode("utf-8")
+    http_error = HTTPError(
+        "https://api.twilio.com/2010-04-01/Accounts/AC123456789/Messages.json",
+        400,
+        "Bad Request",
+        None,
+        io.BytesIO(error_body),
+    )
+    with mock.patch("whatsapp.providers.urlopen", side_effect=http_error):
+        send_message(message)
+
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.FAILED
+    assert "21212" in message.last_error
+
+
+@pytest.mark.django_db
+def test_twilio_missing_credentials_fails_with_clear_error(twilio_config, default_business):
+    twilio_config.access_token = ""
+    twilio_config.save()
+    message = _twilio_template_message(default_business)
+
+    send_message(message)
+
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.FAILED
+    assert "credenciales de Twilio" in message.last_error

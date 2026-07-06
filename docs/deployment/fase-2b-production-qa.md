@@ -1,7 +1,7 @@
-# Fases 0 a Beta 1A - guia de verificacion en demo-production
+# Fases 0 a Beta 1D - guia de verificacion en demo-production
 
 Artifact vivo para probar en `https://shineapp-web.vercel.app` todo lo publicado
-desde Fase 0 hasta Beta 1A.
+desde Fase 0 hasta Beta 1D.
 
 ## Estado de publicacion
 
@@ -18,6 +18,10 @@ desde Fase 0 hasta Beta 1A.
 | Release Beta 1A a `main` | Completado | PR #205, merge commit `e89220e` |
 | Deploy demo-production Beta 1A | Completado | Workflow `deploy-vercel-demo.yml`, run `28720568410` |
 | Smoke Beta 1A post-release | Completado | Web 200 con CTA, API health/deep OK, maintenance 403 sin secret |
+| Sync `main` -> `development` | Completado | PR #207 |
+| Beta 1B en `development` | Completado | PR #208 |
+| Beta 1C en `development` | Completado | PR #209 |
+| Beta 1D en `development` | Completado | PR #210 |
 
 ## URLs
 
@@ -33,8 +37,8 @@ desde Fase 0 hasta Beta 1A.
 4. No pegar tokens reales de Meta en Fase 2B.
 5. Si se crea un negocio de prueba, usar un nombre reconocible, por ejemplo
    `QA Vehicular Fase 2`.
-6. Para Beta 1A, usar un email disposable/controlado y no cargar datos reales
-   de clientes.
+6. Para Beta 1A/Beta 1B/Beta 1C/Beta 1D, usar un email
+   disposable/controlado y no cargar datos reales de clientes.
 
 ## Smoke base de produccion
 
@@ -380,6 +384,154 @@ Evidencia sugerida:
 - Screenshot del formulario de prueba.
 - Screenshot del Dashboard con `Alta guiada` tras crear la cuenta.
 
+## Beta 1B - guardrails operativos de trials
+
+Objetivo a verificar: el signup publico debe quedar operable para una beta
+abierta sin activar billing ni bloquear clientes por defecto.
+
+Usar un superusuario de Django admin y un negocio trial descartable.
+
+1. Crear un trial publico desde el login, como en Beta 1A.
+2. Entrar a Django admin.
+3. Abrir `Perfiles de negocio`.
+4. Confirmar que la lista muestra:
+   - estado trial;
+   - dias trial restantes;
+   - owner/email;
+   - negocio activo.
+5. Filtrar por `Trial activo`, `Trial por vencer`, `Trial vencido` y `Premium`.
+6. Seleccionar un perfil trial descartable y ejecutar
+   `Extender trials seleccionados 7 dias`.
+7. Confirmar que `trial_ends_at` avanza y que el negocio sigue activo.
+8. Preparar o seleccionar un trial vencido descartable.
+9. Ejecutar `Suspender negocios con trial vencido`.
+10. Confirmar que solo se suspenden negocios trial vencidos y que los tokens de
+    esos usuarios quedan invalidados.
+11. Abrir `Registros de auditoria`.
+12. Buscar accion `trial_signup`.
+13. Confirmar que el evento queda vinculado al negocio y que la metadata muestra
+    dominio de email, duracion del trial y origen `public_signup`.
+14. Confirmar que el audit log no contiene passwords, tokens ni secretos.
+15. Confirmar que `DJANGO_ENFORCE_SUBSCRIPTION_ACCESS` sigue apagado salvo
+    decision explicita de activar bloqueo por trial vencido.
+
+Resultado esperado:
+
+- El operador puede ver y filtrar trials sin consultar la DB a mano.
+- Puede extender pruebas o suspender vencidos con acciones explicitas.
+- El signup publico deja trazabilidad operativa sin datos sensibles.
+- No se agrega cobro, Stripe ni billing portal.
+- No se bloquean trials vencidos globalmente si el feature flag sigue apagado.
+
+Evidencia sugerida:
+
+- Screenshot de `Perfiles de negocio` con columnas de trial.
+- Screenshot del filtro por estado de prueba.
+- Screenshot de un `AuditLog` `trial_signup` sin datos sensibles.
+
+## Beta 1C - lifecycle visible del trial
+
+Objetivo a verificar: el dueno del negocio debe entender desde el Dashboard si
+su prueba esta activa, por vencer o vencida, y debe tener una accion manual para
+coordinar continuidad sin billing automatico.
+
+Usar un negocio trial descartable creado desde el signup publico.
+
+1. Entrar al Dashboard con el owner del negocio trial.
+2. Confirmar que aparece una franja de estado de prueba arriba de `Alta guiada`.
+3. Para un trial activo con mas de 3 dias restantes, confirmar:
+   - badge `Prueba activa`;
+   - texto con dias restantes;
+   - barra de progreso visible;
+   - boton `Copiar pedido`.
+4. Hacer click en `Copiar pedido`.
+5. Confirmar que el texto cambia a `Mensaje copiado`.
+6. Pegar el mensaje en un bloc de notas temporal y confirmar que incluye:
+   - nombre del negocio;
+   - estado del trial;
+   - fecha de vencimiento si esta disponible;
+   - usuario/email no sensibles.
+7. Preparar un trial por vencer (3 dias o menos) desde Django admin o fixture.
+8. Volver al Dashboard y confirmar badge `Por vencer` y tono de advertencia.
+9. Preparar un trial vencido descartable.
+10. Volver al Dashboard y confirmar badge `Prueba vencida`.
+11. Confirmar que el negocio no queda bloqueado solo por ver el banner.
+12. Si `NEXT_PUBLIC_TRIAL_UPGRADE_URL` esta configurada en el frontend, confirmar
+    que aparece `Coordinar continuidad` y abre el canal comercial definido.
+13. Si `NEXT_PUBLIC_TRIAL_UPGRADE_URL` esta vacia, confirmar que no aparece un
+    link externo inventado y que `Copiar pedido` sigue disponible.
+14. Confirmar que un negocio `premium` no muestra la franja de trial.
+
+Resultado esperado:
+
+- El estado de la prueba es visible sin abrir Mi perfil.
+- El copy y color cambian segun activo, por vencer o vencido.
+- Hay accion manual de continuidad sin activar Stripe ni billing.
+- No se exponen passwords, tokens ni datos sensibles.
+
+Evidencia sugerida:
+
+- Screenshot del Dashboard con `Prueba activa`.
+- Screenshot del estado `Por vencer`.
+- Screenshot del estado `Prueba vencida`.
+- Captura del mensaje copiado sin secretos.
+
+## Beta 1D - seguimiento manual interno de trials
+
+Objetivo a verificar: el equipo interno puede dar seguimiento comercial manual
+a cada trial abierto desde Django admin, sin exponer datos internos al cliente y
+sin activar billing automatico.
+
+Usar un superusuario de Django admin y al menos un negocio trial descartable.
+
+1. Crear o reutilizar un negocio trial desde Beta 1A.
+2. Entrar a Django admin.
+3. Abrir `Seguimiento de trials`.
+4. Confirmar que la lista muestra:
+   - nombre del negocio;
+   - estado del trial;
+   - dias restantes;
+   - estado de seguimiento;
+   - owner/email;
+   - telefono;
+   - ultimo contacto;
+   - proximo seguimiento;
+   - activo/inactivo.
+5. Confirmar que la lista no muestra negocios `premium`.
+6. Usar el filtro `seguimiento trial` y probar al menos `Nuevo`,
+   `Contactado`, `Demo agendada`, `Convertido` y `Perdido` si hay datos.
+7. Usar el filtro `proximo seguimiento` y probar:
+   - vencido o para hoy;
+   - proximo;
+   - sin proximo paso.
+8. Editar desde la grilla un trial descartable:
+   - cambiar `estado de seguimiento`;
+   - cargar `proximo seguimiento`.
+9. Abrir el detalle del mismo trial y cargar una nota interna breve sin
+   passwords, tokens ni datos reales de clientes.
+10. Ejecutar una accion masiva de seguimiento, por ejemplo
+    `Marcar seguimiento como demo agendada`.
+11. Confirmar que `ultimo contacto` se actualiza cuando corresponde.
+12. Confirmar que `subscription_type` sigue siendo `trial`; marcar
+    `Convertido` no debe cambiar plan ni activar billing.
+13. Volver al Dashboard del owner y confirmar que no aparecen notas internas ni
+    cambios nuevos del seguimiento comercial.
+
+Resultado esperado:
+
+- El panel interno permite operar el pipeline manual de trials.
+- Solo aparecen perfiles en prueba en `Seguimiento de trials`.
+- Las notas y fechas comerciales quedan restringidas a Django admin.
+- Ninguna accion comercial cambia billing, plan ni bloqueo de acceso.
+
+Evidencia sugerida:
+
+- Screenshot de `Seguimiento de trials` con columnas visibles.
+- Screenshot de filtros de estado/proximo seguimiento.
+- Screenshot del detalle con una nota interna de prueba sin datos sensibles.
+- Screenshot o registro de que `subscription_type` sigue como `trial` tras
+  marcar un seguimiento como `Convertido`.
+
 ## Matriz de cierre
 
 Marcar cada item antes de considerar verificada la publicacion:
@@ -395,6 +547,9 @@ Marcar cada item antes de considerar verificada la publicacion:
 | Fase 2C | Primer turno y primer cobro guiados | Pendiente de QA manual |
 | Smoke Beta 1A post-release | CTA visible y API health OK | Verificado post-release |
 | Beta 1A | Signup publico 14 dias | Pendiente de QA manual |
+| Beta 1B | Guardrails operativos de trials | Pendiente de QA manual |
+| Beta 1C | Lifecycle visible del trial y CTA manual | Pendiente de QA manual |
+| Beta 1D | Seguimiento manual interno de trials | Pendiente de QA manual |
 | Visual desktop | Sin overlap ni cortes | Pendiente de QA manual |
 | Visual mobile | Una columna y controles tocables | Pendiente de QA manual |
 
@@ -417,5 +572,10 @@ La publicacion queda aceptada si:
 - Fase 2B prepara WhatsApp demo/local sin tokens reales.
 - Fase 2C permite crear primer turno y registrar primer cobro desde la guia.
 - Beta 1A permite crear una prueba publica libre de 14 dias.
+- Beta 1B deja visibilidad, auditoria y acciones admin para operar trials.
+- Beta 1C muestra el lifecycle del trial en Dashboard y permite coordinar
+  continuidad manual.
+- Beta 1D permite dar seguimiento comercial manual en Django admin sin exponer
+  notas internas ni cambiar billing.
 - Dashboard, Servicios, Turnera, WhatsApp y Caja se ven correctos en desktop y
   mobile.

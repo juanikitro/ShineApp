@@ -1,6 +1,9 @@
+import base64
 import logging
 import json
+import re
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from django.conf import settings
@@ -122,11 +125,76 @@ class MetaCloudWhatsAppProvider(BaseWhatsAppProvider):
 
 
 class TwilioWhatsAppProvider(BaseWhatsAppProvider):
+    """Twilio WhatsApp API (sandbox/MVP): envía el texto ya renderizado como Body.
+
+    Mapeo de config: business_account_id = Account SID, access_token = Auth Token,
+    phone_number_id = número emisor (acepta "whatsapp:+1...", "+1..." o dígitos).
+    """
+
+    def _account_sid(self):
+        return (self.config.business_account_id or "").strip()
+
+    def _auth_token(self):
+        return (self.config.access_token or "").strip()
+
+    def _from_number(self):
+        raw = (self.config.phone_number_id or "").strip()
+        digits = re.sub(r"\D+", "", raw)
+        if not digits:
+            return ""
+        return f"whatsapp:+{digits}"
+
+    def _post(self, payload):
+        account_sid = self._account_sid()
+        auth_token = self._auth_token()
+        if not account_sid or not auth_token or not payload.get("From"):
+            raise WhatsAppProviderError(
+                "Falta configurar credenciales de Twilio (Account SID, Auth Token y número emisor)."
+            )
+        timeout = getattr(settings, "WHATSAPP_TIMEOUT_SECONDS", 10)
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+        credentials = base64.b64encode(f"{account_sid}:{auth_token}".encode("utf-8")).decode("ascii")
+        request = Request(
+            url,
+            data=urlencode(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Basic {credentials}",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=timeout) as response:  # noqa: S310 - URL is Twilio API.
+                raw = response.read().decode("utf-8")
+                data = json.loads(raw or "{}")
+        except HTTPError as exc:
+            raw = exc.read().decode("utf-8", errors="replace")
+            try:
+                data = json.loads(raw or "{}")
+            except ValueError:
+                data = {"text": raw[:1000]}
+            raise WhatsAppProviderError(str(data)[:2000]) from exc
+        except (URLError, TimeoutError) as exc:
+            raise WhatsAppProviderError(str(exc)[:2000]) from exc
+        except ValueError as exc:
+            raise WhatsAppProviderError("Respuesta inválida del provider de WhatsApp.") from exc
+        return {"id": str(data.get("sid") or ""), "response": data}
+
+    def _payload_for(self, message):
+        body = (message.rendered_body or "").strip()
+        if not body:
+            raise WhatsAppProviderError("El mensaje no tiene cuerpo renderizado para enviar por Twilio.")
+        return {
+            "From": self._from_number(),
+            "To": f"whatsapp:+{message.recipient_phone}",
+            "Body": body,
+        }
+
     def send_template(self, message):
-        raise WhatsAppProviderError("Twilio todavía no está implementado en este MVP.")
+        return self._post(self._payload_for(message))
 
     def send_text(self, message):
-        raise WhatsAppProviderError("Twilio todavía no está implementado en este MVP.")
+        return self._post(self._payload_for(message))
 
 
 def provider_for_config(config):

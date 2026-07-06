@@ -3151,6 +3151,166 @@
   min-width: 0;
 }
 
+.trial-lifecycle-panel {
+  align-items: center;
+  background: var(--shop-surface);
+  border: 1px solid var(--shop-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 22px var(--color-shadow-soft);
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
+  padding: var(--space-4);
+}
+
+.trial-lifecycle-panel--active {
+  border-color: var(--status-success-border);
+}
+
+.trial-lifecycle-panel--warning {
+  background: var(--status-pending-bg);
+  border-color: var(--status-pending-border);
+}
+
+.trial-lifecycle-panel--expired {
+  background: var(--status-canceled-bg);
+  border-color: var(--status-canceled-border);
+}
+
+.trial-lifecycle-main {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.trial-lifecycle-icon {
+  align-items: center;
+  background: var(--status-success-bg);
+  border: 1px solid var(--status-success-border);
+  border-radius: var(--radius-sm);
+  color: var(--status-success-text);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+.trial-lifecycle-panel--warning .trial-lifecycle-icon {
+  background: var(--color-warning-bg);
+  border-color: var(--status-pending-border);
+  color: var(--status-pending-text);
+}
+
+.trial-lifecycle-panel--expired .trial-lifecycle-icon {
+  background: var(--color-danger-bg);
+  border-color: var(--status-canceled-border);
+  color: var(--status-canceled-text);
+}
+
+.trial-lifecycle-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.trial-lifecycle-badge {
+  color: var(--shop-ink-muted);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.trial-lifecycle-copy strong {
+  color: var(--shop-ink);
+  font-size: var(--text-xl);
+  line-height: 1.2;
+}
+
+.trial-lifecycle-copy p {
+  color: var(--shop-ink-soft);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.trial-lifecycle-copy small {
+  color: var(--shop-ink-muted);
+  font-size: var(--text-xs);
+}
+
+.trial-lifecycle-side {
+  align-content: center;
+  display: grid;
+  gap: var(--space-2);
+  justify-items: end;
+  min-width: 0;
+}
+
+.trial-lifecycle-meter {
+  background: var(--dashboard-bar-track);
+  border-radius: var(--radius-full);
+  height: 8px;
+  overflow: hidden;
+  width: min(240px, 100%);
+}
+
+.trial-lifecycle-meter span {
+  background: var(--status-success-text);
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  transition: width 180ms var(--motion-ease-standard);
+}
+
+.trial-lifecycle-panel--warning .trial-lifecycle-meter span {
+  background: var(--status-pending-text);
+}
+
+.trial-lifecycle-panel--expired .trial-lifecycle-meter span {
+  background: var(--status-canceled-text);
+}
+
+.trial-lifecycle-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.trial-lifecycle-actions button {
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .trial-lifecycle-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .trial-lifecycle-side {
+    justify-items: stretch;
+  }
+
+  .trial-lifecycle-meter {
+    width: 100%;
+  }
+
+  .trial-lifecycle-actions {
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  .trial-lifecycle-actions button {
+    flex: 1 1 180px;
+    justify-content: center;
+  }
+}
+
 .demo-readiness-panel {
   --demo-step-bg: rgba(255, 255, 255, 0.74);
 }

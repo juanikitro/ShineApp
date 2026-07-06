@@ -13963,6 +13963,7 @@ export default function Home() {
 					<DashboardPanel
 						birthdayAlerts={renderBirthdayAlerts()}
 						canViewEconomy={canViewEconomy}
+						currentUser={currentUser}
 						dashboard={dashboard}
 						demoReadiness={demoReadiness}
 						firstChargeableWorkOrder={firstChargeableWorkOrder}
