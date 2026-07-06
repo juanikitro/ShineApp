@@ -28,3 +28,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Tipos del dominio generados desde OpenAPI (drf-spectacular -> openapi-typescript)](2026-06-12-tipos-desde-openapi.md)
 - [Unidad historica y consumo de producto por servicio](2026-06-17-unidad-historica-consumo-por-servicio.md)
 - [WhatsApp MVP](2026-06-24-whatsapp-mvp.md)
+- [WhatsApp producción con subaccounts Twilio](2026-07-06-whatsapp-produccion-subaccounts.md)

@@ -47,6 +47,7 @@ from search.views import GlobalSearchView
 from tasks.views import TaskViewSet
 from workorders.views import WorkOrderViewSet
 from whatsapp.views import (
+    TwilioWhatsAppStatusWebhookView,
     WhatsAppAutomationRuleViewSet,
     WhatsAppConfigView,
     WhatsAppMessageViewSet,
@@ -127,6 +128,11 @@ urlpatterns = [
         name="business-profile",
     ),
     path("api/whatsapp/config/", WhatsAppConfigView.as_view(), name="whatsapp-config"),
+    path(
+        "api/whatsapp/webhooks/twilio/status/",
+        TwilioWhatsAppStatusWebhookView.as_view(),
+        name="whatsapp-twilio-status-webhook",
+    ),
     path("api/agenda/daily/", DailyAgendaView.as_view(), name="agenda-daily"),
     path("api/cash/daily/", CashDailyView.as_view(), name="cash-daily"),
     path("api/cash/weekly/", CashWeeklyView.as_view(), name="cash-weekly"),

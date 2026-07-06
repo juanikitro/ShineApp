@@ -53,6 +53,7 @@ No commitear valores reales. Usar `.env.example` solo como forma.
 - `WHATSAPP_META_API_VERSION`: version Graph API usada por Meta Cloud API. Default `v20.0`.
 - `WHATSAPP_META_ACCESS_TOKEN`: token server-side global para Meta Cloud API. Preferir config por negocio cuando cada cliente usa su propio numero.
 - `WHATSAPP_META_PHONE_NUMBER_ID`: Phone number ID global para Meta Cloud API. Preferir config por negocio cuando cada cliente usa su propio numero.
+- `WHATSAPP_STATUS_CALLBACK_URL`: URL publica opcional para que Twilio notifique estados de mensajes al webhook de WhatsApp. Vacio por default.
 - `FRONTEND_BASE_URL`: base publica del frontend usada en los links de emails (reset, bienvenida, avisos). Reemplaza el dominio hardcodeado. Default `https://shineapp-web.vercel.app`.
 - `CRON_SECRET`: secret compartido para autenticar el endpoint interno `POST /api/internal/maintenance/`, que dispara el workflow `maintenance.yml` (header `X-Cron-Token`). Vacio = endpoint deshabilitado (responde 503). En produccion, generar un valor aleatorio largo y cargarlo tanto en Vercel API como en los secrets de GitHub. Comparacion en tiempo constante.
 - `TRASH_RETENTION_DAYS`: dias que un registro soft-deleted debe tener antes de ser elegible para purga. Default `90`.
