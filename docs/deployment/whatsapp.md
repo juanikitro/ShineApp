@@ -21,7 +21,7 @@ Automatismos:
 Provider:
 - `meta`: Meta WhatsApp Cloud API real.
 - `fake`: dev/test, no llama servicios externos.
-- `twilio`: Twilio WhatsApp API; envía el texto renderizado como mensaje (sandbox soportado).
+- `twilio`: Twilio WhatsApp API; envia texto libre o Content API para templates aprobados.
 
 ## Variables de entorno backend
 
@@ -32,6 +32,7 @@ WHATSAPP_TIMEOUT_SECONDS=10
 WHATSAPP_META_API_VERSION=v20.0
 WHATSAPP_META_ACCESS_TOKEN=
 WHATSAPP_META_PHONE_NUMBER_ID=
+WHATSAPP_STATUS_CALLBACK_URL=
 ```
 
 Regla:
@@ -69,7 +70,9 @@ Campos que ShineApp necesita:
 
 Alternativa a Meta directo cuando no se puede completar el alta de Meta Developer o se prefiere un intermediario.
 
-Mapeo de campos en Configuracion > WhatsApp (no requiere migraciones ni env vars nuevas):
+Decision operativa: ShineApp usa una cuenta Twilio padre y un subaccount por cliente. Ver [WhatsApp producción con subaccounts Twilio](../registro/decisiones/2026-07-06-whatsapp-produccion-subaccounts.md).
+
+Mapeo de campos en Configuracion > WhatsApp:
 - Provider: `Twilio`.
 - Business account ID: **Account SID** de Twilio (empieza con `AC`).
 - Token: **Auth Token** de Twilio.
@@ -81,10 +84,32 @@ Sandbox (para probar hoy, sin numero propio):
 3. Cada destinatario de prueba debe mandar ese `join <palabras>` por WhatsApp al numero sandbox (opt-in valido por 72 horas, renovable).
 4. Cargar SID, token y numero sandbox en Configuracion > WhatsApp y activar el canal.
 
+Produccion con subaccount:
+1. Upgrade de la cuenta Twilio padre de ShineApp a pago (prepago).
+2. Crear el subaccount del cliente desde la consola de Twilio.
+3. Registrar el sender de WhatsApp del cliente en Twilio Console > Messaging > Senders > WhatsApp senders > Register a WhatsApp sender.
+4. Durante embedded signup, el login de Facebook debe ser con la cuenta o rol de administrador de negocio del cliente, nunca con la cuenta del dueno de ShineApp.
+5. Si Meta exige Meta Business Verification del cliente, planificar que puede demorar dias.
+6. Cargar Account SID, Auth Token y numero emisor del subaccount en Configuracion > WhatsApp del negocio.
+
+Content API:
+1. En Twilio Content Template Builder, crear los 4 templates: `reservation_confirmed`, `work_ready`, `work_delivered`, `quote_sent`.
+2. Usar categoria Utility e idioma `es_AR`.
+3. Usar variables numeradas (`{{1}}`, `{{2}}`, etc.) en el mismo orden que `variables_schema` en ShineApp.
+4. Si el template de Twilio usa variables con nombre en vez de numeradas, el mapeo posicional de ShineApp no calza.
+5. Someter cada template a aprobacion y esperar estado aprobado antes de activar la regla automatica correspondiente.
+6. En cada `WhatsAppTemplate` de ShineApp, completar `Content SID (Twilio)` con el SID aprobado (`HX...`). Si queda vacio, Twilio usa texto libre como fallback; esto cubre sandbox y casos dentro de la ventana de 24 h.
+
+Webhook de status:
+- Endpoint backend: `POST /api/whatsapp/webhooks/twilio/status/`.
+- Configuracion recomendada: setear `WHATSAPP_STATUS_CALLBACK_URL` con la URL publica del endpoint bajo el host de backend correspondiente. Alternativamente, configurar Status Callback manualmente en Twilio Console.
+- El endpoint es publico y no usa auth de ShineApp, pero valida `X-Twilio-Signature` contra el Auth Token del subaccount cuyo Account SID llega en el payload.
+- Si `WHATSAPP_STATUS_CALLBACK_URL` no esta configurado, el comportamiento actual no cambia y Twilio no enviara `delivered/read` a ShineApp por esta via.
+
 Limitaciones del MVP con Twilio:
-- Se envia el `body_preview` renderizado como texto libre (no usa templates aprobados ni Content API; queda como trabajo futuro).
+- Content API esta soportado, pero es opcional y requiere `twilio_content_sid` cargado por template.
 - En sandbox solo reciben los numeros que hicieron `join`; fuera de la ventana de sesion de 24 h WhatsApp puede exigir template aprobado en numeros de produccion.
-- Para produccion real: comprar/registrar numero WhatsApp en Twilio (Twilio gestiona el alta contra Meta via embedded signup, sin registro personal de Meta Developer) y evaluar Content API para templates.
+- La creacion de subaccounts y el alta del sender siguen siendo pasos manuales en Twilio Console.
 
 ## Configurar WhatsApp del cliente
 
@@ -150,7 +175,7 @@ Manual:
 Historial:
 - Configuracion > WhatsApp > Historial WhatsApp.
 - Muestra destinatario, evento, provider, estado, fecha y error si fallo.
-- Sin webhook inbound, los estados reales disponibles son principalmente `sent`, `failed` y `dead`; `delivered/read` quedan preparados para futuro webhook.
+- Con webhook de status Twilio configurado, `delivered/read` pueden actualizarse desde Twilio. Sin `WHATSAPP_STATUS_CALLBACK_URL`, los estados reales disponibles siguen siendo principalmente `sent`, `failed` y `dead`.
 
 ## Smoke test recomendado
 
@@ -175,4 +200,7 @@ Con Meta real:
 - Error de Meta por template: revisar nombre exacto, idioma y variables en el mismo orden.
 - No aparece mensaje automatico: revisar regla activa, template activo y telefono del cliente.
 - Mensaje queda `failed`: revisar `last_error` en Historial WhatsApp.
-- No hay `delivered/read`: esperado en MVP; falta webhook inbound/provider status.
+- Webhook Twilio responde 403: la firma `X-Twilio-Signature` no coincide; revisar Auth Token del subaccount, URL publica exacta y proxy HTTPS.
+- Webhook Twilio responde 404: no hay configuracion Twilio con ese Account SID o no existe mensaje con ese Message SID para el negocio.
+- Mensaje no baja de `read` a `sent`: esperado; el webhook ignora statuses viejos que llegan tarde para no degradar el historial.
+- No hay `delivered/read`: revisar `WHATSAPP_STATUS_CALLBACK_URL` o la configuracion manual del Status Callback en Twilio.

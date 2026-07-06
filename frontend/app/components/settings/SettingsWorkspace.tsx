@@ -550,6 +550,7 @@ export function WhatsappSettingsPanel({
 	const [templateDraft, setTemplateDraft] = useState<AnyRecord>({
 		key: 'reservation_confirmed',
 		provider_template_name: '',
+		twilio_content_sid: '',
 		language: 'es_AR',
 		category: 'utility',
 		body_preview: '',
@@ -638,6 +639,7 @@ export function WhatsappSettingsPanel({
 		setTemplateDraft((current) => ({
 			...current,
 			provider_template_name: '',
+			twilio_content_sid: '',
 			body_preview: '',
 			variables_schema: '',
 		}))
@@ -870,6 +872,16 @@ export function WhatsappSettingsPanel({
 								}
 							/>
 						</Field>
+						<Field label="Content SID (Twilio)">
+							<input
+								value={templateDraft.twilio_content_sid}
+								onChange={(event) =>
+									patchTemplateDraft({
+										twilio_content_sid: event.target.value,
+									})
+								}
+							/>
+						</Field>
 						<Field label="Idioma">
 							<input
 								value={templateDraft.language}
@@ -1007,6 +1019,7 @@ function WhatsappTemplateRow({
 }) {
 	const [draft, setDraft] = useState<AnyRecord>({
 		provider_template_name: '',
+		twilio_content_sid: '',
 		language: '',
 		body_preview: '',
 		variables_schema: '',
@@ -1016,6 +1029,7 @@ function WhatsappTemplateRow({
 	useEffect(() => {
 		setDraft({
 			provider_template_name: template.provider_template_name ?? '',
+			twilio_content_sid: template.twilio_content_sid ?? '',
 			language: template.language ?? '',
 			body_preview: template.body_preview ?? '',
 			variables_schema: templateVariablesText(template.variables_schema),
@@ -1042,6 +1056,14 @@ function WhatsappTemplateRow({
 							value={draft.provider_template_name}
 							onChange={(event) =>
 								patchDraft({ provider_template_name: event.target.value })
+							}
+						/>
+					</Field>
+					<Field label="Content SID (Twilio)">
+						<input
+							value={draft.twilio_content_sid}
+							onChange={(event) =>
+								patchDraft({ twilio_content_sid: event.target.value })
 							}
 						/>
 					</Field>

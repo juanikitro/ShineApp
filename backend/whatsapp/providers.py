@@ -125,7 +125,7 @@ class MetaCloudWhatsAppProvider(BaseWhatsAppProvider):
 
 
 class TwilioWhatsAppProvider(BaseWhatsAppProvider):
-    """Twilio WhatsApp API (sandbox/MVP): envía el texto ya renderizado como Body.
+    """Twilio WhatsApp API: envia texto libre o Content API para templates aprobados.
 
     Mapeo de config: business_account_id = Account SID, access_token = Auth Token,
     phone_number_id = número emisor (acepta "whatsapp:+1...", "+1..." o dígitos).
@@ -151,6 +151,10 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
             raise WhatsAppProviderError(
                 "Falta configurar credenciales de Twilio (Account SID, Auth Token y número emisor)."
             )
+        payload = dict(payload)
+        status_callback = getattr(settings, "WHATSAPP_STATUS_CALLBACK_URL", "")
+        if status_callback and "StatusCallback" not in payload:
+            payload["StatusCallback"] = status_callback
         timeout = getattr(settings, "WHATSAPP_TIMEOUT_SECONDS", 10)
         url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
         credentials = base64.b64encode(f"{account_sid}:{auth_token}".encode("utf-8")).decode("ascii")
@@ -191,7 +195,26 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
         }
 
     def send_template(self, message):
-        return self._post(self._payload_for(message))
+        template = message.template
+        if template is None:
+            raise WhatsAppProviderError("El mensaje no tiene template asociado.")
+        content_sid = (template.twilio_content_sid or "").strip()
+        if not content_sid:
+            return self._post(self._payload_for(message))
+        variables = message.template_variables or {}
+        variable_names = template.variables_schema if isinstance(template.variables_schema, list) else []
+        content_variables = {
+            str(index + 1): str(variables.get(name, ""))
+            for index, name in enumerate(variable_names)
+        }
+        return self._post(
+            {
+                "From": self._from_number(),
+                "To": f"whatsapp:+{message.recipient_phone}",
+                "ContentSid": content_sid,
+                "ContentVariables": json.dumps(content_variables),
+            }
+        )
 
     def send_text(self, message):
         return self._post(self._payload_for(message))

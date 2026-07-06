@@ -12,6 +12,7 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-07-06
 - [WhatsApp: provider Twilio funcional (MVP sandbox)](docs/registro/cambios/2026-07-06-whatsapp-twilio-provider.md)
+- [WhatsApp: Twilio Content API y webhook de status](docs/registro/cambios/2026-07-06-whatsapp-twilio-content-status.md)
 
 ## 2026-07-05
 - [Beta 1D: seguimiento manual interno de trials](docs/registro/cambios/2026-07-05-beta-1d-trial-followup.md)

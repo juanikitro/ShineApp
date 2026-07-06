@@ -64,6 +64,7 @@ class WhatsAppTemplate(models.Model):
     )
     key = models.CharField(max_length=32, choices=Key.choices)
     provider_template_name = models.CharField(max_length=120)
+    twilio_content_sid = models.CharField(max_length=64, blank=True)
     language = models.CharField(max_length=16, default="es_AR")
     category = models.CharField(
         max_length=20,
