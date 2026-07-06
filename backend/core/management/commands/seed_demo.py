@@ -44,6 +44,7 @@ from notifications.models import PublicRequest, PublicRequestItem
 from quotes.models import Quote, QuoteItem
 from scheduling.models import Reservation, ReservationItem
 from scheduling.services import ensure_reservation_work_order
+from whatsapp.models import WhatsAppAutomationRule, WhatsAppConfig, WhatsAppTemplate
 
 DEFAULT_ADMIN_PASSWORD = "admin123"
 DEFAULT_EMPLOYEE_PASSWORD = "empleado123"
@@ -390,6 +391,8 @@ class Command(BaseCommand):
         sectors["lavadero"].save(update_fields=["default_capacity", "updated_at"])
         sectors["detailing"].default_capacity = 4
         sectors["detailing"].save(update_fields=["default_capacity", "updated_at"])
+        sectors["lubricentro"].default_capacity = 3
+        sectors["lubricentro"].save(update_fields=["default_capacity", "updated_at"])
 
         specs = [
             ("Lavado exterior express", "wash", "lavadero", "9500.00", 45, "Lavado exterior y secado con microfibra."),
@@ -397,6 +400,8 @@ class Command(BaseCommand):
             ("Detailing interior profundo", "seat", "detailing", "52000.00", 240, "Limpieza profunda de tapizados, plasticos y baul."),
             ("Correccion de pintura one step", "polish", "detailing", "85000.00", 360, "Pulido de un paso para recuperar brillo."),
             ("Tratamiento ceramico 12 meses", "shield", "detailing", "145000.00", 480, "Descontaminado, correccion liviana y coating."),
+            ("Cambio de aceite y filtro", "oil", "lubricentro", "42000.00", 75, "Servicio de lubricentro con control de fluidos basico."),
+            ("Revision pre viaje", "wrench", "lubricentro", "38000.00", 60, "Chequeo de fluidos, luces, cubiertas y puntos visibles."),
             ("Combo venta pre entrega", "combo", "lavadero", "118000.00", 420, "Interior profundo, lavado premium y proteccion express."),
         ]
         return {
@@ -1197,6 +1202,86 @@ class Command(BaseCommand):
                     quantity=money("1.00"),
                 )
 
+    def seed_whatsapp(self, business):
+        config = upsert(
+            WhatsAppConfig,
+            {"business": business},
+            {
+                "provider": WhatsAppConfig.Provider.FAKE,
+                "is_enabled": True,
+                "phone_number_display": "+54 9 11 5555-0100",
+                "phone_number_id": "demo-phone-number-id",
+                "business_account_id": "demo-business-account-id",
+                "default_country_code": "+54",
+            },
+        )
+        templates = {}
+        template_specs = [
+            (
+                WhatsAppTemplate.Key.RESERVATION_CONFIRMED,
+                "shine_turno_confirmado_demo",
+                "Hola {cliente}, confirmamos tu turno para {vehiculo}.",
+                ["cliente", "vehiculo", "fecha", "hora"],
+            ),
+            (
+                WhatsAppTemplate.Key.WORK_READY,
+                "shine_trabajo_listo_demo",
+                "Hola {cliente}, tu {vehiculo} ya esta listo para retirar.",
+                ["cliente", "vehiculo"],
+            ),
+            (
+                WhatsAppTemplate.Key.WORK_DELIVERED,
+                "shine_trabajo_entregado_demo",
+                "Gracias {cliente}. Te esperamos para el proximo servicio.",
+                ["cliente"],
+            ),
+            (
+                WhatsAppTemplate.Key.QUOTE_SENT,
+                "shine_cotizacion_enviada_demo",
+                "Hola {cliente}, te enviamos la cotizacion de {servicios}.",
+                ["cliente", "servicios", "vehiculo"],
+            ),
+        ]
+        for key, provider_template_name, body_preview, variables_schema in template_specs:
+            templates[key] = upsert(
+                WhatsAppTemplate,
+                {
+                    "business": business,
+                    "key": key,
+                    "provider_template_name": provider_template_name,
+                    "language": "es_AR",
+                },
+                {
+                    "category": WhatsAppTemplate.Category.UTILITY,
+                    "body_preview": body_preview,
+                    "variables_schema": variables_schema,
+                    "is_active": True,
+                },
+            )
+        rule_specs = [
+            (
+                WhatsAppAutomationRule.Event.RESERVATION_CONFIRMED,
+                WhatsAppTemplate.Key.RESERVATION_CONFIRMED,
+            ),
+            (WhatsAppAutomationRule.Event.WORK_READY, WhatsAppTemplate.Key.WORK_READY),
+            (
+                WhatsAppAutomationRule.Event.WORK_DELIVERED,
+                WhatsAppTemplate.Key.WORK_DELIVERED,
+            ),
+            (WhatsAppAutomationRule.Event.QUOTE_SENT, WhatsAppTemplate.Key.QUOTE_SENT),
+        ]
+        for event, template_key in rule_specs:
+            upsert(
+                WhatsAppAutomationRule,
+                {"business": business, "event": event},
+                {
+                    "template": templates[template_key],
+                    "enabled": True,
+                    "send_delay_minutes": 0,
+                },
+            )
+        return config
+
     def seed_cash_closure(self, business, admin, day):
         movements = list(
             CashMovement.objects.select_related("payment", "material_purchase", "stock_movement", "debt").filter(
@@ -1355,6 +1440,7 @@ class Command(BaseCommand):
         self.seed_debts(business, admin, suppliers, today)
         quotes = self.seed_quotes(business, customers, vehicles, services, reservations, today)
         self.seed_public_requests(business, services, quotes, reservations, today)
+        self.seed_whatsapp(business)
         self.seed_cash_closure(business, admin, today - timedelta(days=1))
         self.seed_audit_log(business, admin, today)
 
@@ -1384,6 +1470,6 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 "Demo seed finished for "
                 f"{profile.name}: clientes, agenda, ordenes, pagos, caja, inventario, "
-                f"deudas, cotizaciones, solicitudes publicas e historial cargados. {credentials}"
+                f"deudas, cotizaciones, solicitudes publicas, WhatsApp e historial cargados. {credentials}"
             )
         )

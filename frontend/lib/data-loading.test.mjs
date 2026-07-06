@@ -12,7 +12,18 @@ test('dashboard loads summary, cash and shell datasets for employers', () => {
 			section: 'dashboard',
 			canViewEconomy: true,
 		}),
-		['dashboard', 'cash', 'businessProfile', 'publicRequests', 'tasks'],
+		[
+			'dashboard',
+			'cash',
+			'businessProfile',
+			'services',
+			'sectors',
+			'whatsappConfig',
+			'whatsappTemplates',
+			'whatsappAutomationRules',
+			'publicRequests',
+			'tasks',
+		],
 	)
 })
 

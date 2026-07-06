@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import React from 'react'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, test } from 'vitest'
 
 import {
+	LoginScreen,
 	NoticeToastViewport,
 	monthRange,
 	successToastDescription,
@@ -65,6 +66,16 @@ test('successToastDescription explains the completed action', () => {
 		successToastDescription('Material inactivado'),
 		'El registro dejo de estar activo en los listados principales.',
 	)
+})
+
+test('LoginScreen presents the public trial signup as 14 free days', () => {
+	render(React.createElement(LoginScreen, { onLogin: () => {} }))
+
+	fireEvent.click(screen.getByRole('button', { name: 'Probar gratis 14 dias' }))
+
+	screen.getByText('Prueba gratuita por 14 dias')
+	screen.getByText(/Cualquier negocio puede crear una prueba de 14 dias/)
+	screen.getByRole('button', { name: 'Crear prueba gratis' })
 })
 
 test('NoticeToastViewport renders globally outside local layout stacking', async () => {

@@ -2,13 +2,15 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
-from core.models import BusinessAccount, BusinessProfile, UserProfile
+from core.models import AuditLog, BusinessAccount, BusinessProfile, UserProfile
 
 
 def trial_payload(**overrides):
@@ -50,7 +52,15 @@ def test_trial_signup_creates_business_profile_employer_userprofile_and_group():
     assert profile.subscription_type == BusinessProfile.SubscriptionType.TRIAL
     assert profile.trial_started_at is not None
     assert profile.trial_ends_at is not None
-    assert timedelta(days=29) < profile.trial_ends_at - profile.trial_started_at <= timedelta(days=30)
+    assert profile.trial_followup_status == BusinessProfile.TrialFollowUpStatus.NEW
+    assert profile.trial_last_contacted_at is None
+    assert profile.trial_next_followup_at is None
+    assert profile.trial_followup_notes == ""
+    assert (
+        timedelta(days=settings.TRIAL_SIGNUP_DAYS - 1)
+        < profile.trial_ends_at - profile.trial_started_at
+        <= timedelta(days=settings.TRIAL_SIGNUP_DAYS)
+    )
     assert owner.username == "dueno@kingshine.test"
     assert owner.first_name == "Juan"
     assert owner.last_name == "Perez"
@@ -78,7 +88,7 @@ def test_trial_signup_returns_token_and_user_context_with_trial_state():
     assert response.data["user"]["subscription_type"] == "trial"
     assert response.data["user"]["trial_ends_at"]
     assert response.data["user"]["trial_expired"] is False
-    assert 29 <= response.data["user"]["trial_days_remaining"] <= 30
+    assert settings.TRIAL_SIGNUP_DAYS - 1 <= response.data["user"]["trial_days_remaining"] <= settings.TRIAL_SIGNUP_DAYS
 
     me_client = APIClient()
     me_client.credentials(HTTP_AUTHORIZATION=f"Token {response.data['token']}")
@@ -87,6 +97,29 @@ def test_trial_signup_returns_token_and_user_context_with_trial_state():
     assert me_response.status_code == 200
     assert me_response.data["trial_ends_at"] == response.data["user"]["trial_ends_at"]
     assert me_response.data["trial_expired"] is False
+
+
+@pytest.mark.django_db(transaction=True)
+def test_trial_signup_records_operational_audit_without_sensitive_payload():
+    response = APIClient().post(
+        reverse("auth-trial-signup"),
+        trial_payload(email="audit@kingshine.test"),
+        format="json",
+    )
+
+    assert response.status_code == 201, response.data
+    business = BusinessAccount.objects.get(slug="king-shine")
+    audit = AuditLog.objects.get(action="trial_signup")
+    assert audit.business == business
+    assert audit.module == "auth"
+    assert audit.entity_type == "BusinessAccount"
+    assert audit.entity_label == "King Shine"
+    assert audit.metadata["email_domain"] == "kingshine.test"
+    assert audit.metadata["trial_days"] == settings.TRIAL_SIGNUP_DAYS
+    assert audit.metadata["source"] == "public_signup"
+    serialized = str(audit.before) + str(audit.after) + str(audit.metadata)
+    assert "ClaveSegura123" not in serialized
+    assert response.data["token"] not in serialized
 
 
 @pytest.mark.django_db
@@ -129,6 +162,22 @@ def test_trial_signup_resolves_username_collision_deterministically():
 
 
 @pytest.mark.django_db
+@override_settings(TRIAL_SIGNUP_DAYS=14)
+def test_trial_signup_uses_public_trial_window_from_settings():
+    response = APIClient().post(
+        reverse("auth-trial-signup"),
+        trial_payload(email="trial-14@shineapp.test"),
+        format="json",
+    )
+
+    assert response.status_code == 201, response.data
+    business = BusinessAccount.objects.get(slug="king-shine")
+    profile = BusinessProfile.objects.get(business=business)
+    assert timedelta(days=13) < profile.trial_ends_at - profile.trial_started_at <= timedelta(days=14)
+    assert 13 <= response.data["user"]["trial_days_remaining"] <= 14
+
+
+@pytest.mark.django_db
 def test_trial_signup_invalid_password_fails_without_partial_creation():
     before = timezone.now()
 
@@ -160,6 +209,7 @@ def test_trial_signup_sends_welcome_email_with_correct_data(mailoutbox):
     assert "Bienvenido a ShineApp" in sent.subject
     assert "prueba gratuita" in sent.subject
     assert "King Shine" in sent.body
+    assert "14 dias" in sent.body
     assert "https://shineapp-web.vercel.app" in sent.body
 
 

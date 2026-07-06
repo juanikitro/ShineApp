@@ -14,8 +14,14 @@ No commitear valores reales. Usar `.env.example` solo como forma.
 - `CSRF_TRUSTED_ORIGINS`: origenes web confiables para Django CSRF, separados por coma.
 - `DATABASE_URL`: connection string de Supabase Postgres.
 - `DATABASE_SSL_REQUIRE`: `1` para conexiones productivas Supabase.
+- `DJANGO_NUM_PROXIES`: cantidad de proxies confiables delante de Django. En Vercel usar `1`; impacta `X-Forwarded-For` y throttling DRF.
 - `DJANGO_THROTTLE_ANON_RATE`: tasa de throttle anonimo DRF en configuracion de produccion, default `60/min`.
 - `DJANGO_THROTTLE_USER_RATE`: tasa de throttle autenticado DRF en configuracion de produccion, default `600/min`.
+- `DJANGO_AUTH_TOKEN_TTL_SECONDS`: expiracion absoluta del token DRF. Default `2592000` (30 dias); `0` desactiva expiracion.
+- `DJANGO_LOGIN_LOCKOUT_THRESHOLD`: intentos fallidos antes del lockout de login. Default `8`; `0` desactiva lockout.
+- `DJANGO_LOGIN_LOCKOUT_WINDOW_SECONDS`: ventana del lockout de login en segundos. Default `900`.
+- `DJANGO_ENFORCE_SUBSCRIPTION_ACCESS`: `1` bloquea negocios en trial vencido; default `0` hasta que billing sea fuente de verdad.
+- `DJANGO_TRIAL_SIGNUP_DAYS`: duracion de la prueba creada por signup publico. Default `14`.
 - `SUPABASE_STORAGE_ENABLED`: `1` en demo/prod cuando media debe persistir.
 - `SUPABASE_STORAGE_BUCKET`: bucket Storage para uploads.
 - `SUPABASE_S3_ENDPOINT_URL`: `https://<project-ref>.storage.supabase.co/storage/v1/s3`.
@@ -59,6 +65,7 @@ No commitear valores reales. Usar `.env.example` solo como forma.
 - `NEXT_PUBLIC_SHINEAPP_DEMO_USERNAME`: usuario demo opcional para prellenar cuando `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN=1`. Nunca poner un password en env vars publicas de frontend.
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`: clave publica VAPID expuesta al navegador. Debe coincidir exactamente con `VAPID_PUBLIC_KEY` del backend. Si esta vacia, ni el dashboard del negocio ni la turnera publica registran suscripciones push.
 - `NEXT_PUBLIC_SHINEAPP_TOKEN_TTL_DAYS`: dias que el token de sesion sobrevive en `localStorage` antes de forzar re-login. Default `30` cuando no se setea o el valor no es un entero positivo. En el demo subirlo (ej. `30`) reduce friccion; en produccion bajarlo si la politica lo exige.
+- `NEXT_PUBLIC_TRIAL_UPGRADE_URL`: URL publica opcional para el CTA de continuidad del trial dentro del Dashboard. Debe ser `http(s)` (por ejemplo una URL de WhatsApp, agenda comercial o landing). Si esta vacia, la UI mantiene el estado del trial y permite copiar un mensaje manual, sin abrir un link externo.
 
 Toda variable `NEXT_PUBLIC_` se bundlea en JavaScript del navegador. Nunca poner secretos de servidor ahi.
 

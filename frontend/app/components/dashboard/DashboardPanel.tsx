@@ -11,6 +11,8 @@ import { Empty } from '@/app/components/ui/Empty'
 import { CajaSparkline } from '@/app/components/ui/CajaSparkline'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { RiskMeter } from '@/app/components/ui/RiskMeter'
+import { DemoReadinessPanel } from './DemoReadinessPanel'
+import { TrialLifecycleBanner } from './TrialLifecycleBanner'
 import { DashboardCashByCategory } from './DashboardCashByCategory'
 import { DashboardCrossReadings } from './DashboardCrossReadings'
 import { Panel } from '@/app/components/ui/Panel'
@@ -18,6 +20,11 @@ import { RecordCard } from '@/app/components/ui/RecordCard'
 import { SkeletonLine } from '@/app/components/ui/Skeleton'
 import { cx } from '@/app/components/utils'
 import { deltaHintVariants } from '@/lib/motion-spec'
+import {
+	type DemoReadiness,
+	type DemoReadinessSettingsSection,
+} from '@/lib/demo-readiness'
+import { type StarterServicesPlan } from '@/lib/onboarding-services'
 import {
 	type AnyRecord,
 	type Section,
@@ -33,10 +40,19 @@ import { serviceDisplayName } from '@/lib/service-display'
 type DashboardPanelProps = {
 	birthdayAlerts: ReactNode
 	canViewEconomy: boolean
+	currentUser?: AnyRecord | null
 	dashboard: AnyRecord
+	demoReadiness: DemoReadiness
+	firstChargeableWorkOrder?: AnyRecord | null
+	starterServicesLoading?: boolean
+	starterServicesPlan?: StarterServicesPlan
 	loading: boolean
+	onCreateFirstReservation?: () => void
+	onCreateStarterServices?: () => Promise<unknown> | unknown
+	onOpenFirstPayment?: (workOrder: AnyRecord) => void
 	onOpenPaymentForOrder: (workOrder: AnyRecord) => void
 	onOpenSection: (section: Section) => void
+	onOpenSettingsSection: (section: DemoReadinessSettingsSection) => void
 }
 
 function dashboardCountText(count: number, singular: string, plural: string) {
@@ -91,10 +107,19 @@ function dashboardAgingBar(bucket: AnyRecord, maxValue: unknown) {
 export function DashboardPanel({
 	birthdayAlerts,
 	canViewEconomy,
+	currentUser,
 	dashboard,
+	demoReadiness,
+	firstChargeableWorkOrder,
+	starterServicesLoading,
+	starterServicesPlan,
 	loading,
+	onCreateFirstReservation,
+	onCreateStarterServices,
+	onOpenFirstPayment,
 	onOpenPaymentForOrder,
 	onOpenSection,
+	onOpenSettingsSection,
 }: DashboardPanelProps) {
 	const dashboardWorkStatusEntries = Object.entries(orderLabels)
 	const dashboardWorkStatusTotal = dashboardWorkStatusEntries.reduce(
@@ -415,6 +440,18 @@ export function DashboardPanel({
 		<div className="grid">
 			{canViewEconomy ? (
 				<>
+					<TrialLifecycleBanner currentUser={currentUser} />
+					<DemoReadinessPanel
+						firstChargeableWorkOrder={firstChargeableWorkOrder}
+						readiness={demoReadiness}
+						starterServicesLoading={starterServicesLoading}
+						starterServicesPlan={starterServicesPlan}
+						onCreateFirstReservation={onCreateFirstReservation}
+						onCreateStarterServices={onCreateStarterServices}
+						onOpenFirstPayment={onOpenFirstPayment}
+						onOpenSection={onOpenSection}
+						onOpenSettingsSection={onOpenSettingsSection}
+					/>
 					{loading && !dashboardHasBusinessActivity ? (
 						<div
 							className="dashboard-executive-grid"

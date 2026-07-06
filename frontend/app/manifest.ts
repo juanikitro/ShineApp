@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
 	return {
 		name: 'ShineApp CRM',
 		short_name: 'ShineApp',
-		description: 'Gestion operativa para detailing y lavado de autos',
+		description: 'Gestion operativa para negocios vehiculares',
 		start_url: '/?source=pwa',
 		scope: '/',
 		display: 'standalone',

@@ -114,6 +114,24 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
 
 
 @pytest.mark.django_db
+def test_business_profile_patch_cannot_change_subscription_type(api_client):
+    profile = BusinessProfile.get_solo()
+    profile.subscription_type = BusinessProfile.SubscriptionType.TRIAL
+    profile.save(update_fields=["subscription_type"])
+
+    response = api_client.patch(
+        reverse("business-profile"),
+        {"subscription_type": BusinessProfile.SubscriptionType.PREMIUM},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    assert response.data["subscription_type"] == BusinessProfile.SubscriptionType.TRIAL
+    profile.refresh_from_db()
+    assert profile.subscription_type == BusinessProfile.SubscriptionType.TRIAL
+
+
+@pytest.mark.django_db
 def test_business_profile_persists_allow_overlapping_reservations(api_client):
     response = api_client.patch(
         reverse("business-profile"),

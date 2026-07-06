@@ -1,15 +1,167 @@
+from datetime import timedelta
+
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
+from django.utils import timezone
 
-from .models import AuditLog, BusinessAccount, BusinessProfile, PasswordResetToken, UserProfile
+from .models import (
+    AuditLog,
+    BusinessAccount,
+    BusinessProfile,
+    PasswordResetToken,
+    TrialFollowUp,
+    UserProfile,
+)
 from .permissions import EMPLOYEE_ROLE, EMPLOYER_ROLE
 
 admin.site.site_header = "ShineApp Backoffice"
 admin.site.site_title = "ShineApp"
 admin.site.index_title = "Panel de operaciones"
+
+TRIAL_ENDING_SOON_DAYS = 3
+
+
+def filter_trial_status(queryset, value, *, prefix=""):
+    now = timezone.now()
+    soon = now + timedelta(days=TRIAL_ENDING_SOON_DAYS)
+
+    def field(name):
+        return f"{prefix}{name}"
+
+    if value == "active":
+        return queryset.filter(
+            **{
+                field("subscription_type"): BusinessProfile.SubscriptionType.TRIAL,
+                field("trial_ends_at__gt"): soon,
+            }
+        )
+    if value == "ending_soon":
+        return queryset.filter(
+            **{
+                field("subscription_type"): BusinessProfile.SubscriptionType.TRIAL,
+                field("trial_ends_at__gt"): now,
+                field("trial_ends_at__lte"): soon,
+            }
+        )
+    if value == "expired":
+        return queryset.filter(
+            **{
+                field("subscription_type"): BusinessProfile.SubscriptionType.TRIAL,
+                field("trial_ends_at__lte"): now,
+            }
+        )
+    if value == "missing_dates":
+        return queryset.filter(
+            **{
+                field("subscription_type"): BusinessProfile.SubscriptionType.TRIAL,
+                field("trial_ends_at__isnull"): True,
+            }
+        )
+    if value == "premium":
+        return queryset.filter(**{field("subscription_type"): BusinessProfile.SubscriptionType.PREMIUM})
+    return queryset
+
+
+class TrialStatusFilter(admin.SimpleListFilter):
+    title = "estado de prueba"
+    parameter_name = "trial_status"
+    profile_prefix = ""
+
+    def lookups(self, request, model_admin):
+        return (
+            ("active", "Trial activo"),
+            ("ending_soon", "Trial por vencer"),
+            ("expired", "Trial vencido"),
+            ("missing_dates", "Trial sin fecha"),
+            ("premium", "Premium"),
+        )
+
+    def queryset(self, request, queryset):
+        return filter_trial_status(queryset, self.value(), prefix=self.profile_prefix)
+
+
+class BusinessAccountTrialStatusFilter(TrialStatusFilter):
+    profile_prefix = "profile__"
+
+
+class BusinessAccountTrialFollowUpStatusFilter(admin.SimpleListFilter):
+    title = "seguimiento trial"
+    parameter_name = "trial_followup_status"
+
+    def lookups(self, request, model_admin):
+        return BusinessProfile.TrialFollowUpStatus.choices
+
+    def queryset(self, request, queryset):
+        if self.value() in BusinessProfile.TrialFollowUpStatus.values:
+            return queryset.filter(profile__trial_followup_status=self.value())
+        return queryset
+
+
+class TrialFollowUpDueFilter(admin.SimpleListFilter):
+    title = "proximo seguimiento"
+    parameter_name = "trial_followup_due"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("due", "Vencido o para hoy"),
+            ("upcoming", "Proximo"),
+            ("without_next", "Sin proximo paso"),
+        )
+
+    def queryset(self, request, queryset):
+        now = timezone.now()
+        if self.value() == "due":
+            return queryset.filter(trial_next_followup_at__lte=now)
+        if self.value() == "upcoming":
+            return queryset.filter(trial_next_followup_at__gt=now)
+        if self.value() == "without_next":
+            return queryset.filter(trial_next_followup_at__isnull=True)
+        return queryset
+
+
+def trial_status_label(profile):
+    if profile is None:
+        return "Sin perfil"
+    if profile.subscription_type == BusinessProfile.SubscriptionType.PREMIUM:
+        return "Premium"
+    if profile.trial_ends_at is None:
+        return "Trial sin fecha"
+    now = timezone.now()
+    if profile.trial_ends_at <= now:
+        return "Trial vencido"
+    if profile.trial_ends_at <= now + timedelta(days=TRIAL_ENDING_SOON_DAYS):
+        return "Trial por vencer"
+    return "Trial activo"
+
+
+def trial_days_left(profile):
+    if profile is None or profile.trial_ends_at is None:
+        return None
+    remaining = profile.trial_ends_at - timezone.now()
+    if remaining.total_seconds() <= 0:
+        return 0
+    return max(1, remaining.days + (1 if remaining.seconds or remaining.microseconds else 0))
+
+
+def owner_email_for_business(business):
+    profile = (
+        business.user_profiles.filter(user__groups__name=EMPLOYER_ROLE)
+        .select_related("user")
+        .order_by("user_id")
+        .first()
+    )
+    if profile is None:
+        return ""
+    return profile.user.email or profile.user.get_username()
+
+
+def trial_followup_status_label(profile):
+    if profile is None:
+        return ""
+    return profile.get_trial_followup_status_display()
 
 
 class BusinessAccountForm(forms.ModelForm):
@@ -97,6 +249,27 @@ class BusinessProfileInline(admin.StackedInline):
                 )
             },
         ),
+        (
+            "Plan y prueba",
+            {
+                "fields": (
+                    "subscription_type",
+                    "trial_started_at",
+                    "trial_ends_at",
+                )
+            },
+        ),
+        (
+            "Seguimiento comercial",
+            {
+                "fields": (
+                    "trial_followup_status",
+                    "trial_last_contacted_at",
+                    "trial_next_followup_at",
+                    "trial_followup_notes",
+                )
+            },
+        ),
     )
 
 
@@ -104,16 +277,61 @@ class BusinessProfileInline(admin.StackedInline):
 class BusinessAccountAdmin(admin.ModelAdmin):
     form = BusinessAccountForm
     inlines = [BusinessProfileInline]
-    list_display = ["name", "slug", "is_active", "users_count", "updated_at"]
-    list_filter = ["is_active"]
+    list_display = [
+        "name",
+        "slug",
+        "is_active",
+        "trial_status",
+        "trial_days_remaining",
+        "trial_followup_status",
+        "owner_email",
+        "users_count",
+        "updated_at",
+    ]
+    list_filter = [
+        "is_active",
+        BusinessAccountTrialStatusFilter,
+        BusinessAccountTrialFollowUpStatusFilter,
+    ]
+    list_select_related = ["profile"]
     search_fields = ["name", "slug", "user_profiles__user__username", "user_profiles__user__email"]
     readonly_fields = ["created_at", "updated_at"]
     actions = ["suspend_businesses", "reactivate_businesses"]
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .prefetch_related("user_profiles__user", "user_profiles__user__groups")
+        )
 
     def users_count(self, obj):
         return obj.user_profiles.count()
 
     users_count.short_description = "usuarios"
+
+    def trial_status(self, obj):
+        return trial_status_label(getattr(obj, "profile", None))
+
+    trial_status.short_description = "estado trial"
+
+    def trial_days_remaining(self, obj):
+        days = trial_days_left(getattr(obj, "profile", None))
+        return "" if days is None else days
+
+    trial_days_remaining.short_description = "dias trial"
+    trial_days_remaining.admin_order_field = "profile__trial_ends_at"
+
+    def trial_followup_status(self, obj):
+        return trial_followup_status_label(getattr(obj, "profile", None))
+
+    trial_followup_status.short_description = "seguimiento"
+    trial_followup_status.admin_order_field = "profile__trial_followup_status"
+
+    def owner_email(self, obj):
+        return owner_email_for_business(obj)
+
+    owner_email.short_description = "owner"
 
     def save_model(self, request, obj, form, change):
         was_active = None
@@ -157,10 +375,255 @@ class BusinessAccountAdmin(admin.ModelAdmin):
 
 @admin.register(BusinessProfile)
 class BusinessProfileAdmin(admin.ModelAdmin):
-    list_display = ["name", "business", "subscription_type", "updated_at"]
-    list_filter = ["subscription_type", "business__is_active"]
-    search_fields = ["name", "business__name", "business__slug", "contact_email", "cuit"]
+    list_display = [
+        "name",
+        "business",
+        "subscription_type",
+        "trial_status",
+        "trial_days_remaining",
+        "trial_followup_status",
+        "trial_next_followup_at",
+        "owner_email",
+        "business_active",
+        "updated_at",
+    ]
+    list_filter = [
+        TrialStatusFilter,
+        "subscription_type",
+        "trial_followup_status",
+        "business__is_active",
+    ]
+    list_select_related = ["business"]
+    search_fields = ["name", "business__name", "business__slug", "contact_email", "contact_phone", "cuit"]
     autocomplete_fields = ["business"]
+    actions = ["extend_trials_7_days", "suspend_expired_trial_businesses"]
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .prefetch_related("business__user_profiles__user", "business__user_profiles__user__groups")
+        )
+
+    def trial_status(self, obj):
+        return trial_status_label(obj)
+
+    trial_status.short_description = "estado trial"
+
+    def trial_days_remaining(self, obj):
+        days = trial_days_left(obj)
+        return "" if days is None else days
+
+    trial_days_remaining.short_description = "dias trial"
+    trial_days_remaining.admin_order_field = "trial_ends_at"
+
+    def owner_email(self, obj):
+        return owner_email_for_business(obj.business)
+
+    owner_email.short_description = "owner"
+
+    def business_active(self, obj):
+        return obj.business.is_active
+
+    business_active.boolean = True
+    business_active.short_description = "activo"
+
+    @admin.action(description="Extender trials seleccionados 7 dias")
+    def extend_trials_7_days(self, request, queryset):
+        now = timezone.now()
+        updated = 0
+        for profile in queryset.filter(subscription_type=BusinessProfile.SubscriptionType.TRIAL):
+            base_end = profile.trial_ends_at if profile.trial_ends_at and profile.trial_ends_at > now else now
+            if profile.trial_started_at is None:
+                profile.trial_started_at = now
+            profile.trial_ends_at = base_end + timedelta(days=7)
+            profile.save(update_fields=["trial_started_at", "trial_ends_at", "updated_at"])
+            updated += 1
+        self.message_user(request, f"Trials extendidos: {updated}.", level=messages.SUCCESS)
+
+    @admin.action(description="Suspender negocios con trial vencido")
+    def suspend_expired_trial_businesses(self, request, queryset):
+        now = timezone.now()
+        suspended = 0
+        eligible = queryset.filter(
+            subscription_type=BusinessProfile.SubscriptionType.TRIAL,
+            trial_ends_at__lte=now,
+            business__is_active=True,
+        ).select_related("business")
+        for profile in eligible:
+            profile.business.deactivate(reason="Trial vencido desde Django admin")
+            suspended += 1
+        self.message_user(request, f"Negocios suspendidos por trial vencido: {suspended}.", level=messages.WARNING)
+
+
+@admin.register(TrialFollowUp)
+class TrialFollowUpAdmin(admin.ModelAdmin):
+    list_display = [
+        "name",
+        "business",
+        "trial_status",
+        "trial_days_remaining",
+        "trial_followup_status",
+        "owner_email",
+        "contact_phone",
+        "trial_last_contacted_at",
+        "trial_next_followup_at",
+        "business_active",
+        "updated_at",
+    ]
+    list_editable = ["trial_followup_status", "trial_next_followup_at"]
+    list_filter = [
+        TrialStatusFilter,
+        "trial_followup_status",
+        TrialFollowUpDueFilter,
+        "business__is_active",
+    ]
+    list_select_related = ["business"]
+    search_fields = [
+        "name",
+        "business__name",
+        "business__slug",
+        "contact_email",
+        "contact_phone",
+        "business__user_profiles__user__email",
+        "business__user_profiles__user__username",
+    ]
+    readonly_fields = [
+        "name",
+        "business",
+        "subscription_type",
+        "trial_started_at",
+        "trial_ends_at",
+        "trial_status",
+        "trial_days_remaining",
+        "owner_email",
+        "contact_email",
+        "contact_phone",
+        "business_active",
+        "created_at",
+        "updated_at",
+    ]
+    fieldsets = (
+        (
+            "Trial",
+            {
+                "fields": (
+                    "name",
+                    "business",
+                    "subscription_type",
+                    "trial_started_at",
+                    "trial_ends_at",
+                    "trial_status",
+                    "trial_days_remaining",
+                    "owner_email",
+                    "contact_email",
+                    "contact_phone",
+                    "business_active",
+                )
+            },
+        ),
+        (
+            "Seguimiento comercial",
+            {
+                "fields": (
+                    "trial_followup_status",
+                    "trial_last_contacted_at",
+                    "trial_next_followup_at",
+                    "trial_followup_notes",
+                )
+            },
+        ),
+        (
+            "Sistema",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
+    )
+    actions = [
+        "mark_as_new",
+        "mark_as_contacted",
+        "mark_as_demo_scheduled",
+        "mark_as_converted",
+        "mark_as_lost",
+    ]
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .filter(subscription_type=BusinessProfile.SubscriptionType.TRIAL)
+            .prefetch_related("business__user_profiles__user", "business__user_profiles__user__groups")
+        )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def trial_status(self, obj):
+        return trial_status_label(obj)
+
+    trial_status.short_description = "estado trial"
+
+    def trial_days_remaining(self, obj):
+        days = trial_days_left(obj)
+        return "" if days is None else days
+
+    trial_days_remaining.short_description = "dias trial"
+    trial_days_remaining.admin_order_field = "trial_ends_at"
+
+    def owner_email(self, obj):
+        return owner_email_for_business(obj.business)
+
+    owner_email.short_description = "owner"
+
+    def business_active(self, obj):
+        return obj.business.is_active
+
+    business_active.boolean = True
+    business_active.short_description = "activo"
+
+    def _mark_followup_status(self, request, queryset, status, *, touch_contact=True):
+        now = timezone.now()
+        updated = 0
+        update_fields = ["trial_followup_status", "updated_at"]
+        if touch_contact:
+            update_fields.append("trial_last_contacted_at")
+
+        for profile in queryset:
+            profile.trial_followup_status = status
+            if touch_contact:
+                profile.trial_last_contacted_at = now
+            profile.save(update_fields=update_fields)
+            updated += 1
+
+        label = BusinessProfile.TrialFollowUpStatus(status).label
+        self.message_user(request, f"Seguimientos marcados como {label}: {updated}.", level=messages.SUCCESS)
+
+    @admin.action(description="Marcar seguimiento como nuevo")
+    def mark_as_new(self, request, queryset):
+        self._mark_followup_status(request, queryset, BusinessProfile.TrialFollowUpStatus.NEW, touch_contact=False)
+
+    @admin.action(description="Marcar seguimiento como contactado")
+    def mark_as_contacted(self, request, queryset):
+        self._mark_followup_status(request, queryset, BusinessProfile.TrialFollowUpStatus.CONTACTED)
+
+    @admin.action(description="Marcar seguimiento como demo agendada")
+    def mark_as_demo_scheduled(self, request, queryset):
+        self._mark_followup_status(request, queryset, BusinessProfile.TrialFollowUpStatus.DEMO_SCHEDULED)
+
+    @admin.action(description="Marcar seguimiento como convertido")
+    def mark_as_converted(self, request, queryset):
+        self._mark_followup_status(request, queryset, BusinessProfile.TrialFollowUpStatus.CONVERTED)
+
+    @admin.action(description="Marcar seguimiento como perdido")
+    def mark_as_lost(self, request, queryset):
+        self._mark_followup_status(request, queryset, BusinessProfile.TrialFollowUpStatus.LOST)
 
 
 class UserProfileInline(admin.StackedInline):

@@ -120,6 +120,10 @@ Configuracion:
 - Configuracion > WhatsApp.
 - Solo usuarios con permiso `EmployerOnly`.
 - El token se escribe, pero no se devuelve en las respuestas de API.
+- Primer arranque: usar `Preparar WhatsApp demo` para activar provider `fake`,
+  crear templates base y vincular reglas automaticas sin credenciales externas.
+- Produccion: cargar Meta Cloud API manualmente en la configuracion avanzada y
+  reemplazar los templates demo por los nombres aprobados por Meta.
 
 Templates:
 - Crear un template por evento.

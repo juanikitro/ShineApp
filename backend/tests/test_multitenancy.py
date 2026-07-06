@@ -1,4 +1,6 @@
+from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from django.contrib import admin
@@ -6,11 +8,18 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.db import IntegrityError, transaction
 from django.urls import reverse
+from django.utils import timezone
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 from catalog.models import Service
-from core.admin import BusinessAccountAdmin
-from core.models import BusinessAccount, BusinessProfile, UserProfile
+from core.admin import (
+    BusinessAccountAdmin,
+    BusinessProfileAdmin,
+    TrialFollowUpAdmin,
+    TrialFollowUpDueFilter,
+)
+from core.models import BusinessAccount, BusinessProfile, TrialFollowUp, UserProfile
 from customers.models import Customer, Vehicle
 from inventory.models import Material
 from quotes.models import Quote
@@ -65,6 +74,158 @@ def test_admin_provisioning_creates_business_profile_and_initial_employer(rf):
     assert employer.is_superuser is False
     assert employer.groups.filter(name="empleador").exists()
     assert employer.profile.business == business
+
+
+@pytest.mark.django_db
+def test_admin_can_extend_trial_without_changing_paid_profiles(rf):
+    superuser = get_user_model().objects.create_superuser(
+        username="platform-admin",
+        password="admin123",
+        email="platform@example.com",
+    )
+    trial_business = create_business("Trial A", "trial-a")
+    paid_business = create_business("Premium B", "premium-b")
+    now = timezone.now()
+    trial_profile = trial_business.profile
+    trial_profile.subscription_type = BusinessProfile.SubscriptionType.TRIAL
+    trial_profile.trial_ends_at = now + timedelta(days=1)
+    trial_profile.save(update_fields=["subscription_type", "trial_ends_at", "updated_at"])
+    paid_profile = paid_business.profile
+    paid_profile.subscription_type = BusinessProfile.SubscriptionType.PREMIUM
+    paid_profile.trial_ends_at = now + timedelta(days=1)
+    paid_profile.save(update_fields=["subscription_type", "trial_ends_at", "updated_at"])
+
+    request = rf.post("/admin/core/businessprofile/")
+    request.user = superuser
+    model_admin = BusinessProfileAdmin(BusinessProfile, admin.AdminSite())
+    with patch.object(model_admin, "message_user") as message_user:
+        model_admin.extend_trials_7_days(
+            request,
+            BusinessProfile.objects.filter(pk__in=[trial_profile.pk, paid_profile.pk]),
+        )
+
+    trial_profile.refresh_from_db()
+    paid_profile.refresh_from_db()
+    assert timedelta(days=7) < trial_profile.trial_ends_at - now <= timedelta(days=8)
+    assert paid_profile.trial_ends_at <= now + timedelta(days=1, seconds=1)
+    message_user.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_admin_can_suspend_only_expired_trial_businesses_and_invalidate_tokens(rf):
+    superuser = get_user_model().objects.create_superuser(
+        username="platform-admin",
+        password="admin123",
+        email="platform@example.com",
+    )
+    expired_business = create_business("Trial vencido", "trial-vencido")
+    active_business = create_business("Trial activo", "trial-activo")
+    expired_owner = create_business_user("dueno-vencido", expired_business, password="dueno123")
+    active_owner = create_business_user("dueno-activo", active_business, password="dueno123")
+    expired_token = Token.objects.create(user=expired_owner)
+    active_token = Token.objects.create(user=active_owner)
+    now = timezone.now()
+    expired_business.profile.trial_ends_at = now - timedelta(days=1)
+    expired_business.profile.save(update_fields=["trial_ends_at", "updated_at"])
+    active_business.profile.trial_ends_at = now + timedelta(days=5)
+    active_business.profile.save(update_fields=["trial_ends_at", "updated_at"])
+
+    request = rf.post("/admin/core/businessprofile/")
+    request.user = superuser
+    model_admin = BusinessProfileAdmin(BusinessProfile, admin.AdminSite())
+    with patch.object(model_admin, "message_user") as message_user:
+        model_admin.suspend_expired_trial_businesses(
+            request,
+            BusinessProfile.objects.filter(pk__in=[expired_business.profile.pk, active_business.profile.pk]),
+        )
+
+    expired_business.refresh_from_db()
+    active_business.refresh_from_db()
+    assert expired_business.is_active is False
+    assert expired_business.deactivation_reason == "Trial vencido desde Django admin"
+    assert active_business.is_active is True
+    assert not Token.objects.filter(pk=expired_token.pk).exists()
+    assert Token.objects.filter(pk=active_token.pk).exists()
+    message_user.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_trial_followup_admin_only_lists_trial_profiles(rf):
+    superuser = get_user_model().objects.create_superuser(
+        username="platform-admin",
+        password="admin123",
+        email="platform@example.com",
+    )
+    trial_business = create_business("Trial seguimiento", "trial-seguimiento")
+    paid_business = create_business("Premium seguimiento", "premium-seguimiento")
+    paid_profile = paid_business.profile
+    paid_profile.subscription_type = BusinessProfile.SubscriptionType.PREMIUM
+    paid_profile.save(update_fields=["subscription_type", "updated_at"])
+
+    request = rf.get("/admin/core/trialfollowup/")
+    request.user = superuser
+    model_admin = TrialFollowUpAdmin(TrialFollowUp, admin.AdminSite())
+
+    profile_ids = set(model_admin.get_queryset(request).values_list("pk", flat=True))
+
+    assert trial_business.profile.pk in profile_ids
+    assert paid_profile.pk not in profile_ids
+
+
+@pytest.mark.django_db
+def test_trial_followup_admin_actions_track_contact_without_changing_subscription(rf):
+    superuser = get_user_model().objects.create_superuser(
+        username="platform-admin",
+        password="admin123",
+        email="platform@example.com",
+    )
+    business = create_business("Trial comercial", "trial-comercial")
+    profile = business.profile
+    assert profile.trial_followup_status == BusinessProfile.TrialFollowUpStatus.NEW
+
+    request = rf.post("/admin/core/trialfollowup/")
+    request.user = superuser
+    model_admin = TrialFollowUpAdmin(TrialFollowUp, admin.AdminSite())
+    with patch.object(model_admin, "message_user") as message_user:
+        model_admin.mark_as_converted(request, TrialFollowUp.objects.filter(pk=profile.pk))
+
+    profile.refresh_from_db()
+    assert profile.subscription_type == BusinessProfile.SubscriptionType.TRIAL
+    assert profile.trial_followup_status == BusinessProfile.TrialFollowUpStatus.CONVERTED
+    assert profile.trial_last_contacted_at is not None
+    message_user.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_trial_followup_due_filter_returns_due_and_missing_next_steps(rf):
+    superuser = get_user_model().objects.create_superuser(
+        username="platform-admin",
+        password="admin123",
+        email="platform@example.com",
+    )
+    due_profile = create_business("Seguimiento vencido", "seguimiento-vencido").profile
+    upcoming_profile = create_business("Seguimiento proximo", "seguimiento-proximo").profile
+    missing_profile = create_business("Seguimiento sin proximo", "seguimiento-sin-proximo").profile
+    now = timezone.now()
+    due_profile.trial_next_followup_at = now - timedelta(hours=1)
+    due_profile.save(update_fields=["trial_next_followup_at", "updated_at"])
+    upcoming_profile.trial_next_followup_at = now + timedelta(days=1)
+    upcoming_profile.save(update_fields=["trial_next_followup_at", "updated_at"])
+
+    model_admin = TrialFollowUpAdmin(TrialFollowUp, admin.AdminSite())
+    request = rf.get("/admin/core/trialfollowup/", {"trial_followup_due": "due"})
+    request.user = superuser
+    due_filter = TrialFollowUpDueFilter(request, request.GET.copy(), TrialFollowUp, model_admin)
+    due_ids = set(due_filter.queryset(request, TrialFollowUp.objects.all()).values_list("pk", flat=True))
+
+    request = rf.get("/admin/core/trialfollowup/", {"trial_followup_due": "without_next"})
+    request.user = superuser
+    missing_filter = TrialFollowUpDueFilter(request, request.GET.copy(), TrialFollowUp, model_admin)
+    missing_ids = set(missing_filter.queryset(request, TrialFollowUp.objects.all()).values_list("pk", flat=True))
+
+    assert due_ids == {due_profile.pk}
+    assert missing_profile.pk in missing_ids
+    assert upcoming_profile.pk not in missing_ids
 
 
 @pytest.mark.django_db

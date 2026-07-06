@@ -834,7 +834,7 @@ def clear_recall_cache():
 
 
 @pytest.mark.django_db
-def test_public_landing_recall_returns_customer_and_vehicles_by_phone(clear_recall_cache):
+def test_public_landing_recall_does_not_return_pii_by_phone(clear_recall_cache):
     business = create_business()
     customer = Customer.objects.create(
         business=business,
@@ -856,17 +856,14 @@ def test_public_landing_recall_returns_customer_and_vehicles_by_phone(clear_reca
     resp = client.post(url, {"phone": "1164321234"}, format="json")
 
     assert resp.status_code == 200
-    assert resp.data["customer_name"] == "Ana Garcia"
-    assert resp.data["customer_phone"] == "11 6432-1234"
-    assert resp.data["customer_email"] == "ana@example.com"
-    assert len(resp.data["vehicles"]) == 1
-    assert resp.data["vehicles"][0]["license_plate"] == "ABC123"
-    assert resp.data["vehicles"][0]["brand"] == "Toyota"
-    assert resp.data["vehicles"][0]["vehicle_type"] == "auto"
+    assert resp.data["customer_name"] is None
+    assert resp.data["customer_phone"] is None
+    assert resp.data["customer_email"] is None
+    assert resp.data["vehicles"] == []
 
 
 @pytest.mark.django_db
-def test_public_landing_recall_returns_customer_by_email(clear_recall_cache):
+def test_public_landing_recall_does_not_return_pii_by_email(clear_recall_cache):
     business = create_business()
     Customer.objects.create(
         business=business,
@@ -880,7 +877,9 @@ def test_public_landing_recall_returns_customer_by_email(clear_recall_cache):
     resp = client.post(url, {"email": "Luis@EXAMPLE.COM"}, format="json")
 
     assert resp.status_code == 200
-    assert resp.data["customer_name"] == "Luis Torres"
+    assert resp.data["customer_name"] is None
+    assert resp.data["customer_phone"] is None
+    assert resp.data["customer_email"] is None
     assert resp.data["vehicles"] == []
 
 

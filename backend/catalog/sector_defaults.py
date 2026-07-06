@@ -16,6 +16,7 @@ from .models import Sector
 DEFAULT_SECTORS = [
     {"key": "lavadero", "name": "Lavadero", "order": 0},
     {"key": "detailing", "name": "Detailing", "order": 1},
+    {"key": "lubricentro", "name": "Lubricentro", "order": 2},
 ]
 
 # Traduccion del enum legacy `Service.service_type` -> `Sector.key`.

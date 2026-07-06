@@ -12,6 +12,7 @@ import {
 import {
 	ArrowLeft,
 	CalendarDays,
+	CheckCircle2,
 	ChevronDown,
 	Eye,
 	FileText,
@@ -48,6 +49,7 @@ import {
 	formatDateTimeLabel,
 	type AnyRecord,
 } from '@/lib/page-support'
+import { buildWhatsAppOnboardingReadiness } from '@/lib/whatsapp-onboarding'
 import {
 	type AuditLogFilters,
 } from '@/lib/audit-log'
@@ -141,6 +143,7 @@ type SettingsWorkspaceProps = {
 	onRefreshData: () => void
 	onRefreshAuditLogs: () => void
 	onApplyAuditFilters: (event: FormEvent) => void
+	onPrepareWhatsappDemo: () => Promise<any>
 	onSaveWhatsappConfig: (patch: AnyRecord) => Promise<any>
 	onCreateWhatsappTemplate: (data: AnyRecord) => Promise<any>
 	onUpdateWhatsappAutomationRule: (
@@ -225,6 +228,7 @@ export function SettingsWorkspace({
 	onRefreshData,
 	onRefreshAuditLogs,
 	onApplyAuditFilters,
+	onPrepareWhatsappDemo,
 	onSaveWhatsappConfig,
 	onCreateWhatsappTemplate,
 	onUpdateWhatsappAutomationRule,
@@ -305,6 +309,7 @@ export function SettingsWorkspace({
 						messages={whatsappMessages}
 						templates={whatsappTemplates}
 						onCreateTemplate={onCreateWhatsappTemplate}
+						onPrepareDemo={onPrepareWhatsappDemo}
 						onSaveConfig={onSaveWhatsappConfig}
 						onUpdateAutomationRule={onUpdateWhatsappAutomationRule}
 						onUpdateTemplate={onUpdateWhatsappTemplate}
@@ -509,12 +514,13 @@ function templateVariablesText(value: unknown) {
 	return Array.isArray(value) ? value.join(', ') : ''
 }
 
-function WhatsappSettingsPanel({
+export function WhatsappSettingsPanel({
 	automationRules,
 	config,
 	messages,
 	templates,
 	onCreateTemplate,
+	onPrepareDemo,
 	onSaveConfig,
 	onUpdateAutomationRule,
 	onUpdateTemplate,
@@ -524,6 +530,7 @@ function WhatsappSettingsPanel({
 	messages: AnyRecord[]
 	templates: AnyRecord[]
 	onCreateTemplate: (data: AnyRecord) => Promise<any>
+	onPrepareDemo: () => Promise<any>
 	onSaveConfig: (patch: AnyRecord) => Promise<any>
 	onUpdateAutomationRule: (
 		id: number | string,
@@ -562,6 +569,56 @@ function WhatsappSettingsPanel({
 		})
 	}, [config])
 
+	const readiness = useMemo(
+		() =>
+			buildWhatsAppOnboardingReadiness({
+				automationRules,
+				config,
+				messages,
+				templates,
+			}),
+		[automationRules, config, messages, templates],
+	)
+	const setupSteps = [
+		{
+			id: 'config',
+			title: 'Conexion activa',
+			description: readiness.configReady
+				? 'Canal habilitado con numero visible.'
+				: 'Falta habilitar el canal y definir el numero.',
+			done: readiness.configReady,
+		},
+		{
+			id: 'templates',
+			title: 'Templates base',
+			description: readiness.templatesReady
+				? 'Eventos iniciales listos para usar.'
+				: 'Faltan mensajes para turnos, trabajos o cotizaciones.',
+			done: readiness.templatesReady,
+		},
+		{
+			id: 'automation',
+			title: 'Reglas automaticas',
+			description: readiness.automationReady
+				? 'Los eventos ya tienen envio asignado.'
+				: 'Falta vincular reglas con templates.',
+			done: readiness.automationReady,
+		},
+		{
+			id: 'history',
+			title: 'Primer envio',
+			description: readiness.historyReady
+				? 'Ya hay historial del canal.'
+				: 'El historial se completa al enviar una cotizacion o evento.',
+			done: readiness.historyReady,
+		},
+	]
+	const modeLabel = readiness.isDemoMode
+		? 'Demo/local'
+		: config?.provider === 'meta'
+			? 'Produccion Meta'
+			: 'Sin modo activo'
+
 	function patchConfigDraft(patch: AnyRecord) {
 		setConfigDraft((current) => ({ ...current, ...patch }))
 	}
@@ -588,14 +645,93 @@ function WhatsappSettingsPanel({
 
 	return (
 		<>
+			<section className="panel whatsapp-setup-panel">
+				<div className="panel-head">
+					<div>
+						<span className="panel-kicker">Primer arranque</span>
+						<h2>WhatsApp listo para probar</h2>
+						<p>
+							Prepara un canal demo/local para confirmar turnos, trabajos y
+							cotizaciones sin credenciales externas.
+						</p>
+					</div>
+					<div className="settings-action-rail">
+						<div className="settings-primary-actions">
+							<Button
+								type="button"
+								variant="primary"
+								onClickAsync={onPrepareDemo}
+							>
+								<MessageCircle size={16} />
+								{readiness.ready ? 'Actualizar demo' : 'Preparar WhatsApp demo'}
+							</Button>
+						</div>
+					</div>
+				</div>
+				<div className="whatsapp-setup-grid">
+					<div className="whatsapp-setup-main">
+						<div className="whatsapp-setup-mode-row">
+							<span
+								className={`whatsapp-mode-badge ${
+									readiness.isDemoMode ? 'is-demo' : ''
+								}`}
+							>
+								{modeLabel}
+							</span>
+							<span>{readiness.completedCount}/{readiness.totalCount}</span>
+						</div>
+						<strong>
+							{readiness.ready
+								? 'El canal ya puede probar envios internos.'
+								: 'Un click deja el canal en modo demo seguro.'}
+						</strong>
+						<p>
+							El modo demo usa el provider fake: registra mensajes y valida el
+							flujo completo sin llamar a Meta.
+						</p>
+						<div
+							className="whatsapp-setup-progress"
+							aria-label={`Progreso WhatsApp ${readiness.percent}%`}
+						>
+							<span style={{ width: `${readiness.percent}%` }} />
+						</div>
+					</div>
+					<div className="whatsapp-setup-checks">
+						{setupSteps.map((step) => (
+							<div
+								key={step.id}
+								className={`whatsapp-setup-check ${
+									step.done ? 'is-ready' : ''
+								}`}
+							>
+								<span className="whatsapp-setup-check-icon" aria-hidden="true">
+									{step.done ? (
+										<CheckCircle2 size={16} />
+									) : (
+										<RefreshCw size={16} />
+									)}
+								</span>
+								<span className="whatsapp-setup-check-copy">
+									<strong>{step.title}</strong>
+									<small>{step.description}</small>
+								</span>
+								<span className="whatsapp-setup-check-status">
+									{step.done ? 'Listo' : 'Pendiente'}
+								</span>
+							</div>
+						))}
+					</div>
+				</div>
+			</section>
+
 			<section className="panel">
 				<div className="panel-head">
 					<div>
-						<span className="panel-kicker">Canal operativo</span>
-						<h2>WhatsApp</h2>
+						<span className="panel-kicker">Configuracion avanzada</span>
+						<h2>Conexion del canal</h2>
 						<p>
-							Configura el provider, los templates transaccionales y los
-							envios automaticos.
+							Ajusta provider, numero y credenciales cuando el negocio pase a
+							produccion.
 						</p>
 					</div>
 					<div className="settings-action-rail">

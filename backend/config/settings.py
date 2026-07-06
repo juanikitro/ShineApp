@@ -194,6 +194,7 @@ LOGIN_LOCKOUT_WINDOW_SECONDS = int(os.getenv("DJANGO_LOGIN_LOCKOUT_WINDOW_SECOND
 # Default OFF: se activa cuando billing y los datos de plan esten listos, sin
 # riesgo de bloquear clientes reales. Solo bloquea negocios en TRIAL vencido.
 ENFORCE_SUBSCRIPTION_ACCESS = os.getenv("DJANGO_ENFORCE_SUBSCRIPTION_ACCESS", "0") == "1"
+TRIAL_SIGNUP_DAYS = int(os.getenv("DJANGO_TRIAL_SIGNUP_DAYS", "14"))
 
 DEFAULT_DAILY_CAPACITY = int(os.getenv("DEFAULT_DAILY_CAPACITY", "8"))
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@shineapp.local")

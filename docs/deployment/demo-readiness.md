@@ -34,13 +34,26 @@ Estado: lista para una demo publica comercial con limites. Supabase, Vercel web,
 
 ## Evidencia De Demo Vendible Fase 1
 
-- Trial signup existe como `POST /api/auth/trial-signup/` publico en `backend/config/urls.py`. `TrialSignupSerializer` crea `BusinessAccount`, `BusinessProfile` con `subscription_type=trial`, fechas trial, membership al group empleador y `UserProfile`; `TrialSignupView` retorna token y contexto de usuario.
+- Trial signup existe como `POST /api/auth/trial-signup/` publico en `backend/config/urls.py`. Cualquier negocio puede pedir una prueba gratuita libre de 14 dias. `TrialSignupSerializer` crea `BusinessAccount`, `BusinessProfile` con `subscription_type=trial`, fechas trial, membership al group empleador y `UserProfile`; `TrialSignupView` retorna token y contexto de usuario.
 - La UI de login tiene modo trial en `frontend/lib/page-support.tsx`. Llama a `/auth/trial-signup/`, guarda el token devuelto y entra a la app sin un paso extra de login.
 - `GET /api/auth/me/` retorna el mismo contexto tenant propiedad del backend: negocio, rol, `can_view_economy`, `subscription_type`, fechas trial y estado trial.
 - Los empleadores pueden crear usuarios empleados mediante `POST /api/auth/employees/`; los empleados creados reciben rol `empleado`, pueden loguearse y reciben `can_view_economy=false`.
 - Economia sigue bloqueada por backend. `can_view_economy` es true solo para `empleador`; endpoints de finance/cash/debt/quote/material/supplier/tool history estan cubiertos por tests de empleado `403`. El frontend tambien oculta secciones de empleador/economia para usuarios empleados.
 - Todavia no hay bloqueo de cuenta por trials vencidos, por diseno. `trial_expired` es informativo en Fase 1.
 - No existen Stripe, billing portal, planes reales ni automatizacion de pagos en Fase 1. `subscription_type` es un estado interno/demo y no debe venderse como billing.
+- Beta 1B agrega guardrails operativos sin cambiar ese contrato: cada signup
+  publico deja un `AuditLog` `trial_signup` vinculado al negocio, Django admin
+  permite filtrar trials activos/por vencer/vencidos, ver owner/dias restantes,
+  extender pruebas 7 dias y suspender negocios con trial vencido. El throttling
+  `signup` sigue configurado por `DJANGO_THROTTLE_SIGNUP_RATE` en produccion.
+- Beta 1C hace visible el lifecycle del trial en el Dashboard del owner:
+  prueba activa, por vencer o vencida. La UI no bloquea el negocio ni agrega
+  billing; ofrece copiar un mensaje manual de continuidad y, si
+  `NEXT_PUBLIC_TRIAL_UPGRADE_URL` esta configurada, abre ese canal comercial.
+- Beta 1D agrega seguimiento comercial manual en Django admin: la seccion
+  `Seguimiento de trials` lista solo negocios en prueba, permite registrar
+  estado, ultimo contacto, proximo seguimiento y notas internas. No expone esos
+  datos al cliente ni cambia `subscription_type`.
 
 ## Smoke End-To-End Del Dia De Demo
 
@@ -83,6 +96,25 @@ Correr esto antes de un walkthrough comercial despues de deployar cambios de sig
 
    Esperado: `403` con el mensaje de permisos para informacion economica.
 9. Despues del walkthrough, rotar/eliminar credenciales del empleado descartable y mantener o desactivar el negocio trial segun seguimiento comercial.
+10. Para revisar guardrails Beta 1B, entrar al Django admin con un superusuario:
+    - En `Perfiles de negocio`, filtrar por `estado de prueba`.
+    - Confirmar que el negocio creado muestra owner y dias trial.
+    - Si es un negocio descartable, usar acciones admin para extenderlo 7 dias
+      o suspenderlo solo si ya esta vencido.
+    - En `Registros de auditoria`, buscar `trial_signup` y confirmar que no
+      contiene passwords ni tokens.
+11. Para revisar Beta 1C, volver al Dashboard del owner trial:
+    - Confirmar que el banner de prueba aparece arriba de `Alta guiada`.
+    - Usar `Copiar pedido` y verificar que el mensaje no contenga secretos.
+    - Si `NEXT_PUBLIC_TRIAL_UPGRADE_URL` esta configurada, probar
+      `Coordinar continuidad`.
+12. Para revisar Beta 1D, entrar al Django admin:
+    - Abrir `Seguimiento de trials`.
+    - Confirmar que aparece el trial creado y que no aparecen negocios premium.
+    - Cargar estado comercial, proximo seguimiento y una nota interna sin
+      datos sensibles.
+    - Probar una accion masiva de seguimiento sobre un trial descartable y
+      confirmar que el plan sigue como `trial`.
 
 ## Limitaciones De Free Tier
 
@@ -99,7 +131,10 @@ Correr esto antes de un walkthrough comercial despues de deployar cambios de sig
 - Validar un flujo de upload/logo/documento o ejecutar la prueba manual de media en `manual-steps.md` antes de demoear flujos media/PDF.
 - Confirmar credenciales demo por fuera de banda y confirmar que sean temporales. No mostrar ni pegar passwords reales en la llamada.
 - Si se usan usuarios seed demo, preferir passwords rotados para `admin`, `empleado` y `recepcion`. No usar passwords default en demos para clientes salvo que la base sea descartable y el riesgo se haya aceptado explicitamente.
-- Presentar el trial como prueba operativa sin tarjeta y sin cargo. No describir `subscription_type` como billing cliente.
+- Presentar el trial como prueba operativa libre de 14 dias, sin tarjeta y sin cargo. No describir `subscription_type` como billing cliente.
+- Configurar `NEXT_PUBLIC_TRIAL_UPGRADE_URL` solo si ya existe un canal
+  comercial publico para continuidad del trial; usar una URL `https://` de
+  WhatsApp, agenda o landing, nunca secretos.
 - Eliminar el proyecto Vercel accidental llamado `backend` para evitar confusion operativa.
 
 ## Riesgos Demo Conocidos
