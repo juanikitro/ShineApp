@@ -1,12 +1,15 @@
 import base64
+import hashlib
+import hmac
 import io
 import json
 from decimal import Decimal
 from unittest import mock
 from urllib.error import HTTPError
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlencode
 
 import pytest
+from django.test import override_settings
 from django.urls import reverse
 
 from catalog.models import Service
@@ -251,6 +254,38 @@ def _twilio_template_message(business):
     )
 
 
+def _twilio_status_signature(url, params, auth_token):
+    signed = url + "".join(f"{key}{params[key]}" for key in sorted(params))
+    digest = hmac.new(
+        auth_token.encode("utf-8"),
+        signed.encode("utf-8"),
+        hashlib.sha1,
+    ).digest()
+    return base64.b64encode(digest).decode("ascii")
+
+
+def _post_twilio_status(api_client, params, *, auth_token="twilio-auth-token", signature=None):
+    url = reverse("whatsapp-twilio-status-webhook")
+    absolute_url = f"http://testserver{url}"
+    twilio_signature = signature
+    if twilio_signature is None:
+        twilio_signature = _twilio_status_signature(absolute_url, params, auth_token)
+    return api_client.post(
+        url,
+        data=urlencode(params),
+        content_type="application/x-www-form-urlencoded",
+        HTTP_X_TWILIO_SIGNATURE=twilio_signature,
+    )
+
+
+def _twilio_status_message(business, *, provider_message_id="SM123", status=WhatsAppMessage.Status.SENT):
+    message = _twilio_template_message(business)
+    message.provider_message_id = provider_message_id
+    message.status = status
+    message.save(update_fields=["provider_message_id", "status", "updated_at"])
+    return message
+
+
 @pytest.mark.django_db
 def test_twilio_template_message_sends_rendered_body(twilio_config, default_business):
     message = _twilio_template_message(default_business)
@@ -271,6 +306,34 @@ def test_twilio_template_message_sends_rendered_body(twilio_config, default_busi
     assert form["From"] == ["whatsapp:+14155238886"]
     assert form["To"] == ["whatsapp:+541122334455"]
     assert form["Body"] == ["Hola Juan Perez, tu vehículo está listo."]
+
+
+@pytest.mark.django_db
+@override_settings(WHATSAPP_STATUS_CALLBACK_URL="https://api.example.com/api/whatsapp/webhooks/twilio/status/")
+def test_twilio_template_with_content_sid_uses_content_api(twilio_config, default_business):
+    message = _twilio_template_message(default_business)
+    template = message.template
+    template.twilio_content_sid = "HX123456789"
+    template.variables_schema = ["cliente", "vehiculo"]
+    template.save(update_fields=["twilio_content_sid", "variables_schema", "updated_at"])
+    message.template_variables = {"cliente": "Juan Perez"}
+    message.save(update_fields=["template_variables", "updated_at"])
+
+    fake = _FakeTwilioResponse({"sid": "SM789", "status": "queued"})
+    with mock.patch("whatsapp.providers.urlopen", return_value=fake) as mocked:
+        send_message(message)
+
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.SENT
+    assert message.provider_message_id == "SM789"
+
+    form = parse_qs(mocked.call_args[0][0].data.decode("utf-8"))
+    assert form["From"] == ["whatsapp:+14155238886"]
+    assert form["To"] == ["whatsapp:+541122334455"]
+    assert form["ContentSid"] == ["HX123456789"]
+    assert json.loads(form["ContentVariables"][0]) == {"1": "Juan Perez", "2": ""}
+    assert form["StatusCallback"] == ["https://api.example.com/api/whatsapp/webhooks/twilio/status/"]
+    assert "Body" not in form
 
 
 @pytest.mark.django_db
@@ -328,3 +391,124 @@ def test_twilio_missing_credentials_fails_with_clear_error(twilio_config, defaul
     message.refresh_from_db()
     assert message.status == WhatsAppMessage.Status.FAILED
     assert "credenciales de Twilio" in message.last_error
+
+
+@pytest.mark.django_db
+def test_twilio_status_webhook_valid_signature_updates_delivered(api_client, twilio_config, default_business):
+    message = _twilio_status_message(default_business, provider_message_id="SMDELIVERED")
+
+    response = _post_twilio_status(
+        api_client,
+        {
+            "AccountSid": twilio_config.business_account_id,
+            "MessageSid": "SMDELIVERED",
+            "MessageStatus": "delivered",
+        },
+    )
+
+    assert response.status_code == 204
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.DELIVERED
+
+
+@pytest.mark.django_db
+def test_twilio_status_webhook_invalid_signature_does_not_update(api_client, twilio_config, default_business):
+    message = _twilio_status_message(default_business, provider_message_id="SMINVALID")
+
+    response = _post_twilio_status(
+        api_client,
+        {
+            "AccountSid": twilio_config.business_account_id,
+            "MessageSid": "SMINVALID",
+            "MessageStatus": "delivered",
+        },
+        signature="invalid-signature",
+    )
+
+    assert response.status_code == 403
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.SENT
+
+
+@pytest.mark.django_db
+def test_twilio_status_webhook_unknown_account_returns_404(api_client, twilio_config, default_business):
+    message = _twilio_status_message(default_business, provider_message_id="SMUNKNOWN")
+
+    response = _post_twilio_status(
+        api_client,
+        {
+            "AccountSid": "ACUNKNOWN",
+            "MessageSid": "SMUNKNOWN",
+            "MessageStatus": "delivered",
+        },
+    )
+
+    assert response.status_code == 404
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.SENT
+
+
+@pytest.mark.django_db
+def test_twilio_status_webhook_ignores_out_of_order_status(api_client, twilio_config, default_business):
+    message = _twilio_status_message(
+        default_business,
+        provider_message_id="SMORDER",
+        status=WhatsAppMessage.Status.READ,
+    )
+
+    response = _post_twilio_status(
+        api_client,
+        {
+            "AccountSid": twilio_config.business_account_id,
+            "MessageSid": "SMORDER",
+            "MessageStatus": "sent",
+        },
+    )
+
+    assert response.status_code == 204
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.READ
+
+
+@pytest.mark.django_db
+def test_twilio_status_webhook_failed_updates_error(api_client, twilio_config, default_business):
+    message = _twilio_status_message(default_business, provider_message_id="SMFAILED")
+
+    response = _post_twilio_status(
+        api_client,
+        {
+            "AccountSid": twilio_config.business_account_id,
+            "MessageSid": "SMFAILED",
+            "MessageStatus": "failed",
+            "ErrorCode": "30008",
+            "ErrorMessage": "Unknown error",
+        },
+    )
+
+    assert response.status_code == 204
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.FAILED
+    assert "30008" in message.last_error
+    assert "Unknown error" in message.last_error
+
+
+@pytest.mark.django_db
+def test_twilio_status_webhook_does_not_downgrade_failed_status(api_client, twilio_config, default_business):
+    message = _twilio_status_message(
+        default_business,
+        provider_message_id="SMSTALE",
+        status=WhatsAppMessage.Status.FAILED,
+    )
+
+    response = _post_twilio_status(
+        api_client,
+        {
+            "AccountSid": twilio_config.business_account_id,
+            "MessageSid": "SMSTALE",
+            "MessageStatus": "delivered",
+        },
+    )
+
+    assert response.status_code == 204
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.FAILED

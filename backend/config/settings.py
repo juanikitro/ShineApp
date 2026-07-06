@@ -221,6 +221,7 @@ WHATSAPP_TIMEOUT_SECONDS = int(os.getenv("WHATSAPP_TIMEOUT_SECONDS", "10"))
 WHATSAPP_META_API_VERSION = os.getenv("WHATSAPP_META_API_VERSION", "v20.0")
 WHATSAPP_META_ACCESS_TOKEN = os.getenv("WHATSAPP_META_ACCESS_TOKEN", "")
 WHATSAPP_META_PHONE_NUMBER_ID = os.getenv("WHATSAPP_META_PHONE_NUMBER_ID", "")
+WHATSAPP_STATUS_CALLBACK_URL = os.getenv("WHATSAPP_STATUS_CALLBACK_URL", "")
 
 # Secret compartido para el endpoint interno de mantenimiento (cron de GitHub
 # Actions). Vacio = endpoint deshabilitado (responde 503).

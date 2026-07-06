@@ -61,6 +61,7 @@ class WhatsAppTemplateSerializer(serializers.ModelSerializer):
             "key",
             "key_label",
             "provider_template_name",
+            "twilio_content_sid",
             "language",
             "category",
             "body_preview",
