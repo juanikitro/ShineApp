@@ -149,6 +149,22 @@ Signup trial UI:
   `Abrir turnera`, `Configurar WhatsApp`, `Ver agenda`, `Ver caja`.
 - Consola del navegador: sin errores ni warnings capturados.
 
+Smoke guiado adicional:
+
+- Negocio QA descartable creado desde UI:
+  `QA Guided Flow 20260707131006`.
+- Email QA descartable: `qa-guided-20260707131006@shineapp.test`.
+- Recorrido automatizado: Dashboard -> Configuracion -> Servicios ->
+  Turnera -> WhatsApp -> Agenda -> Caja.
+- Checks confirmados por texto/pantalla: `Configuracion`, `Servicios`,
+  `WhatsApp`, `Canal`, `Agenda`, `Caja`, `Cobro`.
+- Captura generada localmente:
+  `output/playwright/post-release-guided-20260707131006.png`.
+- Consola del navegador: sin errores ni warnings capturados.
+- Checks inconclusos por automatizacion: `dashboard trial` y `abrir turnera`.
+  El flujo siguio navegando y no se detecto error de consola; validar
+  visualmente esos dos puntos en QA manual antes de aceptar cierre completo.
+
 Bloqueos reales para completar QA manual:
 
 - Beta 1B y Beta 1D requieren credenciales de superusuario de Django admin para
