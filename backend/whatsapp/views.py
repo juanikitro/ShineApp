@@ -1,7 +1,10 @@
 import base64
 import hashlib
 import hmac
+import json
 
+from django.conf import settings
+from django.http import HttpResponse
 from rest_framework import decorators, permissions, response, status, viewsets
 from rest_framework.views import APIView
 
@@ -32,7 +35,7 @@ TWILIO_STATUS_MAP = {
     "undelivered": WhatsAppMessage.Status.FAILED,
 }
 
-TWILIO_STATUS_RANK = {
+WHATSAPP_STATUS_RANK = {
     WhatsAppMessage.Status.PENDING: 0,
     WhatsAppMessage.Status.SENDING: 1,
     WhatsAppMessage.Status.SENT: 2,
@@ -40,6 +43,15 @@ TWILIO_STATUS_RANK = {
     WhatsAppMessage.Status.READ: 4,
     WhatsAppMessage.Status.FAILED: 5,
     WhatsAppMessage.Status.DEAD: 5,
+}
+
+TWILIO_STATUS_RANK = WHATSAPP_STATUS_RANK
+
+META_STATUS_MAP = {
+    "sent": WhatsAppMessage.Status.SENT,
+    "delivered": WhatsAppMessage.Status.DELIVERED,
+    "read": WhatsAppMessage.Status.READ,
+    "failed": WhatsAppMessage.Status.FAILED,
 }
 
 
@@ -178,8 +190,8 @@ class TwilioWhatsAppStatusWebhookView(APIView):
         new_status = TWILIO_STATUS_MAP.get(message_status)
         if new_status is None:
             return response.Response(status=status.HTTP_204_NO_CONTENT)
-        current_rank = TWILIO_STATUS_RANK.get(message.status, -1)
-        new_rank = TWILIO_STATUS_RANK.get(new_status, -1)
+        current_rank = WHATSAPP_STATUS_RANK.get(message.status, -1)
+        new_rank = WHATSAPP_STATUS_RANK.get(new_status, -1)
         if new_rank < current_rank:
             return response.Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -202,4 +214,131 @@ class TwilioWhatsAppStatusWebhookView(APIView):
             message.save(update_fields=update_fields)
 
         return response.Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def meta_signature_is_valid(raw_body, app_secret, provided):
+    if not app_secret or not provided.startswith("sha256="):
+        return False
+    provided_hex = provided.removeprefix("sha256=")
+    expected_hex = hmac.new(
+        app_secret.encode("utf-8"),
+        raw_body,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected_hex, provided_hex)
+
+
+def meta_status_error_text(status_payload):
+    errors = status_payload.get("errors")
+    if not isinstance(errors, list):
+        return ""
+    parts = []
+    for item in errors:
+        if not isinstance(item, dict):
+            continue
+        code = str(item.get("code") or "").strip()
+        message = str(item.get("message") or item.get("title") or "").strip()
+        text = " - ".join(part for part in [code, message] if part)
+        if text:
+            parts.append(text)
+    return "; ".join(parts)[:2000]
+
+
+class MetaWhatsAppStatusWebhookView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        verify_token = getattr(settings, "WHATSAPP_META_WEBHOOK_VERIFY_TOKEN", "")
+        mode = request.query_params.get("hub.mode")
+        token = request.query_params.get("hub.verify_token")
+        challenge = request.query_params.get("hub.challenge")
+        if (
+            verify_token
+            and mode == "subscribe"
+            and token is not None
+            and hmac.compare_digest(verify_token, token)
+            and challenge is not None
+        ):
+            return HttpResponse(challenge, status=200, content_type="text/plain")
+        return response.Response(status=status.HTTP_403_FORBIDDEN)
+
+    def post(self, request):
+        app_secret = getattr(settings, "WHATSAPP_META_APP_SECRET", "")
+        raw_body = request.body
+        signature = request.META.get("HTTP_X_HUB_SIGNATURE_256", "")
+        if not meta_signature_is_valid(raw_body, app_secret, signature):
+            return response.Response(status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            payload = json.loads(raw_body.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            return response.Response(status=status.HTTP_400_BAD_REQUEST)
+        if not isinstance(payload, dict) or not isinstance(payload.get("entry"), list):
+            return response.Response(status=status.HTTP_400_BAD_REQUEST)
+
+        expected_phone_number_id = getattr(settings, "WHATSAPP_META_PHONE_NUMBER_ID", "")
+        try:
+            for entry in payload["entry"]:
+                changes = entry.get("changes")
+                if not isinstance(changes, list):
+                    return response.Response(status=status.HTTP_400_BAD_REQUEST)
+                for change in changes:
+                    value = change.get("value")
+                    if not isinstance(value, dict):
+                        return response.Response(status=status.HTTP_400_BAD_REQUEST)
+                    metadata = value.get("metadata") or {}
+                    phone_number_id = str(metadata.get("phone_number_id") or "")
+                    if (
+                        phone_number_id
+                        and expected_phone_number_id
+                        and phone_number_id != expected_phone_number_id
+                    ):
+                        continue
+                    statuses = value.get("statuses")
+                    if statuses is None:
+                        continue
+                    if not isinstance(statuses, list):
+                        return response.Response(status=status.HTTP_400_BAD_REQUEST)
+                    for status_payload in statuses:
+                        if not isinstance(status_payload, dict):
+                            return response.Response(status=status.HTTP_400_BAD_REQUEST)
+                        self._process_status(status_payload)
+        except AttributeError:
+            return response.Response(status=status.HTTP_400_BAD_REQUEST)
+
+        return response.Response(status=status.HTTP_200_OK)
+
+    def _process_status(self, status_payload):
+        provider_message_id = str(status_payload.get("id") or "").strip()
+        new_status = META_STATUS_MAP.get(str(status_payload.get("status") or "").strip().lower())
+        if not provider_message_id or new_status is None:
+            return
+
+        message = WhatsAppMessage.objects.filter(
+            provider=WhatsAppConfig.Provider.META,
+            provider_message_id=provider_message_id,
+        ).first()
+        if message is None:
+            return
+
+        current_rank = WHATSAPP_STATUS_RANK.get(message.status, -1)
+        new_rank = WHATSAPP_STATUS_RANK.get(new_status, -1)
+        if new_rank < current_rank:
+            return
+
+        update_fields = []
+        if message.status != new_status:
+            message.status = new_status
+            update_fields.append("status")
+
+        if new_status == WhatsAppMessage.Status.FAILED:
+            error_text = meta_status_error_text(status_payload)
+            if error_text and message.last_error != error_text:
+                message.last_error = error_text
+                update_fields.append("last_error")
+
+        if update_fields:
+            update_fields.append("updated_at")
+            message.save(update_fields=update_fields)
 

@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import io
 import json
+from datetime import date
 from decimal import Decimal
 from unittest import mock
 from urllib.error import HTTPError
@@ -13,6 +14,7 @@ from django.test import override_settings
 from django.urls import reverse
 
 from catalog.models import Service
+from core.models import BusinessProfile
 from customers.models import Customer, Vehicle
 from quotes.models import Quote, QuoteItem
 from scheduling.models import Reservation
@@ -22,7 +24,14 @@ from whatsapp.models import (
     WhatsAppMessage,
     WhatsAppTemplate,
 )
-from whatsapp.services import create_message, flush_whatsapp_outbox, send_message
+from whatsapp.services import (
+    create_message,
+    flush_whatsapp_outbox,
+    quote_variables,
+    reservation_variables,
+    send_message,
+    work_order_variables,
+)
 
 
 @pytest.fixture
@@ -286,6 +295,77 @@ def _twilio_status_message(business, *, provider_message_id="SM123", status=What
     return message
 
 
+def _meta_template_message(business):
+    template = WhatsAppTemplate.objects.create(
+        business=business,
+        key=WhatsAppTemplate.Key.MANUAL,
+        provider_template_name="tpl_manual_meta",
+        body_preview="Hola {cliente}, tu vehiculo esta listo.",
+        variables_schema=["cliente"],
+    )
+    message = create_message(
+        business=business,
+        event=WhatsAppMessage.Event.MANUAL,
+        recipient_phone="11 2233-4455",
+        recipient_name="Juan Perez",
+        template=template,
+        variables={"cliente": "Juan Perez"},
+    )
+    message.provider = WhatsAppConfig.Provider.META
+    message.save(update_fields=["provider", "updated_at"])
+    return message
+
+
+def _meta_status_message(business, *, provider_message_id="wamid.123", status=WhatsAppMessage.Status.SENT):
+    message = _meta_template_message(business)
+    message.provider_message_id = provider_message_id
+    message.status = status
+    message.save(update_fields=["provider_message_id", "status", "updated_at"])
+    return message
+
+
+def _meta_status_body(provider_message_id, *, status_value="delivered", errors=None):
+    status_payload = {
+        "id": provider_message_id,
+        "status": status_value,
+        "timestamp": "1751900000",
+    }
+    if errors is not None:
+        status_payload["errors"] = errors
+    payload = {
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {"phone_number_id": ""},
+                            "statuses": [status_payload],
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+    return json.dumps(payload, separators=(",", ":")).encode("utf-8")
+
+
+def _meta_status_signature(body, app_secret):
+    return hmac.new(app_secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+
+
+def _post_meta_status(api_client, body, *, app_secret="meta-app-secret", signature=None):
+    signature_hex = signature
+    if signature_hex is None:
+        signature_hex = _meta_status_signature(body, app_secret)
+    return api_client.generic(
+        "POST",
+        reverse("whatsapp-meta-status-webhook"),
+        data=body,
+        content_type="application/json",
+        HTTP_X_HUB_SIGNATURE_256=f"sha256={signature_hex}",
+    )
+
+
 @pytest.mark.django_db
 def test_twilio_template_message_sends_rendered_body(twilio_config, default_business):
     message = _twilio_template_message(default_business)
@@ -512,3 +592,157 @@ def test_twilio_status_webhook_does_not_downgrade_failed_status(api_client, twil
     assert response.status_code == 204
     message.refresh_from_db()
     assert message.status == WhatsAppMessage.Status.FAILED
+
+
+@pytest.mark.django_db
+@override_settings(WHATSAPP_META_WEBHOOK_VERIFY_TOKEN="verify-token")
+def test_meta_status_webhook_verify_token_accepts_challenge(api_client):
+    response = api_client.get(
+        reverse("whatsapp-meta-status-webhook"),
+        {
+            "hub.mode": "subscribe",
+            "hub.verify_token": "verify-token",
+            "hub.challenge": "challenge-123",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.content == b"challenge-123"
+
+
+@pytest.mark.django_db
+@override_settings(WHATSAPP_META_WEBHOOK_VERIFY_TOKEN="verify-token")
+def test_meta_status_webhook_verify_token_rejects_invalid_token(api_client):
+    response = api_client.get(
+        reverse("whatsapp-meta-status-webhook"),
+        {
+            "hub.mode": "subscribe",
+            "hub.verify_token": "wrong-token",
+            "hub.challenge": "challenge-123",
+        },
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+@override_settings(WHATSAPP_META_APP_SECRET="meta-app-secret")
+def test_meta_status_webhook_valid_signature_updates_delivered(api_client, default_business):
+    message = _meta_status_message(default_business, provider_message_id="wamid.delivered")
+    body = _meta_status_body("wamid.delivered", status_value="delivered")
+
+    response = _post_meta_status(api_client, body)
+
+    assert response.status_code == 200
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.DELIVERED
+
+
+@pytest.mark.django_db
+@override_settings(WHATSAPP_META_APP_SECRET="meta-app-secret")
+def test_meta_status_webhook_invalid_signature_does_not_update(api_client, default_business):
+    message = _meta_status_message(default_business, provider_message_id="wamid.invalid")
+    body = _meta_status_body("wamid.invalid", status_value="delivered")
+
+    response = _post_meta_status(api_client, body, signature="bad-signature")
+
+    assert response.status_code == 403
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.SENT
+
+
+@pytest.mark.django_db
+@override_settings(WHATSAPP_META_APP_SECRET="meta-app-secret")
+def test_meta_status_webhook_unknown_wamid_does_not_update_messages(api_client, default_business):
+    message = _meta_status_message(default_business, provider_message_id="wamid.known")
+    body = _meta_status_body("wamid.unknown", status_value="delivered")
+
+    response = _post_meta_status(api_client, body)
+
+    assert response.status_code == 200
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.SENT
+
+
+@pytest.mark.django_db
+@override_settings(WHATSAPP_META_APP_SECRET="meta-app-secret")
+def test_meta_status_webhook_ignores_out_of_order_status(api_client, default_business):
+    message = _meta_status_message(
+        default_business,
+        provider_message_id="wamid.order",
+        status=WhatsAppMessage.Status.READ,
+    )
+    body = _meta_status_body("wamid.order", status_value="sent")
+
+    response = _post_meta_status(api_client, body)
+
+    assert response.status_code == 200
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.READ
+
+
+@pytest.mark.django_db
+@override_settings(WHATSAPP_META_APP_SECRET="meta-app-secret")
+def test_meta_status_webhook_failed_updates_error_text(api_client, default_business):
+    message = _meta_status_message(default_business, provider_message_id="wamid.failed")
+    body = _meta_status_body(
+        "wamid.failed",
+        status_value="failed",
+        errors=[
+            {
+                "code": 131026,
+                "title": "Message undeliverable",
+                "message": "Recipient phone number is not a valid WhatsApp user.",
+            }
+        ],
+    )
+
+    response = _post_meta_status(api_client, body)
+
+    assert response.status_code == 200
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.FAILED
+    assert "131026" in message.last_error
+    assert "Recipient phone number is not a valid WhatsApp user." in message.last_error
+
+
+@pytest.mark.django_db
+def test_whatsapp_event_variables_include_business_name_first(default_business, whatsapp_data):
+    profile = BusinessProfile.get_solo(business=default_business)
+    profile.name = "Shine Car Detail Studio"
+    profile.save(update_fields=["name", "updated_at"])
+    reservation = Reservation.objects.create(
+        business=default_business,
+        customer=whatsapp_data["customer"],
+        vehicle=whatsapp_data["vehicle"],
+        service=whatsapp_data["service"],
+        day=date(2026, 6, 25),
+        status=Reservation.Status.CONFIRMED,
+    )
+    order = reservation.work_order
+    quote = Quote.objects.create(
+        business=default_business,
+        customer=whatsapp_data["customer"],
+        vehicle=whatsapp_data["vehicle"],
+        reservation=reservation,
+        status=Quote.Status.DRAFT,
+    )
+    QuoteItem.objects.create(
+        quote=quote,
+        service=whatsapp_data["service"],
+        description="Lavado premium",
+        quantity=Decimal("1.00"),
+        unit_price=Decimal("10000.00"),
+    )
+    quote.recalculate()
+
+    reservation_data = reservation_variables(reservation)
+    work_order_data = work_order_variables(order)
+    quote_data = quote_variables(quote)
+
+    assert list(reservation_data.keys())[0] == "negocio"
+    assert list(work_order_data.keys())[0] == "negocio"
+    assert list(quote_data.keys())[0] == "negocio"
+    assert reservation_data["negocio"] == "Shine Car Detail Studio"
+    assert work_order_data["negocio"] == "Shine Car Detail Studio"
+    assert quote_data["negocio"] == "Shine Car Detail Studio"

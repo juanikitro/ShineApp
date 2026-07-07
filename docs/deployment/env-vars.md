@@ -52,8 +52,10 @@ No commitear valores reales. Usar `.env.example` solo como forma.
 - `WHATSAPP_TIMEOUT_SECONDS`: timeout del request a WhatsApp provider en segundos. Default `10`.
 - `WHATSAPP_META_API_VERSION`: version Graph API usada por Meta Cloud API. Default `v20.0`.
 - `WHATSAPP_META_ACCESS_TOKEN`: token server-side global para Meta Cloud API. Preferir config por negocio cuando cada cliente usa su propio numero.
-- `WHATSAPP_META_PHONE_NUMBER_ID`: Phone number ID global para Meta Cloud API. Preferir config por negocio cuando cada cliente usa su propio numero.
-- `WHATSAPP_STATUS_CALLBACK_URL`: URL publica opcional para que Twilio notifique estados de mensajes al webhook de WhatsApp. Vacio por default.
+- `WHATSAPP_META_PHONE_NUMBER_ID`: Phone number ID global para Meta Cloud API. En el modelo de numero unico de ShineApp es el numero dedicado que envia a todos los negocios.
+- `WHATSAPP_META_APP_SECRET`: App Secret de la app de Meta. Valida la firma `X-Hub-Signature-256` del webhook de status de Meta. Vacio por default (webhook deshabilitado: responde 403).
+- `WHATSAPP_META_WEBHOOK_VERIFY_TOKEN`: token propio (cadena aleatoria) para el handshake de verificacion (`GET`) del webhook de Meta; debe coincidir con el configurado en la app de Meta. Vacio por default (verificacion deshabilitada).
+- `WHATSAPP_STATUS_CALLBACK_URL`: URL publica opcional para que Twilio notifique estados de mensajes al webhook de WhatsApp. Vacio por default. Solo aplica al provider Twilio (fallback).
 - `FRONTEND_BASE_URL`: base publica del frontend usada en los links de emails (reset, bienvenida, avisos). Reemplaza el dominio hardcodeado. Default `https://shineapp-web.vercel.app`.
 - `CRON_SECRET`: secret compartido para autenticar el endpoint interno `POST /api/internal/maintenance/`, que dispara el workflow `maintenance.yml` (header `X-Cron-Token`). Vacio = endpoint deshabilitado (responde 503). En produccion, generar un valor aleatorio largo y cargarlo tanto en Vercel API como en los secrets de GitHub. Comparacion en tiempo constante.
 - `TRASH_RETENTION_DAYS`: dias que un registro soft-deleted debe tener antes de ser elegible para purga. Default `90`.

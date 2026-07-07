@@ -32,6 +32,8 @@ WHATSAPP_TIMEOUT_SECONDS=10
 WHATSAPP_META_API_VERSION=v20.0
 WHATSAPP_META_ACCESS_TOKEN=
 WHATSAPP_META_PHONE_NUMBER_ID=
+WHATSAPP_META_APP_SECRET=
+WHATSAPP_META_WEBHOOK_VERIFY_TOKEN=
 WHATSAPP_STATUS_CALLBACK_URL=
 ```
 
@@ -40,6 +42,39 @@ Regla:
 - Para demo o instalacion con un numero global, usar `WHATSAPP_META_ACCESS_TOKEN` y `WHATSAPP_META_PHONE_NUMBER_ID`.
 - Nunca cargar tokens en variables `NEXT_PUBLIC_*`.
 - Nunca pegar tokens reales en docs, issues, logs ni commits.
+
+## Meta Cloud API directo (numero unico ShineApp)
+
+Camino oficial de produccion actual. Decision: [WhatsApp: Meta Cloud API directo con numero unico de ShineApp](../registro/decisiones/2026-07-07-whatsapp-meta-directo-numero-unico.md). Un unico numero propio de ShineApp envia las notificaciones de todos los negocios; el remitente visible es "ShineApp" y el nombre del negocio va como primera variable del template.
+
+Runbook de alta (operador ShineApp):
+
+1. Conseguir un numero DEDICADO de ShineApp. Recomendado: SIM prepaga local, mantenida activa. No usar el numero personal del dueno ni el del cliente: al registrarse en Cloud API el numero queda cautivo de la API y no puede usarse en la app de WhatsApp/WhatsApp Business.
+2. En el Meta Business de ShineApp, crear/confirmar el WhatsApp Business Account (WABA) y registrar el numero (verificacion por OTP al numero + PIN de 6 digitos).
+3. Generar un token permanente de System User con permisos `whatsapp_business_messaging` y `whatsapp_business_management`.
+4. Anotar el Phone Number ID del numero y el App Secret de la app; elegir un verify token propio (cadena aleatoria).
+5. Dar de alta el metodo de pago en el WABA/Meta Business (Meta cobra por conversacion).
+6. Crear los 4 templates (categoria Utility, idioma `es_AR`) en el WhatsApp Manager de Meta con variables numeradas `{{1}}..{{n}}` en el orden indicado abajo (el nombre del negocio es `{{1}}`). Someterlos a aprobacion y esperar aprobado antes de activar la regla automatica.
+7. Configurar el webhook en la app de Meta: suscribir el evento `messages` apuntando a `https://<host-backend>/api/whatsapp/webhooks/meta/status/`, usando el verify token elegido.
+8. Setear en el backend: `WHATSAPP_META_ACCESS_TOKEN`, `WHATSAPP_META_PHONE_NUMBER_ID`, `WHATSAPP_META_APP_SECRET`, `WHATSAPP_META_WEBHOOK_VERIFY_TOKEN`.
+
+Orden de variables de los 4 templates (debe calzar exacto con `variables_schema` en ShineApp; el mapeo es posicional):
+
+- `reservation_confirmed`: `{{1}}` negocio, `{{2}}` cliente, `{{3}}` fecha_turno, `{{4}}` hora_turno, `{{5}}` vehiculo, `{{6}}` servicios.
+- `work_ready`: `{{1}}` negocio, `{{2}}` cliente, `{{3}}` vehiculo, `{{4}}` servicios.
+- `work_delivered`: `{{1}}` negocio, `{{2}}` cliente, `{{3}}` vehiculo, `{{4}}` servicios.
+- `quote_sent`: `{{1}}` negocio, `{{2}}` cliente, `{{3}}` vehiculo, `{{4}}` codigo, `{{5}}` total, `{{6}}` validez.
+
+Webhook de status de Meta:
+- `GET /api/whatsapp/webhooks/meta/status/`: handshake de verificacion. Compara `hub.verify_token` con `WHATSAPP_META_WEBHOOK_VERIFY_TOKEN` y devuelve `hub.challenge`.
+- `POST /api/whatsapp/webhooks/meta/status/`: recibe estados. Es publico (sin auth de ShineApp) pero valida la firma `X-Hub-Signature-256` (HMAC-SHA256 sobre el cuerpo crudo con `WHATSAPP_META_APP_SECRET`); actualiza `sent/delivered/read/failed` sin degradar estados que llegan fuera de orden. Sin `WHATSAPP_META_APP_SECRET`/verify token configurados, responde 403 y no procesa nada.
+
+Caveats del modelo de numero unico:
+- El numero queda cautivo de la API (no se puede usar en la app de WhatsApp).
+- Quality rating y limites de mensajeria compartidos por todos los negocios sobre ese unico numero (punto unico de falla; re-evaluar al escalar).
+- Sin bandeja de entrada: las respuestas al numero llegan al webhook pero no hay UI para responder; orientar al cliente final a escribir al negocio por su canal propio.
+
+Coexistence (usar la app del celular y la API sobre el mismo numero) NO esta disponible en Meta directo; solo lo ofrece un BSP y en el modelo de numero unico no hace falta.
 
 ## Obtener credenciales Meta
 
@@ -175,7 +210,7 @@ Manual:
 Historial:
 - Configuracion > WhatsApp > Historial WhatsApp.
 - Muestra destinatario, evento, provider, estado, fecha y error si fallo.
-- Con webhook de status Twilio configurado, `delivered/read` pueden actualizarse desde Twilio. Sin `WHATSAPP_STATUS_CALLBACK_URL`, los estados reales disponibles siguen siendo principalmente `sent`, `failed` y `dead`.
+- Con el webhook de status de Meta configurado (`WHATSAPP_META_APP_SECRET` + verify token), `delivered/read` se actualizan desde Meta. Con el webhook de Twilio (fallback) tambien, via `WHATSAPP_STATUS_CALLBACK_URL`. Sin webhook configurado, los estados reales disponibles siguen siendo principalmente `sent`, `failed` y `dead`.
 
 ## Smoke test recomendado
 
