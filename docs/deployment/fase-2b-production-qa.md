@@ -22,6 +22,9 @@ desde Fase 0 hasta Beta 1D.
 | Beta 1B en `development` | Completado | PR #208 |
 | Beta 1C en `development` | Completado | PR #209 |
 | Beta 1D en `development` | Completado | PR #210 |
+| Release Beta 1B-1D a `main` | Completado | PR #212, PR #217, merge commit `449c9b6` |
+| Deploy demo-production post Beta 1D | Completado | Workflow `deploy-vercel-demo.yml`, run `28831402282` |
+| Smoke post-release 2026-07-07 | Completado parcial | Web 200, health/deep OK, maintenance 403, signup API/UI OK |
 
 ## URLs
 
@@ -96,6 +99,80 @@ Evidencia tecnica ya verificada post-release:
 - API deep health: HTTP 200, `status=ok`, `checks.database=ok`,
   `checks.storage=ok`.
 - API maintenance sin secret: HTTP 403 esperado.
+
+## Evidencia post-release 2026-07-07
+
+Verificacion ejecutada contra demo-production despues de publicar Beta 1D y el
+sync final `development` -> `main`.
+
+Estado de GitHub/Vercel:
+
+- PR #217 (`development` -> `main`) mergeado en `main` con commit `449c9b6`.
+- `origin/main` y `origin/development` sin diff de contenido despues del sync.
+- Workflow `Deploy Vercel Demo` run `28831402282`: `success`.
+- Workflow `Validate` run `28831402280`: `success`.
+- Workflow `Regen docs` run `28831402270`: `success`.
+- Maintenance programado del 2026-07-07 sobre `main`: ultimos runs revisados
+  en estado `success`.
+
+Smoke publico:
+
+- Web publica `https://shineapp-web.vercel.app`: HTTP 200.
+- API health `https://shineapp-api.vercel.app/api/health/`: HTTP 200,
+  `status=ok`, `checks.app=ok`, `checks.database=ok`.
+- API deep health `https://shineapp-api.vercel.app/api/health/?deep=1`:
+  HTTP 200, `status=ok`, `checks.database=ok`, `checks.storage=ok`.
+- API maintenance sin secret:
+  `POST /api/internal/maintenance/` devuelve HTTP 403 esperado.
+
+Signup trial API:
+
+- Negocio QA descartable creado: `QA Trial Flow 20260707100105`.
+- Email QA descartable: `qa-trial-20260707100105@shineapp.test`.
+- `POST /api/auth/trial-signup/`: devuelve token.
+- `GET /api/auth/me/` con ese token confirma:
+  `role=empleador`, `subscription_type=trial`, `trial_expired=false`,
+  `trial_days_remaining=14`.
+
+Signup trial UI:
+
+- Negocio QA descartable creado desde el formulario publico:
+  `QA UI Trial 20260707130551`.
+- Email QA descartable: `qa-ui-20260707130551@shineapp.test`.
+- Flujo verificado con navegador headless:
+  login -> `Probar gratis 14 dias` -> formulario -> Dashboard.
+- Captura generada localmente:
+  `output/playwright/post-release-trial-20260707130551.png`.
+- Resultado visual observado: Dashboard cargado, banner `Prueba activa`,
+  `Quedan 14 dias de prueba`, bloque `Alta guiada`, servicios vehiculares
+  sugeridos y acciones `Configurar negocio`, `Cargar servicios`,
+  `Abrir turnera`, `Configurar WhatsApp`, `Ver agenda`, `Ver caja`.
+- Consola del navegador: sin errores ni warnings capturados.
+
+Smoke guiado adicional:
+
+- Negocio QA descartable creado desde UI:
+  `QA Guided Flow 20260707131006`.
+- Email QA descartable: `qa-guided-20260707131006@shineapp.test`.
+- Recorrido automatizado: Dashboard -> Configuracion -> Servicios ->
+  Turnera -> WhatsApp -> Agenda -> Caja.
+- Checks confirmados por texto/pantalla: `Configuracion`, `Servicios`,
+  `WhatsApp`, `Canal`, `Agenda`, `Caja`, `Cobro`.
+- Captura generada localmente:
+  `output/playwright/post-release-guided-20260707131006.png`.
+- Consola del navegador: sin errores ni warnings capturados.
+- Checks inconclusos por automatizacion: `dashboard trial` y `abrir turnera`.
+  El flujo siguio navegando y no se detecto error de consola; validar
+  visualmente esos dos puntos en QA manual antes de aceptar cierre completo.
+
+Bloqueos reales para completar QA manual:
+
+- Beta 1B y Beta 1D requieren credenciales de superusuario de Django admin para
+  verificar filtros, acciones masivas, auditoria y `Seguimiento de trials`.
+- Fase 2B WhatsApp real requiere credenciales/configuracion del proveedor
+  externo y no debe validarse pegando tokens reales en este artifact.
+- La revision visual mobile completa sigue siendo QA manual, aunque el dashboard
+  desktop principal ya fue capturado sin overlap evidente.
 
 ## Fase 0 - foco de producto vehicular
 
@@ -538,19 +615,19 @@ Marcar cada item antes de considerar verificada la publicacion:
 
 | Area | Resultado esperado | Estado |
 | --- | --- | --- |
-| Web publica | Carga login/dashboard | Pendiente de QA manual |
-| API health | `status=ok`, `database=ok` | Verificado por deploy |
+| Web publica | Carga login/dashboard | Verificado post-release 2026-07-07 |
+| API health | `status=ok`, `database=ok` | Verificado post-release 2026-07-07 |
 | Fase 0 | Producto enfocado en vehicular | Pendiente de QA manual |
 | Fase 1 | Demo vendible precargado | Pendiente de QA manual |
-| Fase 2A | Negocio vacio guiado | Pendiente de QA manual |
+| Fase 2A | Negocio vacio guiado | Verificado parcialmente por signup UI; pendiente QA manual completo |
 | Fase 2B | WhatsApp demo/local preparado | Pendiente de QA manual |
 | Fase 2C | Primer turno y primer cobro guiados | Pendiente de QA manual |
 | Smoke Beta 1A post-release | CTA visible y API health OK | Verificado post-release |
-| Beta 1A | Signup publico 14 dias | Pendiente de QA manual |
-| Beta 1B | Guardrails operativos de trials | Pendiente de QA manual |
-| Beta 1C | Lifecycle visible del trial y CTA manual | Pendiente de QA manual |
-| Beta 1D | Seguimiento manual interno de trials | Pendiente de QA manual |
-| Visual desktop | Sin overlap ni cortes | Pendiente de QA manual |
+| Beta 1A | Signup publico 14 dias | Verificado API/UI 2026-07-07 |
+| Beta 1B | Guardrails operativos de trials | Bloqueado por credenciales admin para QA manual |
+| Beta 1C | Lifecycle visible del trial y CTA manual | Verificado parcialmente: trial activo visible; faltan por vencer/vencido |
+| Beta 1D | Seguimiento manual interno de trials | Bloqueado por credenciales admin para QA manual |
+| Visual desktop | Sin overlap ni cortes | Verificado dashboard trial principal; pendiente recorrido manual completo |
 | Visual mobile | Una columna y controles tocables | Pendiente de QA manual |
 
 ## Incidencias
