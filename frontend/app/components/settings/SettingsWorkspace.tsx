@@ -50,6 +50,7 @@ import {
 	type AnyRecord,
 } from '@/lib/page-support'
 import { buildWhatsAppOnboardingReadiness } from '@/lib/whatsapp-onboarding'
+import { FREE_EVENT_VARIABLES } from '@/lib/whatsapp-free'
 import {
 	type AuditLogFilters,
 } from '@/lib/audit-log'
@@ -503,6 +504,19 @@ const whatsappProviderOptions = [
 	{ value: 'twilio', label: 'Twilio' },
 ]
 
+const whatsappModeOptions: SegmentedOption<string>[] = [
+	{ value: 'free', label: 'Gratis (wa.me)' },
+	{ value: 'paid', label: 'Paga (API)' },
+]
+
+// Modulos que el modo gratis expone en Envios/Botones (sin work_delivered).
+const freeModuleEventKeys = ['reservation_confirmed', 'work_ready', 'quote_sent']
+
+function whatsappVariableHint(eventKey: string) {
+	const vars = FREE_EVENT_VARIABLES[eventKey] ?? []
+	return vars.map((item) => `{${item.name}}`).join(' ')
+}
+
 function splitTemplateVariables(value: string) {
 	return value
 		.split(',')
@@ -539,6 +553,7 @@ export function WhatsappSettingsPanel({
 	onUpdateTemplate: (id: number | string, patch: AnyRecord) => Promise<any>
 }) {
 	const [configDraft, setConfigDraft] = useState<AnyRecord>({
+		mode: 'paid',
 		provider: 'meta',
 		is_enabled: false,
 		phone_number_display: '',
@@ -560,6 +575,7 @@ export function WhatsappSettingsPanel({
 
 	useEffect(() => {
 		setConfigDraft({
+			mode: config?.mode ?? 'paid',
 			provider: config?.provider ?? 'meta',
 			is_enabled: Boolean(config?.is_enabled),
 			phone_number_display: config?.phone_number_display ?? '',
@@ -619,6 +635,8 @@ export function WhatsappSettingsPanel({
 		: config?.provider === 'meta'
 			? 'Produccion Meta'
 			: 'Sin modo activo'
+
+	const isFreeMode = String(configDraft.mode) === 'free'
 
 	function patchConfigDraft(patch: AnyRecord) {
 		setConfigDraft((current) => ({ ...current, ...patch }))
@@ -753,21 +771,36 @@ export function WhatsappSettingsPanel({
 						void onSaveConfig(configDraft)
 					}}
 				>
+					<Field label="Modo del canal">
+						<SegmentedControl
+							ariaLabel="Modo del canal de WhatsApp"
+							options={whatsappModeOptions}
+							value={String(configDraft.mode)}
+							onChange={(value) => patchConfigDraft({ mode: value })}
+						/>
+						<small className="field-hint">
+							{isFreeMode
+								? 'Gratis: abre WhatsApp (wa.me) con el mensaje ya escrito. Sin API de Meta y sin costo; el envio lo confirmas vos desde tu WhatsApp.'
+								: 'Paga: envio automatico por la API (Meta/Twilio). Requiere credenciales y numero habilitado.'}
+						</small>
+					</Field>
 					<div className="form-row">
-						<Field label="Provider">
-							<select
-								value={configDraft.provider}
-								onChange={(event) =>
-									patchConfigDraft({ provider: event.target.value })
-								}
-							>
-								{whatsappProviderOptions.map((option) => (
-									<option key={option.value} value={option.value}>
-										{option.label}
-									</option>
-								))}
-							</select>
-						</Field>
+						{!isFreeMode ? (
+							<Field label="Provider">
+								<select
+									value={configDraft.provider}
+									onChange={(event) =>
+										patchConfigDraft({ provider: event.target.value })
+									}
+								>
+									{whatsappProviderOptions.map((option) => (
+										<option key={option.value} value={option.value}>
+											{option.label}
+										</option>
+									))}
+								</select>
+							</Field>
+						) : null}
 						<Field label="Numero visible">
 							<input
 								value={configDraft.phone_number_display}
@@ -789,48 +822,59 @@ export function WhatsappSettingsPanel({
 							/>
 						</Field>
 					</div>
-					<p className="field-hint">
-						Los mensajes se envian desde el numero de WhatsApp de ShineApp.
-						Deja las credenciales por negocio (Phone number ID, Business account
-						ID y Token) vacias para usar ese numero compartido; completalas solo
-						si este negocio tiene su propio numero.
-					</p>
-					<div className="form-row">
-						<Field label="Phone number ID">
-							<input
-								value={configDraft.phone_number_id}
-								onChange={(event) =>
-									patchConfigDraft({ phone_number_id: event.target.value })
-								}
-							/>
-						</Field>
-						<Field label="Business account ID">
-							<input
-								value={configDraft.business_account_id}
-								onChange={(event) =>
-									patchConfigDraft({
-										business_account_id: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="Token">
-							<input
-								type="password"
-								placeholder={config?.has_access_token ? 'Configurado' : ''}
-								value={configDraft.access_token}
-								onChange={(event) =>
-									patchConfigDraft({ access_token: event.target.value })
-								}
-							/>
-						</Field>
-					</div>
-					<Toggle
-						checked={Boolean(configDraft.is_enabled)}
-						onChange={(checked) => patchConfigDraft({ is_enabled: checked })}
-					>
-						Canal habilitado
-					</Toggle>
+					{!isFreeMode ? (
+						<>
+							<p className="field-hint">
+								Los mensajes se envian desde el numero de WhatsApp de ShineApp.
+								Deja las credenciales por negocio (Phone number ID, Business
+								account ID y Token) vacias para usar ese numero compartido;
+								completalas solo si este negocio tiene su propio numero.
+							</p>
+							<div className="form-row">
+								<Field label="Phone number ID">
+									<input
+										value={configDraft.phone_number_id}
+										onChange={(event) =>
+											patchConfigDraft({ phone_number_id: event.target.value })
+										}
+									/>
+								</Field>
+								<Field label="Business account ID">
+									<input
+										value={configDraft.business_account_id}
+										onChange={(event) =>
+											patchConfigDraft({
+												business_account_id: event.target.value,
+											})
+										}
+									/>
+								</Field>
+								<Field label="Token">
+									<input
+										type="password"
+										placeholder={config?.has_access_token ? 'Configurado' : ''}
+										value={configDraft.access_token}
+										onChange={(event) =>
+											patchConfigDraft({ access_token: event.target.value })
+										}
+									/>
+								</Field>
+							</div>
+							<Toggle
+								checked={Boolean(configDraft.is_enabled)}
+								onChange={(checked) => patchConfigDraft({ is_enabled: checked })}
+							>
+								Canal habilitado
+							</Toggle>
+						</>
+					) : (
+						<p className="record-sub">
+							En modo gratis no hacen falta credenciales. Activa los modulos mas
+							abajo y edita su mensaje; el boton de WhatsApp aparece en la
+							cotizacion, la turnera, el tablero de trabajos y la ficha del
+							cliente.
+						</p>
+					)}
 				</form>
 			</section>
 
@@ -897,13 +941,19 @@ export function WhatsappSettingsPanel({
 							/>
 						</Field>
 					</div>
-					<Field label="Preview">
+					<Field label="Mensaje (texto libre)">
 						<textarea
 							value={templateDraft.body_preview}
 							onChange={(event) =>
 								patchTemplateDraft({ body_preview: event.target.value })
 							}
 						/>
+						{whatsappVariableHint(String(templateDraft.key)) ? (
+							<small className="field-hint">
+								Variables disponibles para este modulo:{' '}
+								{whatsappVariableHint(String(templateDraft.key))}
+							</small>
+						) : null}
 					</Field>
 					<Field label="Variables">
 						<input
@@ -932,52 +982,75 @@ export function WhatsappSettingsPanel({
 			<section className="panel">
 				<div className="panel-head">
 					<div>
-						<span className="panel-kicker">Automatizacion</span>
-						<h2>Envios automaticos</h2>
-						<p>Activa los eventos que deben generar mensajes de WhatsApp.</p>
+						<span className="panel-kicker">
+							{isFreeMode ? 'Modulos gratis' : 'Automatizacion'}
+						</span>
+						<h2>
+							{isFreeMode
+								? 'Modulos con boton de WhatsApp'
+								: 'Envios automaticos'}
+						</h2>
+						<p>
+							{isFreeMode
+								? 'Activa los modulos que muestran el boton de WhatsApp y asigna el mensaje de cada uno.'
+								: 'Activa los eventos que deben generar mensajes de WhatsApp.'}
+						</p>
 					</div>
 				</div>
-				{automationRules.length ? (
-					<div className="records">
-						{automationRules.map((rule) => (
-							<RecordCard key={rule.id}>
-								<RecordCardHeader
-									title={rule.template_label ?? 'Sin template'}
-									subtitle={`${rule.event_label ?? rule.event} - ${
-										rule.enabled ? 'Activo' : 'Inactivo'
-									}`}
-								/>
-								<div className="record-actions">
-									<Toggle
-										checked={Boolean(rule.enabled)}
-										onChange={(checked) =>
-											void onUpdateAutomationRule(rule.id, { enabled: checked })
-										}
-									>
-										Enviar automatico
-									</Toggle>
-									<select
-										value={rule.template ?? ''}
-										onChange={(event) =>
-											void onUpdateAutomationRule(rule.id, {
-												template: event.target.value || null,
-											})
-										}
-									>
-										<option value="">Sin template</option>
-										{templates.map((template) => (
-											<option key={template.id} value={template.id}>
-												{template.provider_template_name || template.key}
-											</option>
-										))}
-									</select>
-								</div>
-							</RecordCard>
-						))}
-					</div>
-				) : (
-					<Empty text="Sin reglas" />
-				)}
+				{(() => {
+					const visibleRules = isFreeMode
+						? automationRules.filter((rule) =>
+								freeModuleEventKeys.includes(String(rule.event)),
+							)
+						: automationRules
+					return visibleRules.length ? (
+						<div className="records">
+							{visibleRules.map((rule) => (
+								<RecordCard key={rule.id}>
+									<RecordCardHeader
+										title={rule.event_label ?? rule.event}
+										subtitle={`${
+											rule.enabled ? 'Activo' : 'Inactivo'
+										}${
+											isFreeMode
+												? ` - variables: ${whatsappVariableHint(String(rule.event))}`
+												: ` - ${rule.template_label ?? 'Sin template'}`
+										}`}
+									/>
+									<div className="record-actions">
+										<Toggle
+											checked={Boolean(rule.enabled)}
+											onChange={(checked) =>
+												void onUpdateAutomationRule(rule.id, {
+													enabled: checked,
+												})
+											}
+										>
+											{isFreeMode ? 'Mostrar boton' : 'Enviar automatico'}
+										</Toggle>
+										<select
+											value={rule.template ?? ''}
+											onChange={(event) =>
+												void onUpdateAutomationRule(rule.id, {
+													template: event.target.value || null,
+												})
+											}
+										>
+											<option value="">Sin template</option>
+											{templates.map((template) => (
+												<option key={template.id} value={template.id}>
+													{template.provider_template_name || template.key}
+												</option>
+											))}
+										</select>
+									</div>
+								</RecordCard>
+							))}
+						</div>
+					) : (
+						<Empty text="Sin reglas" />
+					)
+				})()}
 			</section>
 
 			<section className="panel">

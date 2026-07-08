@@ -8,11 +8,21 @@ class WhatsAppConfig(models.Model):
         META = "meta", "Meta Cloud API"
         TWILIO = "twilio", "Twilio"
         FAKE = "fake", "Fake"
+        WAME = "wame", "WhatsApp gratis (wa.me)"
+
+    class Mode(models.TextChoices):
+        PAID = "paid", "Paga (API)"
+        FREE = "free", "Gratis (wa.me)"
 
     business = models.OneToOneField(
         "core.BusinessAccount",
         related_name="whatsapp_config",
         on_delete=models.CASCADE,
+    )
+    mode = models.CharField(
+        max_length=8,
+        choices=Mode.choices,
+        default=Mode.PAID,
     )
     provider = models.CharField(
         max_length=16,
