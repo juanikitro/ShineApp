@@ -6,6 +6,7 @@ from rest_framework import decorators, response, status, viewsets
 
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
 from core.permissions import business_from_request
+from finance.services import maybe_auto_charge_on_delivery
 from notifications.service import send_work_order_ready
 from scheduling.models import Reservation
 from scheduling.services import ensure_reservation_work_order
@@ -88,13 +89,16 @@ class WorkOrderViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
                 {"status": f"Estado invalido. Opciones validas: {', '.join(allowed)}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        before = {"status": order.status}
+        previous_status = order.status
+        before = {"status": previous_status}
+        auto_payment = None
         with transaction.atomic():
             order.reservation.status = new_status
             order.reservation.save(update_fields=["status", "updated_at"])
             order.refresh_from_db()
             if new_status == Reservation.Status.DELIVERED:
                 _apply_service_materials(order)
+                auto_payment = maybe_auto_charge_on_delivery(order, previous_status, request=request)
             if new_status == Reservation.Status.READY:
                 # El aviso al cliente se encola/envia recien si la transicion
                 # commitea: nunca "listo" en la DB sin haber intentado el email.
@@ -108,7 +112,10 @@ class WorkOrderViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             instance=order,
             before=before,
             after={"status": order.status},
-            metadata={"reservation": order.reservation_id},
+            metadata={
+                "reservation": order.reservation_id,
+                "auto_charge_payment": getattr(auto_payment, "id", None),
+            },
         )
         return response.Response(self.get_serializer(order).data)
 

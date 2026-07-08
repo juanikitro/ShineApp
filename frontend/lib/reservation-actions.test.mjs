@@ -299,6 +299,39 @@ test('ready disabled jumps in-progress to delivered with charge priority on debt
 	)
 })
 
+test('auto charge on delivery prioritizes delivery over charge on final step', () => {
+	assert.deepEqual(
+		buildAgendaReservationActions({
+			balanceDue: 5000,
+			canCharge: true,
+			reservationStatus: 'ready',
+			workOrderStatus: 'ready',
+			config: {
+				usePending: true,
+				useInProgress: true,
+				useReady: true,
+				useCanceled: true,
+				autoChargeOnDelivery: true,
+			},
+		}),
+		[
+			{
+				kind: 'work-order-status',
+				label: 'Entregar',
+				priority: 'high',
+				status: 'delivered',
+				variant: 'filled',
+			},
+			{
+				kind: 'work-order-charge',
+				label: 'Cobrar',
+				priority: 'medium',
+				variant: 'outline',
+			},
+		],
+	)
+})
+
 test('unknown or non-chargeable states expose no work-order actions', () => {
 	assert.deepEqual(reservationStatusActions('unknown'), [])
 	assert.deepEqual(

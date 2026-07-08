@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.db.models import Q
 from rest_framework import decorators, permissions, response, status, viewsets
 from rest_framework.views import APIView
@@ -10,6 +11,7 @@ from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_ev
 from core.models import BusinessHours, BusinessProfile
 from core.permissions import EmployerRequiredForUnsafe, business_from_request
 from finance.cash import cash_day, ensure_cash_day_open
+from finance.services import maybe_auto_charge_on_delivery
 from notifications.service import send_public_request_push, send_reservation_confirmation
 from quotes.models import Quote, QuoteItem
 from quotes.serializers import QuoteSerializer
@@ -194,16 +196,23 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     def complete(self, request, pk=None):
         reservation = self.get_object()
         before = audit_snapshot(reservation)
-        reservation.status = Reservation.Status.DELIVERED
-        reservation.save(update_fields=["status", "updated_at"])
-        ensure_reservation_work_order(reservation)
+        previous_status = reservation.status
+        auto_payment = None
+        with transaction.atomic():
+            reservation.status = Reservation.Status.DELIVERED
+            reservation.save(update_fields=["status", "updated_at"])
+            order = ensure_reservation_work_order(reservation)
+            auto_payment = maybe_auto_charge_on_delivery(order, previous_status, request=request)
         record_audit_event(
             request=request,
             action="complete",
             instance=reservation,
             before=before,
             after=audit_snapshot(reservation),
-            metadata={"side_effects": ["ensure_reservation_work_order"]},
+            metadata={
+                "side_effects": ["ensure_reservation_work_order"],
+                "auto_charge_payment": getattr(auto_payment, "id", None),
+            },
         )
         return response.Response(self.get_serializer(reservation).data)
 

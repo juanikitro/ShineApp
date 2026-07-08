@@ -244,6 +244,7 @@ class BusinessProfileInline(admin.StackedInline):
                 "fields": (
                     "use_reservation_times",
                     "show_stay_days_in_agenda",
+                    "reservation_auto_charge_on_delivery",
                     "income_category_tree",
                     "expense_category_tree",
                 )

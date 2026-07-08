@@ -11,6 +11,7 @@ export type ReservationFlowStatus = (typeof RESERVATION_STATUS_VALUES)[number]
 export type ReservationStatusValue = ReservationFlowStatus | 'canceled'
 
 export type ReservationStatusConfig = {
+	autoChargeOnDelivery: boolean
 	usePending: boolean
 	useInProgress: boolean
 	useReady: boolean
@@ -18,6 +19,7 @@ export type ReservationStatusConfig = {
 }
 
 export const DEFAULT_RESERVATION_STATUS_CONFIG: ReservationStatusConfig = {
+	autoChargeOnDelivery: false,
 	usePending: true,
 	useInProgress: true,
 	useReady: true,
@@ -43,6 +45,8 @@ export function reservationStatusConfigFromProfile(
 ): ReservationStatusConfig {
 	if (!profile) return { ...DEFAULT_RESERVATION_STATUS_CONFIG }
 	return {
+		autoChargeOnDelivery:
+			profile.reservation_auto_charge_on_delivery === true,
 		usePending: profile.reservation_use_pending !== false,
 		useInProgress: profile.reservation_use_in_progress !== false,
 		useReady: profile.reservation_use_ready !== false,

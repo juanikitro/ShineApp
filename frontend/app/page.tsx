@@ -1148,6 +1148,7 @@ export default function Home() {
 			businessForm.reservation_use_in_progress,
 			businessForm.reservation_use_ready,
 			businessForm.reservation_use_canceled,
+			businessForm.reservation_auto_charge_on_delivery,
 		],
 	)
 	const workStatusColumns = useMemo(
@@ -1569,6 +1570,8 @@ export default function Home() {
 						profile.reservation_use_ready !== false,
 					reservation_use_canceled:
 						profile.reservation_use_canceled !== false,
+					reservation_auto_charge_on_delivery:
+						profile.reservation_auto_charge_on_delivery === true,
 					public_landing_enabled:
 						profile.public_landing_enabled !== false,
 					public_landing_intro: String(
@@ -7152,6 +7155,10 @@ export default function Home() {
 		payload.append(
 			'reservation_use_canceled',
 			String(currentBusinessForm.reservation_use_canceled !== false),
+		)
+		payload.append(
+			'reservation_auto_charge_on_delivery',
+			String(currentBusinessForm.reservation_auto_charge_on_delivery === true),
 		)
 		payload.append(
 			'public_landing_enabled',
@@ -15268,6 +15275,9 @@ export default function Home() {
 						reservationUseInProgress={reservationStatusConfig.useInProgress}
 						reservationUseReady={reservationStatusConfig.useReady}
 						reservationUseCanceled={reservationStatusConfig.useCanceled}
+						reservationAutoChargeOnDelivery={
+							reservationStatusConfig.autoChargeOnDelivery
+						}
 						onApplyAuditFilters={applyAuditFilters}
 						onAuditActionLabel={auditActionLabel}
 						onAuditModuleLabel={auditModuleLabel}

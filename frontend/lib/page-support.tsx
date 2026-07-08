@@ -232,6 +232,7 @@ function blankBusinessForm() {
 		show_stay_days_in_agenda: true,
 		allow_overlapping_reservations: false,
 		enforce_capacity_limit: true,
+		reservation_auto_charge_on_delivery: false,
 		default_capacity_wash: '8',
 		default_capacity_detailing: '4',
 		public_landing_enabled: true,

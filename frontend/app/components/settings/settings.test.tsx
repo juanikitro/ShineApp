@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { test, vi } from 'vitest'
 
-import { NewsSettingsPanel, WhatsappSettingsPanel } from './SettingsWorkspace'
+import { AgendaSettingsPanel, NewsSettingsPanel, WhatsappSettingsPanel } from './SettingsWorkspace'
 
 test('NewsSettingsPanel renders the panel heading and kicker', () => {
 	render(<NewsSettingsPanel />)
@@ -84,4 +84,29 @@ test('WhatsappSettingsPanel shows demo onboarding and calls prepare action', asy
 	await user.click(screen.getByRole('button', { name: /Preparar WhatsApp demo/ }))
 	assert.equal(onPrepareDemo.mock.calls.length, 1)
 	assert.ok(screen.getByText('Primer arranque'))
+})
+
+test('AgendaSettingsPanel patches automatic charge preference', async () => {
+	const user = userEvent.setup()
+	const onPatchBusinessForm = vi.fn()
+
+	render(
+		<AgendaSettingsPanel
+			reservationAutoChargeOnDelivery={false}
+			reservationUseCanceled={true}
+			reservationUseInProgress={true}
+			reservationUsePending={true}
+			reservationUseReady={true}
+			showStayDaysInAgenda={true}
+			useReservationTimes={true}
+			onPatchBusinessForm={onPatchBusinessForm}
+			onSaveBusinessProfile={vi.fn()}
+		/>,
+	)
+
+	await user.click(screen.getByRole('button', { name: 'Automatico' }))
+
+	assert.deepEqual(onPatchBusinessForm.mock.calls.at(-1)?.[0], {
+		reservation_auto_charge_on_delivery: true,
+	})
 })

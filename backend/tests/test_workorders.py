@@ -4,10 +4,12 @@ import pytest
 from django.db import IntegrityError, connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils import timezone
 
 from catalog.models import Service
+from core.models import BusinessProfile
 from customers.models import Customer, Vehicle
-from finance.models import Payment
+from finance.models import CashClosure, CashMovement, Payment
 from scheduling.models import Reservation
 from workorders.metrics import build_work_order_financial_metrics
 from workorders.models import WorkOrder
@@ -118,6 +120,247 @@ def test_work_order_status_updates_reservation_status(api_client, base_data):
     assert reservation.status == "ready"
     assert order.status == "ready"
     assert response.data["status"] == "ready"
+
+
+@pytest.mark.django_db
+def test_delivery_does_not_auto_charge_when_profile_flag_is_disabled(api_client, base_data):
+    customer, vehicle, service = base_data
+    reservation = Reservation.objects.create(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        day="2026-04-28",
+        status=Reservation.Status.READY,
+    )
+    order = reservation.work_order
+    order.total_amount = Decimal("15000.00")
+    order.save(update_fields=["total_amount"])
+
+    response = api_client.post(
+        reverse("workorder-status", args=[order.id]),
+        {"status": Reservation.Status.DELIVERED},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    reservation.refresh_from_db()
+    assert reservation.status == Reservation.Status.DELIVERED
+    assert Payment.objects.filter(work_order=order).count() == 0
+
+
+@pytest.mark.django_db
+def test_delivery_auto_charges_full_balance_with_cash_fallback(api_client, base_data):
+    customer, vehicle, service = base_data
+    profile = BusinessProfile.get_solo()
+    profile.reservation_auto_charge_on_delivery = True
+    profile.save(update_fields=["reservation_auto_charge_on_delivery"])
+    reservation = Reservation.objects.create(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        day="2026-04-28",
+        status=Reservation.Status.READY,
+    )
+    order = reservation.work_order
+    order.total_amount = Decimal("15000.00")
+    order.save(update_fields=["total_amount"])
+
+    response = api_client.post(
+        reverse("workorder-status", args=[order.id]),
+        {"status": Reservation.Status.DELIVERED},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    payment = Payment.objects.get(work_order=order)
+    assert payment.amount == Decimal("15000.00")
+    assert payment.payment_type == Payment.PaymentType.PAYMENT
+    assert payment.method == Payment.Method.CASH
+    assert payment.notes == "Cobro automatico al entregar"
+    movement = CashMovement.objects.get(payment=payment)
+    assert movement.amount == Decimal("15000.00")
+    assert movement.category == "Pago"
+    assert movement.subcategory == "Efectivo"
+
+
+@pytest.mark.django_db
+def test_delivery_auto_charge_reuses_last_payment_method(api_client, base_data):
+    customer, vehicle, service = base_data
+    profile = BusinessProfile.get_solo()
+    profile.reservation_auto_charge_on_delivery = True
+    profile.save(update_fields=["reservation_auto_charge_on_delivery"])
+    reservation = Reservation.objects.create(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        day="2026-04-28",
+        status=Reservation.Status.READY,
+    )
+    order = reservation.work_order
+    order.total_amount = Decimal("15000.00")
+    order.save(update_fields=["total_amount"])
+    Payment.objects.create(
+        work_order=order,
+        amount=Decimal("3000.00"),
+        method=Payment.Method.TRANSFER,
+    )
+
+    response = api_client.post(
+        reverse("workorder-status", args=[order.id]),
+        {"status": Reservation.Status.DELIVERED},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    payment = Payment.objects.filter(work_order=order).order_by("-amount").first()
+    assert payment.amount == Decimal("12000.00")
+    assert payment.method == Payment.Method.TRANSFER
+
+
+@pytest.mark.django_db
+def test_delivery_auto_charge_skips_zero_balance(api_client, base_data):
+    customer, vehicle, service = base_data
+    profile = BusinessProfile.get_solo()
+    profile.reservation_auto_charge_on_delivery = True
+    profile.save(update_fields=["reservation_auto_charge_on_delivery"])
+    reservation = Reservation.objects.create(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        day="2026-04-28",
+        status=Reservation.Status.READY,
+    )
+    order = reservation.work_order
+    order.total_amount = Decimal("15000.00")
+    order.save(update_fields=["total_amount"])
+    Payment.objects.create(work_order=order, amount=Decimal("15000.00"))
+
+    response = api_client.post(
+        reverse("workorder-status", args=[order.id]),
+        {"status": Reservation.Status.DELIVERED},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    assert Payment.objects.filter(work_order=order).count() == 1
+
+
+@pytest.mark.django_db
+def test_delivery_auto_charge_blocks_delivery_when_cash_day_is_closed(api_client, base_data):
+    customer, vehicle, service = base_data
+    profile = BusinessProfile.get_solo()
+    profile.reservation_auto_charge_on_delivery = True
+    profile.save(update_fields=["reservation_auto_charge_on_delivery"])
+    reservation = Reservation.objects.create(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        day="2026-04-28",
+        status=Reservation.Status.READY,
+    )
+    order = reservation.work_order
+    order.total_amount = Decimal("15000.00")
+    order.save(update_fields=["total_amount"])
+    CashClosure.objects.create(
+        business=order.business,
+        day=timezone.localdate(),
+        total_income=Decimal("0.00"),
+        total_expense=Decimal("0.00"),
+        balance=Decimal("0.00"),
+    )
+
+    response = api_client.post(
+        reverse("workorder-status", args=[order.id]),
+        {"status": Reservation.Status.DELIVERED},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    reservation.refresh_from_db()
+    assert reservation.status == Reservation.Status.READY
+    assert Payment.objects.filter(work_order=order).count() == 0
+
+
+@pytest.mark.django_db
+def test_employee_delivery_can_trigger_auto_charge(employee_client, base_data):
+    customer, vehicle, service = base_data
+    profile = BusinessProfile.get_solo()
+    profile.reservation_auto_charge_on_delivery = True
+    profile.save(update_fields=["reservation_auto_charge_on_delivery"])
+    reservation = Reservation.objects.create(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        day="2026-04-28",
+        status=Reservation.Status.READY,
+    )
+    order = reservation.work_order
+    order.total_amount = Decimal("15000.00")
+    order.save(update_fields=["total_amount"])
+
+    response = employee_client.post(
+        reverse("workorder-status", args=[order.id]),
+        {"status": Reservation.Status.DELIVERED},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    assert Payment.objects.filter(work_order=order, amount=Decimal("15000.00")).exists()
+    assert CashMovement.objects.filter(payment__work_order=order).exists()
+
+
+@pytest.mark.django_db
+def test_patch_reservation_to_delivered_triggers_auto_charge(api_client, base_data):
+    customer, vehicle, service = base_data
+    profile = BusinessProfile.get_solo()
+    profile.reservation_auto_charge_on_delivery = True
+    profile.save(update_fields=["reservation_auto_charge_on_delivery"])
+    reservation = Reservation.objects.create(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        day="2026-04-28",
+        status=Reservation.Status.READY,
+    )
+    order = reservation.work_order
+    order.total_amount = Decimal("15000.00")
+    order.save(update_fields=["total_amount"])
+
+    response = api_client.patch(
+        reverse("reservation-detail", args=[reservation.id]),
+        {"status": Reservation.Status.DELIVERED},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    assert Payment.objects.filter(work_order=order, amount=Decimal("15000.00")).exists()
+
+
+@pytest.mark.django_db
+def test_already_delivered_status_does_not_auto_charge_again(api_client, base_data):
+    customer, vehicle, service = base_data
+    profile = BusinessProfile.get_solo()
+    profile.reservation_auto_charge_on_delivery = True
+    profile.save(update_fields=["reservation_auto_charge_on_delivery"])
+    reservation = Reservation.objects.create(
+        customer=customer,
+        vehicle=vehicle,
+        service=service,
+        day="2026-04-28",
+        status=Reservation.Status.DELIVERED,
+    )
+    order = reservation.work_order
+    order.total_amount = Decimal("15000.00")
+    order.save(update_fields=["total_amount"])
+
+    response = api_client.post(
+        reverse("workorder-status", args=[order.id]),
+        {"status": Reservation.Status.DELIVERED},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    assert Payment.objects.filter(work_order=order).count() == 0
 
 
 @pytest.mark.django_db

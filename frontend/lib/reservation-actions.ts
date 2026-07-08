@@ -145,7 +145,8 @@ function buildWorkOrderActions(
 	if (statusAction && canCharge) {
 		const prioritizeCharge =
 			statusAction.status === 'delivered' &&
-			balanceDue > 0
+			balanceDue > 0 &&
+			!config.autoChargeOnDelivery
 
 		if (prioritizeCharge) {
 			return [

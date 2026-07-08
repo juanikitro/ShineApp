@@ -22,6 +22,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         assert initial.data["use_reservation_times"] is True
         assert initial.data["show_stay_days_in_agenda"] is True
         assert initial.data["allow_overlapping_reservations"] is False
+        assert initial.data["reservation_auto_charge_on_delivery"] is False
         assert initial.data["enforce_capacity_limit"] is True
         assert initial.data["address"] == ""
         assert initial.data["maps_url"] == ""
@@ -59,6 +60,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
                 "contact_email": "contacto@brillototal.com",
                 "use_reservation_times": False,
                 "show_stay_days_in_agenda": False,
+                "reservation_auto_charge_on_delivery": True,
                 "address": "Parana 158",
                 "maps_url": "https://maps.app.goo.gl/demo",
                 "default_quote_validity_days": 10,
@@ -85,6 +87,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         assert response.data["contact_email"] == "contacto@brillototal.com"
         assert response.data["use_reservation_times"] is False
         assert response.data["show_stay_days_in_agenda"] is False
+        assert response.data["reservation_auto_charge_on_delivery"] is True
         assert response.data["address"] == "Parana 158"
         assert response.data["maps_url"] == "https://maps.app.goo.gl/demo"
         assert response.data["default_quote_validity_days"] == 10
@@ -101,6 +104,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         assert profile.cuit == "20304050607"
         assert profile.use_reservation_times is False
         assert profile.show_stay_days_in_agenda is False
+        assert profile.reservation_auto_charge_on_delivery is True
         assert profile.address == "Parana 158"
         assert profile.maps_url == "https://maps.app.goo.gl/demo"
         assert profile.default_quote_validity_days == 10
