@@ -51,6 +51,7 @@ from whatsapp.views import (
     TwilioWhatsAppStatusWebhookView,
     WhatsAppAutomationRuleViewSet,
     WhatsAppConfigView,
+    WhatsAppFreeLogView,
     WhatsAppMessageViewSet,
     WhatsAppTemplateViewSet,
 )
@@ -129,6 +130,7 @@ urlpatterns = [
         name="business-profile",
     ),
     path("api/whatsapp/config/", WhatsAppConfigView.as_view(), name="whatsapp-config"),
+    path("api/whatsapp/free/log/", WhatsAppFreeLogView.as_view(), name="whatsapp-free-log"),
     path(
         "api/whatsapp/webhooks/twilio/status/",
         TwilioWhatsAppStatusWebhookView.as_view(),

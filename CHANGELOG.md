@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-07-08
+- [WhatsApp: modo gratis (wa.me) como alternativa a la API paga](docs/registro/cambios/2026-07-08-whatsapp-modo-gratis-wame.md)
+
 ## 2026-07-07
 - [WhatsApp: Meta directo, webhook de status y numero unico](docs/registro/cambios/2026-07-07-whatsapp-meta-directo-numero-unico.md)
 

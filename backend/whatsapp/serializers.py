@@ -1,6 +1,12 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from core.permissions import business_from_context
+
+from customers.models import Customer
+from quotes.models import Quote
+from scheduling.models import Reservation
+from workorders.models import WorkOrder
 
 from .models import (
     WhatsAppAutomationRule,
@@ -8,7 +14,7 @@ from .models import (
     WhatsAppMessage,
     WhatsAppTemplate,
 )
-from .services import create_message, send_message
+from .services import create_message, normalize_phone, send_message
 
 
 class WhatsAppConfigSerializer(serializers.ModelSerializer):
@@ -24,6 +30,7 @@ class WhatsAppConfigSerializer(serializers.ModelSerializer):
         model = WhatsAppConfig
         fields = [
             "id",
+            "mode",
             "provider",
             "is_enabled",
             "phone_number_display",
@@ -200,3 +207,77 @@ class ManualWhatsAppMessageSerializer(serializers.Serializer):
             created_by=request.user,
         )
         return send_message(message)
+
+
+class FreeWhatsAppLogSerializer(serializers.Serializer):
+    """Registra en el Historial un envío del modo gratis (wa.me).
+
+    No hace envío server-side: el operador abre WhatsApp desde su propia sesión.
+    Solo deja traza (provider=wame, status=sent), sin confirmación de entrega real.
+    """
+
+    event = serializers.ChoiceField(choices=WhatsAppMessage.Event.choices)
+    rendered_body = serializers.CharField()
+    recipient_phone = serializers.CharField(max_length=32)
+    recipient_name = serializers.CharField(required=False, allow_blank=True, max_length=160)
+    customer = serializers.PrimaryKeyRelatedField(
+        queryset=Customer.objects.none(), required=False, allow_null=True
+    )
+    reservation = serializers.PrimaryKeyRelatedField(
+        queryset=Reservation.objects.none(), required=False, allow_null=True
+    )
+    work_order = serializers.PrimaryKeyRelatedField(
+        queryset=WorkOrder.objects.none(), required=False, allow_null=True
+    )
+    quote = serializers.PrimaryKeyRelatedField(
+        queryset=Quote.objects.none(), required=False, allow_null=True
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        business = business_from_context(self.context)
+        # Querysets scopeados al negocio: una FK de otro negocio no existe acá => 400.
+        self.fields["customer"].queryset = Customer.objects.filter(business=business)
+        self.fields["reservation"].queryset = Reservation.objects.filter(business=business)
+        self.fields["work_order"].queryset = WorkOrder.objects.filter(business=business)
+        self.fields["quote"].queryset = Quote.objects.filter(business=business)
+
+    def validate_rendered_body(self, value):
+        if not (value or "").strip():
+            raise serializers.ValidationError("Escribe el mensaje.")
+        return value
+
+    def save(self, **kwargs):
+        request = self.context["request"]
+        business = business_from_context(self.context)
+        attrs = self.validated_data
+        config = WhatsAppConfig.get_solo(business)
+        recipient = normalize_phone(
+            attrs["recipient_phone"], default_country_code=config.default_country_code
+        )
+        if not recipient:
+            raise serializers.ValidationError({"recipient_phone": "Teléfono inválido."})
+        vehicle = None
+        reservation = attrs.get("reservation")
+        work_order = attrs.get("work_order")
+        quote = attrs.get("quote")
+        source = reservation or work_order or quote
+        if source is not None:
+            vehicle = getattr(source, "vehicle", None)
+        return WhatsAppMessage.objects.create(
+            business=business,
+            recipient_phone=recipient,
+            recipient_name=attrs.get("recipient_name", ""),
+            customer=attrs.get("customer"),
+            vehicle=vehicle,
+            reservation=reservation,
+            work_order=work_order,
+            quote=quote,
+            message_type=WhatsAppMessage.MessageType.FREE_TEXT,
+            event=attrs["event"],
+            rendered_body=attrs["rendered_body"],
+            provider=WhatsAppConfig.Provider.WAME,
+            status=WhatsAppMessage.Status.SENT,
+            sent_at=timezone.now(),
+            created_by=request.user,
+        )

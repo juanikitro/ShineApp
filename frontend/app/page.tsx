@@ -276,6 +276,14 @@ import {
 	vehicleMatchesSearch,
 } from '@/lib/vehicle-display'
 import { serviceDisplayName } from '@/lib/service-display'
+import {
+	buildFreeVariables,
+	buildFreeWhatsappHref,
+	freeTemplateBody,
+	isFreeEventEnabled,
+	isFreeWhatsappMode,
+	renderFreeTemplate,
+} from '@/lib/whatsapp-free'
 import { serviceDetailPayloadFields } from '@/lib/service-detail-payload'
 import {
 	applyBasePriceToTypes,
@@ -3110,6 +3118,43 @@ export default function Home() {
 				icon: <Car size={15} />,
 				hidden: !vehicle,
 				onSelect: () => vehicle && openDetailModal('Vehiculo', vehicle),
+			},
+			{
+				id: `agenda:whatsapp:confirm:${reservation.id}`,
+				label: 'WhatsApp: confirmar turno',
+				icon: <MessageCircle size={15} />,
+				hidden:
+					!customer ||
+					!isFreeWhatsappMode(whatsappConfig) ||
+					!isFreeEventEnabled(whatsappAutomationRules, 'reservation_confirmed'),
+				onSelect: () =>
+					openFreeWhatsapp({
+						event: 'reservation_confirmed',
+						customer,
+						vehicle,
+						record: reservation,
+						reservationId: reservation.id,
+					}),
+			},
+			{
+				id: `agenda:whatsapp:ready:${reservation.id}`,
+				label: 'WhatsApp: listo para entregar',
+				icon: <MessageCircle size={15} />,
+				hidden:
+					!customer ||
+					!showWork ||
+					!workOrder ||
+					!isFreeWhatsappMode(whatsappConfig) ||
+					!isFreeEventEnabled(whatsappAutomationRules, 'work_ready'),
+				onSelect: () =>
+					openFreeWhatsapp({
+						event: 'work_ready',
+						customer,
+						vehicle,
+						record: reservation,
+						reservationId: reservation.id,
+						workOrderId: workOrder?.id ?? null,
+					}),
 			},
 			{
 				id: `agenda:quote:${reservation.id}`,
@@ -7358,6 +7403,70 @@ export default function Home() {
 		)
 	}
 
+	// Modo gratis: abre WhatsApp (wa.me) con el mensaje renderizado y registra el
+	// envio en el Historial (fire-and-forget). No usa la API de Meta.
+	function openFreeWhatsapp(options: {
+		event: string
+		customer: AnyRecord | null | undefined
+		vehicle?: AnyRecord | null
+		record?: AnyRecord | null
+		reservationId?: number | string | null
+		workOrderId?: number | string | null
+		quoteId?: number | string | null
+	}) {
+		const { event } = options
+		const customer = options.customer ?? null
+		const record = options.record ?? null
+		const phone = String(customer?.phone ?? record?.customer_phone ?? '').trim()
+		const body = renderFreeTemplate(
+			freeTemplateBody(whatsappTemplates, event),
+			buildFreeVariables(event, {
+				cliente: customer?.name ?? record?.customer_name,
+				vehiculo: options.vehicle
+					? vehicleDisplayTitle(options.vehicle)
+					: record?.vehicle_label,
+				servicios: record?.service_name ?? record?.services,
+				fecha_turno: record?.day ? formatDateLabel(record.day) : '',
+				hora_turno: record?.start_time ? formatTimeLabel(record.start_time) : '',
+				codigo: record?.public_code ?? '',
+				total: record?.total != null ? money(record.total) : '',
+				validez: record?.valid_until ? formatDateLabel(record.valid_until) : '',
+				negocio: currentUser?.business?.name ?? businessProfile?.name ?? '',
+			}),
+		)
+		const href = buildFreeWhatsappHref(phone, body)
+		if (!href) {
+			showToast({
+				tone: 'error',
+				title: 'No se pudo abrir WhatsApp',
+				description: !phone
+					? 'El cliente no tiene telefono cargado.'
+					: 'Falta configurar el mensaje de este modulo en Configuracion > WhatsApp.',
+			})
+			return
+		}
+		if (typeof window !== 'undefined') {
+			window.open(href, '_blank', 'noopener,noreferrer')
+		}
+		void apiFetch<AnyRecord>('/whatsapp/free/log/', {
+			method: 'POST',
+			body: JSON.stringify({
+				event,
+				rendered_body: body,
+				recipient_phone: phone,
+				recipient_name: customer?.name ?? record?.customer_name ?? '',
+				customer: customer?.id ?? null,
+				reservation: options.reservationId ?? null,
+				work_order: options.workOrderId ?? null,
+				quote: options.quoteId ?? null,
+			}),
+		})
+			.then((message) => {
+				if (message) setWhatsappMessages((current) => [message, ...current])
+			})
+			.catch(() => {})
+	}
+
 	async function saveBusinessProfile(event: FormEvent) {
 		event.preventDefault()
 		if (!canViewEconomy) return
@@ -7791,6 +7900,20 @@ export default function Home() {
 				icon: <Pencil size={15} />,
 				onSelect: () => openDetailModal('Cliente', customer),
 			},
+			{
+				id: `customer:whatsapp:${customer.id}`,
+				label: 'WhatsApp',
+				icon: <MessageCircle size={15} />,
+				hidden:
+					!isFreeWhatsappMode(whatsappConfig) ||
+					!String(customer.phone ?? '').trim(),
+				onSelect: () =>
+					openFreeWhatsapp({
+						event: 'manual',
+						customer,
+						record: customer,
+					}),
+			},
 			deleteRecordQuickAction('customer', customer, 'Baja cliente'),
 		]
 		return actions.map((action) => ({
@@ -7997,7 +8120,16 @@ export default function Home() {
 				id: `quote:whatsapp:${quote.id}`,
 				label: 'Enviar WhatsApp',
 				icon: <MessageCircle size={15} />,
-				onSelect: () => sendQuoteWhatsapp(quote),
+				onSelect: () =>
+					isFreeWhatsappMode(whatsappConfig)
+						? openFreeWhatsapp({
+								event: 'quote_sent',
+								customer: customer,
+								vehicle: vehicle,
+								record: quote,
+								quoteId: quote.id,
+							})
+						: sendQuoteWhatsapp(quote),
 			},
 			{
 				id: `quote:agenda:${quote.id}`,
