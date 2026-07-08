@@ -14,7 +14,19 @@ from .serializers import QuoteSerializer
 
 class QuoteViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     audit_side_effects = ("quote_totals", "quote_items")
-    queryset = Quote.objects.select_related("customer", "vehicle", "reservation").prefetch_related("items", "items__service").all()
+    queryset = (
+        Quote.objects.select_related("customer", "vehicle", "reservation")
+        .prefetch_related(
+            "items",
+            "items__service",
+            "vehicle_lines",
+            "vehicle_lines__vehicle",
+            "vehicle_lines__reservation",
+            "vehicle_lines__items",
+            "vehicle_lines__items__service",
+        )
+        .all()
+    )
     serializer_class = QuoteSerializer
     permission_classes = [CanViewEconomy]
 
@@ -100,6 +112,8 @@ class QuoteViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=["post"])
     def reservation(self, request, pk=None):
         quote = self.get_object()
+        if quote.is_group:
+            return self._create_group_reservations_response(request, quote)
         if quote.reservation_id:
             return response.Response(ReservationSerializer(quote.reservation, context=self.get_serializer_context()).data)
 
@@ -161,3 +175,34 @@ class QuoteViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             metadata={"quote": quote.id},
         )
         return response.Response(ReservationSerializer(reservation, context=self.get_serializer_context()).data, status=status.HTTP_201_CREATED)
+
+    @decorators.action(detail=True, methods=["post"])
+    def reservations(self, request, pk=None):
+        quote = self.get_object()
+        if not quote.is_group:
+            return self.reservation(request, pk=pk)
+        return self._create_group_reservations_response(request, quote)
+
+    def _create_group_reservations_response(self, request, quote):
+        before = audit_snapshot(quote)
+        already_had_reservations = quote.has_reservation
+        serializer = self.get_serializer(
+            quote,
+            data={"create_reservations": True},
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        quote = serializer.save()
+        quote.refresh_from_db()
+        record_audit_event(
+            request=request,
+            action="create_reservation",
+            instance=quote,
+            before=before,
+            after=audit_snapshot(quote),
+            metadata={"group": True},
+        )
+        return response.Response(
+            self.get_serializer(quote).data,
+            status=status.HTTP_200_OK if already_had_reservations else status.HTTP_201_CREATED,
+        )

@@ -210,6 +210,13 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=["post"])
     def quote(self, request, pk=None):
         reservation = self.get_object()
+        group_quote = (
+            Quote.objects.filter(vehicle_lines__reservation=reservation)
+            .prefetch_related("vehicle_lines", "vehicle_lines__items", "vehicle_lines__items__service")
+            .first()
+        )
+        if group_quote:
+            return response.Response(QuoteSerializer(group_quote, context=self.get_serializer_context()).data)
         quote = Quote.objects.filter(reservation=reservation).prefetch_related("items", "items__service").first()
         if quote:
             return response.Response(QuoteSerializer(quote, context=self.get_serializer_context()).data)
