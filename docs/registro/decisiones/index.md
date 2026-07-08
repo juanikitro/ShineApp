@@ -30,3 +30,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [WhatsApp MVP](2026-06-24-whatsapp-mvp.md)
 - [WhatsApp producción con subaccounts Twilio](2026-07-06-whatsapp-produccion-subaccounts.md)
 - [WhatsApp: Meta Cloud API directo con numero unico de ShineApp](2026-07-07-whatsapp-meta-directo-numero-unico.md)
+- [Cobro automatico al entregar reservas](2026-07-08-cobro-automatico-al-entregar.md)

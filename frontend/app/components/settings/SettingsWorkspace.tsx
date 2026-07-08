@@ -103,6 +103,7 @@ type SettingsWorkspaceProps = {
 	reservationUseInProgress: boolean
 	reservationUseReady: boolean
 	reservationUseCanceled: boolean
+	reservationAutoChargeOnDelivery: boolean
 	employees: AnyRecord[]
 	selectedEmployee: AnyRecord | null
 	employeeAuditLogs: AnyRecord[]
@@ -192,6 +193,7 @@ export function SettingsWorkspace({
 	reservationUseInProgress,
 	reservationUseReady,
 	reservationUseCanceled,
+	reservationAutoChargeOnDelivery,
 	employees,
 	selectedEmployee,
 	employeeAuditLogs,
@@ -323,6 +325,9 @@ export function SettingsWorkspace({
 							reservationUseInProgress={reservationUseInProgress}
 							reservationUseReady={reservationUseReady}
 							reservationUseCanceled={reservationUseCanceled}
+							reservationAutoChargeOnDelivery={
+								reservationAutoChargeOnDelivery
+							}
 							showStayDaysInAgenda={showStayDaysInAgenda}
 							useReservationTimes={useReservationTimes}
 							onPatchBusinessForm={onPatchBusinessForm}
@@ -1426,11 +1431,12 @@ function CashSettingsPanel({
 	)
 }
 
-function AgendaSettingsPanel({
+export function AgendaSettingsPanel({
 	reservationUsePending,
 	reservationUseInProgress,
 	reservationUseReady,
 	reservationUseCanceled,
+	reservationAutoChargeOnDelivery,
 	showStayDaysInAgenda,
 	useReservationTimes,
 	onPatchBusinessForm,
@@ -1440,6 +1446,7 @@ function AgendaSettingsPanel({
 	reservationUseInProgress: boolean
 	reservationUseReady: boolean
 	reservationUseCanceled: boolean
+	reservationAutoChargeOnDelivery: boolean
 	showStayDaysInAgenda: boolean
 	useReservationTimes: boolean
 	onPatchBusinessForm: (patch: AnyRecord) => void
@@ -1528,6 +1535,31 @@ function AgendaSettingsPanel({
 					</RecordCard>
 					<RecordCard>
 						<RecordCardHeader
+							title="Cobro al entregar"
+							subtitle="Si esta activo, al marcar una reserva como Entregada se registra automaticamente el saldo pendiente completo."
+							actions={
+								<SegmentedControl
+									ariaLabel="Cobro al entregar"
+									className="settings-mode-toggle"
+									options={[
+										{ value: 'manual', label: 'Manual' },
+										{ value: 'auto', label: 'Automatico' },
+									]}
+									value={
+										reservationAutoChargeOnDelivery ? 'auto' : 'manual'
+									}
+									onChange={(nextValue) =>
+										onPatchBusinessForm({
+											reservation_auto_charge_on_delivery:
+												nextValue === 'auto',
+										})
+									}
+								/>
+							}
+						/>
+					</RecordCard>
+					<RecordCard>
+						<RecordCardHeader
 							title="Estado Pendiente"
 							subtitle="Si lo ocultas, las reservas nuevas se crean directamente como Confirmada."
 							actions={
@@ -1551,7 +1583,7 @@ function AgendaSettingsPanel({
 					<RecordCard>
 						<RecordCardHeader
 							title="Estado En proceso"
-							subtitle="Si lo ocultas, una reserva Confirmada salta directamente al siguiente paso activo."
+							subtitle="Si lo ocultas, una reserva Confirmada salta el boton Iniciar y avanza al siguiente paso activo."
 							actions={
 								<SegmentedControl
 									ariaLabel="Estado En proceso"

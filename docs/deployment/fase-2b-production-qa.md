@@ -386,7 +386,9 @@ Resultado esperado:
 - El usuario puede empezar desde el dashboard.
 - La app no lo manda a Caja si todavia no hay trabajo cobrable.
 - Agenda, Caja y Dashboard quedan conectados por datos reales.
-- No se crean cobros automaticos sin confirmacion del usuario.
+- No se crean cobros automaticos sin confirmacion del usuario salvo que el
+  negocio haya activado explicitamente `Cobro al entregar` en Configuracion >
+  Agenda.
 
 Evidencia sugerida:
 
