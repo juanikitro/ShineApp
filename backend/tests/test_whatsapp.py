@@ -13,6 +13,7 @@ from django.test import override_settings
 from django.urls import reverse
 
 from catalog.models import Service
+from core.models import BusinessAccount
 from customers.models import Customer, Vehicle
 from quotes.models import Quote, QuoteItem
 from scheduling.models import Reservation
@@ -512,3 +513,160 @@ def test_twilio_status_webhook_does_not_downgrade_failed_status(api_client, twil
     assert response.status_code == 204
     message.refresh_from_db()
     assert message.status == WhatsAppMessage.Status.FAILED
+
+
+@pytest.mark.django_db
+def test_whatsapp_config_mode_default_and_editable(api_client, default_business):
+    config = WhatsAppConfig.get_solo(default_business)
+    assert config.mode == WhatsAppConfig.Mode.PAID
+
+    get_response = api_client.get(reverse("whatsapp-config"))
+    assert get_response.status_code == 200
+    assert get_response.data["mode"] == "paid"
+
+    patch_response = api_client.patch(
+        reverse("whatsapp-config"),
+        {"mode": "free"},
+        format="json",
+    )
+    assert patch_response.status_code == 200
+    assert patch_response.data["mode"] == "free"
+    config.refresh_from_db()
+    assert config.mode == WhatsAppConfig.Mode.FREE
+
+
+@pytest.mark.django_db
+def test_free_mode_does_not_enqueue_reservation_message(api_client, whatsapp_data):
+    config = WhatsAppConfig.get_solo(whatsapp_data["business"])
+    config.mode = WhatsAppConfig.Mode.FREE
+    config.save()
+    reservation = Reservation.objects.create(
+        business=whatsapp_data["business"],
+        customer=whatsapp_data["customer"],
+        vehicle=whatsapp_data["vehicle"],
+        service=whatsapp_data["service"],
+        day="2026-06-25",
+        status=Reservation.Status.PENDING,
+    )
+
+    response = api_client.post(reverse("reservation-confirm", args=[reservation.id]), format="json")
+
+    assert response.status_code == 200
+    assert not WhatsAppMessage.objects.filter(
+        event=WhatsAppMessage.Event.RESERVATION_CONFIRMED
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_free_mode_does_not_enqueue_work_ready_message(api_client, whatsapp_data):
+    config = WhatsAppConfig.get_solo(whatsapp_data["business"])
+    config.mode = WhatsAppConfig.Mode.FREE
+    config.save()
+    reservation = Reservation.objects.create(
+        business=whatsapp_data["business"],
+        customer=whatsapp_data["customer"],
+        vehicle=whatsapp_data["vehicle"],
+        service=whatsapp_data["service"],
+        day="2026-06-25",
+        status=Reservation.Status.CONFIRMED,
+    )
+    order = reservation.work_order
+
+    response = api_client.post(
+        reverse("workorder-status", args=[order.id]),
+        {"status": Reservation.Status.READY},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert not WhatsAppMessage.objects.filter(event=WhatsAppMessage.Event.WORK_READY).exists()
+
+
+@pytest.mark.django_db
+def test_free_mode_quote_send_whatsapp_is_blocked(api_client, whatsapp_data):
+    config = WhatsAppConfig.get_solo(whatsapp_data["business"])
+    config.mode = WhatsAppConfig.Mode.FREE
+    config.save()
+    quote = Quote.objects.create(
+        business=whatsapp_data["business"],
+        customer=whatsapp_data["customer"],
+        vehicle=whatsapp_data["vehicle"],
+        status=Quote.Status.DRAFT,
+    )
+    QuoteItem.objects.create(
+        quote=quote,
+        service=whatsapp_data["service"],
+        description="Lavado premium",
+        quantity=Decimal("1.00"),
+        unit_price=Decimal("10000.00"),
+    )
+    quote.recalculate()
+
+    response = api_client.post(reverse("quote-send-whatsapp", args=[quote.id]), format="json")
+
+    assert response.status_code == 400
+    quote.refresh_from_db()
+    assert quote.status == Quote.Status.DRAFT
+    assert not WhatsAppMessage.objects.filter(event=WhatsAppMessage.Event.QUOTE_SENT).exists()
+
+
+@pytest.mark.django_db
+def test_free_log_creates_wame_message(api_client, whatsapp_data):
+    customer = whatsapp_data["customer"]
+    response = api_client.post(
+        reverse("whatsapp-free-log"),
+        {
+            "event": WhatsAppMessage.Event.RESERVATION_CONFIRMED,
+            "rendered_body": "Hola Juan, te confirmo el turno.",
+            "recipient_phone": "11 2233-4455",
+            "recipient_name": "Juan Perez",
+            "customer": customer.id,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["provider"] == WhatsAppConfig.Provider.WAME
+    assert response.data["status"] == WhatsAppMessage.Status.SENT
+    assert response.data["message_type"] == WhatsAppMessage.MessageType.FREE_TEXT
+    assert response.data["recipient_phone"] == "541122334455"
+    assert response.data["customer"] == customer.id
+    assert response.data["rendered_body"] == "Hola Juan, te confirmo el turno."
+
+
+@pytest.mark.django_db
+def test_free_log_is_employer_only(employee_client, whatsapp_data):
+    response = employee_client.post(
+        reverse("whatsapp-free-log"),
+        {
+            "event": WhatsAppMessage.Event.MANUAL,
+            "rendered_body": "Hola",
+            "recipient_phone": "11 2233-4455",
+        },
+        format="json",
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_free_log_rejects_foreign_business_customer(api_client, whatsapp_data):
+    other_business = BusinessAccount.objects.create(name="Otro Negocio", slug="otro-negocio")
+    other_customer = Customer.objects.create(
+        business=other_business,
+        name="Cliente Ajeno",
+        phone="11 0000-0000",
+    )
+
+    response = api_client.post(
+        reverse("whatsapp-free-log"),
+        {
+            "event": WhatsAppMessage.Event.MANUAL,
+            "rendered_body": "Hola",
+            "recipient_phone": "11 2233-4455",
+            "customer": other_customer.id,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert not WhatsAppMessage.objects.filter(customer=other_customer).exists()

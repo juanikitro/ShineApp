@@ -18,6 +18,18 @@ test('whatsappUrl respeta el codigo de pais ya presente', () => {
 	assert.equal(whatsappUrl('5491164321234'), 'https://wa.me/5491164321234')
 })
 
+test('whatsappUrl adjunta el mensaje prellenado cuando se pasa text', () => {
+	assert.equal(
+		whatsappUrl('1164321234', 'Hola Juan!'),
+		'https://wa.me/541164321234?text=Hola%20Juan!',
+	)
+	// Texto vacio o solo espacios no agrega ?text=.
+	assert.equal(whatsappUrl('1164321234', '   '), 'https://wa.me/541164321234')
+	assert.equal(whatsappUrl('1164321234', null), 'https://wa.me/541164321234')
+	// Sin numero, sigue devolviendo null aunque haya texto.
+	assert.equal(whatsappUrl('', 'Hola'), null)
+})
+
 test('whatsappUrl devuelve null cuando no hay digitos', () => {
 	assert.equal(whatsappUrl(''), null)
 	assert.equal(whatsappUrl('   '), null)

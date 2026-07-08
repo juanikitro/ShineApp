@@ -184,6 +184,9 @@ def automation_rule_for(business, event):
 def enqueue_automated_message(*, event, source):
     business = source.business
     config = WhatsAppConfig.get_solo(business)
+    if config.mode == WhatsAppConfig.Mode.FREE:
+        # Modo gratis: el envío es manual desde el botón wa.me del frontend.
+        return None
     if not config.is_enabled:
         return None
     rule = automation_rule_for(business, event)
@@ -230,6 +233,10 @@ def enqueue_automated_message(*, event, source):
 
 def send_quote_whatsapp(quote, *, user=None):
     config = WhatsAppConfig.get_solo(quote.business)
+    if config.mode == WhatsAppConfig.Mode.FREE:
+        raise WhatsAppProviderError(
+            "En modo gratis la cotización se envía desde el botón de WhatsApp (wa.me), no por el servidor."
+        )
     if not config.is_enabled:
         raise WhatsAppProviderError("WhatsApp no está habilitado para este negocio.")
     template = (

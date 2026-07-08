@@ -5,12 +5,13 @@ Guia para conectar WhatsApp en ShineApp.
 ## Estado de la implementacion
 
 Backend:
-- Config: `GET/PATCH /api/whatsapp/config/`.
+- Config: `GET/PATCH /api/whatsapp/config/` (incluye `mode`: `paid`/`free`).
 - Templates: `GET/POST/PATCH /api/whatsapp/templates/`.
 - Reglas automaticas: `GET/PATCH /api/whatsapp/automation-rules/`.
 - Historial: `GET /api/whatsapp/messages/`.
 - Manual: `POST /api/whatsapp/messages/send-manual/`.
 - Cotizacion: `POST /api/quotes/:id/send-whatsapp/`.
+- Log modo gratis: `POST /api/whatsapp/free/log/`.
 
 Automatismos:
 - Reserva confirmada: hook en `POST /api/reservations/:id/confirm/`.
@@ -22,6 +23,30 @@ Provider:
 - `meta`: Meta WhatsApp Cloud API real.
 - `fake`: dev/test, no llama servicios externos.
 - `twilio`: Twilio WhatsApp API; envia texto libre o Content API para templates aprobados.
+- `wame`: solo snapshot en el historial de los envios del modo gratis (no es un provider de envio server-side).
+
+Modo del canal (`WhatsAppConfig.mode`):
+- `paid` (default): envio automatico server-side por la API (Meta/Twilio). Es el flujo historico; requiere credenciales y `Canal habilitado`.
+- `free`: no usa la API de Meta. El operador abre WhatsApp (wa.me) con el mensaje ya escrito y confirma el envio desde su propia sesion.
+
+## Modo gratis (wa.me)
+
+Alternativa sin costo ni API de Meta. En Configuracion > WhatsApp se elige `Modo del canal = Gratis (wa.me)`; en ese modo no hacen falta credenciales.
+
+Como funciona:
+- Se activan modulos (turno confirmado, listo para entregar, cotizacion) y cada uno tiene un mensaje de texto libre editable con variables `{variable}`. La UI muestra las variables disponibles por modulo. Ademas hay un mensaje manual generico en la ficha del cliente.
+- El boton de WhatsApp aparece en la cotizacion, la turnera, el tablero de trabajos y la ficha del cliente. Abre `https://wa.me/<digitos>?text=<mensaje renderizado>` directo (no usa el servidor).
+- En modo gratis, los envios automaticos server-side quedan deshabilitados: `enqueue_automated_message()` y `send_quote_whatsapp()` no generan mensaje.
+
+Variables por modulo:
+- Turno confirmado: `cliente`, `fecha_turno`, `hora_turno`, `vehiculo`, `servicios`, `negocio`.
+- Listo para entregar: `cliente`, `vehiculo`, `servicios`, `negocio`.
+- Cotizacion: `cliente`, `vehiculo`, `codigo`, `total`, `validez`, `negocio`.
+- Manual (ficha de cliente): `cliente`, `negocio`.
+
+Historial:
+- Cada envio gratis se registra con `POST /api/whatsapp/free/log/` (`EmployerOnly`, scoping por negocio): crea un `WhatsAppMessage` con `message_type=free_text`, `provider=wame`, `status=sent`.
+- Limitacion: el modo gratis no puede confirmar entrega ni lectura (abre el WhatsApp del operador). El estado real disponible es "enviado/link abierto".
 
 ## Variables de entorno backend
 

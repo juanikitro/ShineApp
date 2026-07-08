@@ -14,6 +14,7 @@ from .models import (
     WhatsAppTemplate,
 )
 from .serializers import (
+    FreeWhatsAppLogSerializer,
     ManualWhatsAppMessageSerializer,
     WhatsAppAutomationRuleSerializer,
     WhatsAppConfigSerializer,
@@ -83,6 +84,28 @@ class WhatsAppConfigView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return response.Response(serializer.data)
+
+
+class WhatsAppFreeLogView(APIView):
+    """Registra un envío del modo gratis (wa.me) en el Historial.
+
+    No envía nada por servidor; solo deja traza del mensaje que el operador
+    abrió en su propia sesión de WhatsApp.
+    """
+
+    permission_classes = [EmployerOnly]
+
+    def post(self, request):
+        serializer = FreeWhatsAppLogSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        message = serializer.save()
+        return response.Response(
+            WhatsAppMessageSerializer(message).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class WhatsAppTemplateViewSet(viewsets.ModelViewSet):
