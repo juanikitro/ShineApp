@@ -789,6 +789,12 @@ export function WhatsappSettingsPanel({
 							/>
 						</Field>
 					</div>
+					<p className="field-hint">
+						Los mensajes se envian desde el numero de WhatsApp de ShineApp.
+						Deja las credenciales por negocio (Phone number ID, Business account
+						ID y Token) vacias para usar ese numero compartido; completalas solo
+						si este negocio tiene su propio numero.
+					</p>
 					<div className="form-row">
 						<Field label="Phone number ID">
 							<input
