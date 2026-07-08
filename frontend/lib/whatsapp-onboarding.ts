@@ -46,13 +46,14 @@ export const whatsappDemoTemplates: WhatsAppTemplateSeed[] = [
 		language: 'es_AR',
 		category: 'utility',
 		body_preview:
-			'Hola {cliente}, tu turno para {servicios} queda confirmado para {fecha_turno} a las {hora_turno}.',
+			'Hola {cliente}, {negocio} confirma tu turno para {servicios} el {fecha_turno} a las {hora_turno}.',
 		variables_schema: [
+			'negocio',
 			'cliente',
-			'servicios',
 			'fecha_turno',
 			'hora_turno',
 			'vehiculo',
+			'servicios',
 		],
 		is_active: true,
 	},
@@ -62,8 +63,8 @@ export const whatsappDemoTemplates: WhatsAppTemplateSeed[] = [
 		language: 'es_AR',
 		category: 'utility',
 		body_preview:
-			'Hola {cliente}, tu {vehiculo} ya esta listo. Servicios realizados: {servicios}.',
-		variables_schema: ['cliente', 'vehiculo', 'servicios', 'estado'],
+			'Hola {cliente}, {negocio} te avisa que tu {vehiculo} ya esta listo. Servicios realizados: {servicios}.',
+		variables_schema: ['negocio', 'cliente', 'vehiculo', 'servicios'],
 		is_active: true,
 	},
 	{
@@ -72,8 +73,8 @@ export const whatsappDemoTemplates: WhatsAppTemplateSeed[] = [
 		language: 'es_AR',
 		category: 'utility',
 		body_preview:
-			'Hola {cliente}, registramos la entrega de {vehiculo}. Gracias por elegirnos.',
-		variables_schema: ['cliente', 'vehiculo', 'servicios', 'estado'],
+			'Hola {cliente}, {negocio} registro la entrega de {vehiculo}. Servicios realizados: {servicios}.',
+		variables_schema: ['negocio', 'cliente', 'vehiculo', 'servicios'],
 		is_active: true,
 	},
 	{
@@ -82,8 +83,8 @@ export const whatsappDemoTemplates: WhatsAppTemplateSeed[] = [
 		language: 'es_AR',
 		category: 'utility',
 		body_preview:
-			'Hola {cliente}, te enviamos la cotizacion {codigo} por {total}. Validez: {validez}.',
-		variables_schema: ['cliente', 'codigo', 'total', 'validez'],
+			'Hola {cliente}, {negocio} te envio la cotizacion {codigo} para {vehiculo} por {total}. Validez: {validez}.',
+		variables_schema: ['negocio', 'cliente', 'vehiculo', 'codigo', 'total', 'validez'],
 		is_active: true,
 	},
 ]

@@ -1220,26 +1220,26 @@ class Command(BaseCommand):
             (
                 WhatsAppTemplate.Key.RESERVATION_CONFIRMED,
                 "shine_turno_confirmado_demo",
-                "Hola {cliente}, confirmamos tu turno para {vehiculo}.",
-                ["cliente", "vehiculo", "fecha", "hora"],
+                "Hola {cliente}, {negocio} confirma tu turno para {servicios} el {fecha_turno} a las {hora_turno}.",
+                ["negocio", "cliente", "fecha_turno", "hora_turno", "vehiculo", "servicios"],
             ),
             (
                 WhatsAppTemplate.Key.WORK_READY,
                 "shine_trabajo_listo_demo",
-                "Hola {cliente}, tu {vehiculo} ya esta listo para retirar.",
-                ["cliente", "vehiculo"],
+                "Hola {cliente}, {negocio} te avisa que tu {vehiculo} ya esta listo para retirar. Servicios: {servicios}.",
+                ["negocio", "cliente", "vehiculo", "servicios"],
             ),
             (
                 WhatsAppTemplate.Key.WORK_DELIVERED,
                 "shine_trabajo_entregado_demo",
-                "Gracias {cliente}. Te esperamos para el proximo servicio.",
-                ["cliente"],
+                "Hola {cliente}, {negocio} registro la entrega de tu {vehiculo}. Servicios: {servicios}.",
+                ["negocio", "cliente", "vehiculo", "servicios"],
             ),
             (
                 WhatsAppTemplate.Key.QUOTE_SENT,
                 "shine_cotizacion_enviada_demo",
-                "Hola {cliente}, te enviamos la cotizacion de {servicios}.",
-                ["cliente", "servicios", "vehiculo"],
+                "Hola {cliente}, {negocio} te envio la cotizacion {codigo} para {vehiculo} por {total}. Validez: {validez}.",
+                ["negocio", "cliente", "vehiculo", "codigo", "total", "validez"],
             ),
         ]
         for key, provider_template_name, body_preview, variables_schema in template_specs:

@@ -1,5 +1,7 @@
 # WhatsApp producción con subaccounts Twilio
 
+> **SUPERADA** por [WhatsApp: Meta Cloud API directo con numero unico de ShineApp](2026-07-07-whatsapp-meta-directo-numero-unico.md). Esta decision asumia Twilio como BSP + subaccounts por cliente; se pivoteo a Meta Cloud API directo con un numero unico de ShineApp cuando Meta levanto el bloqueo de OTP del dueno. Se conserva como historia.
+
 Fecha: 2026-07-06
 
 Decision:
