@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-07-07
+- [WhatsApp: Meta directo, webhook de status y numero unico](docs/registro/cambios/2026-07-07-whatsapp-meta-directo-numero-unico.md)
+
 ## 2026-07-06
 - [WhatsApp: provider Twilio funcional (MVP sandbox)](docs/registro/cambios/2026-07-06-whatsapp-twilio-provider.md)
 - [WhatsApp: Twilio Content API y webhook de status](docs/registro/cambios/2026-07-06-whatsapp-twilio-content-status.md)

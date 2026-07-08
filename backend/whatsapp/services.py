@@ -2,6 +2,8 @@ import re
 
 from django.db import transaction
 
+from core.models import BusinessProfile
+
 from .models import (
     WhatsAppAutomationRule,
     WhatsAppConfig,
@@ -41,8 +43,16 @@ def _service_names(source):
     return getattr(getattr(source, "service", None), "name", "")
 
 
+def _business_display_name(business):
+    if business is None:
+        return ""
+    profile = BusinessProfile.get_solo(business=business)
+    return profile.name or business.name or ""
+
+
 def reservation_variables(reservation):
     return {
+        "negocio": _business_display_name(reservation.business),
         "cliente": reservation.customer.name,
         "fecha_turno": reservation.day.strftime("%d/%m/%Y"),
         "hora_turno": reservation.start_time.strftime("%H:%M") if reservation.start_time else "",
@@ -53,6 +63,7 @@ def reservation_variables(reservation):
 
 def work_order_variables(work_order):
     return {
+        "negocio": _business_display_name(work_order.business),
         "cliente": work_order.customer.name,
         "vehiculo": str(work_order.vehicle),
         "servicios": _service_names(work_order.reservation),
@@ -62,6 +73,7 @@ def work_order_variables(work_order):
 
 def quote_variables(quote):
     return {
+        "negocio": _business_display_name(quote.business),
         "cliente": quote.customer_snapshot_name or quote.customer.name,
         "vehiculo": quote.vehicle_snapshot_label or (str(quote.vehicle) if quote.vehicle else ""),
         "codigo": quote.public_code or quote.id,
