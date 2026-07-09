@@ -87,6 +87,7 @@ import { DebtPaymentForm } from '@/app/components/forms/DebtPaymentForm'
 import { MaterialForm } from '@/app/components/forms/MaterialForm'
 import { PaymentForm } from '@/app/components/forms/PaymentForm'
 import { QuoteForm } from '@/app/components/forms/QuoteForm'
+import { QuoteGroupVehicleLinesEditor } from '@/app/components/forms/QuoteGroupVehicleLinesEditor'
 import { ReservationForm } from '@/app/components/forms/ReservationForm'
 import { ServiceForm } from '@/app/components/forms/ServiceForm'
 import { StockMovementForm } from '@/app/components/forms/StockMovementForm'
@@ -293,6 +294,14 @@ import {
 	VEHICLE_TYPES,
 	VEHICLE_TYPE_OPTIONS,
 } from '@/lib/service-pricing'
+import {
+	ensureGroupVehicleLines,
+	groupReservationMode,
+	groupVehicleLinePayload,
+	groupVehicleLinesSubtotal,
+	repriceGroupVehicleLines,
+	validateGroupVehicleLines,
+} from '@/lib/quote-groups'
 import { shouldHandleUndoShortcut } from '@/lib/undo-shortcut'
 import {
 	type CashQuickFilter,
@@ -2233,6 +2242,22 @@ export default function Home() {
 		})
 	}
 
+	function groupValidationNotice(
+		title: string,
+		description: string,
+		lines: AnyRecord[],
+	) {
+		const errors = validateGroupVehicleLines(lines)
+		if (!errors.length) return null
+		return createValidationNotice(title, description, errors)
+	}
+
+	function firstGroupReservationLine(item: AnyRecord) {
+		return (item.vehicle_lines ?? []).find(
+			(line: AnyRecord) => line.reservation || line.reservation_id,
+		)
+	}
+
 	function serviceLinesTotal(items: AnyRecord[]) {
 		return items.reduce(
 			(total: number, item: AnyRecord) =>
@@ -2268,7 +2293,9 @@ export default function Home() {
 	}
 
 	const quoteTotals = useMemo(() => {
-		const subtotal = serviceLinesTotal(quoteForm.items ?? [])
+		const subtotal = quoteForm.is_group
+			? groupVehicleLinesSubtotal(ensureGroupVehicleLines(quoteForm))
+			: serviceLinesTotal(quoteForm.items ?? [])
 		const discountRate = Number(quoteForm.discount_rate || 0)
 		const taxRate = Number(quoteForm.tax_rate || 0)
 		const discountAmount = subtotal * Math.max(discountRate, 0) / 100
@@ -2281,7 +2308,13 @@ export default function Home() {
 			taxAmount,
 			total: taxableAmount + taxAmount,
 		}
-	}, [quoteForm.items, quoteForm.discount_rate, quoteForm.tax_rate])
+	}, [
+		quoteForm,
+		quoteForm.items,
+		quoteForm.vehicle_lines,
+		quoteForm.discount_rate,
+		quoteForm.tax_rate,
+	])
 
 	const auditModuleOptions = useMemo(
 		() =>
@@ -2890,6 +2923,12 @@ export default function Home() {
 	}
 
 	function quoteReservationId(item: AnyRecord) {
+		if (item.is_group) {
+			const line = firstGroupReservationLine(item)
+			return line?.reservation === null || line?.reservation === undefined
+				? String(line?.reservation_id ?? '')
+				: String(line.reservation)
+		}
 		return item.reservation === null || item.reservation === undefined
 			? ''
 			: String(item.reservation)
@@ -4560,11 +4599,12 @@ export default function Home() {
 
 	function openQuoteReservationInAgenda(item: AnyRecord) {
 		const reservationId = quoteReservationId(item)
+		const groupLine = item.is_group ? firstGroupReservationLine(item) : null
 		const reservation = reservations.find(
 			(record) => String(record.id) === reservationId,
 		)
 		const targetDay = String(
-			reservation?.day ?? item.reservation_day ?? '',
+			reservation?.day ?? groupLine?.reservation_day ?? item.reservation_day ?? '',
 		)
 		if (!reservationId || !targetDay) {
 			showToast({
@@ -6158,6 +6198,21 @@ export default function Home() {
 	}
 
 	function updateReservationCustomer(value: string) {
+		if (reservationForm.is_group) {
+			setReservationForm({
+				...reservationForm,
+				customer: value,
+				vehicle_lines: repriceGroupVehicleLines(
+					ensureGroupVehicleLines(reservationForm).map((line) =>
+						line.use_new_vehicle ? line : { ...line, vehicle: '' },
+					),
+					vehicles,
+					services,
+				),
+			})
+			focusField('reservation.vehicle_lines.0.vehicle', true)
+			return
+		}
 		const vehicle = singleVehicleIdForCustomer(value)
 		setReservationForm({
 			...reservationForm,
@@ -6178,6 +6233,21 @@ export default function Home() {
 	}
 
 	function updateQuoteCustomer(value: string) {
+		if (quoteForm.is_group) {
+			setQuoteForm({
+				...quoteForm,
+				customer: value,
+				vehicle_lines: repriceGroupVehicleLines(
+					ensureGroupVehicleLines(quoteForm).map((line) =>
+						line.use_new_vehicle ? line : { ...line, vehicle: '' },
+					),
+					vehicles,
+					services,
+				),
+			})
+			focusField('quote.vehicle_lines.0.vehicle', true)
+			return
+		}
 		const vehicle = singleVehicleIdForCustomer(value)
 		setQuoteForm({
 			...quoteForm,
@@ -8361,6 +8431,45 @@ export default function Home() {
 	}
 
 	async function createReservationFromQuote(quote: AnyRecord) {
+		if (quote.is_group) {
+			const groupLines = ensureGroupVehicleLines(quote)
+			const readyToSchedule =
+				groupLines.length > 0 &&
+				groupLines.every((line) => Boolean(line.reservation_day))
+			if (!readyToSchedule) {
+				openDetailModal('Cotizacion', quote, { startEditing: true })
+				setError(
+					createValidationNotice(
+						'Faltan fechas',
+						'Para agendar una cotizacion grupal, cada auto necesita fecha.',
+						[
+							{
+								path: 'vehicle_lines',
+								label: 'Autos',
+								message: 'Completa la fecha de cada auto del grupo.',
+							},
+						],
+					),
+				)
+				return
+			}
+			await runAction(
+				() =>
+					apiFetch(`/quotes/${quote.id}/reservations/`, {
+						method: 'POST',
+					}),
+				{
+					flashTarget: (updated: AnyRecord) => {
+						const line = firstGroupReservationLine(updated)
+						return line?.reservation
+							? recordFlashKey('reservation', line.reservation)
+							: recordFlashKey('quote', updated?.id)
+					},
+					successTitle: 'Reservas creadas',
+				},
+			)
+			return
+		}
 		if (!quote.vehicle || !quote.reservation_day) {
 			openReservationFromQuote(quote)
 			return
@@ -8521,6 +8630,8 @@ export default function Home() {
 			quote: [
 				'public_code',
 				'status',
+				'is_group',
+				'vehicle_lines',
 				'observations',
 				'valid_until',
 				'tax_rate',
@@ -8566,6 +8677,16 @@ export default function Home() {
 			payload.valid_until = payload.valid_until || null
 			payload.tax_rate = payload.tax_rate || '0'
 			payload.discount_rate = payload.discount_rate || '0'
+			if (payload.is_group) {
+				payload.vehicle_lines = groupVehicleLinePayload(
+					ensureGroupVehicleLines(data),
+					services,
+					vehicles,
+				)
+			} else {
+				delete payload.is_group
+				delete payload.vehicle_lines
+			}
 		}
 		if (kind === 'customer') {
 			payload.birthday_month = payload.birthday_month
@@ -8619,7 +8740,9 @@ export default function Home() {
 		return Object.fromEntries(
 			Object.entries(cleanDetailPayload(kind, data)).map(([key, value]) => {
 				if (value === null || value === undefined) return [key, '']
-				if (key === 'items') return [key, JSON.stringify(value)]
+				if (key === 'items' || key === 'vehicle_lines') {
+					return [key, JSON.stringify(value)]
+				}
 				if (key === 'start_time' || key === 'exit_time') {
 					return [key, String(value).slice(0, 5)]
 				}
@@ -8650,6 +8773,17 @@ export default function Home() {
 		if (!canViewEconomy && detailRequiresEconomy(detailModal.kind)) return
 		const isService = detailModal.kind === 'service'
 		if (!isDetailDirty() && !isService) return
+		if (detailModal.kind === 'quote' && detailModal.editData?.is_group) {
+			const notice = groupValidationNotice(
+				'Revisa los autos del grupo',
+				'Cada auto necesita identificacion, servicios y una agenda consistente.',
+				ensureGroupVehicleLines(detailModal.editData),
+			)
+			if (notice) {
+				setError(notice)
+				return
+			}
+		}
 		const path = detailEndpoint(detailModal.kind, detailModal.data.id)
 		if (!path) return
 		const currentDetail = detailModal
@@ -9672,6 +9806,23 @@ export default function Home() {
 			const quoteHasReservation = Boolean(
 				data.has_reservation ?? data.reservation,
 			)
+			const groupLines = data.is_group ? ensureGroupVehicleLines(data) : []
+			const groupCanEdit =
+				Boolean(data.is_group) &&
+				quoteLaneStatus(data) === 'draft' &&
+				!quoteHasReservation
+			const groupVehicleOptions = data.customer
+				? vehicles
+						.filter(
+							(vehicle) =>
+								String(vehicle.customer) === String(data.customer),
+						)
+						.map((item) => ({
+							value: String(item.id),
+							label: item.label,
+							meta: item.customer_name,
+						}))
+				: vehicleOptions
 
 			return (
 				<form className="form-grid" onSubmit={saveDetailEdit}>
@@ -9683,7 +9834,10 @@ export default function Home() {
 							</span>
 						</div>
 						<div className="record-sub">
-							{data.vehicle_label || 'Sin vehiculo'} - {money(data.total)}
+							{data.is_group
+								? `${groupLines.length} autos`
+								: data.vehicle_label || 'Sin vehiculo'}{' '}
+							- {money(data.total)}
 						</div>
 						<div className="quote-detail-meta">
 							<span>
@@ -9699,7 +9853,11 @@ export default function Home() {
 								<span>Enviada: {formatDateLabel(data.sent_at)}</span>
 							) : null}
 						</div>
-						{data.reservation_day ? (
+						{data.is_group ? (
+							<div className="record-sub">
+								Agenda por auto en la cotizacion grupal.
+							</div>
+						) : data.reservation_day ? (
 							<div className="record-sub">
 								Reserva tentativa: {data.reservation_day}
 								{quoteTentativeTimeLabel(data.reservation_start_time)}
@@ -9707,7 +9865,47 @@ export default function Home() {
 						) : (
 							<div className="record-sub">Cotizacion libre sin fecha.</div>
 						)}
-						{data.items?.length ? (
+						{data.is_group && groupLines.length ? (
+							<div className="quote-item-summary">
+								{groupLines.map((line: AnyRecord, lineIndex: number) => (
+									<div
+										className="quote-item-summary-row"
+										key={line.id ?? `${data.id}-group-${lineIndex}`}
+									>
+										<strong>
+											Auto {lineIndex + 1}:{' '}
+											{line.vehicle_label ||
+												line.vehicle_snapshot_label ||
+												'Vehiculo nuevo'}
+										</strong>
+										<span>
+											{line.reservation_day
+												? `Fecha ${line.reservation_day}${quoteTentativeTimeLabel(line.reservation_start_time)}`
+												: 'Sin fecha'}
+											{' - '}
+											{money(line.subtotal)}
+										</span>
+										{line.items?.map((quoteItem: AnyRecord) => (
+											<span
+												key={
+													quoteItem.id ??
+													`${lineIndex}-${quoteItem.service}`
+												}
+											>
+												{serviceDisplayName({
+													service_icon: quoteItem.service_icon,
+													service_name:
+														quoteItem.service_name ??
+														quoteItem.description,
+												})}
+												: {quoteItem.quantity} x{' '}
+												{money(quoteItem.unit_price)}
+											</span>
+										))}
+									</div>
+								))}
+							</div>
+						) : data.items?.length ? (
 							<div className="quote-item-summary">
 								{data.items.map((quoteItem: AnyRecord) => (
 									<div
@@ -9791,6 +9989,33 @@ export default function Home() {
 							/>
 						</Field>
 					</div>
+					{data.is_group ? (
+						groupCanEdit ? (
+							<QuoteGroupVehicleLinesEditor
+								title="Autos del grupo"
+								lines={groupLines}
+								onChange={(vehicleLines) =>
+									updateDetailEdit({ vehicle_lines: vehicleLines })
+								}
+								vehicleOptions={groupVehicleOptions}
+								serviceOptions={serviceOptions}
+								vehicles={vehicles}
+								services={services}
+								canViewEconomy={canViewEconomy}
+								useReservationTimes={useReservationTimes}
+								fieldPrefix="detail.quote"
+								openQuickCreate={openQuickCreate}
+								serviceNotesForLine={serviceNotesForLine}
+								focusNextOnEnter={focusNextOnEnter}
+								flashClass={flashClass}
+								fieldFlashKey={fieldFlashKey}
+							/>
+						) : (
+							<div className="info-note">
+								Las reservas hijas se editan individualmente desde la agenda.
+							</div>
+						)
+					) : null}
 					<div className="quote-total quote-total--breakdown">
 						<span>Subtotal {money(data.subtotal)}</span>
 						<span>Descuento {money(data.discount_amount)}</span>
@@ -10667,6 +10892,79 @@ export default function Home() {
 
 	async function saveReservation(event: FormEvent) {
 		event.preventDefault()
+		if (reservationForm.is_group) {
+			const groupLines = ensureGroupVehicleLines(reservationForm)
+			const notice = groupValidationNotice(
+				'Revisa los autos del grupo',
+				'Cada auto necesita identificacion, servicios y una agenda consistente.',
+				groupLines,
+			)
+			if (notice) {
+				setError(notice)
+				return
+			}
+			const mode = groupReservationMode(groupLines)
+			if (mode === 'quote' && !canViewEconomy) {
+				setError(
+					createValidationNotice(
+						'Falta la fecha',
+						'Sin fecha se crea una cotizacion libre, pero tu usuario no tiene acceso a cotizaciones.',
+						[
+							{
+								path: 'vehicle_lines',
+								label: 'Autos',
+								message: 'Agrega fecha a cada auto para crear reservas.',
+							},
+						],
+					),
+				)
+				return
+			}
+			const createdQuote = await runAction(async () => {
+				const created = await apiFetch<AnyRecord>('/quotes/', {
+					method: 'POST',
+					body: JSON.stringify({
+						is_group: true,
+						create_reservations: mode === 'reservation',
+						customer: reservationForm.customer,
+						observations: reservationForm.notes,
+						vehicle_lines: groupVehicleLinePayload(
+							groupLines,
+							services,
+							vehicles,
+						),
+					}),
+				})
+				setReservationForm(blankReservationForm())
+				quickReservationExit.close()
+				return created
+			}, {
+				key: 'save:reservation',
+				flashTarget: (created: AnyRecord) => {
+					if (mode === 'reservation') {
+						const line = firstGroupReservationLine(created)
+						if (line?.reservation) {
+							return recordFlashKey('reservation', line.reservation)
+						}
+					}
+					return recordFlashKey('quote', created?.id)
+				},
+				successTitle:
+					mode === 'reservation'
+						? 'Reservas creadas'
+						: entityFeedbackTitle('quote', 'created'),
+				...(mode === 'quote' ? { undo: undoCreatedRecord('quote') } : {}),
+			})
+			if (createdQuote) {
+				if (mode === 'reservation') {
+					setActive('agenda')
+				} else {
+					setActive('quotes')
+					openDetailModal('Cotizacion', createdQuote)
+				}
+			}
+			return
+		}
 		const reservationItems = (reservationForm.items ?? []).filter(
 			(item: AnyRecord) => item.service,
 		)
@@ -11598,6 +11896,48 @@ export default function Home() {
 
 	async function saveQuote(event: FormEvent) {
 		event.preventDefault()
+		if (quoteForm.is_group) {
+			const groupLines = ensureGroupVehicleLines(quoteForm)
+			const notice = groupValidationNotice(
+				'Revisa los autos del grupo',
+				'Cada auto necesita identificacion, servicios y una agenda consistente.',
+				groupLines,
+			)
+			if (notice) {
+				setError(notice)
+				return
+			}
+			await runAction(async () => {
+				const created = await apiFetch<AnyRecord>('/quotes/', {
+					method: 'POST',
+					body: JSON.stringify({
+						is_group: true,
+						customer: quoteForm.customer,
+						valid_until: quoteForm.valid_until || null,
+						tax_rate: quoteForm.tax_rate || '0',
+						discount_rate: quoteForm.discount_rate || '0',
+						observations: quoteForm.observations,
+						terms: quoteForm.terms,
+						payment_instructions: quoteForm.payment_instructions,
+						vehicle_lines: groupVehicleLinePayload(
+							groupLines,
+							services,
+							vehicles,
+						),
+					}),
+				})
+				setQuoteForm(blankQuoteFormWithDefaults())
+				formModalExit.close()
+				return created
+			}, {
+				key: 'save:quote',
+				flashTarget: (created: AnyRecord) =>
+					recordFlashKey('quote', created?.id),
+				successTitle: entityFeedbackTitle('quote', 'created'),
+				undo: undoCreatedRecord('quote'),
+			})
+			return
+		}
 		const quoteItems = (quoteForm.items ?? []).filter(
 			(item: AnyRecord) => item.service,
 		)
@@ -12603,6 +12943,8 @@ export default function Home() {
 						customerOptions={customerOptions}
 						quoteVehicleSearchOptions={quoteVehicleSearchOptions}
 						serviceOptions={serviceOptions}
+						vehicles={vehicles}
+						services={services}
 						canViewEconomy={canViewEconomy}
 						useReservationTimes={useReservationTimes}
 						quoteTotals={quoteTotals}
@@ -13172,7 +13514,17 @@ export default function Home() {
 						onClose={quickReservationExit.close}
 					>
 						<ReservationForm fieldErrors={formFieldErrors}
-							submitLabel={reservationForm.day ? 'Crear reserva' : 'Crear cotizacion'}
+							submitLabel={
+								reservationForm.is_group
+									? groupReservationMode(
+											ensureGroupVehicleLines(reservationForm),
+										) === 'reservation'
+										? 'Crear reservas'
+										: 'Crear cotizacion'
+									: reservationForm.day
+										? 'Crear reserva'
+										: 'Crear cotizacion'
+							}
 							onSubmit={saveReservation}
 							prefillDayMode={Boolean(quickReservationPrefillDay)}
 							reservationForm={reservationForm}
@@ -13180,6 +13532,7 @@ export default function Home() {
 							customerOptions={customerOptions}
 							customerVehicleOptions={customerVehicleOptions}
 							serviceOptions={serviceOptions}
+							vehicles={vehicles}
 							canViewEconomy={canViewEconomy}
 							useReservationTimes={useReservationTimes}
 							allowOverlap={

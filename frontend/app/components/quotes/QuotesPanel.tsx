@@ -56,6 +56,10 @@ export function QuoteCardContent({
 	const code = quoteCode(item)
 	const hasReservation = quoteHasReservation(item)
 	const isDraft = quoteLaneStatus(item) === 'draft'
+	const groupLines = Array.isArray(item.vehicle_lines) ? item.vehicle_lines : []
+	const serviceItems = item.is_group
+		? groupLines.flatMap((line: AnyRecord) => line.items ?? [])
+		: item.items ?? []
 
 	return (
 		<div className="record-head quote-card-head">
@@ -64,20 +68,25 @@ export function QuoteCardContent({
 					Cotizacion {code} - {item.customer_name}
 				</div>
 				<div className="record-sub">
-					{item.vehicle_label || 'Sin vehiculo'} - {money(item.total)}
+					{item.is_group
+						? `${groupLines.length} autos`
+						: item.vehicle_label || 'Sin vehiculo'}{' '}
+					- {money(item.total)}
 				</div>
-				{item.reservation_day ? (
+				{item.is_group && groupLines.some((line: AnyRecord) => line.reservation_day) ? (
+					<div className="record-sub">Agenda por auto</div>
+				) : item.reservation_day ? (
 					<div className="record-sub">
 						Reserva tentativa: {item.reservation_day}
 						{quoteTentativeTimeLabel(item.reservation_start_time)}
 					</div>
 				) : null}
-				{item.items?.length ? (
+				{serviceItems.length ? (
 					<div className="quote-card-services" aria-label="Servicios">
-						{item.items.map((quoteItem: AnyRecord) => (
+						{serviceItems.slice(0, 6).map((quoteItem: AnyRecord, index: number) => (
 							<span
 								className="quote-card-service-name"
-								key={quoteItem.id ?? `${item.id}-${quoteItem.service}`}
+								key={quoteItem.id ?? `${item.id}-${quoteItem.service}-${index}`}
 							>
 								{serviceDisplayName({
 									service_icon: quoteItem.service_icon,
@@ -86,6 +95,11 @@ export function QuoteCardContent({
 								})}
 							</span>
 						))}
+						{serviceItems.length > 6 ? (
+							<span className="quote-card-service-name">
+								+{serviceItems.length - 6}
+							</span>
+						) : null}
 					</div>
 				) : null}
 			</div>

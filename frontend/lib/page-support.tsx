@@ -28,6 +28,7 @@ import { createPortal } from 'react-dom'
 import { AppBrand } from '@/app/components/layout/AppBrand'
 import { Field } from '@/app/components/ui/Field'
 import { apiFetch, publicApiFetch, setStoredToken } from '@/lib/api'
+import { blankGroupVehicleLine } from '@/lib/quote-groups'
 import {
 	currencyArsFormatter,
 	dateFormatter,
@@ -259,6 +260,13 @@ function blankReservationForm(day = '', startTime = '') {
 		customer: '',
 		vehicle: '',
 		service: '',
+		is_group: false,
+		vehicle_lines: [
+			blankGroupVehicleLine({
+				reservation_day: day,
+				reservation_start_time: startTime,
+			}),
+		],
 		day,
 		exit_day: '',
 		start_time: startTime,
@@ -272,6 +280,12 @@ function blankQuoteForm(reservationDay = '') {
 	return {
 		customer: '',
 		vehicle: '',
+		is_group: false,
+		vehicle_lines: [
+			blankGroupVehicleLine({
+				reservation_day: reservationDay,
+			}),
+		],
 		reservation_day: reservationDay,
 		reservation_start_time: '',
 		valid_until: '',
