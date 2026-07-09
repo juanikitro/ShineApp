@@ -5,6 +5,7 @@ import { type FormEvent, type KeyboardEvent, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 
 import { DuplicateWarning } from '@/app/components/DuplicateWarning'
+import { QuoteGroupVehicleLinesEditor } from '@/app/components/forms/QuoteGroupVehicleLinesEditor'
 import { AnimatedLabelSwap } from '@/app/components/motion/AnimatedLabelSwap'
 import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
@@ -13,7 +14,14 @@ import {
 	SearchSelect,
 	type SelectOption,
 } from '@/app/components/ui/SearchSelect'
+import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
 import { type AnyRecord, money, formatDateLabel } from '@/lib/page-support'
+import {
+	blankGroupVehicleItem,
+	blankGroupVehicleLine,
+	ensureGroupVehicleLines,
+	groupVehicleLinesSubtotal,
+} from '@/lib/quote-groups'
 import {
 	type ScheduleAvailability,
 	type WorkingHoursEntry,
@@ -61,6 +69,7 @@ type ReservationFormProps = {
 	enforceCapacity: boolean
 	sectors: AnyRecord[]
 	services: AnyRecord[]
+	vehicles: AnyRecord[]
 	reservations: AnyRecord[]
 	openQuickCreate: (kind: string, target: string) => void
 	updateReservationCustomer: (value: string) => void
@@ -98,6 +107,7 @@ export function ReservationForm({
 	enforceCapacity,
 	sectors,
 	services,
+	vehicles,
 	reservations,
 	openQuickCreate,
 	updateReservationCustomer,
@@ -116,6 +126,8 @@ export function ReservationForm({
 	const today = todayIsoDate()
 	const selectedDay =
 		typeof reservationForm.day === 'string' ? reservationForm.day : ''
+	const isGroup = Boolean(reservationForm.is_group)
+	const groupLines = ensureGroupVehicleLines(reservationForm)
 
 	const dayHours = useMemo(
 		() =>
@@ -232,7 +244,39 @@ export function ReservationForm({
 		return issues.length ? issues.join(' ') : null
 	}, [availability, sectors, selectedSectors])
 	const isPastDay = Boolean(selectedDay && selectedDay < today)
-	const blockSubmit = Boolean(capacityWarning) || isPastDay
+	const blockSubmit = !isGroup && (Boolean(capacityWarning) || isPastDay)
+
+	function setMode(nextMode: 'individual' | 'group') {
+		if (nextMode === 'group') {
+			const seededLines =
+				Array.isArray(reservationForm.vehicle_lines) &&
+				reservationForm.vehicle_lines.length
+					? reservationForm.vehicle_lines
+					: [
+							blankGroupVehicleLine({
+								vehicle: reservationForm.vehicle ?? '',
+								reservation_day: reservationForm.day ?? '',
+								reservation_exit_day: reservationForm.exit_day ?? '',
+								reservation_start_time:
+									reservationForm.start_time ?? '',
+								reservation_exit_time:
+									reservationForm.exit_time ?? '',
+								items: reservationForm.items ?? [blankGroupVehicleItem()],
+							}),
+						]
+			setReservationForm({
+				...reservationForm,
+				is_group: true,
+				vehicle_lines: seededLines,
+			})
+			return
+		}
+		setReservationForm({
+			...reservationForm,
+			is_group: false,
+		})
+	}
+
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
 			{prefillDayMode ? (
@@ -256,121 +300,163 @@ export function ReservationForm({
 				onAdd={() => openQuickCreate('customer', 'reservation.customer')}
 				onChange={updateReservationCustomer}
 			/>
-			<SearchSelect
-				label="Vehiculo"
-				value={reservationForm.vehicle}
-				options={customerVehicleOptions}
-				name="reservation_vehicle"
-				focusKey="reservation.vehicle"
-				className={flashClass(fieldFlashKey('reservation.vehicle'))}
-				onAdd={() => openQuickCreate('vehicle', 'reservation.vehicle')}
-				onChange={updateReservationVehicle}
+			<SegmentedControl<'individual' | 'group'>
+				ariaLabel="Modo de reserva"
+				options={[
+					{ value: 'individual', label: 'Individual' },
+					{ value: 'group', label: 'Grupal' },
+				]}
+				value={isGroup ? 'group' : 'individual'}
+				onChange={setMode}
 			/>
-			<div className="quote-lines">
-				<div className="quote-lines-head">
-					<h3>Servicios</h3>
-					<button type="button" className="ghost" onClick={addReservationItem}>
-						<Plus size={16} />
-						Agregar servicio
-					</button>
-				</div>
-				{(reservationForm.items ?? []).map(
-					(item: AnyRecord, index: number) => {
-						const lineTotal =
-							Number(item.quantity || 0) * Number(item.unit_price || 0)
-						const nextLine = (reservationForm.items ?? [])[index + 1]
-						return (
-							<div className="quote-line" key={index}>
-								<SearchSelect
-									label="Servicio"
-									value={item.service}
-									options={serviceOptions}
-									name={`reservation_items_${index}_service`}
-									focusKey={`reservation.service.${index}`}
-									className={flashClass(
-										fieldFlashKey(`reservation.service.${index}`),
-									)}
-									onAdd={
-										canViewEconomy
-											? () =>
-													openQuickCreate(
-														'service',
-														`reservation.service.${index}`,
-													)
-											: undefined
-									}
-									onChange={(value) =>
-										selectReservationService(index, value)
-									}
-								/>
-								<div className="quote-line-grid">
-									<Field label="Cantidad">
-										<input
-											data-focus-key={`reservation.item.${index}.quantity`}
-											name={`reservation_items_${index}_quantity`}
-											type="number"
-											min="1"
-											value={item.quantity}
-											onChange={(event) =>
-												updateReservationItem(index, {
-													quantity: event.target.value,
-												})
-											}
-											onKeyDown={focusNextOnEnter(
-												`reservation.item.${index}.price`,
+			{isGroup ? (
+				<>
+					<QuoteGroupVehicleLinesEditor
+						title="Autos del grupo"
+						lines={groupLines}
+						onChange={(vehicleLines) =>
+							setReservationForm({
+								...reservationForm,
+								vehicle_lines: vehicleLines,
+							})
+						}
+						vehicleOptions={customerVehicleOptions}
+						serviceOptions={serviceOptions}
+						vehicles={vehicles}
+						services={services}
+						canViewEconomy={canViewEconomy}
+						useReservationTimes={useReservationTimes}
+						fieldPrefix="reservation"
+						openQuickCreate={openQuickCreate}
+						focusNextOnEnter={focusNextOnEnter}
+						flashClass={flashClass}
+						fieldFlashKey={fieldFlashKey}
+						fieldErrors={fieldErrors}
+					/>
+					<div className="quote-total">
+						<span>Total grupo</span>
+						<strong>{money(groupVehicleLinesSubtotal(groupLines))}</strong>
+					</div>
+				</>
+			) : (
+				<>
+					<SearchSelect
+						label="Vehiculo"
+						value={reservationForm.vehicle}
+						options={customerVehicleOptions}
+						name="reservation_vehicle"
+						focusKey="reservation.vehicle"
+						className={flashClass(fieldFlashKey('reservation.vehicle'))}
+						onAdd={() => openQuickCreate('vehicle', 'reservation.vehicle')}
+						onChange={updateReservationVehicle}
+					/>
+					<div className="quote-lines">
+						<div className="quote-lines-head">
+							<h3>Servicios</h3>
+							<button type="button" className="ghost" onClick={addReservationItem}>
+								<Plus size={16} />
+								Agregar servicio
+							</button>
+						</div>
+						{(reservationForm.items ?? []).map(
+							(item: AnyRecord, index: number) => {
+								const lineTotal =
+									Number(item.quantity || 0) * Number(item.unit_price || 0)
+								const nextLine = (reservationForm.items ?? [])[index + 1]
+								return (
+									<div className="quote-line" key={index}>
+										<SearchSelect
+											label="Servicio"
+											value={item.service}
+											options={serviceOptions}
+											name={`reservation_items_${index}_service`}
+											focusKey={`reservation.service.${index}`}
+											className={flashClass(
+												fieldFlashKey(`reservation.service.${index}`),
 											)}
-										/>
-									</Field>
-									<Field label="Precio">
-										<NumericInput
-											data-focus-key={`reservation.item.${index}.price`}
-											name={`reservation_items_${index}_unit_price`}
-											prefix="$"
-											value={item.unit_price}
-											onChange={(raw) =>
-												updateReservationItem(index, {
-													unit_price: raw,
-												})
+											onAdd={
+												canViewEconomy
+													? () =>
+															openQuickCreate(
+																'service',
+																`reservation.service.${index}`,
+															)
+													: undefined
 											}
-											onKeyDown={focusNextOnEnter(
-												nextLine
-													? `reservation.service.${index + 1}`
-													: 'reservation.day',
-												Boolean(nextLine),
-											)}
+											onChange={(value) =>
+												selectReservationService(index, value)
+											}
 										/>
-									</Field>
-									<div className="line-total">
-										<span>Total</span>
-										<strong>{money(lineTotal)}</strong>
+										<div className="quote-line-grid">
+											<Field label="Cantidad">
+												<input
+													data-focus-key={`reservation.item.${index}.quantity`}
+													name={`reservation_items_${index}_quantity`}
+													type="number"
+													min="1"
+													value={item.quantity}
+													onChange={(event) =>
+														updateReservationItem(index, {
+															quantity: event.target.value,
+														})
+													}
+													onKeyDown={focusNextOnEnter(
+														`reservation.item.${index}.price`,
+													)}
+												/>
+											</Field>
+											<Field label="Precio">
+												<NumericInput
+													data-focus-key={`reservation.item.${index}.price`}
+													name={`reservation_items_${index}_unit_price`}
+													prefix="$"
+													value={item.unit_price}
+													onChange={(raw) =>
+														updateReservationItem(index, {
+															unit_price: raw,
+														})
+													}
+													onKeyDown={focusNextOnEnter(
+														nextLine
+															? `reservation.service.${index + 1}`
+															: 'reservation.day',
+														Boolean(nextLine),
+													)}
+												/>
+											</Field>
+											<div className="line-total">
+												<span>Total</span>
+												<strong>{money(lineTotal)}</strong>
+											</div>
+										</div>
+										{(reservationForm.items ?? []).length > 1 ? (
+											<button
+												type="button"
+												className="danger"
+												onClick={() => removeReservationItem(index)}
+											>
+												Quitar
+											</button>
+										) : null}
 									</div>
-								</div>
-								{(reservationForm.items ?? []).length > 1 ? (
-									<button
-										type="button"
-										className="danger"
-										onClick={() => removeReservationItem(index)}
-									>
-										Quitar
-									</button>
-								) : null}
-							</div>
-						)
-					},
-				)}
-				<div className="quote-total">
-					<span>Total reserva</span>
-					<strong>
-						{money(serviceLinesTotal(reservationForm.items ?? []))}
-					</strong>
-				</div>
-			</div>
-			{isNonWorkingDay ? (
+								)
+							},
+						)}
+						<div className="quote-total">
+							<span>Total reserva</span>
+							<strong>
+								{money(serviceLinesTotal(reservationForm.items ?? []))}
+							</strong>
+						</div>
+					</div>
+				</>
+			)}
+			{!isGroup && isNonWorkingDay ? (
 				<div className="form-notice form-notice--warn">
 					El dia seleccionado es no laborable segun la configuracion del negocio. Igual podes crear la reserva si es necesario.
 				</div>
 			) : null}
-			<div className="form-row">
+			{!isGroup ? <div className="form-row">
 				<Field label="Fecha de ingreso (opcional)" error={fieldErrors?.['day']}>
 					<input
 						data-focus-key="reservation.day"
@@ -414,14 +500,14 @@ export function ReservationForm({
 						)}
 					/>
 				</Field>
-			</div>
-			{isPastDay ? (
+			</div> : null}
+			{!isGroup && isPastDay ? (
 				<div className="info-note info-note--warning">
 					La fecha elegida ya paso. Selecciona una fecha igual o posterior a
 					hoy.
 				</div>
 			) : null}
-			{availability && !isPastDay ? (
+			{!isGroup && availability && !isPastDay ? (
 				<div
 					className={`info-note${capacityWarning ? ' info-note--warning' : ''}`}
 				>
@@ -451,7 +537,7 @@ export function ReservationForm({
 						))}
 				</div>
 			) : null}
-			{useReservationTimes ? (
+			{!isGroup && useReservationTimes ? (
 				<div className="form-row">
 					<Field label="Hora de ingreso (opcional)" error={fieldErrors?.['start_time']}>
 						<select
@@ -524,7 +610,7 @@ export function ReservationForm({
 					}
 				/>
 			</Field>
-			{!reservationDismissed && duplicateReservations.length > 0 && (
+			{!isGroup && !reservationDismissed && duplicateReservations.length > 0 && (
 				<DuplicateWarning
 					title="Este cliente ya tiene una reserva para ese día:"
 					items={duplicateReservations.map((r) => ({

@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils import timezone
 from django.utils.html import format_html
 
-from .models import Quote, QuoteItem
+from .models import Quote, QuoteItem, QuoteVehicleLine, QuoteVehicleLineItem
 
 
 class QuoteItemInline(admin.TabularInline):
@@ -13,10 +13,34 @@ class QuoteItemInline(admin.TabularInline):
     autocomplete_fields = ["service"]
 
 
+class QuoteVehicleLineItemInline(admin.TabularInline):
+    model = QuoteVehicleLineItem
+    extra = 0
+    readonly_fields = ["line_total"]
+    fields = ["service", "description", "quantity", "unit_price", "line_total"]
+    autocomplete_fields = ["service"]
+
+
+class QuoteVehicleLineInline(admin.TabularInline):
+    model = QuoteVehicleLine
+    extra = 0
+    readonly_fields = ["subtotal", "vehicle_snapshot_label"]
+    fields = [
+        "order",
+        "vehicle",
+        "reservation",
+        "reservation_day",
+        "reservation_start_time",
+        "subtotal",
+        "vehicle_snapshot_label",
+    ]
+    autocomplete_fields = ["vehicle", "reservation"]
+
+
 @admin.register(Quote)
 class QuoteAdmin(admin.ModelAdmin):
-    list_display = ["public_code", "business", "customer", "quote_date", "total", "get_status_badge", "valid_until"]
-    list_filter = ["business", "status", "quote_date"]
+    list_display = ["public_code", "business", "customer", "is_group", "quote_date", "total", "get_status_badge", "valid_until"]
+    list_filter = ["business", "is_group", "status", "quote_date"]
     search_fields = ["public_code", "customer__name", "customer__email", "customer_snapshot_name"]
     date_hierarchy = "quote_date"
     list_per_page = 25
@@ -26,12 +50,12 @@ class QuoteAdmin(admin.ModelAdmin):
         "tax_amount", "total", "sent_at", "created_at", "updated_at",
     ]
     autocomplete_fields = ["customer", "vehicle"]
-    inlines = [QuoteItemInline]
+    inlines = [QuoteItemInline, QuoteVehicleLineInline]
     save_on_top = True
     list_select_related = ["business", "customer"]
     actions = ["approve_quotes", "reject_quotes"]
     fieldsets = (
-        (None, {"fields": ("business", "public_code", "customer", "vehicle", "status", "quote_date", "valid_until", "observations")}),
+        (None, {"fields": ("business", "public_code", "customer", "vehicle", "is_group", "status", "quote_date", "valid_until", "observations")}),
         ("Montos", {"fields": ("subtotal", "discount_rate", "discount_amount", "tax_rate", "taxable_amount", "tax_amount", "total")}),
         ("Datos del negocio (snapshot)", {
             "classes": ("collapse",),
@@ -72,3 +96,28 @@ class QuoteAdmin(admin.ModelAdmin):
             updated_at=timezone.now(),
         )
         self.message_user(request, f"{updated} cotizacion(es) rechazada(s).")
+
+
+@admin.register(QuoteVehicleLine)
+class QuoteVehicleLineAdmin(admin.ModelAdmin):
+    list_display = ["quote", "vehicle", "reservation", "reservation_day", "subtotal", "order"]
+    list_filter = ["quote__business", "reservation_day"]
+    search_fields = ["quote__public_code", "vehicle__license_plate", "vehicle__brand", "vehicle__model", "quote__customer__name"]
+    list_per_page = 25
+    ordering = ["quote", "order", "id"]
+    readonly_fields = ["vehicle_snapshot_label", "subtotal", "created_at", "updated_at"]
+    autocomplete_fields = ["quote", "vehicle", "reservation"]
+    list_select_related = ["quote", "vehicle", "reservation"]
+    inlines = [QuoteVehicleLineItemInline]
+
+
+@admin.register(QuoteVehicleLineItem)
+class QuoteVehicleLineItemAdmin(admin.ModelAdmin):
+    list_display = ["vehicle_line", "service", "quantity", "unit_price", "line_total"]
+    list_filter = ["vehicle_line__quote__business"]
+    search_fields = ["vehicle_line__quote__public_code", "service__name", "description"]
+    list_per_page = 25
+    ordering = ["vehicle_line", "id"]
+    readonly_fields = ["line_total"]
+    autocomplete_fields = ["vehicle_line", "service"]
+    list_select_related = ["vehicle_line", "service"]

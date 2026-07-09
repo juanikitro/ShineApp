@@ -37,6 +37,7 @@ class Quote(SoftDeleteMixin):
     business = models.ForeignKey("core.BusinessAccount", related_name="quotes", on_delete=models.PROTECT)
     customer = models.ForeignKey("customers.Customer", related_name="quotes", on_delete=models.PROTECT)
     vehicle = models.ForeignKey("customers.Vehicle", related_name="quotes", null=True, blank=True, on_delete=models.PROTECT)
+    is_group = models.BooleanField(default=False)
     reservation = models.OneToOneField(
         "scheduling.Reservation",
         related_name="quote",
@@ -96,7 +97,19 @@ class Quote(SoftDeleteMixin):
         ]
 
     def recalculate(self):
-        subtotal = quantize_money(sum((item.line_total for item in self.items.all()), Decimal("0.00")))
+        if self.is_group:
+            subtotal = Decimal("0.00")
+            for line in self.vehicle_lines.prefetch_related("items").all():
+                line_subtotal = quantize_money(
+                    sum((item.line_total for item in line.items.all()), Decimal("0.00"))
+                )
+                if line.subtotal != line_subtotal:
+                    line.subtotal = line_subtotal
+                    line.save(update_fields=["subtotal", "updated_at"])
+                subtotal += line_subtotal
+            subtotal = quantize_money(subtotal)
+        else:
+            subtotal = quantize_money(sum((item.line_total for item in self.items.all()), Decimal("0.00")))
         discount_amount = quantize_money(subtotal * self.discount_rate / Decimal("100"))
         taxable_amount = max(subtotal - discount_amount, Decimal("0.00"))
         tax_amount = quantize_money(taxable_amount * self.tax_rate / Decimal("100"))
@@ -126,6 +139,9 @@ class Quote(SoftDeleteMixin):
 
     @property
     def has_reservation(self):
+        if self.is_group:
+            lines = list(self.vehicle_lines.all())
+            return bool(lines) and all(line.reservation_id for line in lines)
         return bool(self.reservation_id)
 
     def apply_snapshot_defaults(self):
@@ -193,6 +209,8 @@ class Quote(SoftDeleteMixin):
         with transaction.atomic():
             for item in list(self.items.all()):
                 item.delete()
+            for line in list(self.vehicle_lines.all()):
+                line.delete()
             self.deleted_at = timezone.now()
             self.save(update_fields=["deleted_at", "updated_at"])
 
@@ -204,6 +222,8 @@ class Quote(SoftDeleteMixin):
             self.updated_at = now
             for item in self.items(manager="all_objects").filter(deleted_at__isnull=False):
                 item.restore()
+            for line in self.vehicle_lines(manager="all_objects").filter(deleted_at__isnull=False):
+                line.restore()
 
     def __str__(self):
         return f"Cotizacion {self.public_code or self.id or '-'}"
@@ -221,6 +241,79 @@ class QuoteItem(SoftDeleteMixin):
         ordering = ["id"]
         verbose_name = "ítem de cotización"
         verbose_name_plural = "ítems de cotización"
+
+    def save(self, *args, **kwargs):
+        self.line_total = quantize_money(self.quantity * self.unit_price)
+        super().save(*args, **kwargs)
+
+
+class QuoteVehicleLine(SoftDeleteMixin):
+    quote = models.ForeignKey(Quote, related_name="vehicle_lines", on_delete=models.CASCADE)
+    vehicle = models.ForeignKey("customers.Vehicle", related_name="quote_vehicle_lines", on_delete=models.PROTECT)
+    reservation = models.OneToOneField(
+        "scheduling.Reservation",
+        related_name="quote_vehicle_line",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    reservation_day = models.DateField(null=True, blank=True)
+    reservation_exit_day = models.DateField(null=True, blank=True)
+    reservation_start_time = models.TimeField(null=True, blank=True)
+    reservation_exit_time = models.TimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    vehicle_snapshot_label = models.CharField(max_length=220, blank=True)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta(SoftDeleteMixin.Meta):
+        ordering = ["order", "id"]
+        verbose_name = "linea de vehiculo de cotizacion"
+        verbose_name_plural = "lineas de vehiculo de cotizacion"
+
+    def save(self, *args, **kwargs):
+        if self.vehicle_id and not self.vehicle_snapshot_label:
+            self.vehicle_snapshot_label = str(self.vehicle)
+        super().save(*args, **kwargs)
+
+    def recalculate(self):
+        self.subtotal = quantize_money(sum((item.line_total for item in self.items.all()), Decimal("0.00")))
+        self.save(update_fields=["subtotal", "updated_at"])
+
+    def delete(self, using=None, keep_parents=False):
+        with transaction.atomic():
+            for item in list(self.items.all()):
+                item.delete()
+            self.deleted_at = timezone.now()
+            self.save(update_fields=["deleted_at", "updated_at"])
+
+    def restore(self):
+        with transaction.atomic():
+            now = timezone.now()
+            QuoteVehicleLine.all_objects.filter(pk=self.pk).update(deleted_at=None, updated_at=now)
+            self.deleted_at = None
+            self.updated_at = now
+            for item in self.items(manager="all_objects").filter(deleted_at__isnull=False):
+                item.restore()
+
+    def __str__(self):
+        return f"{self.quote} - {self.vehicle_snapshot_label or self.vehicle}"
+
+
+class QuoteVehicleLineItem(SoftDeleteMixin):
+    vehicle_line = models.ForeignKey(QuoteVehicleLine, related_name="items", on_delete=models.CASCADE)
+    service = models.ForeignKey("catalog.Service", null=True, blank=True, on_delete=models.SET_NULL)
+    description = models.CharField(max_length=180)
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("1.00"))
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2)
+    line_total = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+
+    class Meta(SoftDeleteMixin.Meta):
+        ordering = ["id"]
+        verbose_name = "item de linea de vehiculo"
+        verbose_name_plural = "items de linea de vehiculo"
 
     def save(self, *args, **kwargs):
         self.line_total = quantize_money(self.quantity * self.unit_price)
