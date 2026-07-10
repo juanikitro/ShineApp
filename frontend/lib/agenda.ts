@@ -62,6 +62,11 @@ export type AgendaMonthGrid = {
 	weeks: AgendaMonthWeek[]
 }
 
+export type AgendaDayMoneySummary = {
+	collected: number
+	receivable: number
+}
+
 export type AgendaMonthOptions = AgendaDisplayOptions & {
 	weekStartsOn?: number
 	chipLimit?: number
@@ -73,6 +78,11 @@ function normalizeId(value: any) {
 		return null
 	}
 	return String(value)
+}
+
+function moneyNumber(value: unknown) {
+	const number = Number(value ?? 0)
+	return Number.isFinite(number) ? number : 0
 }
 
 export function agendaSectorForReservation(reservation: AnyRecord): number | null {
@@ -186,6 +196,33 @@ export function buildWorkOrderByReservation(workOrders: AnyRecord[]) {
 			return byReservation
 		},
 		{},
+	)
+}
+
+export function buildAgendaDayMoneySummary(
+	rows: AgendaOperationalRow[] | undefined,
+): AgendaDayMoneySummary {
+	const seenWorkOrders = new Set<string>()
+
+	return (rows ?? []).reduce<AgendaDayMoneySummary>(
+		(summary, row) => {
+			const workOrder = row.workOrder
+			if (!workOrder) return summary
+
+			const key = normalizeId(workOrder.id) ?? row.key
+			if (seenWorkOrders.has(key)) return summary
+			seenWorkOrders.add(key)
+
+			return {
+				collected:
+					summary.collected +
+					moneyNumber(workOrder.paid_amount ?? workOrder.total_paid),
+				receivable:
+					summary.receivable +
+					moneyNumber(workOrder.balance_due ?? workOrder.remaining_balance),
+			}
+		},
+		{ collected: 0, receivable: 0 },
 	)
 }
 
