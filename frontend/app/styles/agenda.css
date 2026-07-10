@@ -206,7 +206,8 @@
   font-size: var(--text-sm);
 }
 
-.work-view-toggle {
+.work-view-toggle,
+.agenda-range-toggle {
   display: grid;
   flex: 0 0 auto;
   grid-auto-columns: max-content;
@@ -216,7 +217,8 @@
   width: max-content;
 }
 
-.work-view-toggle button {
+.work-view-toggle button,
+.agenda-range-toggle button {
   min-height: var(--button-height);
   padding: var(--button-padding-block) var(--button-padding-inline);
   white-space: nowrap;
@@ -1248,6 +1250,7 @@
   }
 
   .work-view-toggle,
+  .agenda-range-toggle,
   .agenda-type-toggle {
     width: 100%;
   }
@@ -1321,7 +1324,8 @@
     min-width: 0;
   }
 
-  .work-view-toggle {
+  .work-view-toggle,
+  .agenda-range-toggle {
     grid-auto-columns: minmax(126px, max-content);
     max-width: 100%;
     overflow-x: auto;
@@ -1386,12 +1390,6 @@
 /* ------------------------------------------------------------------ */
 /* Vista mensual de la agenda                                          */
 /* ------------------------------------------------------------------ */
-
-.agenda-range-toggle-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: var(--space-2);
-}
 
 .agenda-month {
   display: flex;

@@ -14941,6 +14941,17 @@ export default function Home() {
 									: 'reservas visibles'}
 							</small>
 						</div>
+						{workViewMode === 'agenda' ? (
+							<SegmentedControl
+								ariaLabel="Rango de la agenda"
+								className="agenda-range-toggle"
+								options={agendaRangeModes}
+								value={agendaRangeMode}
+								onChange={(nextValue) =>
+									setAgendaRangeMode(nextValue as 'week' | 'month')
+								}
+							/>
+						) : null}
 						<SegmentedControl
 							ariaLabel="Visualizacion de trabajos"
 							className="work-view-toggle"
@@ -14957,17 +14968,6 @@ export default function Home() {
 				{displayedActive === 'agenda' && workViewMode === 'agenda' ? (
 					<div className="grid agenda-layout">
 						<section className="panel agenda-panel">
-							<div className="agenda-range-toggle-row">
-								<SegmentedControl
-									ariaLabel="Rango de la agenda"
-									className="agenda-range-toggle"
-									options={agendaRangeModes}
-									value={agendaRangeMode}
-									onChange={(nextValue) =>
-										setAgendaRangeMode(nextValue as "week" | "month")
-									}
-								/>
-							</div>
 							<AgendaBoardToolbar
 								currentDay={agendaStartDay}
 								endLabel={formatDayLabel(weekEndDay)}
