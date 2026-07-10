@@ -132,7 +132,7 @@ class QuoteSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer
     vehicle_label = serializers.SerializerMethodField()
     status_label = serializers.CharField(read_only=True)
     has_reservation = serializers.BooleanField(read_only=True)
-    public_code = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    public_code = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
     create_reservations = serializers.BooleanField(write_only=True, required=False, default=False)
     items = QuoteItemSerializer(many=True, required=False)
     vehicle_lines = QuoteVehicleLineSerializer(many=True, required=False)
@@ -347,7 +347,7 @@ class QuoteSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer
         vehicle_lines_data = validated_data.pop("vehicle_lines", None)
         create_reservations = validated_data.pop("create_reservations", False)
         if "public_code" in validated_data and not validated_data["public_code"]:
-            validated_data.pop("public_code")
+            validated_data["public_code"] = None
         recalculation_fields = {"tax_rate", "discount_rate"}
         should_recalculate = (
             items_data is not None

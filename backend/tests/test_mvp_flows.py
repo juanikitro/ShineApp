@@ -2964,14 +2964,6 @@ def test_quote_public_code_is_editable_and_unique(api_client, base_data):
     first.refresh_from_db()
     assert first.public_code == "PRESUPUESTO-001"
 
-    blank = api_client.patch(
-        reverse("quote-detail", args=[first.id]),
-        {"public_code": "   "},
-        format="json",
-    )
-    assert blank.status_code == 200, blank.data
-    assert blank.data["public_code"] == "PRESUPUESTO-001"
-
     duplicate = api_client.patch(
         reverse("quote-detail", args=[second.id]),
         {"public_code": "PRESUPUESTO-001"},
@@ -2981,6 +2973,30 @@ def test_quote_public_code_is_editable_and_unique(api_client, base_data):
     assert "public_code" in duplicate.data
     second.refresh_from_db()
     assert second.public_code == original_second_code
+
+    blank = api_client.patch(
+        reverse("quote-detail", args=[first.id]),
+        {"public_code": "   "},
+        format="json",
+    )
+    assert blank.status_code == 200, blank.data
+    assert blank.data["public_code"] is None
+    first.refresh_from_db()
+    assert first.public_code is None
+
+    rename_again = api_client.patch(
+        reverse("quote-detail", args=[first.id]),
+        {"public_code": "TEMP-002"},
+        format="json",
+    )
+    assert rename_again.status_code == 200, rename_again.data
+    clear_null = api_client.patch(
+        reverse("quote-detail", args=[first.id]),
+        {"public_code": None},
+        format="json",
+    )
+    assert clear_null.status_code == 200, clear_null.data
+    assert clear_null.data["public_code"] is None
 
 
 @pytest.mark.django_db

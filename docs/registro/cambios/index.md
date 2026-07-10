@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Cotizaciones: nombre opcional](2026-07-10-cotizaciones-nombre-vacio.md)
 - [WhatsApp: modo gratis (wa.me) como alternativa a la API paga](2026-07-08-whatsapp-modo-gratis-wame.md)
 - [Cotizaciones y reservas grupales por auto](2026-07-08-cotizaciones-reservas-grupales.md)
 - [Cobro automatico de reserva al entregar](2026-07-08-cobro-automatico-reserva-entrega.md)
