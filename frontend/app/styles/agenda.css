@@ -48,7 +48,12 @@
     padding: 6px 10px;
   }
 
+  .agenda-day-summary {
+    padding-inline: 10px;
+  }
+
   .agenda-day-count,
+  .agenda-day-balance,
   .agenda-range-label,
   .agenda-vehicle-model,
   .agenda-inline-metrics {
@@ -568,6 +573,32 @@
   font-weight: 650;
   line-height: 1.25;
   text-transform: none;
+}
+
+.agenda-day-summary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  line-height: 1.25;
+  max-width: 100%;
+  padding-inline: 12px;
+}
+
+.agenda-day-balance {
+  font-size: var(--text-xs);
+  font-weight: 750;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+
+.agenda-day-balance--collected {
+  color: var(--color-success);
+}
+
+.agenda-day-balance--receivable {
+  color: var(--color-danger);
 }
 
 .day-row-today-badge {

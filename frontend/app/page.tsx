@@ -220,10 +220,12 @@ import {
 } from '@/lib/fullscreen'
 import {
 	type AgendaCalendarSegment,
+	type AgendaDayMoneySummary,
 	type AgendaMonthChip,
 	type AgendaOperationalPhase,
 	type AgendaOperationalRow,
 	buildAgendaCalendarSegments,
+	buildAgendaDayMoneySummary,
 	buildAgendaMonthGrid,
 	buildAgendaOperationalRows,
 	buildWorkOrderByReservation,
@@ -3713,12 +3715,14 @@ export default function Home() {
 		day,
 		column,
 		count,
+		moneySummary,
 		hiddenDuringEnter = false,
 		interactive,
 	}: {
 		day: string
 		column: number
 		count: number
+		moneySummary: AgendaDayMoneySummary
 		hiddenDuringEnter?: boolean
 		interactive: boolean
 	}) {
@@ -3758,8 +3762,16 @@ export default function Home() {
 								<span className="agenda-day-closed-badge">Cerrado</span>
 							) : null}
 						</span>
-						<span className="agenda-day-count">
-							{count === 1 ? '1 movimiento' : `${count} movimientos`}
+						<span className="agenda-day-summary">
+							<span className="agenda-day-count">
+								{count === 1 ? '1 movimiento' : `${count} movimientos`}
+							</span>
+							<span className="agenda-day-balance agenda-day-balance--collected">
+								Cobrado {money(moneySummary.collected)}
+							</span>
+							<span className="agenda-day-balance agenda-day-balance--receivable">
+								Por cobrar {money(moneySummary.receivable)}
+							</span>
 						</span>
 					</span>
 					<span className="agenda-day-add-button" aria-hidden="true">
@@ -15101,6 +15113,9 @@ export default function Home() {
 														}
 														interactive={agendaBoardModel.isInteractive}
 														key={`head:${agendaBoardModel.key}:${day}`}
+														moneySummary={buildAgendaDayMoneySummary(
+															agendaBoardModel.rowsByDay[day],
+														)}
 													/>
 												))}
 												{agendaBoardModel.segments.map((segment) => {

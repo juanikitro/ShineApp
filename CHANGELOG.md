@@ -13,6 +13,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ## 2026-07-10
 - [Cotizaciones: nombre opcional](docs/registro/cambios/2026-07-10-cotizaciones-nombre-vacio.md)
 - [Agenda: selector semana/mes junto al switch de vista](docs/registro/cambios/2026-07-10-agenda-selector-rango.md)
+- [Agenda: saldos diarios en el encabezado semanal](docs/registro/cambios/2026-07-10-agenda-saldos-header.md)
 
 ## 2026-07-08
 - [WhatsApp: modo gratis (wa.me) como alternativa a la API paga](docs/registro/cambios/2026-07-08-whatsapp-modo-gratis-wame.md)

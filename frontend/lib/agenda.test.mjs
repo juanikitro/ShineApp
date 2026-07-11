@@ -3,6 +3,7 @@ import { test } from 'vitest'
 
 import {
 	agendaSectorForReservation,
+	buildAgendaDayMoneySummary,
 	buildAgendaMonthGrid,
 	buildAgendaOperationalRows,
 	buildAgendaCalendarSegments,
@@ -207,6 +208,61 @@ test('buildAgendaOperationalRows expands entry stay and exit days with work-orde
 	assert.equal(rows['2026-05-08'][0].phase, 'stay')
 	assert.equal(rows['2026-05-09'][0].phase, 'exit')
 	assert.equal(rows['2026-05-10'], undefined)
+})
+
+test('buildAgendaDayMoneySummary totals collected and receivable work-order balances', () => {
+	const workOrder = {
+		id: 77,
+		paid_amount: '5000.00',
+		balance_due: '10000.00',
+	}
+	const summary = buildAgendaDayMoneySummary([
+		{
+			key: 'reservation:7:2026-05-07',
+			day: '2026-05-07',
+			displayDay: '2026-05-07',
+			phase: 'entry',
+			kind: 'reservation-work-order',
+			reservation: { id: 7 },
+			workOrder,
+		},
+		{
+			key: 'reservation:7:duplicate',
+			day: '2026-05-07',
+			displayDay: '2026-05-07',
+			phase: 'stay',
+			kind: 'reservation-work-order',
+			reservation: { id: 7 },
+			workOrder,
+		},
+		{
+			key: 'reservation:8:2026-05-07',
+			day: '2026-05-07',
+			displayDay: '2026-05-07',
+			phase: 'entry',
+			kind: 'reservation-work-order',
+			reservation: { id: 8 },
+			workOrder: {
+				id: 88,
+				total_paid: '1200.50',
+				remaining_balance: '300.25',
+			},
+		},
+		{
+			key: 'reservation:9:2026-05-07',
+			day: '2026-05-07',
+			displayDay: '2026-05-07',
+			phase: 'entry',
+			kind: 'reservation-only',
+			reservation: { id: 9 },
+			workOrder: null,
+		},
+	])
+
+	assert.deepEqual(summary, {
+		collected: 6200.5,
+		receivable: 10300.25,
+	})
 })
 
 test('buildAgendaOperationalRows can hide stay days and falls back when exit is before entry', () => {
