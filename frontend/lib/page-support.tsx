@@ -16,14 +16,13 @@ import {
 	ReceiptText,
 	Search,
 	Settings,
-	Undo2,
 	Users,
 	Wrench,
 	X,
 } from 'lucide-react'
 import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
-import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AppBrand } from '@/app/components/layout/AppBrand'
 import { Field } from '@/app/components/ui/Field'
@@ -50,6 +49,7 @@ type ToastAction = {
 	label: string
 	title?: string
 	disabled?: boolean
+	icon?: ReactNode
 	onClick: () => void
 }
 type ToastNotice = {
@@ -59,6 +59,8 @@ type ToastNotice = {
 	description?: string
 	fields?: ApiErrorNotice['fields']
 	action?: ToastAction
+	actions?: ToastAction[]
+	persistent?: boolean
 	visibleMs?: number
 }
 type ToastDraft = Omit<ToastNotice, 'id'>
@@ -1660,17 +1662,18 @@ function NoticeToast({
 	const visibleMs =
 		toast.visibleMs ??
 		(toast.tone === 'error' ? TOAST_ERROR_VISIBLE_MS : TOAST_VISIBLE_MS)
+	const actions = toast.actions ?? (toast.action ? [toast.action] : [])
 
 	// Auto-cierre que se pausa con hover o con foco dentro del toast: evita que
 	// desaparezca mientras se lee o se usa "Deshacer" (WCAG 2.2.1 / 2.4.3).
 	useEffect(() => {
-		if (paused) return
+		if (toast.persistent || paused) return
 		const timer = window.setTimeout(
 			() => dismissRef.current(toast.id),
 			visibleMs,
 		)
 		return () => window.clearTimeout(timer)
-	}, [paused, visibleMs, toast.id])
+	}, [paused, toast.persistent, visibleMs, toast.id])
 
 	return (
 		<m.div
@@ -1716,18 +1719,19 @@ function NoticeToast({
 					))}
 				</ul>
 			) : null}
-			{toast.action ? (
+			{actions.map((action, index) => (
 				<button
 					type="button"
 					className="toast-action"
-					onClick={toast.action.onClick}
-					disabled={toast.action.disabled}
-					title={toast.action.title}
+					onClick={action.onClick}
+					disabled={action.disabled}
+					title={action.title}
+					key={`${action.label}-${index}`}
 				>
-					<Undo2 size={15} />
-					<span>{toast.action.label}</span>
+					{action.icon}
+					<span>{action.label}</span>
 				</button>
-			) : null}
+			))}
 			<button
 				type="button"
 				className="toast-close"

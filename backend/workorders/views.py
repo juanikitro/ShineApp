@@ -5,13 +5,14 @@ from django.utils import timezone
 from rest_framework import decorators, response, status, viewsets
 
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
-from core.permissions import business_from_request
+from core.permissions import EmployerOnly, business_from_request
 from finance.services import maybe_auto_charge_on_delivery
 from notifications.service import send_work_order_ready
 from scheduling.models import Reservation
 from scheduling.services import ensure_reservation_work_order
 from whatsapp.models import WhatsAppMessage
-from whatsapp.services import enqueue_automated_message
+from whatsapp.serializers import WhatsAppMessageSerializer
+from whatsapp.services import enqueue_automated_message, send_work_order_whatsapp
 
 from .metrics import build_work_order_financial_metrics
 from .models import WorkOrder
@@ -99,13 +100,18 @@ class WorkOrderViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             if new_status == Reservation.Status.DELIVERED:
                 _apply_service_materials(order)
                 auto_payment = maybe_auto_charge_on_delivery(order, previous_status, request=request)
+            is_transition = previous_status != new_status
             if new_status == Reservation.Status.READY:
                 # El aviso al cliente se encola/envia recien si la transicion
                 # commitea: nunca "listo" en la DB sin haber intentado el email.
                 transaction.on_commit(lambda: send_work_order_ready(order))
-                enqueue_automated_message(event=WhatsAppMessage.Event.WORK_READY, source=order)
+                # Solo en transicion real: re-postear el mismo estado no debe
+                # re-disparar el envio automatico de WhatsApp (no doble-envio).
+                if is_transition:
+                    enqueue_automated_message(event=WhatsAppMessage.Event.WORK_READY, source=order)
             if new_status == Reservation.Status.DELIVERED:
-                enqueue_automated_message(event=WhatsAppMessage.Event.WORK_DELIVERED, source=order)
+                if is_transition:
+                    enqueue_automated_message(event=WhatsAppMessage.Event.WORK_DELIVERED, source=order)
         record_audit_event(
             request=request,
             action="status",
@@ -118,6 +124,36 @@ class WorkOrderViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             },
         )
         return response.Response(self.get_serializer(order).data)
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="send-whatsapp",
+        permission_classes=[EmployerOnly],
+    )
+    def send_whatsapp(self, request, pk=None):
+        event = request.data.get("event")
+        allowed_events = [
+            WhatsAppMessage.Event.WORK_READY,
+            WhatsAppMessage.Event.WORK_DELIVERED,
+        ]
+        if event not in allowed_events:
+            return response.Response(
+                {"detail": "Evento inválido. Opciones válidas: work_ready, work_delivered."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        order = self.get_object()
+        try:
+            message = send_work_order_whatsapp(order, event, user=request.user)
+        except Exception as exc:  # noqa: BLE001
+            return response.Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return response.Response(
+            {"message": WhatsAppMessageSerializer(message).data},
+            status=status.HTTP_201_CREATED,
+        )
 
     @decorators.action(detail=False, methods=["post"], url_path="from-reservation")
     def from_reservation(self, request):

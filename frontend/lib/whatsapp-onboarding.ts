@@ -13,7 +13,7 @@ export type WhatsAppTemplateSeed = {
 export type WhatsAppRuleUpdate = {
 	id: number | string
 	patch: {
-		enabled?: boolean
+		dispatch?: 'manual' | 'notify' | 'automatic'
 		template?: number | string
 	}
 }
@@ -146,8 +146,10 @@ export function buildWhatsAppAutomationRuleUpdates(input: {
 		if (!template || template.id == null) return []
 
 		const patch: WhatsAppRuleUpdate['patch'] = {}
-		if (!truthyFlag(rule.enabled)) {
-			patch.enabled = true
+		const dispatch =
+			event === 'quote_sent' ? 'manual' : 'automatic'
+		if (String(rule.dispatch ?? 'manual') !== dispatch) {
+			patch.dispatch = dispatch
 		}
 		if (!hasText(rule.template)) {
 			patch.template = template.id
@@ -213,7 +215,7 @@ export function buildWhatsAppOnboardingReadiness(input: {
 	)
 	const automationReady = whatsappDemoTemplates.every((seed) => {
 		const rule = automationRules.find((item) => String(item.event ?? '') === seed.key)
-		return Boolean(rule && truthyFlag(rule.enabled) && hasText(rule.template))
+		return Boolean(rule && hasText(rule.template))
 	})
 	const historyReady = messages.length > 0
 	const checks = [configReady, templatesReady, automationReady, historyReady]

@@ -11,7 +11,7 @@ import {
 const automationRules = whatsappDemoTemplates.map((template, index) => ({
 	id: index + 1,
 	event: template.key,
-	enabled: false,
+	dispatch: 'manual',
 	template: null,
 }))
 
@@ -77,15 +77,15 @@ test('builds rule updates without replacing an assigned template', () => {
 	const updates = buildWhatsAppAutomationRuleUpdates({
 		templates,
 		automationRules: [
-			{ id: 1, event: 'reservation_confirmed', enabled: false, template: 99 },
-			{ id: 2, event: 'work_ready', enabled: false, template: null },
-			{ id: 3, event: 'work_delivered', enabled: false, template: null },
+			{ id: 1, event: 'reservation_confirmed', dispatch: 'manual', template: 99 },
+			{ id: 2, event: 'work_ready', dispatch: 'manual', template: null },
+			{ id: 3, event: 'work_delivered', dispatch: 'manual', template: null },
 		],
 	})
 
 	assert.deepEqual(updates, [
-		{ id: 1, patch: { enabled: true } },
-		{ id: 2, patch: { enabled: true, template: 21 } },
+		{ id: 1, patch: { dispatch: 'automatic' } },
+		{ id: 2, patch: { dispatch: 'automatic', template: 21 } },
 	])
 })
 
@@ -97,7 +97,7 @@ test('reports WhatsApp onboarding readiness from config templates and rules', ()
 	const rules = templates.map((template, index) => ({
 		id: index + 1,
 		event: template.key,
-		enabled: true,
+		dispatch: template.key === 'quote_sent' ? 'manual' : 'automatic',
 		template: template.id,
 	}))
 

@@ -24,6 +24,12 @@ export const FREE_EVENT_VARIABLES: Record<string, FreeVariableDef[]> = {
 		{ name: 'servicios', label: 'Servicios' },
 		{ name: 'negocio', label: 'Nombre del negocio' },
 	],
+	work_delivered: [
+		{ name: 'cliente', label: 'Nombre del cliente' },
+		{ name: 'vehiculo', label: 'Vehiculo' },
+		{ name: 'servicios', label: 'Servicios' },
+		{ name: 'negocio', label: 'Nombre del negocio' },
+	],
 	quote_sent: [
 		{ name: 'cliente', label: 'Nombre del cliente' },
 		{ name: 'vehiculo', label: 'Vehiculo' },
@@ -38,8 +44,13 @@ export const FREE_EVENT_VARIABLES: Record<string, FreeVariableDef[]> = {
 	],
 }
 
-// Modulos que el modo gratis expone (con boton). No incluye work_delivered.
-export const FREE_EVENT_KEYS = ['reservation_confirmed', 'work_ready', 'quote_sent', 'manual']
+export const FREE_EVENT_KEYS = [
+	'reservation_confirmed',
+	'work_ready',
+	'work_delivered',
+	'quote_sent',
+	'manual',
+]
 
 export function freeVariablesForEvent(event: string): FreeVariableDef[] {
 	return FREE_EVENT_VARIABLES[event] ?? []
@@ -100,6 +111,16 @@ export function freeTemplateBody(
 	return match ? String(match.body_preview ?? '') : ''
 }
 
+export function hasActiveWhatsappTemplate(
+	templates: AnyRecord[] | null | undefined,
+	event: string,
+): boolean {
+	return (templates ?? []).some(
+		(template) =>
+			String(template.key ?? '') === event && template.is_active !== false,
+	)
+}
+
 // Arma el enlace wa.me con el mensaje prellenado. Null si falta telefono o cuerpo.
 export function buildFreeWhatsappHref(
 	phone: string | null | undefined,
@@ -115,13 +136,62 @@ export function isFreeWhatsappMode(config: AnyRecord | null | undefined): boolea
 	return String(config?.mode ?? '') === 'free'
 }
 
-// True si el modulo/evento tiene su regla habilitada (boton visible en modo gratis).
-export function isFreeEventEnabled(
+export function whatsappEventButtonVisible({
+	config,
+	templates,
+	event,
+	phone,
+}: {
+	config: AnyRecord | null | undefined
+	templates: AnyRecord[] | null | undefined
+	event: string
+	phone: string | null | undefined
+}): boolean {
+	const channelUsable = isFreeWhatsappMode(config)
+		? String(config?.mode ?? '') === 'free'
+		: config?.is_enabled === true
+	return (
+		channelUsable &&
+		hasActiveWhatsappTemplate(templates, event) &&
+		Boolean(String(phone ?? '').trim())
+	)
+}
+
+export type WhatsappDispatch = 'manual' | 'notify' | 'automatic'
+
+const PROACTIVE_EVENT_KEYS = new Set([
+	'reservation_confirmed',
+	'work_ready',
+	'work_delivered',
+])
+
+export function dispatchForEvent(
 	automationRules: AnyRecord[] | null | undefined,
 	event: string,
-): boolean {
-	const rule = (automationRules ?? []).find(
-		(item) => String(item.event ?? '') === event,
+): WhatsappDispatch {
+	if (!PROACTIVE_EVENT_KEYS.has(event)) return 'manual'
+	const dispatch = String(
+		(automationRules ?? []).find(
+			(rule) => String(rule.event ?? '') === event,
+		)?.dispatch ?? 'manual',
 	)
-	return Boolean(rule && (rule.enabled === true || rule.enabled === 'true'))
+	return dispatch === 'notify' || dispatch === 'automatic' ? dispatch : 'manual'
+}
+
+export function whatsappAlreadySent(
+	messages: AnyRecord[] | null | undefined,
+	event: string,
+	source: 'reservation' | 'workOrder' | 'quote',
+	sourceId: number | string,
+): boolean {
+	const sourceField =
+		source === 'workOrder' ? 'work_order' : source
+	return (messages ?? []).some(
+		(message) =>
+			String(message.event ?? '') === event &&
+			String(message[sourceField] ?? '') === String(sourceId) &&
+			['sent', 'delivered', 'read'].includes(
+				String(message.status ?? '').toLowerCase(),
+			),
+	)
 }
