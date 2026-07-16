@@ -113,7 +113,21 @@ def test_seed_demo_populates_realistic_dataset_across_modules():
     assert whatsapp_config.is_enabled is True
     assert whatsapp_config.phone_number_display == "+54 9 11 5555-0100"
     assert WhatsAppTemplate.objects.filter(business=business, is_active=True).count() >= 4
-    assert WhatsAppAutomationRule.objects.filter(business=business, enabled=True).count() >= 4
+    assert (
+        WhatsAppAutomationRule.objects.filter(
+            business=business,
+            dispatch=WhatsAppAutomationRule.Dispatch.AUTOMATIC,
+        ).count()
+        >= 3
+    )
+    # quote_sent es siempre manual: no participa de la politica de despacho.
+    assert (
+        WhatsAppAutomationRule.objects.get(
+            business=business,
+            event=WhatsAppAutomationRule.Event.QUOTE_SENT,
+        ).dispatch
+        == WhatsAppAutomationRule.Dispatch.MANUAL
+    )
 
     assert AuditLog.objects.filter(business=business).count() >= 5
 

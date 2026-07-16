@@ -514,8 +514,18 @@ const whatsappModeOptions: SegmentedOption<string>[] = [
 	{ value: 'paid', label: 'Paga (API)' },
 ]
 
-// Modulos que el modo gratis expone en Envios/Botones (sin work_delivered).
-const freeModuleEventKeys = ['reservation_confirmed', 'work_ready', 'quote_sent']
+const freeModuleEventKeys = [
+	'reservation_confirmed',
+	'work_ready',
+	'work_delivered',
+	'quote_sent',
+]
+
+const whatsappDispatchEventKeys = [
+	'reservation_confirmed',
+	'work_ready',
+	'work_delivered',
+]
 
 function whatsappVariableHint(eventKey: string) {
 	const vars = FREE_EVENT_VARIABLES[eventKey] ?? []
@@ -987,19 +997,9 @@ export function WhatsappSettingsPanel({
 			<section className="panel">
 				<div className="panel-head">
 					<div>
-						<span className="panel-kicker">
-							{isFreeMode ? 'Modulos gratis' : 'Automatizacion'}
-						</span>
-						<h2>
-							{isFreeMode
-								? 'Modulos con boton de WhatsApp'
-								: 'Envios automaticos'}
-						</h2>
-						<p>
-							{isFreeMode
-								? 'Activa los modulos que muestran el boton de WhatsApp y asigna el mensaje de cada uno.'
-								: 'Activa los eventos que deben generar mensajes de WhatsApp.'}
-						</p>
+						<span className="panel-kicker">Politica de despacho</span>
+						<h2>Eventos de WhatsApp</h2>
+						<p>Elegí cómo se despacha cada evento y asigná su template activo.</p>
 					</div>
 				</div>
 				{(() => {
@@ -1010,47 +1010,56 @@ export function WhatsappSettingsPanel({
 						: automationRules
 					return visibleRules.length ? (
 						<div className="records">
-							{visibleRules.map((rule) => (
-								<RecordCard key={rule.id}>
-									<RecordCardHeader
-										title={rule.event_label ?? rule.event}
-										subtitle={`${
-											rule.enabled ? 'Activo' : 'Inactivo'
-										}${
-											isFreeMode
-												? ` - variables: ${whatsappVariableHint(String(rule.event))}`
-												: ` - ${rule.template_label ?? 'Sin template'}`
-										}`}
-									/>
-									<div className="record-actions">
-										<Toggle
-											checked={Boolean(rule.enabled)}
-											onChange={(checked) =>
-												void onUpdateAutomationRule(rule.id, {
-													enabled: checked,
-												})
-											}
-										>
-											{isFreeMode ? 'Mostrar boton' : 'Enviar automatico'}
-										</Toggle>
-										<select
-											value={rule.template ?? ''}
-											onChange={(event) =>
-												void onUpdateAutomationRule(rule.id, {
-													template: event.target.value || null,
-												})
-											}
-										>
-											<option value="">Sin template</option>
-											{templates.map((template) => (
-												<option key={template.id} value={template.id}>
-													{template.provider_template_name || template.key}
-												</option>
-											))}
-										</select>
-									</div>
-								</RecordCard>
-							))}
+							{visibleRules.map((rule) => {
+								const canChooseDispatch = whatsappDispatchEventKeys.includes(
+									String(rule.event),
+								)
+								return (
+									<RecordCard key={rule.id}>
+										<RecordCardHeader
+											title={rule.event_label ?? rule.event}
+											subtitle={`${
+												canChooseDispatch ? rule.dispatch ?? 'manual' : 'Manual'
+											} - ${rule.template_label ?? 'Sin template'}${
+												isFreeMode
+													? ` - variables: ${whatsappVariableHint(String(rule.event))}`
+													: ''
+											}`}
+										/>
+										<div className="record-actions">
+											{canChooseDispatch ? (
+												<select
+													value={String(rule.dispatch ?? 'manual')}
+													onChange={(event) =>
+														void onUpdateAutomationRule(rule.id, {
+															dispatch: event.target.value,
+														})
+													}
+												>
+													<option value="manual">Manual</option>
+													<option value="notify">Notificar</option>
+													<option value="automatic">Automatico</option>
+												</select>
+											) : null}
+											<select
+												value={rule.template ?? ''}
+												onChange={(event) =>
+													void onUpdateAutomationRule(rule.id, {
+														template: event.target.value || null,
+													})
+												}
+											>
+												<option value="">Sin template</option>
+												{templates.map((template) => (
+													<option key={template.id} value={template.id}>
+														{template.provider_template_name || template.key}
+													</option>
+												))}
+											</select>
+										</div>
+									</RecordCard>
+								)
+							})}
 						</div>
 					) : (
 						<Empty text="Sin reglas" />

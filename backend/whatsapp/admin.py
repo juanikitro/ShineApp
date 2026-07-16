@@ -24,8 +24,8 @@ class WhatsAppTemplateAdmin(admin.ModelAdmin):
 
 @admin.register(WhatsAppAutomationRule)
 class WhatsAppAutomationRuleAdmin(admin.ModelAdmin):
-    list_display = ["business", "event", "template", "enabled"]
-    list_filter = ["event", "enabled"]
+    list_display = ["business", "event", "template", "dispatch"]
+    list_filter = ["event", "dispatch"]
     search_fields = ["business__name", "template__provider_template_name"]
 
 

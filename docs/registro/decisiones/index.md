@@ -32,3 +32,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [WhatsApp: Meta Cloud API directo con numero unico de ShineApp](2026-07-07-whatsapp-meta-directo-numero-unico.md)
 - [Cobro automatico al entregar reservas](2026-07-08-cobro-automatico-al-entregar.md)
 - [Cotizaciones grupales sobre Quote](2026-07-08-cotizaciones-grupales-quote.md)
+- [WhatsApp: modo del canal vs politica de despacho (dos ejes ortogonales)](2026-07-14-whatsapp-modo-canal-vs-politica-despacho.md)

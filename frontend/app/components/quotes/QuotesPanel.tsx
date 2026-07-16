@@ -37,6 +37,8 @@ type QuoteCardContentProps = {
 	onDownloadQuotePdf: (item: AnyRecord) => void
 	onDownloadQuotePdfAndMarkSent: (item: AnyRecord) => void
 	onSendQuoteWhatsapp: (item: AnyRecord) => void
+	whatsappButtonVisible: (item: AnyRecord) => boolean
+	whatsappButtonLabel: (item: AnyRecord) => string
 	onOpenQuoteReservationInAgenda: (item: AnyRecord) => void
 }
 
@@ -51,6 +53,8 @@ export function QuoteCardContent({
 	onDownloadQuotePdf,
 	onDownloadQuotePdfAndMarkSent,
 	onSendQuoteWhatsapp,
+	whatsappButtonVisible,
+	whatsappButtonLabel,
 	onOpenQuoteReservationInAgenda,
 }: QuoteCardContentProps) {
 	const code = quoteCode(item)
@@ -135,15 +139,17 @@ export function QuoteCardContent({
 						<FileText size={16} />
 						PDF
 					</button>
-					<button
-						type="button"
-						className="ghost quote-action-button quote-action-button--outline"
-						aria-label="Enviar cotizacion por WhatsApp"
-						onClick={() => onSendQuoteWhatsapp(item)}
-					>
-						<MessageCircle size={16} />
-						WhatsApp
-					</button>
+					{whatsappButtonVisible(item) ? (
+						<button
+							type="button"
+							className="ghost quote-action-button quote-action-button--outline"
+							aria-label={`${whatsappButtonLabel(item)} cotizacion`}
+							onClick={() => onSendQuoteWhatsapp(item)}
+						>
+							<MessageCircle size={16} />
+							{whatsappButtonLabel(item)}
+						</button>
+					) : null}
 					{isDraft ? (
 						<button
 							type="button"
@@ -185,6 +191,8 @@ type QuotesPanelProps = {
 	onDownloadQuotePdf: (item: AnyRecord) => void
 	onDownloadQuotePdfAndMarkSent: (item: AnyRecord) => void
 	onSendQuoteWhatsapp: (item: AnyRecord) => void
+	whatsappButtonVisible: (item: AnyRecord) => boolean
+	whatsappButtonLabel: (item: AnyRecord) => string
 	onOpenQuoteReservationInAgenda: (item: AnyRecord) => void
 	onQuoteDragCancel: () => void
 	onQuoteDragEnd: (event: DragEndEvent) => void
@@ -212,6 +220,8 @@ export function QuotesPanel({
 	onDownloadQuotePdf,
 	onDownloadQuotePdfAndMarkSent,
 	onSendQuoteWhatsapp,
+	whatsappButtonVisible,
+	whatsappButtonLabel,
 	onOpenQuoteReservationInAgenda,
 	onQuoteDragCancel,
 	onQuoteDragEnd,
@@ -227,6 +237,8 @@ export function QuotesPanel({
 		onDownloadQuotePdf,
 		onDownloadQuotePdfAndMarkSent,
 		onSendQuoteWhatsapp,
+		whatsappButtonVisible,
+		whatsappButtonLabel,
 		onOpenQuoteReservationInAgenda,
 	}
 

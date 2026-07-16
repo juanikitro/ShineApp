@@ -1271,12 +1271,19 @@ class Command(BaseCommand):
             (WhatsAppAutomationRule.Event.QUOTE_SENT, WhatsAppTemplate.Key.QUOTE_SENT),
         ]
         for event, template_key in rule_specs:
+            # quote_sent es siempre manual (no tiene politica de despacho); el
+            # resto arranca en automatic para el demo pago.
+            dispatch = (
+                WhatsAppAutomationRule.Dispatch.MANUAL
+                if event == WhatsAppAutomationRule.Event.QUOTE_SENT
+                else WhatsAppAutomationRule.Dispatch.AUTOMATIC
+            )
             upsert(
                 WhatsAppAutomationRule,
                 {"business": business, "event": event},
                 {
                     "template": templates[template_key],
-                    "enabled": True,
+                    "dispatch": dispatch,
                     "send_delay_minutes": 0,
                 },
             )

@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import io
+import importlib
 import json
 from datetime import date
 from decimal import Decimal
@@ -26,6 +27,7 @@ from whatsapp.models import (
 )
 from whatsapp.services import (
     create_message,
+    enqueue_automated_message,
     flush_whatsapp_outbox,
     quote_variables,
     reservation_variables,
@@ -85,7 +87,7 @@ def whatsapp_data(default_business):
             event=event,
         )
         rule.template = templates[template_key]
-        rule.enabled = True
+        rule.dispatch = WhatsAppAutomationRule.Dispatch.AUTOMATIC
         rule.save()
     return {
         "business": default_business,
@@ -166,6 +168,119 @@ def test_confirm_reservation_enqueues_and_sends_whatsapp(api_client, whatsapp_da
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "dispatch",
+    [
+        WhatsAppAutomationRule.Dispatch.NOTIFY,
+        WhatsAppAutomationRule.Dispatch.MANUAL,
+    ],
+)
+def test_enqueue_automated_message_skips_non_automatic_dispatch(whatsapp_data, dispatch):
+    reservation = Reservation.objects.create(
+        business=whatsapp_data["business"],
+        customer=whatsapp_data["customer"],
+        vehicle=whatsapp_data["vehicle"],
+        service=whatsapp_data["service"],
+        day="2026-06-25",
+        status=Reservation.Status.CONFIRMED,
+    )
+    rule = WhatsAppAutomationRule.objects.get(
+        business=whatsapp_data["business"],
+        event=WhatsAppAutomationRule.Event.RESERVATION_CONFIRMED,
+    )
+    rule.dispatch = dispatch
+    rule.save(update_fields=["dispatch", "updated_at"])
+
+    message = enqueue_automated_message(
+        event=WhatsAppMessage.Event.RESERVATION_CONFIRMED,
+        source=reservation,
+    )
+
+    assert message is None
+    assert not WhatsAppMessage.objects.filter(reservation=reservation).exists()
+
+
+def test_automation_rule_dispatch_data_migration_mapping():
+    migration = importlib.import_module("whatsapp.migrations.0004_whatsappautomationrule_dispatch")
+
+    assert migration.dispatch_for_legacy_rule("paid", True) == "automatic"
+    assert migration.dispatch_for_legacy_rule("free", True) == "manual"
+    assert migration.dispatch_for_legacy_rule("paid", False) == "manual"
+    assert migration.dispatch_for_legacy_rule("paid", None) == "manual"
+    # Sin config (modo desconocido) una regla enabled NO debe volverse automatic.
+    assert migration.dispatch_for_legacy_rule(None, True) == "manual"
+
+
+@pytest.mark.django_db
+def test_reconfirm_reservation_does_not_reenqueue_whatsapp(api_client, whatsapp_data):
+    reservation = Reservation.objects.create(
+        business=whatsapp_data["business"],
+        customer=whatsapp_data["customer"],
+        vehicle=whatsapp_data["vehicle"],
+        service=whatsapp_data["service"],
+        day="2026-06-25",
+        status=Reservation.Status.PENDING,
+    )
+    url = reverse("reservation-confirm", args=[reservation.id])
+
+    assert api_client.post(url, format="json").status_code == 200
+    # Reconfirmar un turno YA confirmado no debe re-encolar (no doble-envio).
+    assert api_client.post(url, format="json").status_code == 200
+
+    assert (
+        WhatsAppMessage.objects.filter(
+            reservation=reservation,
+            event=WhatsAppMessage.Event.RESERVATION_CONFIRMED,
+        ).count()
+        == 1
+    )
+
+
+@pytest.mark.django_db
+def test_resetting_ready_status_does_not_reenqueue_whatsapp(api_client, whatsapp_data):
+    reservation = Reservation.objects.create(
+        business=whatsapp_data["business"],
+        customer=whatsapp_data["customer"],
+        vehicle=whatsapp_data["vehicle"],
+        service=whatsapp_data["service"],
+        day="2026-06-25",
+        status=Reservation.Status.CONFIRMED,
+    )
+    work_order = reservation.work_order
+    url = reverse("workorder-status", args=[work_order.id])
+
+    assert api_client.post(url, {"status": Reservation.Status.READY}, format="json").status_code == 200
+    # Re-postear el mismo estado "ready" no debe re-encolar (no doble-envio).
+    assert api_client.post(url, {"status": Reservation.Status.READY}, format="json").status_code == 200
+
+    assert (
+        WhatsAppMessage.objects.filter(
+            work_order=work_order,
+            event=WhatsAppMessage.Event.WORK_READY,
+        ).count()
+        == 1
+    )
+
+
+@pytest.mark.django_db
+def test_quote_sent_automation_rule_must_be_manual(default_business):
+    rule = WhatsAppAutomationRule.objects.create(
+        business=default_business,
+        event=WhatsAppAutomationRule.Event.QUOTE_SENT,
+    )
+    from whatsapp.serializers import WhatsAppAutomationRuleSerializer
+
+    serializer = WhatsAppAutomationRuleSerializer(
+        rule,
+        data={"dispatch": WhatsAppAutomationRule.Dispatch.AUTOMATIC},
+        partial=True,
+    )
+
+    assert serializer.is_valid() is False
+    assert "dispatch" in serializer.errors
+
+
+@pytest.mark.django_db
 def test_work_ready_enqueues_and_sends_whatsapp(api_client, whatsapp_data):
     reservation = Reservation.objects.create(
         business=whatsapp_data["business"],
@@ -216,6 +331,116 @@ def test_quote_send_whatsapp_marks_quote_sent(api_client, whatsapp_data):
     assert quote.status == Quote.Status.SENT
     assert response.data["message"]["status"] == WhatsAppMessage.Status.SENT
     assert response.data["message"]["quote"] == quote.id
+
+
+@pytest.mark.django_db
+def test_reservation_send_whatsapp_sends_active_paid_template(api_client, whatsapp_data):
+    reservation = Reservation.objects.create(
+        business=whatsapp_data["business"],
+        customer=whatsapp_data["customer"],
+        vehicle=whatsapp_data["vehicle"],
+        service=whatsapp_data["service"],
+        day="2026-06-25",
+        status=Reservation.Status.CONFIRMED,
+    )
+
+    response = api_client.post(
+        reverse("reservation-send-whatsapp", args=[reservation.id]),
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["message"]["status"] == WhatsAppMessage.Status.SENT
+    assert response.data["message"]["reservation"] == reservation.id
+
+
+@pytest.mark.django_db
+def test_reservation_send_whatsapp_rejects_free_mode(api_client, whatsapp_data):
+    config = WhatsAppConfig.get_solo(whatsapp_data["business"])
+    config.mode = WhatsAppConfig.Mode.FREE
+    config.save(update_fields=["mode", "updated_at"])
+    reservation = Reservation.objects.create(
+        business=whatsapp_data["business"],
+        customer=whatsapp_data["customer"],
+        vehicle=whatsapp_data["vehicle"],
+        service=whatsapp_data["service"],
+        day="2026-06-25",
+        status=Reservation.Status.CONFIRMED,
+    )
+
+    response = api_client.post(
+        reverse("reservation-send-whatsapp", args=[reservation.id]),
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert not WhatsAppMessage.objects.filter(reservation=reservation).exists()
+
+
+@pytest.mark.django_db
+def test_reservation_send_whatsapp_rejects_missing_active_template(api_client, whatsapp_data):
+    template = whatsapp_data["templates"][WhatsAppTemplate.Key.RESERVATION_CONFIRMED]
+    template.is_active = False
+    template.save(update_fields=["is_active", "updated_at"])
+    reservation = Reservation.objects.create(
+        business=whatsapp_data["business"],
+        customer=whatsapp_data["customer"],
+        vehicle=whatsapp_data["vehicle"],
+        service=whatsapp_data["service"],
+        day="2026-06-25",
+        status=Reservation.Status.CONFIRMED,
+    )
+
+    response = api_client.post(
+        reverse("reservation-send-whatsapp", args=[reservation.id]),
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert not WhatsAppMessage.objects.filter(reservation=reservation).exists()
+
+
+@pytest.mark.django_db
+def test_work_order_send_whatsapp_sends_active_paid_template(api_client, whatsapp_data):
+    reservation = Reservation.objects.create(
+        business=whatsapp_data["business"],
+        customer=whatsapp_data["customer"],
+        vehicle=whatsapp_data["vehicle"],
+        service=whatsapp_data["service"],
+        day="2026-06-25",
+        status=Reservation.Status.CONFIRMED,
+    )
+
+    response = api_client.post(
+        reverse("workorder-send-whatsapp", args=[reservation.work_order.id]),
+        {"event": WhatsAppMessage.Event.WORK_READY},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["message"]["status"] == WhatsAppMessage.Status.SENT
+    assert response.data["message"]["work_order"] == reservation.work_order.id
+
+
+@pytest.mark.django_db
+def test_work_order_send_whatsapp_rejects_invalid_event(api_client, whatsapp_data):
+    reservation = Reservation.objects.create(
+        business=whatsapp_data["business"],
+        customer=whatsapp_data["customer"],
+        vehicle=whatsapp_data["vehicle"],
+        service=whatsapp_data["service"],
+        day="2026-06-25",
+        status=Reservation.Status.CONFIRMED,
+    )
+
+    response = api_client.post(
+        reverse("workorder-send-whatsapp", args=[reservation.work_order.id]),
+        {"event": "invalid"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert not WhatsAppMessage.objects.filter(work_order=reservation.work_order).exists()
 
 
 class _FakeTwilioResponse:

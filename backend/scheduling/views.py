@@ -9,14 +9,15 @@ from rest_framework.views import APIView
 from catalog.models import Sector
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
 from core.models import BusinessHours, BusinessProfile
-from core.permissions import EmployerRequiredForUnsafe, business_from_request
+from core.permissions import EmployerOnly, EmployerRequiredForUnsafe, business_from_request
 from finance.cash import cash_day, ensure_cash_day_open
 from finance.services import maybe_auto_charge_on_delivery
 from notifications.service import send_public_request_push, send_reservation_confirmation
 from quotes.models import Quote, QuoteItem
 from quotes.serializers import QuoteSerializer
 from whatsapp.models import WhatsAppMessage
-from whatsapp.services import enqueue_automated_message
+from whatsapp.serializers import WhatsAppMessageSerializer
+from whatsapp.services import enqueue_automated_message, send_reservation_whatsapp
 from workorders.metrics import build_work_order_financial_metrics
 
 from .models import Reservation, ReservationMaterialOverride
@@ -140,14 +141,18 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     def confirm(self, request, pk=None):
         reservation = self.get_object()
         before = audit_snapshot(reservation)
+        previous_status = reservation.status
         serializer = self.get_serializer(reservation, data={"status": Reservation.Status.CONFIRMED}, partial=True)
         serializer.is_valid(raise_exception=True)
         reservation = serializer.save()
         send_reservation_confirmation(reservation)
-        enqueue_automated_message(
-            event=WhatsAppMessage.Event.RESERVATION_CONFIRMED,
-            source=reservation,
-        )
+        # Solo al transicionar realmente a confirmado: reconfirmar un turno ya
+        # confirmado no debe re-disparar el envio automatico de WhatsApp.
+        if previous_status != Reservation.Status.CONFIRMED:
+            enqueue_automated_message(
+                event=WhatsAppMessage.Event.RESERVATION_CONFIRMED,
+                source=reservation,
+            )
         try:
             send_public_request_push(reservation.public_request)
         except ObjectDoesNotExist:
@@ -160,6 +165,26 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             after=audit_snapshot(reservation),
         )
         return response.Response(self.get_serializer(reservation).data)
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="send-whatsapp",
+        permission_classes=[EmployerOnly],
+    )
+    def send_whatsapp(self, request, pk=None):
+        reservation = self.get_object()
+        try:
+            message = send_reservation_whatsapp(reservation, user=request.user)
+        except Exception as exc:  # noqa: BLE001
+            return response.Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return response.Response(
+            {"message": WhatsAppMessageSerializer(message).data},
+            status=status.HTTP_201_CREATED,
+        )
 
     @decorators.action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):

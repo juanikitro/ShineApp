@@ -7,10 +7,12 @@ Guia para conectar WhatsApp en ShineApp.
 Backend:
 - Config: `GET/PATCH /api/whatsapp/config/` (incluye `mode`: `paid`/`free`).
 - Templates: `GET/POST/PATCH /api/whatsapp/templates/`.
-- Reglas automaticas: `GET/PATCH /api/whatsapp/automation-rules/`.
+- Reglas de despacho: `GET/PATCH /api/whatsapp/automation-rules/`.
 - Historial: `GET /api/whatsapp/messages/`.
 - Manual: `POST /api/whatsapp/messages/send-manual/`.
 - Cotizacion: `POST /api/quotes/:id/send-whatsapp/`.
+- Turno: `POST /api/reservations/:id/send-whatsapp/`.
+- Trabajo: `POST /api/work-orders/:id/send-whatsapp/` con `{"event": "work_ready"}` o `{"event": "work_delivered"}`.
 - Log modo gratis: `POST /api/whatsapp/free/log/`.
 
 Automatismos:
@@ -26,21 +28,27 @@ Provider:
 - `wame`: solo snapshot en el historial de los envios del modo gratis (no es un provider de envio server-side).
 
 Modo del canal (`WhatsAppConfig.mode`):
-- `paid` (default): envio automatico server-side por la API (Meta/Twilio). Es el flujo historico; requiere credenciales y `Canal habilitado`.
+- `paid` (default): permite envios server-side por la API (Meta/Twilio); requiere credenciales y `Canal habilitado`. Solo las reglas con despacho `automatic` se envian al pasar el evento.
 - `free`: no usa la API de Meta. El operador abre WhatsApp (wa.me) con el mensaje ya escrito y confirma el envio desde su propia sesion.
+
+Politica por evento (`dispatch`):
+- `manual`: no reacciona al cambio de estado; el operador usa el boton visible.
+- `notify`: muestra una notificacion persistente con `Enviar` o `Descartar`.
+- `automatic`: en `paid` lo envia exclusivamente el hook backend; en `free` intenta abrir wa.me y, si el navegador bloquea la ventana, muestra la misma notificacion accionable.
 
 ## Modo gratis (wa.me)
 
 Alternativa sin costo ni API de Meta. En Configuracion > WhatsApp se elige `Modo del canal = Gratis (wa.me)`; en ese modo no hacen falta credenciales.
 
 Como funciona:
-- Se activan modulos (turno confirmado, listo para entregar, cotizacion) y cada uno tiene un mensaje de texto libre editable con variables `{variable}`. La UI muestra las variables disponibles por modulo. Ademas hay un mensaje manual generico en la ficha del cliente.
+- Se activan modulos (turno confirmado, listo para entregar, trabajo entregado, cotizacion) y cada uno tiene un mensaje de texto libre editable con variables `{variable}`. La UI muestra las variables disponibles por modulo. Ademas hay un mensaje manual generico en la ficha del cliente.
 - El boton de WhatsApp aparece en la cotizacion, la turnera, el tablero de trabajos y la ficha del cliente. Abre `https://wa.me/<digitos>?text=<mensaje renderizado>` directo (no usa el servidor).
-- En modo gratis, los envios automaticos server-side quedan deshabilitados: `enqueue_automated_message()` y `send_quote_whatsapp()` no generan mensaje.
+- En modo gratis, los envios server-side quedan deshabilitados: `enqueue_automated_message()` no genera mensajes y los endpoints de envio pago responden error; el frontend usa wa.me.
 
 Variables por modulo:
 - Turno confirmado: `cliente`, `fecha_turno`, `hora_turno`, `vehiculo`, `servicios`, `negocio`.
 - Listo para entregar: `cliente`, `vehiculo`, `servicios`, `negocio`.
+- Trabajo entregado: `cliente`, `vehiculo`, `servicios`, `negocio`.
 - Cotizacion: `cliente`, `vehiculo`, `codigo`, `total`, `validez`, `negocio`.
 - Manual (ficha de cliente): `cliente`, `negocio`.
 
@@ -79,7 +87,7 @@ Runbook de alta (operador ShineApp):
 3. Generar un token permanente de System User con permisos `whatsapp_business_messaging` y `whatsapp_business_management`.
 4. Anotar el Phone Number ID del numero y el App Secret de la app; elegir un verify token propio (cadena aleatoria).
 5. Dar de alta el metodo de pago en el WABA/Meta Business (Meta cobra por conversacion).
-6. Crear los 4 templates (categoria Utility, idioma `es_AR`) en el WhatsApp Manager de Meta con variables numeradas `{{1}}..{{n}}` en el orden indicado abajo (el nombre del negocio es `{{1}}`). Someterlos a aprobacion y esperar aprobado antes de activar la regla automatica.
+6. Crear los 4 templates (categoria Utility, idioma `es_AR`) en el WhatsApp Manager de Meta con variables numeradas `{{1}}..{{n}}` en el orden indicado abajo (el nombre del negocio es `{{1}}`). Someterlos a aprobacion y esperar aprobado antes de configurar despacho `automatic` para el evento.
 7. Configurar el webhook en la app de Meta: suscribir el evento `messages` apuntando a `https://<host-backend>/api/whatsapp/webhooks/meta/status/`, usando el verify token elegido.
 8. Setear en el backend: `WHATSAPP_META_ACCESS_TOKEN`, `WHATSAPP_META_PHONE_NUMBER_ID`, `WHATSAPP_META_APP_SECRET`, `WHATSAPP_META_WEBHOOK_VERIFY_TOKEN`.
 
@@ -157,7 +165,7 @@ Content API:
 2. Usar categoria Utility e idioma `es_AR`.
 3. Usar variables numeradas (`{{1}}`, `{{2}}`, etc.) en el mismo orden que `variables_schema` en ShineApp.
 4. Si el template de Twilio usa variables con nombre en vez de numeradas, el mapeo posicional de ShineApp no calza.
-5. Someter cada template a aprobacion y esperar estado aprobado antes de activar la regla automatica correspondiente.
+5. Someter cada template a aprobacion y esperar estado aprobado antes de configurar despacho `automatic` para el evento correspondiente.
 6. En cada `WhatsAppTemplate` de ShineApp, completar `Content SID (Twilio)` con el SID aprobado (`HX...`). Si queda vacio, Twilio usa texto libre como fallback; esto cubre sandbox y casos dentro de la ventana de 24 h.
 
 Webhook de status:
@@ -186,7 +194,7 @@ Limitaciones del MVP con Twilio:
 7. Cargar provider, numero, IDs y token.
 8. Activar `Canal habilitado`.
 9. Crear en ShineApp los templates con el nombre exacto aprobado por Meta.
-10. Activar reglas automaticas y asignar cada template.
+10. Elegir el despacho (`manual`, `notify` o `automatic`) y asignar cada template.
 
 Variables sugeridas por template:
 - Turno confirmado: `cliente`, `fecha_turno`, `hora_turno`, `vehiculo`, `servicios`.
@@ -206,7 +214,7 @@ Configuracion:
 - Solo usuarios con permiso `EmployerOnly`.
 - El token se escribe, pero no se devuelve en las respuestas de API.
 - Primer arranque: usar `Preparar WhatsApp demo` para activar provider `fake`,
-  crear templates base y vincular reglas automaticas sin credenciales externas.
+  crear templates base y vincular reglas de despacho sin credenciales externas.
 - Produccion: cargar Meta Cloud API manualmente en la configuracion avanzada y
   reemplazar los templates demo por los nombres aprobados por Meta.
 
@@ -216,10 +224,12 @@ Templates:
 - `Preview` es la version que ShineApp guarda para auditoria y previsualizacion.
 - `Variables` define que valores se mandan al provider.
 
-Automaticos:
-- En Configuracion > WhatsApp > Envios automaticos, activar cada evento.
-- Sin regla activa o sin template activo, el backend no genera mensaje.
-- Los mensajes automaticos se crean como `pending` y se envian despues del commit de DB.
+Despacho por evento:
+- `manual`: no envia desde el hook; el frontend puede pedir el envio pago mediante el endpoint del recurso.
+- `notify`: no envia desde el hook; el frontend decide la notificacion y luego puede pedir el envio pago.
+- `automatic`: solo en modo `paid`, el hook crea el mensaje y lo envia despues del commit de DB.
+- `quote_sent` siempre es `manual`.
+- Sin template activo, el backend no genera mensaje automatico ni acepta el envio pago del recurso.
 - `backend/core/maintenance.py` tambien procesa pendientes con `flush_whatsapp_outbox`.
 
 Cotizaciones:
@@ -249,7 +259,7 @@ Con provider fake:
 Con Meta real:
 1. Configurar `meta`, `phone_number_id` y token.
 2. Crear template aprobado por Meta con variables en orden.
-3. Activar una regla automatica.
+3. Configurar la regla del evento con despacho `automatic`.
 4. Confirmar una reserva de prueba con telefono E.164 valido o normalizable.
 5. Verificar mensaje `sent` en ShineApp y entrega en WhatsApp Manager.
 
@@ -258,7 +268,7 @@ Con Meta real:
 - `WhatsApp no esta habilitado para este negocio`: activar canal en Configuracion > WhatsApp.
 - `Falta configurar token o phone_number_id`: cargar token y Phone number ID o setear env vars backend.
 - Error de Meta por template: revisar nombre exacto, idioma y variables en el mismo orden.
-- No aparece mensaje automatico: revisar regla activa, template activo y telefono del cliente.
+- No aparece mensaje automatico: revisar que el despacho sea `automatic`, el template este activo y el cliente tenga telefono.
 - Mensaje queda `failed`: revisar `last_error` en Historial WhatsApp.
 - Webhook Twilio responde 403: la firma `X-Twilio-Signature` no coincide; revisar Auth Token del subaccount, URL publica exacta y proxy HTTPS.
 - Webhook Twilio responde 404: no hay configuracion Twilio con ese Account SID o no existe mensaje con ese Message SID para el negocio.

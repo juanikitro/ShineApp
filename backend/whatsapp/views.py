@@ -158,7 +158,7 @@ class WhatsAppMessageViewSet(viewsets.ReadOnlyModelViewSet):
             "template",
             "created_by",
         ).filter(business=business_from_request(self.request))
-        for field in ["status", "event", "customer", "reservation", "quote"]:
+        for field in ["status", "event", "customer", "reservation", "work_order", "quote"]:
             value = self.request.query_params.get(field)
             if value:
                 queryset = queryset.filter(**{field: value})

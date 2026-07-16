@@ -45,6 +45,7 @@ import {
 	Sparkles,
 	Sun,
 	Trash2,
+	Undo2,
 	Users,
 	Wrench,
 	X,
@@ -282,10 +283,13 @@ import { serviceDisplayName } from '@/lib/service-display'
 import {
 	buildFreeVariables,
 	buildFreeWhatsappHref,
+	dispatchForEvent,
 	freeTemplateBody,
-	isFreeEventEnabled,
 	isFreeWhatsappMode,
+	hasActiveWhatsappTemplate,
 	renderFreeTemplate,
+	whatsappAlreadySent,
+	whatsappEventButtonVisible,
 } from '@/lib/whatsapp-free'
 import { serviceDetailPayloadFields } from '@/lib/service-detail-payload'
 import {
@@ -482,6 +486,32 @@ type PendingUndoAction = {
 	execute: () => Promise<void>
 	successTitle: string
 	successDescription?: string
+}
+
+type WhatsappEventSource = 'reservation' | 'workOrder' | 'quote'
+type WhatsappEventSendOptions = {
+	event: string
+	source: WhatsappEventSource
+	sourceId: number | string
+	customer: AnyRecord | null | undefined
+	vehicle?: AnyRecord | null
+	record: AnyRecord
+	reservationId?: number | string | null
+}
+
+function whatsappEventForWorkOrderStatus(
+	status: unknown,
+): 'work_ready' | 'work_delivered' | null {
+	const value = String(status ?? '')
+	if (value === 'ready') return 'work_ready'
+	if (value === 'delivered') return 'work_delivered'
+	return null
+}
+
+const whatsappEventLabels: Record<string, string> = {
+	reservation_confirmed: 'turno confirmado',
+	work_ready: 'trabajo listo para entregar',
+	work_delivered: 'trabajo entregado',
 }
 
 const SIDEBAR_NAV_ID = 'app-sidebar-navigation'
@@ -1400,6 +1430,7 @@ export default function Home() {
 			action: {
 				label: resolveActionMessage(undo.label, result) ?? 'Deshacer',
 				title: 'Deshacer la ultima accion (Ctrl+Z)',
+				icon: <Undo2 size={15} />,
 				onClick: () => executePendingUndo(id),
 			},
 		})
@@ -3029,7 +3060,7 @@ export default function Home() {
 		)
 	}
 
-	function runAgendaReservationAction(
+	async function runAgendaReservationAction(
 		action: AgendaReservationAction,
 		reservation: AnyRecord,
 		workOrder: AnyRecord | null | undefined,
@@ -3048,7 +3079,7 @@ export default function Home() {
 				)
 			}
 			const previousStatus = reservation.status
-			return runAction(
+			const result = await runAction(
 				() =>
 					apiFetch(`/reservations/${reservation.id}/${action.action}/`, {
 						method: 'POST',
@@ -3063,13 +3094,25 @@ export default function Home() {
 					),
 				},
 			)
+			if (action.action === 'confirm' && result) {
+				void runProactiveWhatsappEvent({
+					event: 'reservation_confirmed',
+					source: 'reservation',
+					sourceId: reservation.id,
+					customer: customerForRecord(reservation),
+					vehicle: vehicleForRecord(reservation),
+					record: reservation,
+					reservationId: reservation.id,
+				})
+			}
+			return result
 		}
 
 		if (action.kind === 'work-order-status') {
 			if (!workOrder) return undefined
 			const previousStatus = workOrder.status ?? reservation.status
 			const previousWorkOrders = workOrders
-			return runOptimistic({
+			const result = await runOptimistic({
 				key: `wo-status:${workOrder.id}`,
 				optimistic: () =>
 					setWorkOrders((current) =>
@@ -3089,6 +3132,19 @@ export default function Home() {
 					}),
 				successTitle: entityFeedbackTitle('workorder', 'updated'),
 			})
+			const event = whatsappEventForWorkOrderStatus(action.status)
+			if (result && event) {
+				void runProactiveWhatsappEvent({
+					event,
+					source: 'workOrder',
+					sourceId: workOrder.id,
+					customer: customerForRecord(reservation),
+					vehicle: vehicleForRecord(reservation),
+					record: reservation,
+					reservationId: reservation.id,
+				})
+			}
+			return result
 		}
 
 		if (workOrder) {
@@ -3133,6 +3189,30 @@ export default function Home() {
 			: reservation
 		const customer = customerForRecord(reservation)
 		const vehicle = vehicleForRecord(reservation)
+		const confirmationAlreadySent = whatsappAlreadySent(
+			whatsappMessages,
+			'reservation_confirmed',
+			'reservation',
+			reservation.id,
+		)
+		const readyAlreadySent = Boolean(
+			workOrder &&
+				whatsappAlreadySent(
+					whatsappMessages,
+					'work_ready',
+					'workOrder',
+					workOrder.id,
+				),
+		)
+		const deliveredAlreadySent = Boolean(
+			workOrder &&
+				whatsappAlreadySent(
+					whatsappMessages,
+					'work_delivered',
+					'workOrder',
+					workOrder.id,
+				),
+		)
 		return [
 			{
 				id: `agenda:reservation:detail:${reservation.id}`,
@@ -3165,15 +3245,21 @@ export default function Home() {
 			},
 			{
 				id: `agenda:whatsapp:confirm:${reservation.id}`,
-				label: 'WhatsApp: confirmar turno',
+				label: confirmationAlreadySent
+					? 'Reenviar por WhatsApp: confirmar turno'
+					: 'WhatsApp: confirmar turno',
 				icon: <MessageCircle size={15} />,
-				hidden:
-					!customer ||
-					!isFreeWhatsappMode(whatsappConfig) ||
-					!isFreeEventEnabled(whatsappAutomationRules, 'reservation_confirmed'),
+				hidden: !whatsappEventButtonVisible({
+					config: whatsappConfig,
+					templates: whatsappTemplates,
+					event: 'reservation_confirmed',
+					phone: customer?.phone,
+				}),
 				onSelect: () =>
-					openFreeWhatsapp({
+					void sendWhatsappEventWithResendGuard({
 						event: 'reservation_confirmed',
+						source: 'reservation',
+						sourceId: reservation.id,
 						customer,
 						vehicle,
 						record: reservation,
@@ -3182,22 +3268,54 @@ export default function Home() {
 			},
 			{
 				id: `agenda:whatsapp:ready:${reservation.id}`,
-				label: 'WhatsApp: listo para entregar',
+				label: readyAlreadySent
+					? 'Reenviar por WhatsApp: listo para entregar'
+					: 'WhatsApp: listo para entregar',
 				icon: <MessageCircle size={15} />,
 				hidden:
-					!customer ||
 					!showWork ||
 					!workOrder ||
-					!isFreeWhatsappMode(whatsappConfig) ||
-					!isFreeEventEnabled(whatsappAutomationRules, 'work_ready'),
-				onSelect: () =>
-					openFreeWhatsapp({
+					!whatsappEventButtonVisible({
+						config: whatsappConfig,
+						templates: whatsappTemplates,
 						event: 'work_ready',
+						phone: customer?.phone,
+					}),
+				onSelect: () =>
+					void sendWhatsappEventWithResendGuard({
+						event: 'work_ready',
+						source: 'workOrder',
+						sourceId: workOrder?.id ?? '',
 						customer,
 						vehicle,
 						record: reservation,
 						reservationId: reservation.id,
-						workOrderId: workOrder?.id ?? null,
+					}),
+			},
+			{
+				id: `agenda:whatsapp:delivered:${reservation.id}`,
+				label: deliveredAlreadySent
+					? 'Reenviar por WhatsApp: trabajo entregado'
+					: 'WhatsApp: trabajo entregado',
+				icon: <MessageCircle size={15} />,
+				hidden:
+					!showWork ||
+					!workOrder ||
+					!whatsappEventButtonVisible({
+						config: whatsappConfig,
+						templates: whatsappTemplates,
+						event: 'work_delivered',
+						phone: customer?.phone,
+					}),
+				onSelect: () =>
+					void sendWhatsappEventWithResendGuard({
+						event: 'work_delivered',
+						source: 'workOrder',
+						sourceId: workOrder?.id ?? '',
+						customer,
+						vehicle,
+						record: reservation,
+						reservationId: reservation.id,
 					}),
 			},
 			{
@@ -3313,6 +3431,8 @@ export default function Home() {
 					onDownloadQuotePdf={downloadQuotePdf}
 					onDownloadQuotePdfAndMarkSent={downloadQuotePdfAndMarkSent}
 					onSendQuoteWhatsapp={sendQuoteWhatsapp}
+					whatsappButtonVisible={quoteWhatsappButtonVisible}
+					whatsappButtonLabel={quoteWhatsappButtonLabel}
 					onOpenQuoteReservationInAgenda={openQuoteReservationInAgenda}
 				/>
 			</MotionFlashSurface>
@@ -3331,6 +3451,8 @@ export default function Home() {
 				onDownloadQuotePdf={downloadQuotePdf}
 				onDownloadQuotePdfAndMarkSent={downloadQuotePdfAndMarkSent}
 				onSendQuoteWhatsapp={sendQuoteWhatsapp}
+				whatsappButtonVisible={quoteWhatsappButtonVisible}
+				whatsappButtonLabel={quoteWhatsappButtonLabel}
 				onOpenQuoteReservationInAgenda={openQuoteReservationInAgenda}
 			/>
 		)
@@ -4506,6 +4628,18 @@ export default function Home() {
 				'Estado actualizado',
 				successToastDescription('Estado actualizado'),
 			)
+			const whatsappEvent = whatsappEventForWorkOrderStatus(nextStatus)
+			if (whatsappEvent) {
+				void runProactiveWhatsappEvent({
+					event: whatsappEvent,
+					source: 'workOrder',
+					sourceId: workOrderId,
+					customer: customerForRecord(activeReservation),
+					vehicle: vehicleForRecord(activeReservation),
+					record: activeReservation,
+					reservationId,
+				})
+			}
 		} catch (err: any) {
 			setReservations(previousReservations)
 			setWorkOrders(previousWorkOrders)
@@ -7466,17 +7600,46 @@ export default function Home() {
 		)
 	}
 
-	async function sendQuoteWhatsapp(quote: AnyRecord) {
+	async function sendWhatsappEvent({
+		event,
+		source,
+		sourceId,
+		customer,
+		vehicle,
+		record,
+		reservationId,
+	}: WhatsappEventSendOptions) {
+		if (isFreeWhatsappMode(whatsappConfig)) {
+			return openFreeWhatsapp({
+				event,
+				customer,
+				vehicle,
+				record,
+				reservationId:
+					source === 'reservation' ? sourceId : reservationId ?? null,
+				workOrderId: source === 'workOrder' ? sourceId : null,
+				quoteId: source === 'quote' ? sourceId : null,
+			})
+		}
+
+		const endpoint =
+			source === 'reservation'
+				? `/reservations/${sourceId}/send-whatsapp/`
+				: source === 'workOrder'
+					? `/work-orders/${sourceId}/send-whatsapp/`
+					: `/quotes/${sourceId}/send-whatsapp/`
 		return runAction(
 			async () => {
-				const result = await apiFetch<AnyRecord>(
-					`/quotes/${quote.id}/send-whatsapp/`,
-					{ method: 'POST' },
-				)
-				if (result?.quote) {
+				const result = await apiFetch<AnyRecord>(endpoint, {
+					method: 'POST',
+					...(source === 'workOrder'
+						? { body: JSON.stringify({ event }) }
+						: {}),
+				})
+				if (source === 'quote' && result?.quote) {
 					setQuotes((current) =>
 						current.map((item) =>
-							String(item.id) === String(quote.id) ? result.quote : item,
+							String(item.id) === String(sourceId) ? result.quote : item,
 						),
 					)
 				}
@@ -7486,10 +7649,138 @@ export default function Home() {
 				return result
 			},
 			{
-				flashTarget: recordFlashKey('quote', quote.id),
-				successTitle: 'Cotizacion enviada por WhatsApp',
+				flashTarget:
+					source === 'quote' ? recordFlashKey('quote', sourceId) : undefined,
+				successTitle: 'Mensaje enviado por WhatsApp',
 			},
 		)
+	}
+
+	async function sendWhatsappEventWithResendGuard(
+		options: WhatsappEventSendOptions,
+	) {
+		let alreadySent = whatsappAlreadySent(
+			whatsappMessages,
+			options.event,
+			options.source,
+			options.sourceId,
+		)
+		// En modo pago el envio automatico sale server-side (hook backend) y puede
+		// no estar en el estado local: consultar al server antes de reenviar sin
+		// aviso. Si la consulta falla, no reenviamos en silencio.
+		if (!alreadySent && !isFreeWhatsappMode(whatsappConfig)) {
+			const sourceField =
+				options.source === 'workOrder' ? 'work_order' : options.source
+			let serverMessages: AnyRecord[] | null = null
+			try {
+				serverMessages = await apiList<AnyRecord>(
+					`/whatsapp/messages/?event=${encodeURIComponent(options.event)}&${sourceField}=${encodeURIComponent(String(options.sourceId))}`,
+				)
+			} catch {
+				serverMessages = null
+			}
+			if (serverMessages === null) {
+				showToast({
+					tone: 'error',
+					title: 'No se pudo verificar envios previos',
+					description: 'Reintenta en unos segundos.',
+				})
+				return undefined
+			}
+			const sentServer = serverMessages.filter((message) =>
+				['sent', 'delivered', 'read'].includes(
+					String(message.status ?? '').toLowerCase(),
+				),
+			)
+			if (sentServer.length) {
+				setWhatsappMessages((current) => {
+					const ids = new Set(current.map((message) => String(message.id)))
+					const fresh = sentServer.filter(
+						(message) => !ids.has(String(message.id)),
+					)
+					return fresh.length ? [...fresh, ...current] : current
+				})
+				alreadySent = true
+			}
+		}
+		if (alreadySent) {
+			const confirmed = await requestConfirm({
+				title: 'Reenviar por WhatsApp',
+				message: 'Ya existe un mensaje enviado para este evento. ¿Reenviar?',
+				confirmLabel: 'Reenviar',
+				cancelLabel: 'Cancelar',
+			})
+			if (!confirmed) return undefined
+		}
+		return sendWhatsappEvent(options)
+	}
+
+	function showProactiveWhatsappToast(options: WhatsappEventSendOptions) {
+		let toastId = 0
+		toastId = showToast({
+			tone: 'success',
+			title: `Pasó: ${whatsappEventLabels[options.event] ?? options.event}`,
+			description: 'Elegí si querés enviar el mensaje por WhatsApp.',
+			persistent: true,
+			actions: [
+				{
+					label: 'Enviar',
+					onClick: () => {
+						dismissToast(toastId)
+						void sendWhatsappEventWithResendGuard(options)
+					},
+				},
+				{
+					label: 'Descartar',
+					onClick: () => dismissToast(toastId),
+				},
+			],
+		})
+	}
+
+	async function runProactiveWhatsappEvent(options: WhatsappEventSendOptions) {
+		const dispatch = dispatchForEvent(whatsappAutomationRules, options.event)
+		if (dispatch === 'manual') return
+		if (dispatch === 'notify') {
+			showProactiveWhatsappToast(options)
+			return
+		}
+		if (!isFreeWhatsappMode(whatsappConfig)) return
+
+		const opened = await sendWhatsappEvent(options)
+		if (!opened) showProactiveWhatsappToast(options)
+	}
+
+	function quoteWhatsappButtonVisible(quote: AnyRecord) {
+		const customer = customerForRecord(quote)
+		return whatsappEventButtonVisible({
+			config: whatsappConfig,
+			templates: whatsappTemplates,
+			event: 'quote_sent',
+			phone: customer?.phone || quote.customer_snapshot_phone || quote.customer_phone,
+		})
+	}
+
+	function quoteWhatsappButtonLabel(quote: AnyRecord) {
+		return whatsappAlreadySent(
+			whatsappMessages,
+			'quote_sent',
+			'quote',
+			quote.id,
+		)
+			? 'Reenviar por WhatsApp'
+			: 'WhatsApp'
+	}
+
+	async function sendQuoteWhatsapp(quote: AnyRecord) {
+		return sendWhatsappEventWithResendGuard({
+			event: 'quote_sent',
+			source: 'quote',
+			sourceId: quote.id,
+			customer: customerForRecord(quote),
+			vehicle: vehicleForRecord(quote),
+			record: quote,
+		})
 	}
 
 	// Modo gratis: abre WhatsApp (wa.me) con el mensaje renderizado y registra el
@@ -7506,7 +7797,9 @@ export default function Home() {
 		const { event } = options
 		const customer = options.customer ?? null
 		const record = options.record ?? null
-		const phone = String(customer?.phone ?? record?.customer_phone ?? '').trim()
+		const phone = String(
+			customer?.phone || record?.customer_snapshot_phone || record?.customer_phone || '',
+		).trim()
 		const body = renderFreeTemplate(
 			freeTemplateBody(whatsappTemplates, event),
 			buildFreeVariables(event, {
@@ -7532,10 +7825,15 @@ export default function Home() {
 					? 'El cliente no tiene telefono cargado.'
 					: 'Falta configurar el mensaje de este modulo en Configuracion > WhatsApp.',
 			})
-			return
+			return false
 		}
-		if (typeof window !== 'undefined') {
-			window.open(href, '_blank', 'noopener,noreferrer')
+		const popup =
+			typeof window !== 'undefined' ? window.open(href, '_blank') : null
+		if (!popup) return false
+		try {
+			popup.opener = null
+		} catch {
+			// Algunos navegadores no permiten tocar opener en una ventana remota.
 		}
 		void apiFetch<AnyRecord>('/whatsapp/free/log/', {
 			method: 'POST',
@@ -7543,7 +7841,8 @@ export default function Home() {
 				event,
 				rendered_body: body,
 				recipient_phone: phone,
-				recipient_name: customer?.name ?? record?.customer_name ?? '',
+				recipient_name:
+					customer?.name ?? record?.customer_snapshot_name ?? record?.customer_name ?? '',
 				customer: customer?.id ?? null,
 				reservation: options.reservationId ?? null,
 				work_order: options.workOrderId ?? null,
@@ -7554,6 +7853,7 @@ export default function Home() {
 				if (message) setWhatsappMessages((current) => [message, ...current])
 			})
 			.catch(() => {})
+		return true
 	}
 
 	async function saveBusinessProfile(event: FormEvent) {
@@ -7995,6 +8295,7 @@ export default function Home() {
 				icon: <MessageCircle size={15} />,
 				hidden:
 					!isFreeWhatsappMode(whatsappConfig) ||
+					!hasActiveWhatsappTemplate(whatsappTemplates, 'manual') ||
 					!String(customer.phone ?? '').trim(),
 				onSelect: () =>
 					openFreeWhatsapp({
@@ -8207,18 +8508,12 @@ export default function Home() {
 			},
 			{
 				id: `quote:whatsapp:${quote.id}`,
-				label: 'Enviar WhatsApp',
+				label: quoteWhatsappButtonLabel(quote) === 'WhatsApp'
+					? 'Enviar WhatsApp'
+					: 'Reenviar por WhatsApp',
 				icon: <MessageCircle size={15} />,
-				onSelect: () =>
-					isFreeWhatsappMode(whatsappConfig)
-						? openFreeWhatsapp({
-								event: 'quote_sent',
-								customer: customer,
-								vehicle: vehicle,
-								record: quote,
-								quoteId: quote.id,
-							})
-						: sendQuoteWhatsapp(quote),
+				hidden: !quoteWhatsappButtonVisible(quote),
+				onSelect: () => void sendQuoteWhatsapp(quote),
 			},
 			{
 				id: `quote:agenda:${quote.id}`,
@@ -15588,6 +15883,8 @@ export default function Home() {
 						onDownloadQuotePdf={downloadQuotePdf}
 						onDownloadQuotePdfAndMarkSent={downloadQuotePdfAndMarkSent}
 						onSendQuoteWhatsapp={sendQuoteWhatsapp}
+						whatsappButtonVisible={quoteWhatsappButtonVisible}
+						whatsappButtonLabel={quoteWhatsappButtonLabel}
 						onOpenQuoteReservationInAgenda={openQuoteReservationInAgenda}
 						onQuoteDragCancel={handleQuoteDragCancel}
 						onQuoteDragEnd={handleQuoteDragEnd}
