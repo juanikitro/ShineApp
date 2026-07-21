@@ -28,7 +28,16 @@ Alternativas descartadas:
 Consecuencias:
 - Se agrega una dependencia acotada y sus dependencias transitivas para un
   primitive de overlay accesible.
-- Futuras adopciones de `react-dialog`, `react-alert-dialog` o
-  `react-dropdown-menu` requieren una decision y un spike equivalentes.
+- Futuras adopciones de `react-alert-dialog` o `react-dropdown-menu` requieren
+  una decision y un spike equivalentes.
 - `Toggle`, `CollapsibleSection` y `SearchSelect` quedan fuera de esta
   migracion.
+
+Seguimiento (paso 2):
+- `ModalFrame` adopta `@radix-ui/react-dialog` sin estilos y conserva sus props,
+  sus clases CSS y `AnimatePresence`.
+- Radix toma foco, scroll lock, `aria-modal` y dismiss; `onCloseAutoFocus`
+  devuelve el foco inicial porque el wrapper no expone un `Dialog.Trigger`.
+  Los intentos de cierre se vetan y pasan por el guard de cambios existente.
+- La confirmacion local sigue usando `role="alertdialog"`; no se agrega
+  `@radix-ui/react-alert-dialog`.

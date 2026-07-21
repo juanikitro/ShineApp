@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [ModalFrame: Dialog accesible con guard de cambios](2026-07-21-modalframe-radix-dialog.md)
 - [Cotizaciones: nombre opcional](2026-07-10-cotizaciones-nombre-vacio.md)
 - [Agenda: selector semana/mes junto al switch de vista](2026-07-10-agenda-selector-rango.md)
 - [Agenda: saldos diarios en el encabezado semanal](2026-07-10-agenda-saldos-header.md)

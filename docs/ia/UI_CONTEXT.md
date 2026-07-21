@@ -36,6 +36,13 @@ estilos siguen en las partials existentes; para overlays, `shell.css` usa los
 atributos de estado de Radix, como `[data-state='open']`, junto con los tokens
 del tema. No introducir Tailwind, CSS-in-JS ni un theme provider por ello.
 
+`ModalFrame` envuelve `@radix-ui/react-dialog` con `open={true}` mientras esta
+montado. Conserva `title`, `onClose`, `children` y `motionPhase`, las clases
+`modal-backdrop`/`modal-panel` y la presencia de Motion; Radix gestiona foco,
+scroll lock y semantica modal. Como la API estable no expone un
+`Dialog.Trigger`, `onCloseAutoFocus` de Radix devuelve el foco al elemento que
+estaba activo al montarse; el guard de cambios intercepta los intentos de cierre.
+
 ## Reglas visuales
 
 - Default visual: CRM claro y sobrio.

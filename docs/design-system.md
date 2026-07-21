@@ -30,9 +30,11 @@ accesible de overlays, no para reemplazar el sistema visual local.
 Whitelist actual y planificada:
 
 - `@radix-ui/react-popover`: aprobado y usado por el spike de `ServiceIconPicker`.
-- `@radix-ui/react-dialog`, `@radix-ui/react-alert-dialog` y
-  `@radix-ui/react-dropdown-menu`: candidatos planificados; requieren una
-  decision puntual antes de incorporarse.
+- `@radix-ui/react-dialog`: aprobado y usado por `ModalFrame`, conservando su
+  API publica, clases y presencia Motion. El guard de cambios conserva su
+  `alertdialog` local, sin sumar `@radix-ui/react-alert-dialog`.
+- `@radix-ui/react-alert-dialog` y `@radix-ui/react-dropdown-menu`: candidatos
+  planificados; requieren una decision puntual antes de incorporarse.
 
 El tema sigue viviendo en tokens CSS y las transiciones/estados se aplican con
 atributos de datos de Radix, como `[data-state]`, en las partials existentes.

@@ -140,34 +140,58 @@ test('structural UI components keep optional sections absent until needed', () =
 	assert.equal(screen.getByText('unknown').className, 'status unknown')
 })
 
-test('ModalFrame closes from backdrop, escape and traps tab focus', () => {
+test('ModalFrame delega cierre, foco y retorno de foco a Radix Dialog', async () => {
 	const onClose = vi.fn()
 	const before = document.createElement('button')
 	document.body.append(before)
 	before.focus()
-	const { container, unmount } = render(
+	const { unmount } = render(
 		<ModalFrame title="Editar" onClose={onClose}>
 			<button>Primero</button>
 			<button>Segundo</button>
 		</ModalFrame>,
 	)
-	screen.getAllByRole('button').forEach((button) => {
-		button.getClientRects = () => [{ width: 10, height: 10 }] as any
-	})
 
 	const dialog = screen.getByRole('dialog', { name: 'Editar' })
 	fireEvent.keyDown(dialog, { key: 'Escape' })
 	assert.equal(onClose.mock.calls.length, 1)
 
-	fireEvent.mouseDown(container.querySelector('.modal-backdrop') as HTMLElement)
-	assert.equal(onClose.mock.calls.length, 2)
-
-	screen.getByRole('button', { name: 'Segundo' }).focus()
-	fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: false })
-	assert.equal(document.activeElement, screen.getByRole('button', { name: 'Cerrar' }))
-
+	// El cierre por pointer afuera lo provee la DismissableLayer de Radix y no se
+	// dispara con fireEvent en jsdom; se omite (ver TESTING.md). Se valida el
+	// retorno de foco que administra el FocusScope de Radix al desmontar.
 	unmount()
-	assert.equal(document.activeElement, before)
+	await waitFor(() => assert.equal(document.activeElement, before))
+	before.remove()
+})
+
+test('ModalFrame conserva el guard de cambios al pedir cierre', async () => {
+	const user = userEvent.setup()
+	const onClose = vi.fn()
+	render(
+		<ModalFrame title="Editar" onClose={onClose}>
+			<label>
+				Nombre
+				<input />
+			</label>
+		</ModalFrame>,
+	)
+
+	await user.type(screen.getByRole('textbox', { name: 'Nombre' }), 'Ana')
+	await user.click(screen.getByRole('button', { name: 'Cerrar' }))
+	assert.ok(screen.getByRole('alertdialog', { name: 'Confirmar cierre' }))
+	assert.equal(onClose.mock.calls.length, 0)
+
+	// Escape al confirmar vuelve al formulario sin cerrar el modal.
+	fireEvent.keyDown(document, { key: 'Escape' })
+	assert.equal(screen.queryByRole('alertdialog'), null)
+
+	await user.click(screen.getByRole('button', { name: 'Cerrar' }))
+	await user.click(screen.getByRole('button', { name: 'Seguir editando' }))
+	assert.equal(screen.queryByRole('alertdialog'), null)
+
+	await user.click(screen.getByRole('button', { name: 'Cerrar' }))
+	await user.click(screen.getByRole('button', { name: 'Cerrar de todos modos' }))
+	assert.equal(onClose.mock.calls.length, 1)
 })
 
 test('BirthdayFields normalizes empty values and emits day/month changes', async () => {

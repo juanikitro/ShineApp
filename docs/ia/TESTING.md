@@ -35,6 +35,17 @@ Configuracion:
 - El popover Radix de `ServiceIconPicker` declara explicitamente
   `role="dialog"`, `aria-modal="false"` y `aria-label="Selector de emojis"`;
   los tests deben consultarlo con `getByRole('dialog', { name: 'Selector de emojis' })`.
+- `ModalFrame` es un `Dialog` modal: consultar `getByRole('dialog', { name: titulo })`;
+  el nombre viene de `Dialog.Title` y `Dialog.Content` usa
+  `aria-describedby={undefined}` porque no tiene una descripcion visible.
+- Para cierre exterior de `ModalFrame`, usar un `pointerdown` puntual fuera del
+  contenido tras un turno corto para que `DismissableLayer` registre su listener.
+  Los mocks de Motion renderizan elementos planos, por lo que `forceMount`
+  mantiene el contenido disponible mientras el componente siga montado.
+- No mantener un overlay Radix abierto dentro de un `waitFor` que sondee cierre
+  por pointer fuera: en `Popover`, `autoUpdate` de Floating UI junto al mock de
+  `requestAnimationFrame` puede agotar jsdom. `Dialog` no usa Popper, pero se
+  prefieren Escape, botones explicitos o un unico `pointerdown` sobre polling.
 
 ## Restriccion de recursos frontend
 
