@@ -31,6 +31,17 @@ error existente.
 Cuando no queda ningun paso activo, el dashboard deja de renderizar el panel
 para no mostrar un progreso 0/0.
 
+## Carga inicial
+
+El dashboard espera a recibir el objeto real de `BusinessProfile` antes de
+construir y renderizar la alta guiada. Asi, el `null` transitorio de la carga
+inicial no se interpreta como un negocio vacio ni muestra los seis pasos por
+defecto.
+
+El guard depende del perfil, no del estado global de carga: una vez hidratado,
+el panel permanece visible mientras se actualizan los demas datos del
+dashboard.
+
 ## Pruebas
 
 - API de perfil: persiste IDs validos, elimina duplicados y rechaza IDs
@@ -39,6 +50,8 @@ para no mostrar un progreso 0/0.
   cuando se descarta uno terminado o todos los pasos.
 - Componente: expone una cruz accesible, pide confirmacion y delega el ID del
   paso confirmado.
+- Dashboard: no renderiza la alta guiada sin perfil hidratado y la muestra una
+  vez recibido.
 
 ## Riesgos y limites
 

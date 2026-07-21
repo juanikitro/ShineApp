@@ -12,6 +12,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Tarjeta de tareas importantes en el dashboard](2026-07-21-dashboard-tareas-importantes.md)
 - [Siguiente accion con tareas importantes](2026-07-21-dashboard-siguiente-accion-tareas.md)
 - [Alta guiada: pasos descartables por negocio](2026-07-21-alta-guiada-pasos-descartables.md)
+- [Alta guiada: ocultar pasos durante la carga inicial](2026-07-21-alta-guiada-carga-inicial.md)
 - [Cotizaciones: nombre opcional](2026-07-10-cotizaciones-nombre-vacio.md)
 - [Agenda: selector semana/mes junto al switch de vista](2026-07-10-agenda-selector-rango.md)
 - [Agenda: saldos diarios en el encabezado semanal](2026-07-10-agenda-saldos-header.md)
