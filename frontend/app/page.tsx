@@ -5342,8 +5342,10 @@ export default function Home() {
 		[cashEntries, cashFilters, cashQuickFilter, cashSortKey],
 	)
 	const demoReadiness = useMemo(
-		() =>
-			buildDemoReadiness({
+		() => {
+			if (!businessProfile) return null
+
+			return buildDemoReadiness({
 				businessForm,
 				businessProfile,
 				businessSlug: String(currentUser?.business?.slug ?? ''),
@@ -5357,7 +5359,8 @@ export default function Home() {
 				whatsappConfig,
 				whatsappTemplates,
 				workOrders,
-			}),
+			})
+		},
 		[
 			businessForm,
 			businessProfile,

@@ -44,7 +44,7 @@ type DashboardPanelProps = {
 	canViewEconomy: boolean
 	currentUser?: AnyRecord | null
 	dashboard: AnyRecord
-	demoReadiness: DemoReadiness
+	demoReadiness: DemoReadiness | null
 	firstChargeableWorkOrder?: AnyRecord | null
 	tasks: readonly AnyRecord[]
 	starterServicesLoading?: boolean
@@ -449,18 +449,20 @@ export function DashboardPanel({
 			{canViewEconomy ? (
 				<>
 					<TrialLifecycleBanner currentUser={currentUser} />
-					<DemoReadinessPanel
-						firstChargeableWorkOrder={firstChargeableWorkOrder}
-						readiness={demoReadiness}
-						starterServicesLoading={starterServicesLoading}
-						starterServicesPlan={starterServicesPlan}
-						onCreateFirstReservation={onCreateFirstReservation}
-						onCreateStarterServices={onCreateStarterServices}
-						onDismissStep={onDismissOnboardingStep}
-						onOpenFirstPayment={onOpenFirstPayment}
-						onOpenSection={onOpenSection}
-						onOpenSettingsSection={onOpenSettingsSection}
-					/>
+					{demoReadiness ? (
+						<DemoReadinessPanel
+							firstChargeableWorkOrder={firstChargeableWorkOrder}
+							readiness={demoReadiness}
+							starterServicesLoading={starterServicesLoading}
+							starterServicesPlan={starterServicesPlan}
+							onCreateFirstReservation={onCreateFirstReservation}
+							onCreateStarterServices={onCreateStarterServices}
+							onDismissStep={onDismissOnboardingStep}
+							onOpenFirstPayment={onOpenFirstPayment}
+							onOpenSection={onOpenSection}
+							onOpenSettingsSection={onOpenSettingsSection}
+						/>
+					) : null}
 					<Panel
 						className="dashboard-next-action-panel"
 						title="Siguiente accion"
