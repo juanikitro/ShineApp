@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Tarjeta de tareas importantes en el dashboard](2026-07-21-dashboard-tareas-importantes.md)
 - [Alta guiada: pasos descartables por negocio](2026-07-21-alta-guiada-pasos-descartables.md)
 - [Cotizaciones: nombre opcional](2026-07-10-cotizaciones-nombre-vacio.md)
 - [Agenda: selector semana/mes junto al switch de vista](2026-07-10-agenda-selector-rango.md)

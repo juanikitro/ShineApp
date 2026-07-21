@@ -14811,6 +14811,7 @@ export default function Home() {
 						dashboard={dashboard}
 						demoReadiness={demoReadiness}
 						firstChargeableWorkOrder={firstChargeableWorkOrder}
+						tasks={tasks}
 						starterServicesLoading={isActionPending('onboarding:starter-services')}
 						starterServicesPlan={starterServicesPlan}
 						loading={loading}

@@ -2984,6 +2984,103 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.dashboard-important-tasks {
+  align-self: start;
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  width: min(100%, 272px);
+}
+
+.dashboard-important-tasks .panel-head {
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.dashboard-important-tasks .panel-head h2 {
+  font-size: var(--text-base);
+}
+
+.dashboard-important-tasks-link {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  padding: 2px 0;
+}
+
+.dashboard-important-tasks-list {
+  align-content: start;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.dashboard-important-task {
+  align-items: center;
+  background: var(--shop-muted);
+  border: 1px solid var(--shop-border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 6px minmax(0, 1fr) auto;
+  min-width: 0;
+  padding: 7px 8px;
+}
+
+.dashboard-important-task-priority {
+  background: var(--color-primary);
+  border-radius: 50%;
+  height: 6px;
+  width: 6px;
+}
+
+.dashboard-important-task-priority--high {
+  background: var(--color-danger);
+}
+
+.dashboard-important-task-priority--medium {
+  background: var(--color-warning);
+}
+
+.dashboard-important-task-priority--low {
+  background: var(--color-success);
+}
+
+.dashboard-important-task-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.dashboard-important-task-copy strong {
+  color: var(--shop-ink);
+  font-size: var(--text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-important-task-copy span,
+.dashboard-important-task-due,
+.dashboard-important-tasks-empty {
+  color: var(--shop-ink-soft);
+  font-size: var(--text-xs);
+}
+
+.dashboard-important-task-due {
+  white-space: nowrap;
+}
+
+.dashboard-important-task-due--overdue {
+  color: var(--color-danger-hover);
+  font-weight: 600;
+}
+
+.dashboard-important-tasks-empty {
+  align-self: center;
+  margin: 0;
+}
+
 .dashboard-executive-metric {
   min-height: 138px;
 }
@@ -6251,6 +6348,11 @@
   .dashboard-aging-grid,
   .dashboard-ranking-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-important-tasks {
+    aspect-ratio: auto;
+    width: 100%;
   }
 
   .dashboard-aging-row,
