@@ -28,6 +28,14 @@ Configuracion:
 - Si algo no es testeable en su forma actual, extraer la logica a `frontend/lib/**`, a un componente reusable o a una unidad backend testeable. Documentar deuda solo cuando extraer sea mas riesgoso que el cambio.
 - La entrega debe incluir comandos ejecutados y resultado. Si la validacion fue parcial, decirlo como parcial.
 
+## Selectores De UI
+
+- Preferir selectores por rol y nombre accesible antes que clases o estructura
+  interna.
+- El popover Radix de `ServiceIconPicker` declara explicitamente
+  `role="dialog"`, `aria-modal="false"` y `aria-label="Selector de emojis"`;
+  los tests deben consultarlo con `getByRole('dialog', { name: 'Selector de emojis' })`.
+
 ## Restriccion de recursos frontend
 
 En ShineApp no abuses de Node, Vitest ni Next. Hubo incidentes reales donde `node.exe` consumio decenas de GiB de commit y dejo Windows sin memoria.

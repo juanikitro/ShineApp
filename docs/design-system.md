@@ -22,6 +22,25 @@ Esta guia se basa en el repo actual, no en una suposicion greenfield.
 - Preferir clases CSS locales antes que nueva infraestructura de estilos.
 - Preservar flujos backend-driven y contratos API actuales.
 
+## Adopcion Selectiva De Radix
+
+Radix se adopta de forma incremental y sin estilos para resolver comportamiento
+accesible de overlays, no para reemplazar el sistema visual local.
+
+Whitelist actual y planificada:
+
+- `@radix-ui/react-popover`: aprobado y usado por el spike de `ServiceIconPicker`.
+- `@radix-ui/react-dialog`, `@radix-ui/react-alert-dialog` y
+  `@radix-ui/react-dropdown-menu`: candidatos planificados; requieren una
+  decision puntual antes de incorporarse.
+
+El tema sigue viviendo en tokens CSS y las transiciones/estados se aplican con
+atributos de datos de Radix, como `[data-state]`, en las partials existentes.
+No se agrega Tailwind, CVA ni un theme provider de componentes.
+
+`Toggle`, `CollapsibleSection` y `SearchSelect` se mantienen como primitives
+nativas/locales: no forman parte de esta migracion.
+
 ## Inconsistencias Actuales De Diseno Que No Deben Propagarse
 
 - `frontend/app/globals.css` tiene variables, pero los valores de espaciado y layout siguen mayormente hardcodeados.
@@ -460,7 +479,9 @@ Reglas:
 ## Convenciones CSS Y De Componentes Especificas Del Repo
 
 - No hay Tailwind. No escribir docs o prompts que asuman un tema Tailwind.
-- No hay libreria de componentes. No asumir theme provider ni API de design tokens.
+- No hay una libreria de componentes estilada ni theme provider. Las pocas
+  primitives Radix aprobadas son headless y siguen usando los tokens y clases
+  locales.
 - Preferir CSS variables semanticas en `frontend/app/globals.css`.
 - Preferir nombres de clase descriptivos antes que estilos inline.
 - Si un estilo se repite, moverlo a CSS en vez de repetir `style={{}}`.

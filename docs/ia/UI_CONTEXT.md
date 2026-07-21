@@ -29,6 +29,13 @@ Sumar contexto solo si el cambio lo requiere:
 - `frontend/app/styles/agenda.css`: agenda operativa y cards.
 - `frontend/app/styles/forms.css`: quote lines, responsive y motion global.
 
+## Primitives Con Radix
+
+Algunas primitives locales pueden envolver Radix sin cambiar su API publica. Sus
+estilos siguen en las partials existentes; para overlays, `shell.css` usa los
+atributos de estado de Radix, como `[data-state='open']`, junto con los tokens
+del tema. No introducir Tailwind, CSS-in-JS ni un theme provider por ello.
+
 ## Reglas visuales
 
 - Default visual: CRM claro y sobrio.
