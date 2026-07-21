@@ -2985,21 +2985,24 @@
 }
 
 .dashboard-important-tasks {
-  align-self: start;
-  aspect-ratio: 1;
+  align-self: stretch;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--space-3);
   min-height: 0;
-  width: min(100%, 272px);
+  min-width: 0;
 }
 
-.dashboard-important-tasks .panel-head {
+.dashboard-important-tasks-head {
   align-items: flex-start;
+  display: flex;
   gap: var(--space-2);
+  justify-content: space-between;
 }
 
-.dashboard-important-tasks .panel-head h2 {
+.dashboard-important-tasks-head h3 {
+  color: var(--shop-ink);
   font-size: var(--text-base);
+  margin: 0;
 }
 
 .dashboard-important-tasks-link {
@@ -3674,6 +3677,13 @@
   justify-content: space-between;
   min-height: 0;
   padding: var(--space-3);
+}
+
+.dashboard-next-action-grid {
+  align-items: stretch;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .dashboard-next-action-main {
@@ -6350,9 +6360,8 @@
     grid-template-columns: 1fr;
   }
 
-  .dashboard-important-tasks {
-    aspect-ratio: auto;
-    width: 100%;
+  .dashboard-next-action-grid {
+    grid-template-columns: 1fr;
   }
 
   .dashboard-aging-row,

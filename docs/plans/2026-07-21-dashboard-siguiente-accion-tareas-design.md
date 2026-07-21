@@ -20,6 +20,10 @@ En pantallas angostas ambas cards se apilan, primero el mejor paso y luego las
 tareas. La tarea mantiene la prioridad, el vencimiento y el estado vacio ya
 definidos; no se agregan acciones de edicion ni cambios de datos.
 
+El panel se ubica despues de los avisos de alta y antes de los indicadores
+economicos. Asi las tareas siguen visibles aunque el periodo todavia no tenga
+actividad economica.
+
 ## Direccion visual
 
 - **Intento:** un operador de taller que abre el tablero debe decidir su proximo

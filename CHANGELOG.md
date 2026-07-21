@@ -12,6 +12,7 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-07-21
 - [Tarjeta de tareas importantes en el dashboard](docs/registro/cambios/2026-07-21-dashboard-tareas-importantes.md)
+- [Siguiente accion con tareas importantes](docs/registro/cambios/2026-07-21-dashboard-siguiente-accion-tareas.md)
 - [Alta guiada: pasos descartables por negocio](docs/registro/cambios/2026-07-21-alta-guiada-pasos-descartables.md)
 
 ## 2026-07-10

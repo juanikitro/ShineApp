@@ -39,7 +39,9 @@ test('ImportantTasksCard shows prioritized pending work and opens the tasks sect
 		/>,
 	)
 
-	assert.ok(screen.getByRole('heading', { name: 'Tareas importantes' }))
+	assert.ok(
+		screen.getByRole('heading', { name: 'Tareas importantes', level: 3 }),
+	)
 	assert.ok(screen.getByText('Confirmar entrega'))
 	assert.ok(screen.getByText('Vencida'))
 	assert.equal(screen.queryByText('Ya terminada'), null)

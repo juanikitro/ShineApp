@@ -1,6 +1,6 @@
 'use client'
 
-import { Panel } from '@/app/components/ui/Panel'
+import { RecordCard } from '@/app/components/ui/RecordCard'
 import { selectImportantTasks } from '@/lib/important-tasks'
 import { formatDateLabel, type AnyRecord } from '@/lib/page-support'
 
@@ -24,10 +24,9 @@ export function ImportantTasksCard({ tasks, onOpenTasks }: ImportantTasksCardPro
 	const importantTasks = selectImportantTasks(tasks)
 
 	return (
-		<Panel
-			className="dashboard-important-tasks"
-			title="Tareas importantes"
-			actions={
+		<RecordCard className="dashboard-important-tasks">
+			<div className="dashboard-important-tasks-head">
+				<h3>Tareas importantes</h3>
 				<button
 					type="button"
 					className="ghost dashboard-important-tasks-link"
@@ -36,8 +35,7 @@ export function ImportantTasksCard({ tasks, onOpenTasks }: ImportantTasksCardPro
 				>
 					Ver todas
 				</button>
-			}
-		>
+			</div>
 			{importantTasks.length ? (
 				<div className="dashboard-important-tasks-list">
 					{importantTasks.map((task) => (
@@ -65,6 +63,6 @@ export function ImportantTasksCard({ tasks, onOpenTasks }: ImportantTasksCardPro
 			) : (
 				<p className="dashboard-important-tasks-empty">Sin tareas pendientes.</p>
 			)}
-		</Panel>
+		</RecordCard>
 	)
 }

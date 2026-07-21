@@ -461,10 +461,42 @@ export function DashboardPanel({
 						onOpenSection={onOpenSection}
 						onOpenSettingsSection={onOpenSettingsSection}
 					/>
-					<ImportantTasksCard
-						tasks={tasks}
-						onOpenTasks={() => onOpenSection('tasks')}
-					/>
+					<Panel
+						className="dashboard-next-action-panel"
+						title="Siguiente accion"
+						subtitle="Prioridad operativa sugerida para este periodo."
+					>
+						<div className="dashboard-next-action-grid">
+							<RecordCard
+								className={cx(
+									'dashboard-next-action',
+									dashboardNextAction.tone === 'attention' &&
+										'dashboard-next-action--attention',
+								)}
+							>
+								<div className="dashboard-next-action-main">
+									<span className="dashboard-next-action-icon" aria-hidden="true">
+										<DashboardNextActionIcon size={16} />
+									</span>
+									<div className="dashboard-next-action-copy">
+										<strong>{dashboardNextAction.title}</strong>
+										<span>{dashboardNextAction.detail}</span>
+									</div>
+								</div>
+								<button
+									type="button"
+									className="ghost"
+									onClick={dashboardNextAction.onSelect}
+								>
+									{dashboardNextAction.label}
+								</button>
+							</RecordCard>
+							<ImportantTasksCard
+								tasks={tasks}
+								onOpenTasks={() => onOpenSection('tasks')}
+							/>
+						</div>
+					</Panel>
 					{loading && !dashboardHasBusinessActivity ? (
 						<div
 							className="dashboard-executive-grid"
@@ -585,36 +617,6 @@ export function DashboardPanel({
 									/>
 								</StaggerItem>
 							</Stagger>
-							<Panel
-								className="dashboard-next-action-panel"
-								title="Siguiente accion"
-								subtitle="Prioridad operativa sugerida para este periodo."
-							>
-								<RecordCard
-									className={cx(
-										'dashboard-next-action',
-										dashboardNextAction.tone === 'attention' &&
-											'dashboard-next-action--attention',
-									)}
-								>
-									<div className="dashboard-next-action-main">
-										<span className="dashboard-next-action-icon" aria-hidden="true">
-											<DashboardNextActionIcon size={16} />
-										</span>
-										<div className="dashboard-next-action-copy">
-											<strong>{dashboardNextAction.title}</strong>
-											<span>{dashboardNextAction.detail}</span>
-										</div>
-									</div>
-									<button
-										type="button"
-										className="ghost"
-										onClick={dashboardNextAction.onSelect}
-									>
-										{dashboardNextAction.label}
-									</button>
-								</RecordCard>
-							</Panel>
 							<DashboardCrossReadings dashboard={dashboard} />
 								<DashboardCashByCategory dashboard={dashboard} />
 								<div className="dashboard-insight-grid">
