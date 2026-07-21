@@ -12,6 +12,7 @@ import { CajaSparkline } from '@/app/components/ui/CajaSparkline'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { RiskMeter } from '@/app/components/ui/RiskMeter'
 import { DemoReadinessPanel } from './DemoReadinessPanel'
+import { ImportantTasksCard } from './ImportantTasksCard'
 import { TrialLifecycleBanner } from './TrialLifecycleBanner'
 import { DashboardCashByCategory } from './DashboardCashByCategory'
 import { DashboardCrossReadings } from './DashboardCrossReadings'
@@ -45,6 +46,7 @@ type DashboardPanelProps = {
 	dashboard: AnyRecord
 	demoReadiness: DemoReadiness
 	firstChargeableWorkOrder?: AnyRecord | null
+	tasks: readonly AnyRecord[]
 	starterServicesLoading?: boolean
 	starterServicesPlan?: StarterServicesPlan
 	loading: boolean
@@ -115,6 +117,7 @@ export function DashboardPanel({
 	dashboard,
 	demoReadiness,
 	firstChargeableWorkOrder,
+	tasks,
 	starterServicesLoading,
 	starterServicesPlan,
 	loading,
@@ -457,6 +460,10 @@ export function DashboardPanel({
 						onOpenFirstPayment={onOpenFirstPayment}
 						onOpenSection={onOpenSection}
 						onOpenSettingsSection={onOpenSettingsSection}
+					/>
+					<ImportantTasksCard
+						tasks={tasks}
+						onOpenTasks={() => onOpenSection('tasks')}
 					/>
 					{loading && !dashboardHasBusinessActivity ? (
 						<div
