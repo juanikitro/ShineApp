@@ -50,6 +50,53 @@ test('marks demo data as sellable but keeps WhatsApp pending when disabled', () 
 	assert.equal(readiness.firstPendingStep?.id, 'whatsapp')
 })
 
+test('excludes dismissed onboarding steps from the progress count', () => {
+	const readiness = buildDemoReadiness({
+		businessProfile: {
+			name: 'Shine Car Detail Studio',
+			contact_phone: '+5493624000000',
+			public_landing_enabled: true,
+			allow_public_booking_requests: true,
+			onboarding_dismissed_step_ids: ['whatsapp'],
+		},
+		businessSlug: 'shine-car-detail-studio',
+		sectors: coreSectors,
+		services: coreServices,
+		reservations: [{ id: 1, is_active: true }],
+		whatsappConfig: { is_enabled: false },
+	})
+
+	assert.equal(readiness.completedCount, 4)
+	assert.equal(readiness.totalCount, 5)
+	assert.equal(readiness.remainingCount, 1)
+	assert.equal(readiness.percent, 80)
+	assert.equal(readiness.firstPendingStep?.id, 'cash-dashboard')
+	assert.equal(readiness.steps.some((step) => step.id === 'whatsapp'), false)
+})
+
+test('returns an empty checklist when every onboarding step is dismissed', () => {
+	const readiness = buildDemoReadiness({
+		businessProfile: {
+			onboarding_dismissed_step_ids: [
+				'business',
+				'services',
+				'turnera',
+				'whatsapp',
+				'agenda',
+				'cash-dashboard',
+			],
+		},
+	})
+
+	assert.equal(readiness.completedCount, 0)
+	assert.equal(readiness.totalCount, 0)
+	assert.equal(readiness.remainingCount, 0)
+	assert.equal(readiness.percent, 0)
+	assert.equal(readiness.ready, false)
+	assert.equal(readiness.firstPendingStep, null)
+	assert.deepEqual(readiness.steps, [])
+})
+
 test('returns a ready checklist when every commercial surface is configured', () => {
 	const readiness = buildDemoReadiness({
 		businessProfile: {

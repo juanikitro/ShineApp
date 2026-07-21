@@ -23,6 +23,7 @@ import { deltaHintVariants } from '@/lib/motion-spec'
 import {
 	type DemoReadiness,
 	type DemoReadinessSettingsSection,
+	type DemoReadinessStepId,
 } from '@/lib/demo-readiness'
 import { type StarterServicesPlan } from '@/lib/onboarding-services'
 import {
@@ -49,6 +50,9 @@ type DashboardPanelProps = {
 	loading: boolean
 	onCreateFirstReservation?: () => void
 	onCreateStarterServices?: () => Promise<unknown> | unknown
+	onDismissOnboardingStep: (
+		stepId: DemoReadinessStepId,
+	) => Promise<unknown> | unknown
 	onOpenFirstPayment?: (workOrder: AnyRecord) => void
 	onOpenPaymentForOrder: (workOrder: AnyRecord) => void
 	onOpenSection: (section: Section) => void
@@ -116,6 +120,7 @@ export function DashboardPanel({
 	loading,
 	onCreateFirstReservation,
 	onCreateStarterServices,
+	onDismissOnboardingStep,
 	onOpenFirstPayment,
 	onOpenPaymentForOrder,
 	onOpenSection,
@@ -448,6 +453,7 @@ export function DashboardPanel({
 						starterServicesPlan={starterServicesPlan}
 						onCreateFirstReservation={onCreateFirstReservation}
 						onCreateStarterServices={onCreateStarterServices}
+						onDismissStep={onDismissOnboardingStep}
 						onOpenFirstPayment={onOpenFirstPayment}
 						onOpenSection={onOpenSection}
 						onOpenSettingsSection={onOpenSettingsSection}

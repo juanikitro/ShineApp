@@ -25,8 +25,16 @@ Los pasos son:
 5. Primer turno o trabajo.
 6. Primer cobro.
 
-Cada paso abre una superficie existente. No se agrega persistencia de
-onboarding, porque el avance se calcula desde datos reales.
+Cada paso abre una superficie existente. El avance se calcula desde datos
+reales; los pasos que un negocio descarte definitivamente se excluyen del
+checklist persistiendo solo sus IDs en el perfil del negocio.
+
+## Actualizacion 2026-07-21
+
+Cada card de alta guiada permite descartar su paso con confirmacion. El descarte
+es definitivo para ese negocio, se guarda en `BusinessProfile` y reduce el
+denominador del progreso sin modificar los datos operativos que completan los
+demas pasos.
 
 ## Servicios base
 

@@ -149,7 +149,7 @@ export function buildDemoReadiness(input: DemoReadinessInput): DemoReadiness {
 		reservationsCount > 0 || workOrdersCount > 0 || publicRequestsCount > 0
 	const cashDone = paymentsCount > 0 || collectedTotal > 0
 
-	const steps: DemoReadinessStep[] = [
+	const allSteps: DemoReadinessStep[] = [
 		{
 			id: 'business',
 			title: 'Negocio listo',
@@ -199,12 +199,20 @@ export function buildDemoReadiness(input: DemoReadinessInput): DemoReadiness {
 			target: { kind: 'section', section: 'cash' },
 		},
 	]
+	const dismissedStepIds = new Set(
+		Array.isArray(profile.onboarding_dismissed_step_ids)
+			? profile.onboarding_dismissed_step_ids.map((stepId) => String(stepId))
+			: [],
+	)
+	const steps = allSteps.filter((step) => !dismissedStepIds.has(step.id))
 	const completedCount = steps.filter((step) => step.done).length
 	const totalCount = steps.length
 	const remainingCount = totalCount - completedCount
-	const percent = Math.round((completedCount / totalCount) * 100)
+	const percent = totalCount
+		? Math.round((completedCount / totalCount) * 100)
+		: 0
 	const firstPendingStep = steps.find((step) => !step.done) ?? null
-	const ready = completedCount === totalCount
+	const ready = totalCount > 0 && completedCount === totalCount
 
 	return {
 		completedCount,

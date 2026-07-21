@@ -23,6 +23,7 @@ const coreServices = [
 function renderPanel(overrides = {}) {
 	const props = {
 		readiness: buildDemoReadiness({}),
+		onDismissStep: vi.fn(),
 		onOpenSection: vi.fn(),
 		onOpenSettingsSection: vi.fn(),
 		...overrides,
@@ -85,4 +86,39 @@ test('DemoReadinessPanel charges the first pending work order when cash is next'
 
 	assert.equal(onOpenFirstPayment.mock.calls.length, 1)
 	assert.equal(onOpenFirstPayment.mock.calls[0][0], firstChargeableWorkOrder)
+})
+
+test('DemoReadinessPanel exposes a dismiss action for each onboarding step', async () => {
+	const user = userEvent.setup()
+	const onDismissStep = vi.fn()
+	renderPanel({ onDismissStep })
+
+	await user.click(
+		screen.getByRole('button', {
+			name: 'Descartar Negocio listo de alta guiada',
+		}),
+	)
+	assert.deepEqual(onDismissStep.mock.calls, [])
+
+	await user.click(screen.getByRole('button', { name: 'Quitar paso' }))
+
+	assert.deepEqual(onDismissStep.mock.calls, [['business']])
+})
+
+test('DemoReadinessPanel hides when every onboarding step is dismissed', () => {
+	const readiness = buildDemoReadiness({
+		businessProfile: {
+			onboarding_dismissed_step_ids: [
+				'business',
+				'services',
+				'turnera',
+				'whatsapp',
+				'agenda',
+				'cash-dashboard',
+			],
+		},
+	})
+	renderPanel({ readiness })
+
+	assert.equal(screen.queryByRole('heading', { name: 'Alta guiada' }), null)
 })

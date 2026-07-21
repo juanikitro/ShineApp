@@ -10,6 +10,7 @@ import {
 	Settings2,
 	Sparkles,
 	Wrench,
+	X,
 	type LucideIcon,
 } from 'lucide-react'
 
@@ -24,6 +25,7 @@ import {
 } from '@/lib/demo-readiness'
 import { type StarterServicesPlan } from '@/lib/onboarding-services'
 import { type AnyRecord, type Section } from '@/lib/page-support'
+import { useConfirmDialog } from '@/lib/use-confirm-dialog'
 
 type DemoReadinessPanelProps = {
 	firstChargeableWorkOrder?: AnyRecord | null
@@ -31,6 +33,7 @@ type DemoReadinessPanelProps = {
 	starterServicesLoading?: boolean
 	starterServicesPlan?: StarterServicesPlan
 	onCreateFirstReservation?: () => void
+	onDismissStep: (stepId: DemoReadinessStepId) => Promise<unknown> | unknown
 	onOpenSection: (section: Section) => void
 	onOpenSettingsSection: (section: DemoReadinessSettingsSection) => void
 	onOpenFirstPayment?: (workOrder: AnyRecord) => void
@@ -56,11 +59,28 @@ export function DemoReadinessPanel({
 	starterServicesLoading = false,
 	starterServicesPlan,
 	onCreateFirstReservation,
+	onDismissStep,
 	onCreateStarterServices,
 	onOpenFirstPayment,
 	onOpenSection,
 	onOpenSettingsSection,
 }: DemoReadinessPanelProps) {
+	const { requestConfirm, ConfirmDialog } = useConfirmDialog()
+
+	async function dismissStep(step: DemoReadinessStep) {
+		const confirmed = await requestConfirm({
+			title: 'Quitar paso de alta guiada',
+			message:
+				'Este paso dejara de contar en el progreso y no se podra recuperar. ¿Continuar?',
+			confirmLabel: 'Quitar paso',
+			tone: 'danger',
+		})
+		if (!confirmed) return
+		return onDismissStep(step.id)
+	}
+
+	if (!readiness.steps.length) return null
+
 	function openStep(step: DemoReadinessStep) {
 		if (step.target.kind === 'settings') {
 			onOpenSettingsSection(step.target.section)
@@ -349,14 +369,26 @@ export function DemoReadinessPanel({
 								type="button"
 								variant={step.done ? 'ghost' : 'primary'}
 								size="sm"
+								className="demo-readiness-step-action"
 								onClick={() => runStepListAction(step)}
 							>
 								{stepListActionLabel(step)}
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								className="icon-button demo-readiness-step-dismiss"
+								aria-label={`Descartar ${step.title} de alta guiada`}
+								title="Quitar paso definitivamente"
+								onClickAsync={() => dismissStep(step)}
+							>
+								<X size={16} />
 							</Button>
 						</div>
 					)
 				})}
 			</div>
+			<ConfirmDialog />
 		</Panel>
 	)
 }
