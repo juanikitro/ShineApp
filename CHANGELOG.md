@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-07-21
+- [Alta guiada: pasos descartables por negocio](docs/registro/cambios/2026-07-21-alta-guiada-pasos-descartables.md)
+
 ## 2026-07-10
 - [Cotizaciones: nombre opcional](docs/registro/cambios/2026-07-10-cotizaciones-nombre-vacio.md)
 - [Agenda: selector semana/mes junto al switch de vista](docs/registro/cambios/2026-07-10-agenda-selector-rango.md)

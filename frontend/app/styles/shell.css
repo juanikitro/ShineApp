@@ -3498,7 +3498,7 @@
   border-radius: var(--radius-sm);
   display: grid;
   gap: 10px;
-  grid-template-columns: 34px minmax(0, 1fr) auto auto;
+  grid-template-columns: 34px minmax(0, 1fr) auto auto auto;
   min-width: 0;
   padding: 10px;
 }
@@ -3554,6 +3554,14 @@
 
 .demo-readiness-step--done .demo-readiness-step-status {
   color: var(--color-ready);
+}
+
+.demo-readiness-step-dismiss {
+  color: var(--shop-ink-muted);
+}
+
+.demo-readiness-step-dismiss:hover:not(:disabled) {
+  color: var(--color-danger);
 }
 
 .services-empty-onboarding {
@@ -6269,7 +6277,7 @@
   }
 
   .dashboard-next-action button,
-  .demo-readiness-step button,
+  .demo-readiness-step-action,
   .demo-readiness-starter button,
   .demo-readiness-operation button,
   .services-starter-banner button,
@@ -6280,7 +6288,7 @@
   }
 
   .demo-readiness-step {
-    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-columns: 34px minmax(0, 1fr) auto;
   }
 
   .whatsapp-setup-check {
@@ -6288,6 +6296,7 @@
   }
 
   .demo-readiness-step-status {
+    grid-column: 2;
     justify-self: start;
   }
 
@@ -6295,8 +6304,15 @@
     justify-self: start;
   }
 
-  .demo-readiness-step button {
+  .demo-readiness-step-action {
     grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .demo-readiness-step-dismiss {
+    grid-column: 3;
+    grid-row: 1;
+    width: auto;
   }
 
   .demo-readiness-operation-actions {
