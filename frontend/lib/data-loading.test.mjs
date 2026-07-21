@@ -50,6 +50,10 @@ test('agenda keeps operational dependencies and gates economy-only datasets', ()
 			'materials',
 			'materialOpenUnits',
 			'quotes',
+			'whatsappConfig',
+			'whatsappTemplates',
+			'whatsappAutomationRules',
+			'whatsappMessages',
 			'businessProfile',
 			'publicRequests',
 			'tasks',
@@ -75,7 +79,17 @@ test('customer and service dashboards keep editable linked records hydrated', ()
 			section: 'customers',
 			canViewEconomy: true,
 		}),
-		['customers', 'vehicles', 'services', 'businessProfile', 'publicRequests', 'tasks'],
+		[
+			'customers',
+			'vehicles',
+			'services',
+			'whatsappConfig',
+			'whatsappTemplates',
+			'whatsappMessages',
+			'businessProfile',
+			'publicRequests',
+			'tasks',
+		],
 	)
 	assert.deepEqual(
 		dataSetKeysForSection({
