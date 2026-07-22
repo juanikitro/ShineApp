@@ -173,14 +173,6 @@ export function QuickActionsMenu({
 						event.preventDefault()
 						if (!hasRunningAction) onClose()
 					}}
-					onOpenAutoFocus={(event) => {
-						event.preventDefault()
-						menuRef.current
-							?.querySelector<HTMLButtonElement>(
-								'button[role="menuitem"]:not(:disabled)',
-							)
-							?.focus()
-					}}
 					onPointerDownOutside={(event) => {
 						if (hasRunningAction) event.preventDefault()
 					}}
