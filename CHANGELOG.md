@@ -11,6 +11,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-07-21
+- [QuickActionsMenu: menu accesible con Radix DropdownMenu](docs/registro/cambios/2026-07-21-quickactionsmenu-radix-dropdown.md)
 - [ModalFrame: Dialog accesible con guard de cambios](docs/registro/cambios/2026-07-21-modalframe-radix-dialog.md)
 
 ## 2026-07-10

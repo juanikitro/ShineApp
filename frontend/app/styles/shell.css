@@ -2324,7 +2324,6 @@
   max-width: min(320px, calc(100vw - 16px));
   min-width: min(260px, calc(100vw - 16px));
   padding: 6px;
-  position: fixed;
   z-index: calc(var(--z-modal-panel) + 20);
 }
 

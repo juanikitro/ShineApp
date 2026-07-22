@@ -33,8 +33,11 @@ Whitelist actual y planificada:
 - `@radix-ui/react-dialog`: aprobado y usado por `ModalFrame`, conservando su
   API publica, clases y presencia Motion. El guard de cambios conserva su
   `alertdialog` local, sin sumar `@radix-ui/react-alert-dialog`.
-- `@radix-ui/react-alert-dialog` y `@radix-ui/react-dropdown-menu`: candidatos
-  planificados; requieren una decision puntual antes de incorporarse.
+- `@radix-ui/react-dropdown-menu`: aprobado y usado por `QuickActionsMenu`.
+  Un trigger virtual fijo ancla el menu a sus coordenadas externas; el wrapper
+  conserva confirmacion inline y lock asincrono mediante `onSelect`.
+- `@radix-ui/react-alert-dialog`: candidato planificado; requiere una decision
+  puntual antes de incorporarse.
 
 El tema sigue viviendo en tokens CSS y las transiciones/estados se aplican con
 atributos de datos de Radix, como `[data-state]`, en las partials existentes.

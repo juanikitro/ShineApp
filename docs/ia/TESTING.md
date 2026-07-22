@@ -42,10 +42,15 @@ Configuracion:
   contenido tras un turno corto para que `DismissableLayer` registre su listener.
   Los mocks de Motion renderizan elementos planos, por lo que `forceMount`
   mantiene el contenido disponible mientras el componente siga montado.
-- No mantener un overlay Radix abierto dentro de un `waitFor` que sondee cierre
-  por pointer fuera: en `Popover`, `autoUpdate` de Floating UI junto al mock de
-  `requestAnimationFrame` puede agotar jsdom. `Dialog` no usa Popper, pero se
-  prefieren Escape, botones explicitos o un unico `pointerdown` sobre polling.
+- `QuickActionsMenu` usa `DropdownMenu`: consultar `menu` y `menuitem` por rol,
+  probar confirmacion/lock mediante seleccion explicita y cerrar con Escape o
+  una accion. No afirmar coordenadas internas de Popper ni depender de un
+  `fireEvent.pointerDown` sintetico para dismiss exterior.
+- No mantener un overlay Radix basado en Popper abierto dentro de un `waitFor`
+  que sondee cierre por pointer fuera: en `Popover` y `DropdownMenu`,
+  `autoUpdate` de Floating UI junto al mock de `requestAnimationFrame` puede
+  agotar jsdom. `Dialog` no usa Popper, pero se prefieren Escape, botones
+  explicitos o un unico `pointerdown` sobre polling.
 
 ## Restriccion de recursos frontend
 

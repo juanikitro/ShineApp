@@ -41,3 +41,16 @@ Seguimiento (paso 2):
   Los intentos de cierre se vetan y pasan por el guard de cambios existente.
 - La confirmacion local sigue usando `role="alertdialog"`; no se agrega
   `@radix-ui/react-alert-dialog`.
+
+Seguimiento (paso 3):
+- `QuickActionsMenu` adopta `@radix-ui/react-dropdown-menu` sin estilos y
+  conserva su API publica controlada, sus clases CSS y sus botones reales como
+  items del menu.
+- Un trigger virtual de 0x0, fijo en `anchorPoint`, reemplaza el clamp manual;
+  Popper resuelve colision y cambio de lado sin exponer coordenadas internas.
+- La confirmacion inline y el lock asincrono siguen en el wrapper:
+  `onSelect.preventDefault()` mantiene abierto el menu hasta confirmar o hasta
+  que el thenable termine. Escape e interaccion exterior se vetan mientras hay
+  una accion local o externa pendiente.
+- `onCloseAutoFocus` devuelve el foco a `returnFocusRef`, ya que el trigger
+  virtual no representa el control que abrio el menu.

@@ -43,6 +43,13 @@ scroll lock y semantica modal. Como la API estable no expone un
 `Dialog.Trigger`, `onCloseAutoFocus` de Radix devuelve el foco al elemento que
 estaba activo al montarse; el guard de cambios intercepta los intentos de cierre.
 
+`QuickActionsMenu` envuelve `@radix-ui/react-dropdown-menu` sin estilos y
+conserva su API controlada. Un `DropdownMenu.Trigger` virtual, fijo y sin foco
+se ubica en `anchorPoint`; Popper resuelve la colision con el viewport. La
+confirmacion inline, el lock asincrono y la senal externa `pendingActionId`
+siguen siendo responsabilidad del wrapper mediante `onSelect` y guards de
+dismiss, mientras `onCloseAutoFocus` devuelve el foco a `returnFocusRef`.
+
 ## Reglas visuales
 
 - Default visual: CRM claro y sobrio.
