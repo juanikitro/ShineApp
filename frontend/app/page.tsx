@@ -192,6 +192,7 @@ import {
 	buildDemoReadiness,
 	findFirstChargeableWorkOrder,
 	type DemoReadinessSettingsSection,
+	type DemoReadinessStepId,
 } from '@/lib/demo-readiness'
 import { buildStarterServicesPlan } from '@/lib/onboarding-services'
 import {
@@ -1629,6 +1630,11 @@ export default function Home() {
 						? profile.public_hidden_service_ids
 								.map((value) => Number(value))
 								.filter((value) => Number.isFinite(value) && value > 0)
+						: [],
+					onboarding_dismissed_step_ids: Array.isArray(
+						profile.onboarding_dismissed_step_ids,
+					)
+						? profile.onboarding_dismissed_step_ids.map((value) => String(value))
 						: [],
 					public_show_service_description:
 						profile.public_show_service_description !== false,
@@ -5336,8 +5342,10 @@ export default function Home() {
 		[cashEntries, cashFilters, cashQuickFilter, cashSortKey],
 	)
 	const demoReadiness = useMemo(
-		() =>
-			buildDemoReadiness({
+		() => {
+			if (!businessProfile) return null
+
+			return buildDemoReadiness({
 				businessForm,
 				businessProfile,
 				businessSlug: String(currentUser?.business?.slug ?? ''),
@@ -5351,7 +5359,8 @@ export default function Home() {
 				whatsappConfig,
 				whatsappTemplates,
 				workOrders,
-			}),
+			})
+		},
 		[
 			businessForm,
 			businessProfile,
@@ -7406,6 +7415,16 @@ export default function Home() {
 			),
 		)
 		payload.append(
+			'onboarding_dismissed_step_ids',
+			JSON.stringify(
+				Array.isArray(currentBusinessForm.onboarding_dismissed_step_ids)
+					? currentBusinessForm.onboarding_dismissed_step_ids.map(
+							(value: unknown) => String(value),
+						)
+					: [],
+			),
+		)
+		payload.append(
 			'public_show_service_description',
 			String(currentBusinessForm.public_show_service_description !== false),
 		)
@@ -7466,6 +7485,35 @@ export default function Home() {
 			},
 			{
 				successTitle: options.successTitle ?? 'Configuracion guardada',
+			},
+		)
+	}
+
+	async function dismissOnboardingStep(stepId: DemoReadinessStepId) {
+		if (!canViewEconomy) return
+		const dismissedStepIds = Array.isArray(
+			businessFormRef.current.onboarding_dismissed_step_ids,
+		)
+			? businessFormRef.current.onboarding_dismissed_step_ids.map((value) =>
+					String(value),
+				)
+			: []
+		if (dismissedStepIds.includes(stepId)) return
+
+		return runAction(
+			async () => {
+				const saved = await apiFetch<AnyRecord>('/settings/business-profile/', {
+					method: 'PATCH',
+					body: JSON.stringify({
+						onboarding_dismissed_step_ids: [...dismissedStepIds, stepId],
+					}),
+				})
+				syncBusinessProfile(saved)
+				return saved
+			},
+			{
+				key: 'onboarding:dismiss-step',
+				successTitle: 'Paso quitado de la alta guiada',
 			},
 		)
 	}
@@ -14766,11 +14814,13 @@ export default function Home() {
 						dashboard={dashboard}
 						demoReadiness={demoReadiness}
 						firstChargeableWorkOrder={firstChargeableWorkOrder}
+						tasks={tasks}
 						starterServicesLoading={isActionPending('onboarding:starter-services')}
 						starterServicesPlan={starterServicesPlan}
 						loading={loading}
 						onCreateFirstReservation={() => openQuickReservation(selectedDay, true)}
 						onCreateStarterServices={createStarterServices}
+						onDismissOnboardingStep={dismissOnboardingStep}
 						onOpenFirstPayment={openPaymentForOrder}
 						onOpenPaymentForOrder={openPaymentForOrder}
 						onOpenSection={handleSectionChange}

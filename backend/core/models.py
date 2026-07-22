@@ -243,6 +243,15 @@ class BusinessAccount(models.Model):
 
 
 class BusinessProfile(models.Model):
+    ONBOARDING_STEP_IDS = (
+        "business",
+        "services",
+        "turnera",
+        "whatsapp",
+        "agenda",
+        "cash-dashboard",
+    )
+
     class SubscriptionType(models.TextChoices):
         TRIAL = "trial", "Prueba"
         PREMIUM = "premium", "Premium"
@@ -331,6 +340,7 @@ class BusinessProfile(models.Model):
     allow_public_booking_requests = models.BooleanField(default=True)
     allow_public_quote_requests = models.BooleanField(default=True)
     public_hidden_service_ids = models.JSONField(default=list, blank=True)
+    onboarding_dismissed_step_ids = models.JSONField(default=list, blank=True)
     public_show_service_description = models.BooleanField(default=True)
     public_show_service_price = models.BooleanField(default=False)
     income_category_tree = models.JSONField(

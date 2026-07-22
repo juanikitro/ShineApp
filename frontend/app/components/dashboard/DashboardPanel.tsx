@@ -4,7 +4,16 @@ import { type CSSProperties, type ReactNode } from 'react'
 
 import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
-import { Banknote, CalendarDays, CreditCard, Info, PieChart, TrendingUp } from 'lucide-react'
+import {
+	ArrowRight,
+	Banknote,
+	CalendarDays,
+	CreditCard,
+	Info,
+	PieChart,
+	TrendingUp,
+	type LucideIcon,
+} from 'lucide-react'
 
 import { Stagger, StaggerItem } from '@/app/components/motion/Stagger'
 import { Empty } from '@/app/components/ui/Empty'
@@ -12,6 +21,7 @@ import { CajaSparkline } from '@/app/components/ui/CajaSparkline'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { RiskMeter } from '@/app/components/ui/RiskMeter'
 import { DemoReadinessPanel } from './DemoReadinessPanel'
+import { ImportantTasksCard } from './ImportantTasksCard'
 import { TrialLifecycleBanner } from './TrialLifecycleBanner'
 import { DashboardCashByCategory } from './DashboardCashByCategory'
 import { DashboardCrossReadings } from './DashboardCrossReadings'
@@ -21,8 +31,13 @@ import { SkeletonLine } from '@/app/components/ui/Skeleton'
 import { cx } from '@/app/components/utils'
 import { deltaHintVariants } from '@/lib/motion-spec'
 import {
+	selectDashboardNextActionKeys,
+	type DashboardNextActionKey,
+} from '@/lib/dashboard-next-actions'
+import {
 	type DemoReadiness,
 	type DemoReadinessSettingsSection,
+	type DemoReadinessStepId,
 } from '@/lib/demo-readiness'
 import { type StarterServicesPlan } from '@/lib/onboarding-services'
 import {
@@ -42,17 +57,30 @@ type DashboardPanelProps = {
 	canViewEconomy: boolean
 	currentUser?: AnyRecord | null
 	dashboard: AnyRecord
-	demoReadiness: DemoReadiness
+	demoReadiness: DemoReadiness | null
 	firstChargeableWorkOrder?: AnyRecord | null
+	tasks: readonly AnyRecord[]
 	starterServicesLoading?: boolean
 	starterServicesPlan?: StarterServicesPlan
 	loading: boolean
 	onCreateFirstReservation?: () => void
 	onCreateStarterServices?: () => Promise<unknown> | unknown
+	onDismissOnboardingStep: (
+		stepId: DemoReadinessStepId,
+	) => Promise<unknown> | unknown
 	onOpenFirstPayment?: (workOrder: AnyRecord) => void
 	onOpenPaymentForOrder: (workOrder: AnyRecord) => void
 	onOpenSection: (section: Section) => void
 	onOpenSettingsSection: (section: DemoReadinessSettingsSection) => void
+}
+
+type DashboardSuggestedAction = {
+	detail: string
+	icon: LucideIcon
+	label: string
+	onSelect: () => void
+	title: string
+	tone: 'attention' | 'neutral'
 }
 
 function dashboardCountText(count: number, singular: string, plural: string) {
@@ -111,11 +139,13 @@ export function DashboardPanel({
 	dashboard,
 	demoReadiness,
 	firstChargeableWorkOrder,
+	tasks,
 	starterServicesLoading,
 	starterServicesPlan,
 	loading,
 	onCreateFirstReservation,
 	onCreateStarterServices,
+	onDismissOnboardingStep,
 	onOpenFirstPayment,
 	onOpenPaymentForOrder,
 	onOpenSection,
@@ -285,48 +315,63 @@ export function DashboardPanel({
 				? item.work_orders[0] ?? null
 				: null
 		}, null)
-	const dashboardNextAction = dashboardFirstReceivableWorkOrder
-		? {
-				title: 'Cobrar saldo mas antiguo',
-				detail: 'Hay trabajos con saldo pendiente y accion directa de cobro.',
-				label: 'Cobrar ahora',
-				icon: CreditCard,
-				tone: 'attention',
-				onSelect: () =>
-					onOpenPaymentForOrder(dashboardFirstReceivableWorkOrder),
-			}
-		: dashboardOverdueDebtsTotal > 0
-			? {
-					title: 'Revisar deudas vencidas',
-					detail: `${dashboardOverdueDebtsCount} ${
-						dashboardOverdueDebtsCount === 1 ? 'deuda vencida' : 'deudas vencidas'
-					} en el periodo.`,
-					label: 'Ver deudas',
-					icon: CreditCard,
-					tone: 'attention',
-					onSelect: () => onOpenSection('debts'),
+	const dashboardActionsByKey: Record<
+		DashboardNextActionKey,
+		DashboardSuggestedAction
+	> = {
+		collectOldestBalance: {
+			title: 'Cobrar saldo mas antiguo',
+			detail: 'Hay trabajos con saldo pendiente y accion directa de cobro.',
+			label: 'Cobrar ahora',
+			icon: CreditCard,
+			tone: 'attention',
+			onSelect: () => {
+				if (dashboardFirstReceivableWorkOrder) {
+					onOpenPaymentForOrder(dashboardFirstReceivableWorkOrder)
 				}
-			: dashboardWorkOrdersTotal === 0
-				? {
-						title: 'Crear actividad del periodo',
-						detail: 'Agenda el proximo trabajo para activar indicadores operativos.',
-						label: 'Ir a Agenda',
-						icon: CalendarDays,
-						tone: 'neutral',
-						onSelect: () => onOpenSection('agenda'),
-					}
-				: {
-						title: 'Mantener la agenda al dia',
-						detail: `${dashboardCountText(
-							dashboardWorkOrdersTotal,
-							'trabajo registrado',
-							'trabajos registrados',
-						)} en el periodo seleccionado.`,
-						label: 'Ver Agenda',
-						icon: CalendarDays,
-						tone: 'neutral',
-						onSelect: () => onOpenSection('agenda'),
-					}
+			},
+		},
+		reviewOverdueDebts: {
+			title: 'Revisar deudas vencidas',
+			detail: `${dashboardOverdueDebtsCount} ${
+				dashboardOverdueDebtsCount === 1 ? 'deuda vencida' : 'deudas vencidas'
+			} en el periodo.`,
+			label: 'Ver deudas',
+			icon: CreditCard,
+			tone: 'attention',
+			onSelect: () => onOpenSection('debts'),
+		},
+		createPeriodActivity: {
+			title: 'Crear actividad del periodo',
+			detail: 'Agenda el proximo trabajo para activar indicadores operativos.',
+			label: 'Ir a Agenda',
+			icon: CalendarDays,
+			tone: 'neutral',
+			onSelect: () => onOpenSection('agenda'),
+		},
+		maintainAgenda: {
+			title: 'Mantener la agenda al dia',
+			detail: `${dashboardCountText(
+				dashboardWorkOrdersTotal,
+				'trabajo registrado',
+				'trabajos registrados',
+			)} en el periodo seleccionado.`,
+			label: 'Ver Agenda',
+			icon: CalendarDays,
+			tone: 'neutral',
+			onSelect: () => onOpenSection('agenda'),
+		},
+	}
+	const [dashboardNextActionKey, ...dashboardFollowUpActionKeys] =
+		selectDashboardNextActionKeys({
+			hasReceivable: dashboardFirstReceivableWorkOrder !== null,
+			overdueDebtsTotal: dashboardOverdueDebtsTotal,
+			workOrdersTotal: dashboardWorkOrdersTotal,
+		})
+	const dashboardNextAction = dashboardActionsByKey[dashboardNextActionKey]
+	const dashboardFollowUpActions = dashboardFollowUpActionKeys
+		.slice(0, 2)
+		.map((key) => ({ key, ...dashboardActionsByKey[key] }))
 	const DashboardNextActionIcon = dashboardNextAction.icon
 
 	function dashboardDeltaHint(
@@ -441,17 +486,80 @@ export function DashboardPanel({
 			{canViewEconomy ? (
 				<>
 					<TrialLifecycleBanner currentUser={currentUser} />
-					<DemoReadinessPanel
-						firstChargeableWorkOrder={firstChargeableWorkOrder}
-						readiness={demoReadiness}
-						starterServicesLoading={starterServicesLoading}
-						starterServicesPlan={starterServicesPlan}
-						onCreateFirstReservation={onCreateFirstReservation}
-						onCreateStarterServices={onCreateStarterServices}
-						onOpenFirstPayment={onOpenFirstPayment}
-						onOpenSection={onOpenSection}
-						onOpenSettingsSection={onOpenSettingsSection}
-					/>
+					{demoReadiness ? (
+						<DemoReadinessPanel
+							firstChargeableWorkOrder={firstChargeableWorkOrder}
+							readiness={demoReadiness}
+							starterServicesLoading={starterServicesLoading}
+							starterServicesPlan={starterServicesPlan}
+							onCreateFirstReservation={onCreateFirstReservation}
+							onCreateStarterServices={onCreateStarterServices}
+							onDismissStep={onDismissOnboardingStep}
+							onOpenFirstPayment={onOpenFirstPayment}
+							onOpenSection={onOpenSection}
+							onOpenSettingsSection={onOpenSettingsSection}
+						/>
+					) : null}
+					<Panel
+						className="dashboard-next-action-panel"
+						title="Siguiente accion"
+						subtitle="Prioridad operativa sugerida para este periodo."
+					>
+						<div className="dashboard-next-action-grid">
+							<RecordCard
+								className={cx(
+									'dashboard-next-action',
+									dashboardNextAction.tone === 'attention' &&
+										'dashboard-next-action--attention',
+								)}
+							>
+								<div className="dashboard-next-action-primary">
+									<span className="dashboard-next-action-kicker">Ahora</span>
+									<div className="dashboard-next-action-main">
+										<span className="dashboard-next-action-icon" aria-hidden="true">
+											<DashboardNextActionIcon size={16} />
+										</span>
+										<div className="dashboard-next-action-copy">
+											<strong>{dashboardNextAction.title}</strong>
+											<span>{dashboardNextAction.detail}</span>
+										</div>
+									</div>
+								</div>
+								<button
+									type="button"
+									className="ghost"
+									onClick={dashboardNextAction.onSelect}
+								>
+									{dashboardNextAction.label}
+								</button>
+								{dashboardFollowUpActions.length > 0 ? (
+									<div className="dashboard-next-action-follow-ups">
+										<span className="dashboard-next-action-kicker">Después</span>
+										<div className="dashboard-next-action-follow-up-list">
+											{dashboardFollowUpActions.map((action) => (
+												<button
+													className="dashboard-next-action-follow-up"
+													key={action.key}
+													onClick={action.onSelect}
+													type="button"
+												>
+													<span>
+														<strong>{action.title}</strong>
+														<small>{action.label}</small>
+													</span>
+													<ArrowRight aria-hidden="true" size={16} />
+												</button>
+											))}
+										</div>
+									</div>
+								) : null}
+							</RecordCard>
+							<ImportantTasksCard
+								tasks={tasks}
+								onOpenTasks={() => onOpenSection('tasks')}
+							/>
+						</div>
+					</Panel>
 					{loading && !dashboardHasBusinessActivity ? (
 						<div
 							className="dashboard-executive-grid"
@@ -572,36 +680,6 @@ export function DashboardPanel({
 									/>
 								</StaggerItem>
 							</Stagger>
-							<Panel
-								className="dashboard-next-action-panel"
-								title="Siguiente accion"
-								subtitle="Prioridad operativa sugerida para este periodo."
-							>
-								<RecordCard
-									className={cx(
-										'dashboard-next-action',
-										dashboardNextAction.tone === 'attention' &&
-											'dashboard-next-action--attention',
-									)}
-								>
-									<div className="dashboard-next-action-main">
-										<span className="dashboard-next-action-icon" aria-hidden="true">
-											<DashboardNextActionIcon size={16} />
-										</span>
-										<div className="dashboard-next-action-copy">
-											<strong>{dashboardNextAction.title}</strong>
-											<span>{dashboardNextAction.detail}</span>
-										</div>
-									</div>
-									<button
-										type="button"
-										className="ghost"
-										onClick={dashboardNextAction.onSelect}
-									>
-										{dashboardNextAction.label}
-									</button>
-								</RecordCard>
-							</Panel>
 							<DashboardCrossReadings dashboard={dashboard} />
 								<DashboardCashByCategory dashboard={dashboard} />
 								<div className="dashboard-insight-grid">

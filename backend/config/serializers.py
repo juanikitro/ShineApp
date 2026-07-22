@@ -377,6 +377,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "allow_public_booking_requests",
             "allow_public_quote_requests",
             "public_hidden_service_ids",
+            "onboarding_dismissed_step_ids",
             "public_show_service_description",
             "public_show_service_price",
             "income_category_tree",
@@ -454,6 +455,21 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
                 continue
             seen.add(identifier)
             cleaned.append(identifier)
+        return cleaned
+
+    def validate_onboarding_dismissed_step_ids(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Debe ser una lista de pasos.")
+        cleaned = []
+        seen = set()
+        for raw in value:
+            step_id = str(raw).strip()
+            if step_id not in BusinessProfile.ONBOARDING_STEP_IDS:
+                raise serializers.ValidationError("Incluye un paso de alta guiada invalido.")
+            if step_id in seen:
+                continue
+            seen.add(step_id)
+            cleaned.append(step_id)
         return cleaned
 
     def validate_income_category_tree(self, value):

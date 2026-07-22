@@ -166,6 +166,34 @@ def test_business_profile_persists_enforce_capacity_limit(api_client):
 
 
 @pytest.mark.django_db
+def test_business_profile_persists_dismissed_onboarding_steps(api_client):
+    response = api_client.patch(
+        reverse("business-profile"),
+        {"onboarding_dismissed_step_ids": ["whatsapp", "agenda", "whatsapp"]},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    assert response.data["onboarding_dismissed_step_ids"] == ["whatsapp", "agenda"]
+
+    profile = BusinessProfile.get_solo()
+    assert profile.onboarding_dismissed_step_ids == ["whatsapp", "agenda"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("value", [["unknown-step"], None])
+def test_business_profile_rejects_invalid_dismissed_onboarding_steps(api_client, value):
+    response = api_client.patch(
+        reverse("business-profile"),
+        {"onboarding_dismissed_step_ids": value},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "onboarding_dismissed_step_ids" in response.data
+
+
+@pytest.mark.django_db
 def test_business_profile_rejects_invalid_maps_url(api_client):
     response = api_client.patch(
         reverse("business-profile"),

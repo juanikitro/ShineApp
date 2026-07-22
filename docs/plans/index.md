@@ -26,3 +26,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Fase 2C - Primer turno y primer cobro guiados](2026-07-04-fase-2c-primer-turno-cobro-design.md)
 - [Beta 1C - Lifecycle visible del trial](2026-07-05-beta-1c-trial-lifecycle-design.md)
 - [Beta 1D - Seguimiento manual interno de trials](2026-07-05-beta-1d-trial-followup-design.md)
+- [Siguiente accion: prioridades consecutivas](2026-07-21-dashboard-siguiente-accion-prioridades-design.md)
+- [Siguiente accion con tareas importantes](2026-07-21-dashboard-siguiente-accion-tareas-design.md)
+- [Tarjeta de tareas importantes en el dashboard](2026-07-21-dashboard-tareas-importantes-design.md)
+- [Descarte definitivo de pasos de alta guiada](2026-07-21-onboarding-step-dismissal-design.md)

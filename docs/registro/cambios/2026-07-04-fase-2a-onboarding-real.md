@@ -18,7 +18,8 @@ wizard persistido ni tablas nuevas.
 
 ## No incluido
 
-- Estado de onboarding persistido.
+- Un wizard persistido de avance: el progreso sigue derivandose de datos reales.
+  Solo se guardan los pasos descartados definitivamente por el negocio.
 - Billing, planes o checkout.
 - Consola interna.
 - Inventario avanzado en la primera experiencia.

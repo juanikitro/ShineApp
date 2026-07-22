@@ -10,9 +10,17 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-07-22
+- [Frontend: override seguro de sharp](docs/registro/cambios/2026-07-22-frontend-sharp-security-override.md)
+
 ## 2026-07-21
 - [QuickActionsMenu: menu accesible con Radix DropdownMenu](docs/registro/cambios/2026-07-21-quickactionsmenu-radix-dropdown.md)
 - [ModalFrame: Dialog accesible con guard de cambios](docs/registro/cambios/2026-07-21-modalframe-radix-dialog.md)
+- [Tarjeta de tareas importantes en el dashboard](docs/registro/cambios/2026-07-21-dashboard-tareas-importantes.md)
+- [Siguiente accion con tareas importantes](docs/registro/cambios/2026-07-21-dashboard-siguiente-accion-tareas.md)
+- [Siguiente accion: ahora y despues](docs/registro/cambios/2026-07-21-dashboard-siguiente-accion-prioridades.md)
+- [Alta guiada: pasos descartables por negocio](docs/registro/cambios/2026-07-21-alta-guiada-pasos-descartables.md)
+- [Alta guiada: ocultar pasos durante la carga inicial](docs/registro/cambios/2026-07-21-alta-guiada-carga-inicial.md)
 
 ## 2026-07-10
 - [Cotizaciones: nombre opcional](docs/registro/cambios/2026-07-10-cotizaciones-nombre-vacio.md)
