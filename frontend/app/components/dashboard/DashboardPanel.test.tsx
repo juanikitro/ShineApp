@@ -52,3 +52,34 @@ test('DashboardPanel keeps guided onboarding visible while other data refreshes'
 
 	assert.ok(screen.getByRole('heading', { name: 'Alta guiada' }))
 })
+
+test('DashboardPanel exposes the next decision actions after the primary one', () => {
+	const onOpenSection = vi.fn()
+
+	render(
+		<DashboardPanel
+			birthdayAlerts={null}
+			canViewEconomy
+			dashboard={{
+				overdue_debts_count: 1,
+				overdue_debts_total: 1200,
+				top_receivables: [{ work_orders: [{ id: 'work-order-1' }] }],
+				work_orders_count: 2,
+			}}
+			demoReadiness={null}
+			tasks={[]}
+			loading={false}
+			onDismissOnboardingStep={vi.fn()}
+			onOpenPaymentForOrder={vi.fn()}
+			onOpenSection={onOpenSection}
+			onOpenSettingsSection={vi.fn()}
+		/>,
+	)
+
+	assert.ok(screen.getByText('Ahora'))
+	assert.ok(screen.getByText('Después'))
+
+	screen.getByRole('button', { name: /Revisar deudas vencidas/ }).click()
+
+	assert.deepEqual(onOpenSection.mock.calls, [['debts']])
+})
