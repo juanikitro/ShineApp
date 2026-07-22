@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-07-22
+- [Frontend: override seguro de sharp](docs/registro/cambios/2026-07-22-frontend-sharp-security-override.md)
+
 ## 2026-07-21
 - [Tarjeta de tareas importantes en el dashboard](docs/registro/cambios/2026-07-21-dashboard-tareas-importantes.md)
 - [Siguiente accion con tareas importantes](docs/registro/cambios/2026-07-21-dashboard-siguiente-accion-tareas.md)
