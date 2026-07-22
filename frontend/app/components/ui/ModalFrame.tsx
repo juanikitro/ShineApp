@@ -1,15 +1,12 @@
 'use client'
 
 import {
-	KeyboardEvent,
-	MouseEvent,
 	ReactNode,
-	useEffect,
-	useId,
 	useRef,
 	useState,
 } from 'react'
 
+import * as Dialog from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import * as m from 'motion/react-m'
 
@@ -17,11 +14,6 @@ import {
 	modalBackdropVariants,
 	modalPanelVariants,
 } from '@/lib/motion-spec'
-import {
-	focusElementIfAvailable,
-	focusFirstElement,
-	trapFocusWithin,
-} from '@/lib/a11y'
 
 type ModalFrameProps = {
 	title: string
@@ -35,33 +27,11 @@ export function ModalFrame({
 	onClose,
 	children,
 }: ModalFrameProps) {
-	const panelRef = useRef<HTMLDivElement>(null)
-	const titleId = useId()
+	const previouslyFocusedRef = useRef<HTMLElement | null>(
+		globalThis.document?.activeElement as HTMLElement | null,
+	)
 	const [dirty, setDirty] = useState(false)
 	const [confirmingClose, setConfirmingClose] = useState(false)
-
-	useEffect(() => {
-		const previouslyFocused = document.activeElement
-		const frame = window.requestAnimationFrame(() => {
-			focusFirstElement(panelRef.current)
-		})
-		return () => {
-			window.cancelAnimationFrame(frame)
-			if (previouslyFocused instanceof HTMLElement) {
-				focusElementIfAvailable(previouslyFocused)
-			}
-		}
-	}, [])
-
-	useEffect(() => {
-		const panel = panelRef.current
-		if (!panel) return
-		function onInput() {
-			setDirty(true)
-		}
-		panel.addEventListener('input', onInput)
-		return () => panel.removeEventListener('input', onInput)
-	}, [])
 
 	function requestClose() {
 		if (dirty) {
@@ -71,95 +41,95 @@ export function ModalFrame({
 		}
 	}
 
-	function handleBackdropMouseDown(event: MouseEvent<HTMLDivElement>) {
-		if (event.target === event.currentTarget) {
-			requestClose()
-		}
-	}
-
-	function handlePanelKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-		if (event.key === 'Escape') {
-			event.preventDefault()
-			event.stopPropagation()
-			if (confirmingClose) {
-				setConfirmingClose(false)
-			} else {
-				requestClose()
-			}
-			return
-		}
-		if (!confirmingClose) {
-			trapFocusWithin(event, panelRef.current)
-		}
-	}
-
 	return (
-		<m.div
-			className="modal-backdrop"
-			role="presentation"
-			onMouseDown={handleBackdropMouseDown}
-			variants={modalBackdropVariants}
-			initial="initial"
-			animate="animate"
-			exit="exit"
-		>
-			<m.div
-				className="modal-panel"
-				role="dialog"
-				aria-modal="true"
-				aria-labelledby={titleId}
-				ref={panelRef}
-				tabIndex={-1}
-				onKeyDown={handlePanelKeyDown}
-				layout
-				variants={modalPanelVariants}
-				initial="initial"
-				animate="animate"
-				exit="exit"
-			>
-				<div className="modal-head">
-					<h2 id={titleId}>{title}</h2>
-					<button
-						type="button"
-						className="ghost icon-button"
-						aria-label="Cerrar"
-						onClick={requestClose}
+		<Dialog.Root open={true}>
+			<Dialog.Portal>
+				<Dialog.Overlay asChild forceMount>
+					<m.div
+						className="modal-backdrop"
+						role="presentation"
+						variants={modalBackdropVariants}
+						initial="initial"
+						animate="animate"
+						exit="exit"
 					>
-						<X size={17} />
-					</button>
-				</div>
-				{children}
-				{confirmingClose ? (
-					<div
-						className="modal-confirm-overlay"
-						role="alertdialog"
-						aria-label="Confirmar cierre"
-					>
-						<div className="modal-confirm-box">
-							<p className="modal-confirm-message">
-								¿Cerrar sin guardar los cambios?
-							</p>
-							<div className="modal-confirm-actions">
-								<button
-									type="button"
-									className="primary"
-									autoFocus
-									onClick={() => setConfirmingClose(false)}
-								>
-									Seguir editando
-								</button>
-								<button
-									type="button"
-									className="ghost"
-									onClick={onClose}
-								>
-									Cerrar de todos modos
-								</button>
-							</div>
-						</div>
-					</div>
-				) : null}
-			</m.div>
-		</m.div>
+						<Dialog.Content
+							asChild
+							aria-describedby={undefined}
+							forceMount
+							onCloseAutoFocus={() => previouslyFocusedRef.current?.focus()}
+							onEscapeKeyDown={(event) => {
+								event.preventDefault()
+								if (confirmingClose) {
+									setConfirmingClose(false)
+								} else {
+									requestClose()
+								}
+							}}
+							onPointerDownOutside={(event) => {
+								event.preventDefault()
+								requestClose()
+							}}
+							onInteractOutside={(event) => event.preventDefault()}
+						>
+							<m.div
+								className="modal-panel"
+								layout
+								variants={modalPanelVariants}
+								initial="initial"
+								animate="animate"
+								exit="exit"
+								onInput={() => setDirty(true)}
+							>
+								<div className="modal-head">
+									<Dialog.Title asChild>
+										<h2>{title}</h2>
+									</Dialog.Title>
+									<button
+										type="button"
+										className="ghost icon-button"
+										aria-label="Cerrar"
+										onClick={requestClose}
+									>
+										<X size={17} />
+									</button>
+								</div>
+								{children}
+								{confirmingClose ? (
+									<div
+										className="modal-confirm-overlay"
+										role="alertdialog"
+										aria-label="Confirmar cierre"
+									>
+										<div className="modal-confirm-box">
+											<p className="modal-confirm-message">
+												¿Cerrar sin guardar los cambios?
+											</p>
+											<div className="modal-confirm-actions">
+												<button
+													type="button"
+													className="primary"
+													autoFocus
+													onClick={() => setConfirmingClose(false)}
+												>
+													Seguir editando
+												</button>
+												<button
+													type="button"
+													className="ghost"
+													onClick={onClose}
+												>
+													Cerrar de todos modos
+												</button>
+											</div>
+										</div>
+									</div>
+								) : null}
+							</m.div>
+						</Dialog.Content>
+					</m.div>
+				</Dialog.Overlay>
+			</Dialog.Portal>
+		</Dialog.Root>
 	)
 }

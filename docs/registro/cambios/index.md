@@ -10,6 +10,8 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 - [Frontend: override seguro de sharp](2026-07-22-frontend-sharp-security-override.md)
+- [QuickActionsMenu: menu accesible con Radix DropdownMenu](2026-07-21-quickactionsmenu-radix-dropdown.md)
+- [ModalFrame: Dialog accesible con guard de cambios](2026-07-21-modalframe-radix-dialog.md)
 - [Tarjeta de tareas importantes en el dashboard](2026-07-21-dashboard-tareas-importantes.md)
 - [Siguiente accion con tareas importantes](2026-07-21-dashboard-siguiente-accion-tareas.md)
 - [Siguiente accion: ahora y despues](2026-07-21-dashboard-siguiente-accion-prioridades.md)

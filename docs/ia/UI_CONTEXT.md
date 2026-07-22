@@ -29,6 +29,27 @@ Sumar contexto solo si el cambio lo requiere:
 - `frontend/app/styles/agenda.css`: agenda operativa y cards.
 - `frontend/app/styles/forms.css`: quote lines, responsive y motion global.
 
+## Primitives Con Radix
+
+Algunas primitives locales pueden envolver Radix sin cambiar su API publica. Sus
+estilos siguen en las partials existentes; para overlays, `shell.css` usa los
+atributos de estado de Radix, como `[data-state='open']`, junto con los tokens
+del tema. No introducir Tailwind, CSS-in-JS ni un theme provider por ello.
+
+`ModalFrame` envuelve `@radix-ui/react-dialog` con `open={true}` mientras esta
+montado. Conserva `title`, `onClose`, `children` y `motionPhase`, las clases
+`modal-backdrop`/`modal-panel` y la presencia de Motion; Radix gestiona foco,
+scroll lock y semantica modal. Como la API estable no expone un
+`Dialog.Trigger`, `onCloseAutoFocus` de Radix devuelve el foco al elemento que
+estaba activo al montarse; el guard de cambios intercepta los intentos de cierre.
+
+`QuickActionsMenu` envuelve `@radix-ui/react-dropdown-menu` sin estilos y
+conserva su API controlada. Un `DropdownMenu.Trigger` virtual, fijo y sin foco
+se ubica en `anchorPoint`; Popper resuelve la colision con el viewport. La
+confirmacion inline, el lock asincrono y la senal externa `pendingActionId`
+siguen siendo responsabilidad del wrapper mediante `onSelect` y guards de
+dismiss, mientras `onCloseAutoFocus` devuelve el foco a `returnFocusRef`.
+
 ## Reglas visuales
 
 - Default visual: CRM claro y sobrio.

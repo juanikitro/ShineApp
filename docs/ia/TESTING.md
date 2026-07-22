@@ -28,6 +28,30 @@ Configuracion:
 - Si algo no es testeable en su forma actual, extraer la logica a `frontend/lib/**`, a un componente reusable o a una unidad backend testeable. Documentar deuda solo cuando extraer sea mas riesgoso que el cambio.
 - La entrega debe incluir comandos ejecutados y resultado. Si la validacion fue parcial, decirlo como parcial.
 
+## Selectores De UI
+
+- Preferir selectores por rol y nombre accesible antes que clases o estructura
+  interna.
+- El popover Radix de `ServiceIconPicker` declara explicitamente
+  `role="dialog"`, `aria-modal="false"` y `aria-label="Selector de emojis"`;
+  los tests deben consultarlo con `getByRole('dialog', { name: 'Selector de emojis' })`.
+- `ModalFrame` es un `Dialog` modal: consultar `getByRole('dialog', { name: titulo })`;
+  el nombre viene de `Dialog.Title` y `Dialog.Content` usa
+  `aria-describedby={undefined}` porque no tiene una descripcion visible.
+- Para cierre exterior de `ModalFrame`, usar un `pointerdown` puntual fuera del
+  contenido tras un turno corto para que `DismissableLayer` registre su listener.
+  Los mocks de Motion renderizan elementos planos, por lo que `forceMount`
+  mantiene el contenido disponible mientras el componente siga montado.
+- `QuickActionsMenu` usa `DropdownMenu`: consultar `menu` y `menuitem` por rol,
+  probar confirmacion/lock mediante seleccion explicita y cerrar con Escape o
+  una accion. No afirmar coordenadas internas de Popper ni depender de un
+  `fireEvent.pointerDown` sintetico para dismiss exterior.
+- No mantener un overlay Radix basado en Popper abierto dentro de un `waitFor`
+  que sondee cierre por pointer fuera: en `Popover` y `DropdownMenu`,
+  `autoUpdate` de Floating UI junto al mock de `requestAnimationFrame` puede
+  agotar jsdom. `Dialog` no usa Popper, pero se prefieren Escape, botones
+  explicitos o un unico `pointerdown` sobre polling.
+
 ## Restriccion de recursos frontend
 
 En ShineApp no abuses de Node, Vitest ni Next. Hubo incidentes reales donde `node.exe` consumio decenas de GiB de commit y dejo Windows sin memoria.

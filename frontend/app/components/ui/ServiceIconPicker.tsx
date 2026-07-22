@@ -9,7 +9,8 @@ import {
 	type EmojiClickData,
 } from 'emoji-picker-react'
 import { ChevronDown, Smile, X } from 'lucide-react'
-import { useEffect, useId, useRef, useState } from 'react'
+import * as Popover from '@radix-ui/react-popover'
+import { useId, useState } from 'react'
 
 import {
 	normalizeServiceIcon,
@@ -51,38 +52,7 @@ export function ServiceIconPicker({
 	focusKey,
 }: ServiceIconPickerProps) {
 	const id = useId()
-	const rootRef = useRef<HTMLDivElement>(null)
-	const triggerRef = useRef<HTMLButtonElement>(null)
-	const dialogRef = useRef<HTMLDivElement>(null)
 	const [open, setOpen] = useState(false)
-
-	useEffect(() => {
-		if (!open) return
-
-		// Al abrir, el foco entra al popover; al cerrar con Escape vuelve al trigger.
-		const raf = window.requestAnimationFrame(() => dialogRef.current?.focus())
-
-		function handlePointerDown(event: PointerEvent) {
-			if (!rootRef.current?.contains(event.target as Node)) {
-				setOpen(false)
-			}
-		}
-
-		function handleEscape(event: KeyboardEvent) {
-			if (event.key === 'Escape') {
-				setOpen(false)
-				triggerRef.current?.focus()
-			}
-		}
-
-		document.addEventListener('pointerdown', handlePointerDown, true)
-		document.addEventListener('keydown', handleEscape)
-		return () => {
-			window.cancelAnimationFrame(raf)
-			document.removeEventListener('pointerdown', handlePointerDown, true)
-			document.removeEventListener('keydown', handleEscape)
-		}
-	}, [open])
 
 	function commitIcon(nextValue: string) {
 		onChange(normalizeServiceIcon(nextValue))
@@ -91,84 +61,84 @@ export function ServiceIconPicker({
 	function selectIcon(nextValue: string) {
 		commitIcon(nextValue)
 		setOpen(false)
-		triggerRef.current?.focus()
 	}
 
 	return (
-		<div
-			className={`emoji-picker-field${open ? ' emoji-picker-field--open' : ''}`}
-			ref={rootRef}
-		>
+		<div className="emoji-picker-field">
 			<span className="field-label" id={`${id}-label`}>
 				{label}
 			</span>
-			<div className="emoji-picker-control">
-				<button
-					ref={triggerRef}
-					aria-expanded={open}
-					aria-haspopup="dialog"
-					aria-label={
-						value
-							? `Emoji seleccionado ${value}. Abrir selector de emojis`
-							: 'Abrir selector de emojis'
-					}
-					className="emoji-picker-trigger"
-					data-focus-key={focusKey}
-					type="button"
-					onClick={() => setOpen((current) => !current)}
-				>
-					<span className="emoji-picker-trigger-main">
-						<span className="emoji-picker-trigger-value" aria-hidden="true">
-							{value ? value : <Smile size={18} />}
-						</span>
-						<span className="emoji-picker-trigger-text">
-							{value ? 'Cambiar emoji' : 'Elegir emoji'}
-						</span>
-					</span>
-					<ChevronDown aria-hidden="true" size={14} />
-				</button>
-				{value ? (
-					<button
-						aria-label="Limpiar emoji"
-						className="emoji-picker-clear"
-						type="button"
-						onClick={() => commitIcon('')}
-					>
-						<X size={16} />
-					</button>
-				) : null}
-			</div>
-			{open ? (
-				<div
-					className="service-emoji-picker"
-					role="dialog"
-					aria-modal="false"
-					aria-label="Selector de emojis"
-					tabIndex={-1}
-					ref={dialogRef}
-				>
-					<EmojiPicker
-						autoFocusSearch={false}
-						categories={emojiCategories}
-						customEmojis={serviceIconCustomEmojis}
-						emojiStyle={EmojiStyle.NATIVE}
-						height={360}
-						lazyLoadEmojis
-						previewConfig={{ showPreview: false }}
-						searchPlaceHolder="Buscar"
-						theme={Theme.AUTO}
-						width="100%"
-						onEmojiClick={(emojiData: EmojiClickData) => {
-							selectIcon(
-								emojiData.isCustom
-									? serviceIconFromCustomEmojiId(emojiData.unified) ||
-											emojiData.emoji
-									: emojiData.emoji,
-							)
-						}}
-					/>
+			<Popover.Root modal={false} open={open} onOpenChange={setOpen}>
+				<div className="emoji-picker-control">
+					<Popover.Trigger asChild>
+						<button
+							aria-expanded={open}
+							aria-haspopup="dialog"
+							aria-label={
+								value
+									? `Emoji seleccionado ${value}. Abrir selector de emojis`
+									: 'Abrir selector de emojis'
+							}
+							className="emoji-picker-trigger"
+							data-focus-key={focusKey}
+							type="button"
+						>
+							<span className="emoji-picker-trigger-main">
+								<span className="emoji-picker-trigger-value" aria-hidden="true">
+									{value ? value : <Smile size={18} />}
+								</span>
+								<span className="emoji-picker-trigger-text">
+									{value ? 'Cambiar emoji' : 'Elegir emoji'}
+								</span>
+							</span>
+							<ChevronDown aria-hidden="true" size={14} />
+						</button>
+					</Popover.Trigger>
+					{value ? (
+						<button
+							aria-label="Limpiar emoji"
+							className="emoji-picker-clear"
+							type="button"
+							onClick={() => commitIcon('')}
+						>
+							<X size={16} />
+						</button>
+					) : null}
 				</div>
-			) : null}
+				<Popover.Portal>
+					<Popover.Content
+						align="start"
+						aria-label="Selector de emojis"
+						aria-modal="false"
+						className="service-emoji-picker"
+						collisionPadding={24}
+						role="dialog"
+						side="bottom"
+						sideOffset={8}
+					>
+						<EmojiPicker
+							autoFocusSearch={false}
+							categories={emojiCategories}
+							customEmojis={serviceIconCustomEmojis}
+							emojiStyle={EmojiStyle.NATIVE}
+							height={360}
+							lazyLoadEmojis
+							previewConfig={{ showPreview: false }}
+							searchPlaceHolder="Buscar"
+							theme={Theme.AUTO}
+							width="100%"
+							onEmojiClick={(emojiData: EmojiClickData) => {
+								selectIcon(
+									emojiData.isCustom
+										? serviceIconFromCustomEmojiId(emojiData.unified) ||
+											emojiData.emoji
+										: emojiData.emoji,
+								)
+							}}
+						/>
+					</Popover.Content>
+				</Popover.Portal>
+			</Popover.Root>
 		</div>
 	)
 }
