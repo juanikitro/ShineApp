@@ -1971,11 +1971,21 @@ export default function Home() {
 	])
 
 	const auditModuleOptions = useMemo(
-		() => sortedAuditValues(auditLogs, 'module', auditModuleLabel),
+		() =>
+			sortedAuditValues(
+				auditLogs,
+				'module',
+				(module) => auditModuleLabels[module] ?? module,
+			),
 		[auditLogs],
 	)
 	const auditActionOptions = useMemo(
-		() => sortedAuditValues(auditLogs, 'action', auditActionLabel),
+		() =>
+			sortedAuditValues(
+				auditLogs,
+				'action',
+				(action) => auditActionLabels[action] ?? action,
+			),
 		[auditLogs],
 	)
 	const auditActorOptions = useMemo(
