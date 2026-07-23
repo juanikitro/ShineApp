@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [SearchSelect compatible con ModalFrame de Radix](2026-07-23-searchselect-radix-dialog.md)
 - [Frontend: override seguro de sharp](2026-07-22-frontend-sharp-security-override.md)
 - [QuickActionsMenu: menu accesible con Radix DropdownMenu](2026-07-21-quickactionsmenu-radix-dropdown.md)
 - [ModalFrame: Dialog accesible con guard de cambios](2026-07-21-modalframe-radix-dialog.md)

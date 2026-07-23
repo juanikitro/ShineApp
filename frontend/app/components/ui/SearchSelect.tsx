@@ -124,7 +124,10 @@ export function SearchSelect({
 	}
 
 	function getPortalContainer() {
-		return document.body
+		return (
+			triggerRef.current?.closest<HTMLElement>('[role="dialog"]') ??
+			document.body
+		)
 	}
 
 	function measurePosition() {
