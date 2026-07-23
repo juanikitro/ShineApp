@@ -42,6 +42,11 @@ type QuoteCardContentProps = {
 	onOpenQuoteReservationInAgenda: (item: AnyRecord) => void
 }
 
+type QuoteCardContentRendererProps = Omit<
+	QuoteCardContentProps,
+	'item' | 'overlay'
+>
+
 export function QuoteCardContent({
 	item,
 	overlay = false,
@@ -165,6 +170,12 @@ export function QuoteCardContent({
 			)}
 		</div>
 	)
+}
+
+export function createQuoteCardContentRenderer(
+	props: QuoteCardContentRendererProps,
+) {
+	return (item: AnyRecord) => <QuoteCardContent item={item} {...props} />
 }
 
 type QuotesPanelProps = {

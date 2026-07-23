@@ -22,6 +22,7 @@ import {
 	ensureGroupVehicleLines,
 	groupVehicleLinesSubtotal,
 } from '@/lib/quote-groups'
+import { serviceLinesTotal } from '@/lib/service-lines'
 import {
 	type ScheduleAvailability,
 	type WorkingHoursEntry,
@@ -34,14 +35,6 @@ import {
 	timeToMinutes,
 	todayIsoDate,
 } from '@/lib/scheduling-availability'
-
-function serviceLinesTotal(items: AnyRecord[]) {
-	return items.reduce(
-		(total: number, item: AnyRecord) =>
-			total + Number(item.quantity || 0) * Number(item.unit_price || 0),
-		0,
-	)
-}
 
 const RESERVATION_STATUS_LABELS: Record<string, string> = {
 	pending: 'pendiente',

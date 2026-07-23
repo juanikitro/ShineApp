@@ -24,6 +24,12 @@ export type QuickAction = {
 	tone?: 'default' | 'primary' | 'danger'
 }
 
+export type QuickActionsMenuState = {
+	title: string
+	actions: QuickAction[]
+	anchorPoint: { x: number; y: number }
+}
+
 type QuickActionsMenuProps = {
 	actions: ReadonlyArray<QuickAction>
 	anchorPoint: { x: number; y: number } | null

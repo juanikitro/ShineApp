@@ -2,7 +2,7 @@
 
 import { type FormEvent, type KeyboardEvent } from 'react'
 
-import { Plus, Trash2, Wrench } from 'lucide-react'
+import { Wrench } from 'lucide-react'
 
 import { Button } from '@/app/components/ui/Button'
 import { DurationInput } from '@/app/components/ui/DurationInput'
@@ -15,6 +15,9 @@ import {
 import { ServiceIconPicker } from '@/app/components/ui/ServiceIconPicker'
 import { type AnyRecord, quantity } from '@/lib/page-support'
 import { applyBasePriceToTypes, VEHICLE_TYPES } from '@/lib/service-pricing'
+import { serviceTypeForSectorId } from '@/lib/service-sector'
+
+import { ServiceMaterialLinesEditor } from './ServiceMaterialLinesEditor'
 
 type ServiceFormProps = {
 	submitLabel: string
@@ -56,10 +59,6 @@ export function ServiceForm({
 	const sectorOptions = sectors
 		.filter((s) => s.is_active !== false)
 		.map((s) => ({ value: String(s.id), label: String(s.name ?? '') }))
-	function serviceTypeFromSectorId(sectorId: string | number): string {
-		const sector = sectors.find((s) => String(s.id) === String(sectorId))
-		return sector?.key === 'detailing' ? 'detailing' : 'wash'
-	}
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
 			<div className="form-row">
@@ -98,7 +97,9 @@ export function ServiceForm({
 					setServiceForm({
 						...serviceForm,
 						sector: value ? Number(value) : null,
-						service_type: value ? serviceTypeFromSectorId(value) : 'wash',
+						service_type: value
+							? serviceTypeForSectorId(value, sectors)
+							: 'wash',
 					})
 					focusField('service.base_price')
 				}}
@@ -173,58 +174,14 @@ export function ServiceForm({
 					}
 				/>
 			</Field>
-			<div className="form-section-label">Materiales por servicio</div>
-			<div className="info-note">
-				Al cerrar un trabajo con este servicio, los materiales se descuentan
-				automáticamente del stock.
-			</div>
-			<div className="stock-lines">
-				{serviceMaterialLines.map((line: AnyRecord, index: number) => {
-					const mat = materials.find(
-						(m) => String(m.id) === String(line.material),
-					)
-					return (
-						<div className="quote-line stock-line" key={index}>
-							<SearchSelect
-								label="Material"
-								value={line.material}
-								options={materialOptions}
-								onChange={(value) =>
-									updateServiceMaterialLine(index, { material: value })
-								}
-							/>
-							<Field label={`Cantidad${mat?.unit ? ` (${mat.unit})` : ''}`}>
-								<input
-									type="number"
-									min="0.001"
-									step="0.001"
-									value={line.quantity}
-									onChange={(event) =>
-										updateServiceMaterialLine(index, {
-											quantity: event.target.value,
-										})
-									}
-								/>
-							</Field>
-							<Button
-								type="button"
-								variant="ghost"
-								onClick={() => removeServiceMaterialLine(index)}
-							>
-								<Trash2 size={16} />
-							</Button>
-						</div>
-					)
-				})}
-			</div>
-			<Button
-				type="button"
-				variant="ghost"
-				onClick={addServiceMaterialLine}
-			>
-				<Plus size={16} />
-				Agregar material
-			</Button>
+			<ServiceMaterialLinesEditor
+				lines={serviceMaterialLines}
+				materials={materials}
+				materialOptions={materialOptions}
+				onAdd={addServiceMaterialLine}
+				onRemove={removeServiceMaterialLine}
+				onUpdate={updateServiceMaterialLine}
+			/>
 			<Button type="submit" variant="primary" loading={submitting} data-focus-key="service.submit">
 				<Wrench size={16} />
 				{submitLabel}

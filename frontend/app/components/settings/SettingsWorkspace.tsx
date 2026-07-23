@@ -44,6 +44,7 @@ import {
 	SegmentedControl,
 	type SegmentedOption,
 } from '@/app/components/ui/SegmentedControl'
+import { type SettingsSection } from '@/app/components/settings/settings-section-options'
 import {
 	DataList,
 	formatDateTimeLabel,
@@ -54,18 +55,6 @@ import { FREE_EVENT_VARIABLES } from '@/lib/whatsapp-free'
 import {
 	type AuditLogFilters,
 } from '@/lib/audit-log'
-
-export type SettingsSection =
-	| 'business'
-	| 'turnera'
-	| 'quotes'
-	| 'cash'
-	| 'agenda'
-	| 'users'
-	| 'history'
-	| 'trash'
-	| 'whatsapp'
-	| 'novedades'
 
 type CashClassificationPair = AnyRecord & {
 	movement_type: string

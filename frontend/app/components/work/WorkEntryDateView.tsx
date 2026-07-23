@@ -8,12 +8,9 @@ import { cx } from '@/app/components/utils'
 import { Empty } from '@/app/components/ui/Empty'
 import { type QuickAction } from '@/app/components/ui/QuickActionsMenu'
 import { type AgendaOperationalRow } from '@/lib/agenda'
+import { agendaCardFlashKey } from '@/lib/flash-targets'
 import { type AnyRecord, formatDateLabel } from '@/lib/page-support'
 import { type ReservationEntryDateGroup } from '@/lib/work-orders'
-
-function agendaCardFlashKey(rowKey: string) {
-	return `agenda:${rowKey}`
-}
 
 type WorkEntryDateViewProps = {
 	workEntryDateGroups: ReservationEntryDateGroup[]

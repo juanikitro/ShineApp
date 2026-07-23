@@ -1,0 +1,84 @@
+'use client'
+
+import { type FormEvent } from 'react'
+
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
+
+import { Button } from '@/app/components/ui/Button'
+import { Field } from '@/app/components/ui/Field'
+
+type DashboardPeriodToolbarProps = {
+	period: { from: string; to: string }
+	onSubmit: (event: FormEvent<HTMLFormElement>) => void
+	onPreviousMonth: () => void
+	onNextMonth: () => void
+	onFromChange: (value: string) => void
+	onToChange: (value: string) => void
+	loading: boolean
+}
+
+export function DashboardPeriodToolbar({
+	period,
+	onSubmit,
+	onPreviousMonth,
+	onNextMonth,
+	onFromChange,
+	onToChange,
+	loading,
+}: DashboardPeriodToolbarProps) {
+	return (
+		<form
+			aria-label="Filtrar dashboard por periodo"
+			className="toolbar dashboard-period-toolbar"
+			onSubmit={onSubmit}
+		>
+			<Button
+				type="button"
+				variant="ghost"
+				className="icon-button"
+				onClick={onPreviousMonth}
+				aria-label="Mes anterior"
+				title="Mes anterior"
+			>
+				<ChevronLeft size={16} />
+			</Button>
+			<Field label="Desde">
+				<input
+					type="date"
+					value={period.from}
+					onChange={(event) => onFromChange(event.target.value)}
+				/>
+			</Field>
+			<Field label="Hasta">
+				<input
+					type="date"
+					value={period.to}
+					onChange={(event) => onToChange(event.target.value)}
+				/>
+			</Field>
+			<Button
+				type="button"
+				variant="ghost"
+				className="icon-button"
+				onClick={onNextMonth}
+				aria-label="Mes siguiente"
+				title="Mes siguiente"
+			>
+				<ChevronRight size={16} />
+			</Button>
+			<Button
+				type="submit"
+				variant="primary"
+				loading={loading}
+				leadingIcon={<Search size={16} />}
+			>
+				Ver periodo
+			</Button>
+			{loading ? (
+				<span className="panel-stale-badge" role="status" aria-live="polite">
+					Actualizando
+				</span>
+			) : null}
+		</form>
+	)
+}
