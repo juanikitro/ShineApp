@@ -1,4 +1,5 @@
 import {
+	DEFAULT_EXPENSE_CATEGORY,
 	type AnyRecord,
 	formatDateLabel,
 	formatDateTimeLabel,
@@ -38,6 +39,17 @@ const cashCounterpartyKindLabels: Record<string, string> = {
 	supplier: 'Proveedor',
 	creditor: 'Acreedor',
 	internal: 'Interno',
+}
+
+export const CASH_FILTER_DEFAULTS: CashFilterState = {
+	query: '',
+	movementType: '',
+	sourceKind: '',
+	category: '',
+	subcategory: '',
+	effect: '',
+	amountMin: '',
+	amountMax: '',
 }
 
 export type CashSortKey =
@@ -84,6 +96,13 @@ export function cashSourceKindLabel(kind: any, fallback?: any) {
 	return cashSourceKindLabels[key] || String((fallback ?? key) || 'Origen')
 }
 
+export function cashSourceKindSelectOptions(values: any[]) {
+	return values.map((value) => ({
+		value,
+		label: cashSourceKindLabel(value),
+	}))
+}
+
 export function cashEntryTitleText(item: AnyRecord) {
 	if (item.source_kind === 'debt_origin') {
 		return `Deuda original: ${item.debt_concept || item.category}`
@@ -92,6 +111,55 @@ export function cashEntryTitleText(item: AnyRecord) {
 		return `Pago de deuda: ${item.debt_concept || item.description}`
 	}
 	return item.source_label || item.category || 'Movimiento de caja'
+}
+
+export function cashEntryKey(item: AnyRecord) {
+	return `${item.source_kind ?? 'cash'}-${item.source_id ?? item.id}`
+}
+
+export function cashMovementPayload(movementForm: AnyRecord) {
+	const payload = { ...movementForm }
+	if (!payload.adjusts_closed_day) {
+		delete payload.adjusts_closed_day
+	}
+	if (!payload.subcategory) {
+		delete payload.subcategory
+	}
+	return payload
+}
+
+export function blankCashMovementForm(
+	day: string,
+	overrides: AnyRecord = {},
+) {
+	return {
+		movement_type: 'expense',
+		category: DEFAULT_EXPENSE_CATEGORY,
+		subcategory: '',
+		amount: '',
+		occurred_at: `${day}T12:00`,
+		description: '',
+		adjusts_closed_day: '',
+		...overrides,
+	}
+}
+
+export function debtPaymentDetailData(
+	item: AnyRecord,
+	debtPayments: AnyRecord[],
+) {
+	const sourceId = item.source_id ?? item.id
+	const payment = debtPayments.find(
+		(current) => String(current.id) === String(sourceId),
+	)
+	if (payment) return payment
+	return {
+		...item,
+		id: sourceId,
+		debt: item.debt,
+		paid_at: String(item.occurred_at ?? '').slice(0, 10),
+		notes: item.description ?? '',
+	}
 }
 
 export function cashCounterpartyKindLabel(kind: any) {

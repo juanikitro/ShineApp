@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
 import {
+	agendaDropDayForValue,
 	agendaSectorForReservation,
 	buildAgendaDayMoneySummary,
 	buildAgendaMonthGrid,
@@ -10,6 +11,13 @@ import {
 	buildWorkOrderByReservation,
 	filterAgendaReservationsBySector,
 } from './agenda'
+
+test('resolves agenda drop days only within the visible range', () => {
+	const days = ['2026-07-20', '2026-07-21']
+	assert.equal(agendaDropDayForValue('2026-07-21', days), '2026-07-21')
+	assert.equal(agendaDropDayForValue('2026-07-22', days), null)
+	assert.equal(agendaDropDayForValue(null, days), null)
+})
 
 test('builds one visual segment for a reservation spanning three visible days', () => {
 	const segments = buildAgendaCalendarSegments(

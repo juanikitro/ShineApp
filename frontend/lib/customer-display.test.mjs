@@ -8,6 +8,9 @@ import {
 	formatTimeLabel,
 	customerScheduleLabel,
 	customerListInsights,
+	customerVehicleCountByCustomerId,
+	customerVehicleSearchTermsByCustomerId,
+	customerSelectOptions,
 } from './customer-display'
 
 // customerDaysText
@@ -114,4 +117,52 @@ test('customerListInsights returns list_insights when present', () => {
 test('customerListInsights returns empty object when missing', () => {
 	assert.deepEqual(customerListInsights({}), {})
 	assert.deepEqual(customerListInsights(null), {})
+})
+
+test('groups customer vehicle search terms without normalizing the original values', () => {
+	assert.deepEqual(
+		Array.from(
+			customerVehicleSearchTermsByCustomerId([
+				{ customer: 2, license_plate: ' AB 123 ', brand: 'Ford', model: null },
+				{ customer: '2', license_plate: null, brand: 'Fiesta', model: 'KD' },
+				{ customer: 0, license_plate: '0', brand: '', model: '' },
+				{ customer: null, license_plate: 'Sin cliente' },
+			]).entries(),
+		),
+		[
+			['2', [' AB 123 ', 'Ford', '', '', 'Fiesta', 'KD']],
+			['0', ['0', '', '']],
+		],
+	)
+})
+
+test('counts vehicles by customer while omitting empty customer ids', () => {
+	assert.deepEqual(
+		Array.from(
+			customerVehicleCountByCustomerId([
+				{ customer: 2 },
+				{ customer: '2' },
+				{ customer: 0 },
+				{ customer: '' },
+				{ customer: undefined },
+			]).entries(),
+		),
+		[
+			['2', 2],
+			['0', 1],
+		],
+	)
+})
+
+test('customerSelectOptions preserves ids, labels and compact contact metadata', () => {
+	assert.deepEqual(
+		customerSelectOptions([
+			{ id: 0, name: 'Ana', phone: ' 3624 ', email: 'ana@example.com' },
+			{ id: 2, name: 'Beto', phone: '', email: null },
+		]),
+		[
+			{ value: '0', label: 'Ana', meta: '3624 - ana@example.com' },
+			{ value: '2', label: 'Beto', meta: '' },
+		],
+	)
 })

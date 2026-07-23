@@ -3,6 +3,7 @@ import {
 	servicePriceForVehicleType,
 	vehicleTypeForId,
 } from './service-pricing'
+import { serviceLinesTotal } from './service-lines'
 
 export type AnyGroupRecord = Record<string, any>
 
@@ -40,11 +41,7 @@ export function ensureGroupVehicleLines(form: AnyGroupRecord) {
 }
 
 export function groupVehicleLineTotal(line: AnyGroupRecord) {
-	return (line.items ?? []).reduce(
-		(total: number, item: AnyGroupRecord) =>
-			total + Number(item.quantity || 0) * Number(item.unit_price || 0),
-		0,
-	)
+	return serviceLinesTotal(line.items ?? [])
 }
 
 export function groupVehicleLinesSubtotal(lines: AnyGroupRecord[]) {

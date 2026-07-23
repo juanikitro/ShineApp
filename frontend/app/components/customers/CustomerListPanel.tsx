@@ -10,6 +10,7 @@ import { Empty } from '@/app/components/ui/Empty'
 import { SkeletonList } from '@/app/components/ui/Skeleton'
 import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
 import { cx } from '@/app/components/utils'
+import { type CustomerCardFilter } from '@/lib/customer-list-filters'
 import { joinDisplayParts } from '@/lib/display-text'
 import {
 	type AnyRecord,
@@ -18,16 +19,25 @@ import {
 } from '@/lib/page-support'
 import { serviceDisplayName } from '@/lib/service-display'
 
-export type CustomerCardFilter =
-	| 'all'
-	| 'with_reservation'
-	| 'birthday_soon'
-	| 'no_upcoming'
-	| 'with_balance'
+export type { CustomerCardFilter } from '@/lib/customer-list-filters'
 
-type CustomerFilterOption = {
+export type CustomerFilterOption = {
 	value: CustomerCardFilter
 	label: string
+}
+
+export const customerFilterOptions: CustomerFilterOption[] = [
+	{ value: 'all', label: 'Todos' },
+	{ value: 'with_reservation', label: 'Con reserva' },
+	{ value: 'birthday_soon', label: 'Cumple pronto' },
+	{ value: 'no_upcoming', label: 'Sin proxima visita' },
+	{ value: 'with_balance', label: 'Con saldo' },
+]
+
+export function customerFilterOptionsForEconomy(canViewEconomy: boolean) {
+	return customerFilterOptions.filter(
+		(option) => canViewEconomy || option.value !== 'with_balance',
+	)
 }
 
 type CustomerListPanelProps = {

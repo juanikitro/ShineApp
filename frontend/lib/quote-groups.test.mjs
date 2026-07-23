@@ -5,6 +5,7 @@ import {
 	MAX_GROUP_VEHICLE_LINES,
 	blankGroupVehicleLine,
 	groupReservationMode,
+	groupVehicleLineTotal,
 	groupVehicleLinePayload,
 	groupVehicleLinesSubtotal,
 	repriceGroupVehicleLine,
@@ -27,6 +28,16 @@ const vehicles = [
 ]
 
 describe('quote group helpers', () => {
+	test('totals group service lines and accepts missing items', () => {
+		assert.equal(
+			groupVehicleLineTotal({
+				items: [{ quantity: '2', unit_price: '3.5' }],
+			}),
+			7,
+		)
+		assert.equal(groupVehicleLineTotal({}), 0)
+	})
+
 	test('detects quote, reservation and mixed group modes', () => {
 		assert.equal(
 			groupReservationMode([
