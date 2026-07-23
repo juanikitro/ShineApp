@@ -1,11 +1,6 @@
 'use client'
 
 import {
-	closestCenter,
-	DndContext,
-	DragOverlay,
-	useDraggable,
-	useDroppable,
 	useSensor,
 	useSensors,
 	type DragEndEvent,
@@ -13,37 +8,21 @@ import {
 } from '@dnd-kit/core'
 
 import {
-	Building2,
 	CalendarDays,
 	Car,
 	CheckCircle2,
-	ChevronLeft,
-	ChevronRight,
-	ChevronsLeft,
-	ChevronsRight,
 	CreditCard,
 	Eye,
 	FileText,
-	Globe,
 	Hammer,
-	History,
 	ListTodo,
 	LockKeyhole,
 	LogOut,
-	Menu,
-	Maximize2,
 	MessageCircle,
-	Moon,
-	Minimize2,
-	MoreHorizontal,
 	Package,
 	Pencil,
 	Plus,
 	ReceiptText,
-	RefreshCw,
-	Search,
-	Sparkles,
-	Sun,
 	Trash2,
 	Undo2,
 	Users,
@@ -51,10 +30,8 @@ import {
 	X,
 } from 'lucide-react'
 import { AnimatePresence } from 'motion/react'
-import * as m from 'motion/react-m'
 import {
 	type ChangeEvent,
-	type CSSProperties,
 	type FormEvent,
 	type KeyboardEvent,
 	type MouseEvent,
@@ -67,36 +44,69 @@ import {
 } from 'react'
 
 import { AnimatedLabelSwap } from '@/app/components/motion/AnimatedLabelSwap'
-import {
-	GlobalSearchInput,
-	type GlobalSearchItem,
-} from '@/app/components/search/GlobalSearchInput'
+import { type GlobalSearchItem } from '@/app/components/search/GlobalSearchInput'
 import { SearchResultsPanel } from '@/app/components/search/SearchResultsPanel'
 import {
 	SupplierDashboardPanel,
 	supplierProfileSubtitle,
 } from '@/app/components/suppliers/SupplierDashboardPanel'
+import { SuppliersWorkspace } from '@/app/components/suppliers/SuppliersWorkspace'
 import { WorkEntryDateView } from '@/app/components/work/WorkEntryDateView'
 import { WorkStatusView } from '@/app/components/work/WorkStatusView'
+import { VehiclesWorkspace } from '@/app/components/vehicles/VehiclesWorkspace'
 import { ProfileModal } from '@/app/components/profile/ProfileModal'
-import { PublicRequestCard } from '@/app/components/requests/PublicRequestCard'
+import { renderProfileModal } from '@/app/components/profile/ProfileModalLayer'
+import { PublicRequestsView } from '@/app/components/requests/PublicRequestsView'
 import { CashMovementForm } from '@/app/components/forms/CashMovementForm'
-import { CustomerForm } from '@/app/components/forms/CustomerForm'
-import { DebtForm } from '@/app/components/forms/DebtForm'
-import { FixedExpenseForm } from '@/app/components/forms/FixedExpenseForm'
 import { DebtPaymentForm } from '@/app/components/forms/DebtPaymentForm'
-import { MaterialForm } from '@/app/components/forms/MaterialForm'
+import { createMaterialConsumptionFieldsRenderer } from '@/app/components/forms/material-consumption-fields-renderer'
 import { PaymentForm } from '@/app/components/forms/PaymentForm'
-import { QuoteForm } from '@/app/components/forms/QuoteForm'
-import { QuoteGroupVehicleLinesEditor } from '@/app/components/forms/QuoteGroupVehicleLinesEditor'
-import { ReservationForm } from '@/app/components/forms/ReservationForm'
-import { ServiceForm } from '@/app/components/forms/ServiceForm'
-import { StockMovementForm } from '@/app/components/forms/StockMovementForm'
-import { SupplierForm } from '@/app/components/forms/SupplierForm'
-import { VehicleForm } from '@/app/components/forms/VehicleForm'
-import { AgendaBoardToolbar } from '@/app/components/agenda/AgendaBoardToolbar'
-import { AgendaMonthGrid } from '@/app/components/agenda/AgendaMonthGrid'
-import { AgendaReservationCard } from '@/app/components/agenda/AgendaReservationCard'
+import { renderQuickCreateModal } from '@/app/components/forms/QuickCreateModalLayer'
+import {
+	cashLoadTabOptions,
+	renderCashLoadModal,
+} from '@/app/components/forms/cash-load-modal-renderer'
+import {
+	renderCashCategoryModal,
+	renderExpenseClassificationModal,
+} from '@/app/components/forms/cash-settings-modal-renderers'
+import { renderCashMovementModal } from '@/app/components/forms/cash-movement-modal-renderer'
+import {
+	renderEmployeeModal,
+	renderMaterialModal,
+	renderSupplierModal,
+	renderToolModal,
+} from '@/app/components/forms/administrative-form-modal-renderers'
+import { renderCoreFormModal } from '@/app/components/forms/core-form-modal-renderer'
+import {
+	renderDebtModal,
+	renderDebtPaymentModal,
+	renderFixedExpenseModal,
+} from '@/app/components/forms/finance-form-modal-renderers'
+import { renderFixedExpensePaymentModal } from '@/app/components/forms/fixed-expense-payment-modal-renderer'
+import {
+	renderHistoricalMaterialUsageModal,
+	renderMaterialConsumptionModal,
+	renderMaterialOpenUnitModal,
+	renderMaterialPurchaseModal,
+} from '@/app/components/forms/inventory-flow-modal-renderers'
+import {
+	renderQuickReservationModal,
+	renderQuoteReservationModal,
+} from '@/app/components/forms/reservation-modal-renderers'
+import { renderStockMovementModal } from '@/app/components/forms/stock-movement-modal-renderer'
+import { agendaCardClass as agendaCardClassForRow } from '@/app/components/agenda/agenda-card-class'
+import { createAgendaDragOverlayRenderer } from '@/app/components/agenda/AgendaDragOverlayRenderer'
+import { AgendaQuickActionIcon } from '@/app/components/agenda/AgendaQuickActionIcon'
+import { createAgendaReservationCardRenderer } from '@/app/components/agenda/AgendaReservationCardRenderer'
+import { AgendaSchedulePanel } from '@/app/components/agenda/AgendaSchedulePanel'
+import { AgendaViewControls } from '@/app/components/agenda/AgendaViewControls'
+import { createAgendaWorkDebtRenderer } from '@/app/components/agenda/AgendaWorkDebt'
+import { AgendaWeekBoard } from '@/app/components/agenda/AgendaWeekBoard'
+import {
+	renderWorkOrderConsumptionModal,
+	renderWorkOrderPaymentModal,
+} from '@/app/components/forms/work-order-modal-renderers'
 import {
 	CashPanel,
 	type CashFilterState,
@@ -111,61 +121,60 @@ import { FixedExpensePanel } from '@/app/components/fixed-expenses/FixedExpenseP
 import { DashboardPanel } from '@/app/components/dashboard/DashboardPanel'
 import { InventoryPanel } from '@/app/components/inventory/InventoryPanel'
 import {
-	QuoteCardContent,
+	createQuoteCardContentRenderer,
 	QuotesPanel,
 } from '@/app/components/quotes/QuotesPanel'
 import { ServicesPanel } from '@/app/components/services/ServicesPanel'
 import { SettingsWorkspace } from '@/app/components/settings/SettingsWorkspace'
+import {
+	settingsSectionOptions,
+	type SettingsSection,
+} from '@/app/components/settings/settings-section-options'
 import { TasksPanel } from '@/app/components/tasks/TasksPanel'
 import { ToolsPanel } from '@/app/components/tools/ToolsPanel'
+import { BirthdayAlertsPanel } from '@/app/components/customers/BirthdayAlertsPanel'
+import { renderCustomerDashboard as renderCustomerDashboardForState } from '@/app/components/customers/customer-dashboard-renderer'
+import { renderCustomerRankingPanel } from '@/app/components/customers/CustomerRankingPanel'
+import { renderCoreDetailFormRouter } from '@/app/components/detail/detail-core-form-router'
+import { renderFinancialDetailFormRouter } from '@/app/components/detail/detail-financial-form-router'
+import { renderInventoryDetailFormRouter } from '@/app/components/detail/detail-inventory-form-router'
+import { renderOperationalDetailFormRouter } from '@/app/components/detail/detail-operational-form-router'
+import { createDetailEditActionsRenderer } from '@/app/components/detail/detail-edit-actions-renderer'
 import {
-	CustomerDashboardShell,
-	type CustomerDashboardMetric,
-	type CustomerDashboardProfileItem,
-} from '@/app/components/customers/CustomerDashboardShell'
-import {
-	CustomerListPanel,
-	type CustomerCardFilter,
+	customerFilterOptionsForEconomy,
 } from '@/app/components/customers/CustomerListPanel'
+import { CustomersWorkspace } from '@/app/components/customers/CustomersWorkspace'
 import { AppBrand } from '@/app/components/layout/AppBrand'
 import { AppShell } from '@/app/components/layout/AppShell'
-import { MotionFlashSurface } from '@/app/components/motion/MotionFlashSurface'
 import { AnimatedWorkspaceView } from '@/app/components/motion/AnimatedWorkspaceView'
-import { PageHeader } from '@/app/components/layout/PageHeader'
-import {
-	SidebarNav,
-	type SidebarNavItem,
-} from '@/app/components/layout/SidebarNav'
-import NextImage from 'next/image'
+import { SidebarNav } from '@/app/components/layout/SidebarNav'
+import { SidebarHeaderContent } from '@/app/components/layout/SidebarHeaderContent'
+import { SidebarFooterContent } from '@/app/components/layout/SidebarFooterContent'
+import { EntityDataLists } from '@/app/components/layout/EntityDataLists'
+import { WorkspaceHeaderContent } from '@/app/components/layout/WorkspaceHeaderContent'
+import { createSectionFallbackRenderer } from '@/app/components/layout/section-fallback-renderer'
+import { buildSidebarNavigation } from '@/app/components/layout/sidebar-navigation'
 
 import { Button } from '@/app/components/ui/Button'
 import { GlobalProgressBar } from '@/app/components/ui/GlobalProgressBar'
 import { SavingOverlay } from '@/app/components/ui/SavingOverlay'
+import { QuickActionsTrigger } from '@/app/components/ui/QuickActionsTrigger'
 import { useConfirmDialog } from '@/lib/use-confirm-dialog'
 import { DetailModal } from '@/app/components/ui/DetailModal'
-import { DurationInput } from '@/app/components/ui/DurationInput'
-import { Empty, ErrorState, LoadingState } from '@/app/components/ui/Empty'
-import { BirthdayFields } from '@/app/components/ui/BirthdayFields'
+import { Empty, LoadingState } from '@/app/components/ui/Empty'
 import { Field } from '@/app/components/ui/Field'
-import { Toggle } from '@/app/components/ui/Toggle'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { ModalFrame as Modal } from '@/app/components/ui/ModalFrame'
 import { CollapsibleSection } from '@/app/components/ui/CollapsibleSection'
 import { Panel } from '@/app/components/ui/Panel'
-import { SkeletonLine, SkeletonList } from '@/app/components/ui/Skeleton'
+import { SkeletonList } from '@/app/components/ui/Skeleton'
 import {
 	QuickActionsMenu,
 	type QuickAction,
+	type QuickActionsMenuState,
 } from '@/app/components/ui/QuickActionsMenu'
-import {
-	RecordCard,
-	RecordCardHeader,
-} from '@/app/components/ui/RecordCard'
 import { SearchSelect } from '@/app/components/ui/SearchSelect'
-import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
-import { ServiceIconPicker } from '@/app/components/ui/ServiceIconPicker'
 import { StatusPill } from '@/app/components/ui/StatusPill'
-import { cx } from '@/app/components/utils'
 import {
 	focusElementIfAvailable,
 	focusFirstElement,
@@ -202,18 +211,26 @@ import {
 import {
 	type ApiErrorNotice,
 	createValidationNotice,
+	fieldErrorMapFromNotice,
 	formatApiError,
 } from '@/lib/api-errors'
 import {
-	isPdfAssetName,
 	isPdfAssetSource,
-	renderPdfPreviewDataUrl,
+	isPdfFile,
 	safeImageAssetSource,
 } from '@/lib/pdf-preview'
+import { usePdfThumbnailPreview } from '@/lib/use-pdf-thumbnail-preview'
 import {
+	auditActionLabels,
 	auditLogListOrEmpty,
+	auditModuleLabels,
 	type AuditLogFilters,
 } from '@/lib/audit-log'
+import {
+	hasActiveAuditFilters,
+	sortedAuditActorValues,
+	sortedAuditValues,
+} from '@/lib/audit-filter-values'
 import { joinDisplayParts } from '@/lib/display-text'
 import {
 	isFullscreenActive,
@@ -221,37 +238,56 @@ import {
 	toggleDocumentFullscreen,
 } from '@/lib/fullscreen'
 import {
-	type AgendaCalendarSegment,
-	type AgendaDayMoneySummary,
-	type AgendaMonthChip,
-	type AgendaOperationalPhase,
 	type AgendaOperationalRow,
+	agendaDropDayForValue,
 	buildAgendaCalendarSegments,
-	buildAgendaDayMoneySummary,
 	buildAgendaMonthGrid,
 	buildAgendaOperationalRows,
 	buildWorkOrderByReservation,
 	filterAgendaReservationsBySector,
 } from '@/lib/agenda'
 import {
-	buildAgendaReservationActions,
+	agendaSectorSelectOptions,
+	agendaMonthChipClass,
+	agendaMonthChipLabel,
+	createQuoteTentativeTimeLabel,
+	reservationExitTimeLabel,
+	reservationSelectOptions,
+	reservationShowsWork,
+	reservationStartTimeLabel,
+} from '@/lib/agenda-display'
+import {
+	agendaCardFlashKey,
+	createFlashClass,
+	createRecordClass,
+	fieldFlashKey,
+	recordFlashKey,
+} from '@/lib/flash-targets'
+import {
+	agendaActionTone,
 	type AgendaReservationAction,
 } from '@/lib/reservation-actions'
 import {
 	type WorkingHoursEntry,
 	DEFAULT_WORKING_HOURS,
-	getHoursForDate,
 } from '@/lib/scheduling-availability'
 import {
+	agendaRangeModes,
 	buildWorkStatusColumns,
+	createWorkReservationRow,
 	filterFreeQuotesBySector,
 	groupReservationsByEntryDate,
 	groupReservationsByWorkOrderStatusColumns,
 	reservationCanMoveWorkStatus,
-	workStatusColumnForStatus,
-	workStatusForReservation,
+	workStatusColumnKeyForValue,
+	workStatusDropStatusForColumn,
+	workStatusDropTargetForOver,
 	type WorkOrderViewMode,
 	workOrderForReservation,
+	workOrderSelectOptions,
+	updateReservationWorkOrder,
+	upsertWorkOrderRecord,
+	workViewModes,
 } from '@/lib/work-orders'
 import {
 	DEFAULT_RESERVATION_STATUS_CONFIG,
@@ -260,27 +296,86 @@ import {
 } from '@/lib/reservation-status-config'
 import {
 	type AgendaSlideMotion,
-	agendaBoardVariants,
-	agendaSlidePresenceMode,
 	agendaSlideMotionFromOffset,
 	agendaSlideWindowsOverlap,
 } from '@/lib/motion-spec'
 import {
+	initialNavigationStateFromBrowser,
 	navigationUrlForState,
 	readNavigationStateFromUrl,
+	searchQueryFromBrowser,
 	type NavigationConfig,
 	type NavigationState,
 } from '@/lib/navigation-state'
+import { searchResultTargets } from '@/lib/search-result-targets'
+import { availableQuickActions } from '@/lib/quick-actions'
+import { blankQuoteFormWithBusinessDefaults } from '@/lib/quote-form-defaults'
+import { quoteTotalsForForm } from '@/lib/quote-totals'
 import {
+	quoteFormWithAddedItem,
+	quoteFormWithPatchedItem,
+	quoteFormWithRemovedItem,
+	reservationFormWithAddedItem,
+	reservationFormWithPatchedItem,
+	reservationFormWithRemovedItem,
+} from '@/lib/quote-reservation-line-items'
+import {
+	formForCustomerSelection,
+	formForVehicleSelection,
+} from '@/lib/quote-reservation-form-selection'
+import {
+	detailReservationDataWithAddedItem,
+	detailReservationDataWithPatchedItem,
+	detailReservationDataWithRemovedItem,
+	createDetailReservationItems,
+} from '@/lib/detail-reservation-items'
+import { groupValidationNotice } from '@/lib/group-validation'
+import { businessProfilePayload } from '@/lib/business-profile-payload'
+import {
+	clearPublicRequestSelection,
+	patchPublicRequestSelection as patchPublicRequestSelectionForState,
+	publicRequestConversionPayload,
+	publicRequestSelectionForId,
+	type PublicRequestSelection,
+	type PublicRequestSelections,
+} from '@/lib/public-request-selection'
+import { createRecordRelationLookups } from '@/lib/record-relations'
+import {
+	singleVehicleIdForCustomer,
 	vehicleBrandOptions,
 	vehicleModelOptionsForBrand,
+	vehicleSelectOptions,
+	vehiclesForOptionalCustomer,
+	vehiclesMatchingCustomer,
 } from '@/lib/vehicle-options'
+import {
+	detailVehiclePatchForBrand,
+	vehicleFormWithBrand,
+	vehicleFormWithCustomer,
+} from '@/lib/vehicle-form-updates'
+import { vehicleOptionsForDetail as detailVehicleOptions } from '@/lib/detail-vehicle-options'
 import {
 	vehicleDescriptionText,
 	vehicleDisplayTitle,
 	vehicleMatchesSearch,
 } from '@/lib/vehicle-display'
-import { serviceDisplayName } from '@/lib/service-display'
+import { serviceDisplayName, serviceSelectOptions } from '@/lib/service-display'
+import {
+	cashMovementFormWithCategory,
+	createCashSubcategoryValidators,
+	debtFormWithExpenseCategory,
+} from '@/lib/cash-debt-form-updates'
+import {
+	addServiceMaterialLine as addServiceMaterialLineForLines,
+	removeServiceMaterialLine as removeServiceMaterialLineForLines,
+	updateServiceMaterialLine as updateServiceMaterialLineForLines,
+} from '@/lib/service-material-lines'
+import {
+	apiPathForRecord,
+	detailEndpoint,
+	detailKindFromTitle,
+	isEditableDetailKind,
+} from '@/lib/detail-paths'
 import {
 	buildFreeVariables,
 	buildFreeWhatsappHref,
@@ -292,38 +387,66 @@ import {
 	whatsappAlreadySent,
 	whatsappEventButtonVisible,
 } from '@/lib/whatsapp-free'
-import { serviceDetailPayloadFields } from '@/lib/service-detail-payload'
+import {
+	type WhatsappEventSendOptions,
+	whatsappEventForWorkOrderStatus,
+	whatsappEventLabels,
+} from '@/lib/whatsapp-events'
+import {
+	serviceCreatePayload,
+} from '@/lib/service-detail-payload'
+import {
+	createDetailPayloadHelpers,
+} from '@/lib/detail-payload'
+import { sectorIdsByServiceId, serviceTypeForSectorId } from '@/lib/service-sector'
+import {
+	createServiceNotesForLine,
+	serviceLinePayload as serviceLinePayloadForServices,
+} from '@/lib/service-lines'
 import {
 	applyBasePriceToTypes,
-	repriceItemsForVehicle,
 	servicePriceForVehicleType,
 	vehicleTypeForId,
 	VEHICLE_TYPES,
-	VEHICLE_TYPE_OPTIONS,
 } from '@/lib/service-pricing'
 import {
 	ensureGroupVehicleLines,
 	groupReservationMode,
 	groupVehicleLinePayload,
-	groupVehicleLinesSubtotal,
-	repriceGroupVehicleLines,
-	validateGroupVehicleLines,
 } from '@/lib/quote-groups'
+import {
+	firstGroupReservationLine,
+	quoteCode,
+	quoteDropStatus as parseQuoteDropStatus,
+	quoteBoardForQuotes,
+	quoteHasReservation,
+	quoteLaneStatus,
+	quoteReservationId,
+	quoteStatusLabels,
+} from '@/lib/quote-display'
 import { shouldHandleUndoShortcut } from '@/lib/undo-shortcut'
+import { urlBase64ToUint8Array } from '@/lib/push-subscription'
 import {
 	type CashQuickFilter,
 	type CashSortKey,
+	CASH_FILTER_DEFAULTS,
+	blankCashMovementForm,
 	buildCashFlowSummary,
 	cashEntryDescriptionText,
+	cashEntryKey,
+	cashMovementPayload,
 	cashEntryMatchesFilters,
 	cashEntryMatchesQuickFilter,
 	cashEntryTitleText,
 	cashSourceKindLabel,
+	cashSourceKindSelectOptions,
 	compareExpenseClassificationPair,
+	debtPaymentDetailData,
 	hasCashFilters,
 	normalizedCashText,
 	sortCashEntries,
 } from '@/lib/cash-entry'
+import { cashCategorySelectOptions } from '@/lib/cash-category-select-options'
 import {
 	type CashViewMode,
 	addCashPeriod,
@@ -331,6 +454,8 @@ import {
 	cashWeekStart,
 } from '@/lib/cash-period'
 import {
+	DEBT_FILTER_DEFAULTS,
+	debtSelectOptions,
 	debtMatchesFilters,
 	hasDebtFilters,
 } from '@/lib/debt-filters'
@@ -339,9 +464,16 @@ import {
 	customerDaysAgoText,
 	customerDaysText,
 	customerListInsights,
+	customerSelectOptions,
 	customerScheduleLabel,
+	customerVehicleCountByCustomerId,
+	customerVehicleSearchTermsByCustomerId,
 	formatTimeLabel,
 } from '@/lib/customer-display'
+import {
+	filterCustomersForList,
+	type CustomerCardFilter,
+} from '@/lib/customer-list-filters'
 import {
 	blankProfileForm,
 	profileActiveText,
@@ -354,13 +486,42 @@ import {
 } from '@/lib/profile-display'
 import {
 	blankStockMovementForm,
-	blankStockMovementLine,
 	blankSupplierForm,
+	buildStockMovementPayload,
+	consumptionFormWithMode,
+	stockDocumentTypeOptions,
+	stockMovementTypeLabels,
+	stockMovementTypeOptions,
+	stockPaymentMethodOptions,
+	stockMovementFormWithAddedLine,
+	stockMovementFormWithPatchedLine,
+	stockMovementFormWithRemovedLine,
+	stockMovementLinesTotal,
 } from '@/lib/inventory-forms'
+import {
+	materialStockValue,
+	materialSelectOptions,
+	materialUnitValue,
+	openMaterialUnitSelectOptions,
+	filterSuppliersForSearch,
+	filterToolsForSearch,
+	supplierSelectOptions,
+	supplierListInsight,
+	toolTotalValue,
+} from '@/lib/inventory-display'
+import { inventoryUsageSelectors } from '@/lib/inventory-usage-selectors'
+import {
+	inventorySummaryForMaterials,
+	toolSummaryForTools,
+} from '@/lib/inventory-summary'
 import { selectOptionsFromValues } from '@/lib/display-text'
+import type {
+	PendingUndoAction,
+	RunActionOptions,
+	UndoAction,
+} from '@/lib/action-runner-types'
 
 import {
-	type ActionMessage,
 	type AnyRecord,
 	type FormModalKind,
 	type Section,
@@ -373,7 +534,6 @@ import {
 	CASH_CATEGORY_FALLBACKS,
 	DEFAULT_EXPENSE_CATEGORY_TREE,
 	DEFAULT_INCOME_CATEGORY_TREE,
-	DEFAULT_EXPENSE_CATEGORY,
 	DEFAULT_INCOME_CATEGORY,
 	DEFAULT_PAYMENT_METHOD,
 	DEFAULT_PAYMENT_TYPE,
@@ -381,14 +541,11 @@ import {
 	THEME_STORAGE_KEY,
 	AgendaMouseSensor,
 	AgendaTouchSensor,
-	DataList,
 	LoginScreen,
 	NoticeToastViewport,
 	addDays,
-	agendaPhaseLabels,
 	apiErrorToast,
 	asPayload,
-	birthdayText,
 	blankAgendaPaymentForm,
 	blankBusinessForm,
 	blankCustomerForm,
@@ -399,7 +556,6 @@ import {
 	blankQuoteForm,
 	blankQuoteItem,
 	blankReservationForm,
-	calculatedUnitCost,
 	cleanCustomerPayload,
 	debtPaymentMethodLabels,
 	debtStatusLabels,
@@ -428,7 +584,6 @@ import {
 	orderLabels,
 	quantity,
 	replaceReservationRecord,
-	reservationAgendaClassNames,
 	reservationExitOffset,
 	reservationLabels,
 	resolveActionMessage,
@@ -457,149 +612,9 @@ import {
 	usePendingActions,
 } from '@/lib/page-support'
 
-type QuickActionsMenuState = {
-	title: string
-	actions: QuickAction[]
-	anchorPoint: { x: number; y: number }
-}
-
-type UndoAction<T> = {
-	label?: ActionMessage<T>
-	description?: ActionMessage<T>
-	execute: (result: T) => Promise<void>
-	successTitle?: ActionMessage<T>
-	successDescription?: ActionMessage<T>
-}
-
-type RunActionOptions<T> = {
-	flashTarget?: string | null | ((result: T) => string | null | undefined)
-	successTitle?: ActionMessage<T>
-	successDescription?: ActionMessage<T>
-	undo?: UndoAction<T>
-	key?: string
-}
-
-type PendingUndoAction = {
-	id: number
-	toastId: number | null
-	expiresAt: number
-	busy: boolean
-	execute: () => Promise<void>
-	successTitle: string
-	successDescription?: string
-}
-
-type WhatsappEventSource = 'reservation' | 'workOrder' | 'quote'
-type WhatsappEventSendOptions = {
-	event: string
-	source: WhatsappEventSource
-	sourceId: number | string
-	customer: AnyRecord | null | undefined
-	vehicle?: AnyRecord | null
-	record: AnyRecord
-	reservationId?: number | string | null
-}
-
-function whatsappEventForWorkOrderStatus(
-	status: unknown,
-): 'work_ready' | 'work_delivered' | null {
-	const value = String(status ?? '')
-	if (value === 'ready') return 'work_ready'
-	if (value === 'delivered') return 'work_delivered'
-	return null
-}
-
-const whatsappEventLabels: Record<string, string> = {
-	reservation_confirmed: 'turno confirmado',
-	work_ready: 'trabajo listo para entregar',
-	work_delivered: 'trabajo entregado',
-}
-
 const SIDEBAR_NAV_ID = 'app-sidebar-navigation'
 const UNDO_WINDOW_MS = 7000
 
-const workViewModes: Array<{
-	value: WorkOrderViewMode
-	label: string
-}> = [
-	{ value: 'agenda', label: 'Agenda' },
-	{ value: 'status', label: 'Estado' },
-	{ value: 'entry-date', label: 'Fecha de ingreso' },
-]
-const agendaRangeModes: Array<{
-	value: 'week' | 'month'
-	label: string
-}> = [
-	{ value: 'week', label: 'Semana' },
-	{ value: 'month', label: 'Mes' },
-]
-const cashLoadTabOptions: Array<{
-	value: 'cash-movement' | 'payment' | 'debt-payment'
-	label: string
-}> = [
-	{ value: 'cash-movement', label: 'Movimiento normal' },
-	{ value: 'debt-payment', label: 'Pagar deuda' },
-	{ value: 'payment', label: 'Cobrar trabajo' },
-]
-const quoteStatusLabels: Record<string, string> = {
-	draft: 'Sin enviar',
-	sent: 'Enviado',
-	accepted: 'Aceptada',
-	rejected: 'Rechazada',
-}
-const stockMovementTypeOptions = [
-	{ value: 'purchase', label: 'Compra' },
-	{ value: 'initial_stock', label: 'Stock inicial' },
-	{ value: 'consumption', label: 'Consumo' },
-	{ value: 'sale', label: 'Venta' },
-]
-const stockMovementTypeLabels: Record<string, string> = Object.fromEntries(
-	stockMovementTypeOptions.map((item) => [item.value, item.label]),
-)
-const stockDocumentTypeOptions = [
-	{ value: '', label: 'Sin comprobante' },
-	{ value: 'factura_a', label: 'Factura A' },
-	{ value: 'factura_b', label: 'Factura B' },
-	{ value: 'factura_c', label: 'Factura C' },
-	{ value: 'ticket', label: 'Ticket' },
-	{ value: 'remito', label: 'Remito' },
-	{ value: 'otro', label: 'Otro' },
-]
-const stockPaymentMethodOptions = [
-	{ value: 'cash', label: 'Efectivo' },
-	{ value: 'card', label: 'Tarjeta' },
-	{ value: 'transfer', label: 'Transferencia' },
-	{ value: 'other', label: 'Otro' },
-]
-
-type SettingsSection =
-	| 'business'
-	| 'turnera'
-	| 'quotes'
-	| 'cash'
-	| 'agenda'
-	| 'users'
-	| 'whatsapp'
-	| 'history'
-	| 'trash'
-	| 'novedades'
-
-const settingsSectionOptions: Array<{
-	value: SettingsSection
-	label: string
-	icon: typeof Building2
-}> = [
-	{ value: 'business', label: 'Negocio', icon: Building2 },
-	{ value: 'turnera', label: 'Turnera', icon: Globe },
-	{ value: 'quotes', label: 'Cotizaciones', icon: FileText },
-	{ value: 'cash', label: 'Caja', icon: CreditCard },
-	{ value: 'agenda', label: 'Agenda', icon: CalendarDays },
-	{ value: 'users', label: 'Usuarios', icon: Users },
-	{ value: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
-	{ value: 'history', label: 'Historial', icon: History },
-	{ value: 'trash', label: 'Papelera', icon: Trash2 },
-	{ value: 'novedades', label: 'Novedades', icon: Sparkles },
-]
 const navigationConfig = {
 	sections: Object.keys(sectionMeta),
 	settingsSections: settingsSectionOptions.map((option) => option.value),
@@ -607,140 +622,6 @@ const navigationConfig = {
 	defaultSettingsSection: 'business',
 } satisfies NavigationConfig
 
-function initialNavigationState(): NavigationState {
-	if (typeof window === 'undefined') {
-		return {
-			section: navigationConfig.defaultSection,
-			settingsSection: navigationConfig.defaultSettingsSection,
-		}
-	}
-	return readNavigationStateFromUrl(window.location.href, navigationConfig)
-}
-
-function searchQueryFromUrl(): string {
-	if (typeof window === 'undefined') return ''
-	return new URLSearchParams(window.location.search).get('q') ?? ''
-}
-
-// Mapea cada tipo de resultado del buscador global a su seccion del SPA y al
-// modal de detalle/edicion correspondiente. `fixed_expense` no tiene detail
-// modal: abre el form modal de gastos fijos. `task` solo navega: TasksPanel
-// edita en linea.
-const searchResultTargets: Record<
-	string,
-	{ section: Section; detailTitle: string; apiPath: (id: number) => string }
-> = {
-	customer: {
-		section: 'customers',
-		detailTitle: 'Cliente',
-		apiPath: (id) => `/customers/${id}/`,
-	},
-	task: {
-		section: 'tasks',
-		detailTitle: '',
-		apiPath: (id) => `/tasks/${id}/`,
-	},
-	vehicle: {
-		section: 'vehicles',
-		detailTitle: 'Vehiculo',
-		apiPath: (id) => `/vehicles/${id}/`,
-	},
-	reservation: {
-		section: 'agenda',
-		detailTitle: 'Reserva',
-		apiPath: (id) => `/reservations/${id}/`,
-	},
-	work_order: {
-		section: 'agenda',
-		detailTitle: 'Orden de trabajo',
-		apiPath: (id) => `/work-orders/${id}/`,
-	},
-	service: {
-		section: 'services',
-		detailTitle: 'Servicio',
-		apiPath: (id) => `/services/${id}/`,
-	},
-	cash_movement: {
-		section: 'cash',
-		detailTitle: 'Movimiento de caja',
-		apiPath: (id) => `/cash-movements/${id}/`,
-	},
-	material: {
-		section: 'inventory',
-		detailTitle: 'Material',
-		apiPath: (id) => `/materials/${id}/`,
-	},
-	supplier: {
-		section: 'suppliers',
-		detailTitle: 'Proveedor',
-		apiPath: (id) => `/suppliers/${id}/`,
-	},
-	tool: {
-		section: 'tools',
-		detailTitle: 'Herramienta',
-		apiPath: (id) => `/tools/${id}/`,
-	},
-	quote: {
-		section: 'quotes',
-		detailTitle: 'Cotizacion',
-		apiPath: (id) => `/quotes/${id}/`,
-	},
-	debt: {
-		section: 'debts',
-		detailTitle: 'Deuda',
-		apiPath: (id) => `/debts/${id}/`,
-	},
-	fixed_expense: {
-		section: 'fixed-expenses',
-		detailTitle: '',
-		apiPath: (id) => `/fixed-expenses/${id}/`,
-	},
-}
-const auditActionLabels: Record<string, string> = {
-	create: 'Creacion',
-	update: 'Edicion',
-	delete: 'Baja',
-	confirm: 'Confirmacion',
-	cancel: 'Cancelacion',
-	complete: 'Completado',
-	create_quote: 'Cotizacion creada',
-	create_reservation: 'Reserva creada',
-	mark_sent: 'Cotizacion enviada',
-	status: 'Cambio de estado',
-	close: 'Cierre',
-	consume: 'Consumo',
-	finish: 'Finalizacion',
-	update_profile: 'Perfil actualizado',
-}
-const auditModuleLabels: Record<string, string> = {
-	auth: 'Usuarios',
-	catalog: 'Servicios',
-	core: 'Configuracion',
-	customers: 'Clientes',
-	debts: 'Deudas',
-	finance: 'Caja',
-	inventory: 'Inventario',
-	notifications: 'Notificaciones',
-	quotes: 'Cotizaciones',
-	scheduling: 'Agenda',
-	settings: 'Configuracion',
-	workorders: 'Ordenes',
-}
-const CASH_FILTER_DEFAULTS: CashFilterState = {
-	query: '',
-	movementType: '',
-	sourceKind: '',
-	category: '',
-	subcategory: '',
-	effect: '',
-	amountMin: '',
-	amountMax: '',
-}
-
-const DEBT_FILTER_DEFAULTS: DebtFilterState = {
-	status: '',
-	balance: '',
-}
 
 
 
@@ -748,61 +629,6 @@ const DEBT_FILTER_DEFAULTS: DebtFilterState = {
 
 
 
-
-
-function usePdfThumbnailPreview(
-	source: string | null,
-	enabled: boolean,
-	maxWidth: number,
-) {
-	const [thumbnail, setThumbnail] = useState<string | null>(null)
-	const [status, setStatus] = useState<
-		'idle' | 'loading' | 'ready' | 'error'
-	>('idle')
-
-	useEffect(() => {
-		if (!enabled || !source) {
-			setThumbnail(null)
-			setStatus('idle')
-			return
-		}
-
-		const abortController = new AbortController()
-		setThumbnail(null)
-		setStatus('loading')
-
-		renderPdfPreviewDataUrl(source, {
-			maxWidth,
-			signal: abortController.signal,
-		})
-			.then((nextThumbnail) => {
-				if (abortController.signal.aborted) return
-				setThumbnail(nextThumbnail)
-				setStatus('ready')
-			})
-			.catch(() => {
-				if (abortController.signal.aborted) return
-				setThumbnail(null)
-				setStatus('error')
-			})
-
-		return () => {
-			abortController.abort()
-		}
-	}, [enabled, maxWidth, source])
-
-	return {
-		thumbnail,
-		status,
-	}
-}
-
-function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
-	const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-	const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
-	const rawData = atob(base64)
-	return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)))
-}
 
 export default function Home() {
 	useButtonHoverTitles()
@@ -810,7 +636,7 @@ export default function Home() {
 	const [token, setToken] = useState<string | null>(null)
 	const [currentUser, setCurrentUser] = useState<AnyRecord | null>(null)
 	const [active, setActive] = useState<Section>(
-		() => initialNavigationState().section as Section,
+		() => initialNavigationStateFromBrowser(navigationConfig).section as Section,
 	)
 	const [themeMode, setThemeMode] = useState<ThemeMode>('light')
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -821,9 +647,11 @@ export default function Home() {
 	const sidebarReturnFocusRef = useRef<HTMLElement | null>(null)
 	const [settingsSection, setSettingsSection] =
 		useState<SettingsSection>(
-			() => initialNavigationState().settingsSection as SettingsSection,
+			() =>
+				initialNavigationStateFromBrowser(navigationConfig)
+					.settingsSection as SettingsSection,
 		)
-	const [searchPageQuery, setSearchPageQuery] = useState(searchQueryFromUrl)
+	const [searchPageQuery, setSearchPageQuery] = useState(searchQueryFromBrowser)
 	const navigationHistoryModeRef = useRef<'pushState' | 'replaceState'>(
 		'replaceState',
 	)
@@ -871,20 +699,6 @@ export default function Home() {
 		useState<CashSortKey>('occurred_desc')
 	const [debtFilters, setDebtFilters] =
 		useState<DebtFilterState>(DEBT_FILTER_DEFAULTS)
-	const cashMovementDateTimeFor = (day: string) => `${day}T12:00`
-	const blankMovementForm = (
-		day = selectedDay,
-		overrides: AnyRecord = {},
-	) => ({
-		movement_type: 'expense',
-		category: DEFAULT_EXPENSE_CATEGORY,
-		subcategory: '',
-		amount: '',
-		occurred_at: cashMovementDateTimeFor(day),
-		description: '',
-		adjusts_closed_day: '',
-		...overrides,
-	})
 	const [period, setPeriod] = useState(() => monthRange(today))
 
 	const [dashboard, setDashboard] = useState<AnyRecord>({})
@@ -916,7 +730,7 @@ export default function Home() {
 	const [whatsappAutomationRules, setWhatsappAutomationRules] = useState<AnyRecord[]>([])
 	const [whatsappMessages, setWhatsappMessages] = useState<AnyRecord[]>([])
 	const [publicRequestSelections, setPublicRequestSelections] = useState<
-		Record<string, { customer?: string; vehicle?: string }>
+		PublicRequestSelections
 	>({})
 	const [employees, setEmployees] = useState<AnyRecord[]>([])
 	const [selectedEmployee, setSelectedEmployee] = useState<AnyRecord | null>(null)
@@ -989,7 +803,7 @@ export default function Home() {
 	)
 	const [paymentForm, setPaymentForm] = useState<AnyRecord>(blankPaymentForm())
 	const [movementForm, setMovementForm] = useState<AnyRecord>(
-		blankMovementForm(),
+		blankCashMovementForm(selectedDay),
 	)
 	const [debtForm, setDebtForm] = useState<AnyRecord>(blankDebtForm(today))
 	const [fixedExpenseForm, setFixedExpenseForm] = useState<AnyRecord>(
@@ -1270,7 +1084,7 @@ export default function Home() {
 			navigationHistoryModeRef.current = 'replaceState'
 			setActive(nextNavigation.section as Section)
 			setSettingsSection(nextNavigation.settingsSection as SettingsSection)
-			setSearchPageQuery(searchQueryFromUrl())
+			setSearchPageQuery(searchQueryFromBrowser())
 			setSidebarMobileOpen(false)
 		}
 		window.addEventListener('popstate', handlePopState)
@@ -1365,17 +1179,6 @@ export default function Home() {
 	const [formFieldErrors, setFormFieldErrors] = useState<Record<string, string>>(
 		{},
 	)
-
-	function fieldErrorMapFromNotice(notice: ApiErrorNotice): Record<string, string> {
-		const map: Record<string, string> = {}
-		for (const field of notice.fields ?? []) {
-			const path = field?.path
-			if (path && !(String(path) in map)) {
-				map[String(path)] = String(field.message ?? '')
-			}
-		}
-		return map
-	}
 
 	function setError(notice: ApiErrorNotice | null) {
 		if (notice) {
@@ -1530,11 +1333,6 @@ export default function Home() {
 		setProfileAvatarFile(null)
 		setProfileAvatarInputKey((key) => key + 1)
 		setProfileAvatarPreview(currentUser?.avatar_url ?? null)
-	}
-
-	function isPdfFile(file: File | null) {
-		if (!file) return false
-		return file.type === 'application/pdf' || isPdfAssetName(file.name)
 	}
 
 	function syncBusinessForm(nextForm: AnyRecord) {
@@ -1954,116 +1752,48 @@ export default function Home() {
 		}
 	}, [canViewEconomy, supplierDashboard?.id])
 
-	const customerVehicleSearchTextById = useMemo(() => {
-		const grouped = new Map<string, string[]>()
-		vehicles.forEach((vehicle) => {
-			const customerId = String(vehicle.customer ?? '')
-			if (!customerId) return
-			const values = grouped.get(customerId) ?? []
-			values.push(
-				String(vehicle.license_plate ?? ''),
-				String(vehicle.brand ?? ''),
-				String(vehicle.model ?? ''),
-			)
-			grouped.set(customerId, values)
-		})
-		return grouped
-	}, [vehicles])
+	const { customerForRecord, vehicleForRecord } = createRecordRelationLookups(
+		customers,
+		vehicles,
+	)
+	const customerVehicleSearchTextById = useMemo(
+		() => customerVehicleSearchTermsByCustomerId(vehicles),
+		[vehicles],
+	)
 
-	const customerVehicleCountById = useMemo(() => {
-		const grouped = new Map<string, number>()
-		vehicles.forEach((vehicle) => {
-			const customerId = String(vehicle.customer ?? '')
-			if (!customerId) return
-			grouped.set(customerId, (grouped.get(customerId) ?? 0) + 1)
-		})
-		return grouped
-	}, [vehicles])
+	const customerVehicleCountById = useMemo(
+		() => customerVehicleCountByCustomerId(vehicles),
+		[vehicles],
+	)
 
-	const filteredCustomers = useMemo(() => {
-		const term = search.trim().toLowerCase()
-		return customers.filter((item) => {
-			const insights = customerListInsights(item)
-			if (
-				customerCardFilter === 'with_reservation' &&
-				!insights.has_upcoming_reservation
-			) {
-				return false
-			}
-			if (customerCardFilter === 'birthday_soon' && !item.has_birthday_alert) {
-				return false
-			}
-			if (customerCardFilter === 'no_upcoming' && insights.has_upcoming_reservation) {
-				return false
-			}
-			if (customerCardFilter === 'with_balance' && !insights.has_balance_due) {
-				return false
-			}
-			if (!term) return true
-			const vehicleTerms = customerVehicleSearchTextById.get(String(item.id)) ?? []
-			return [
-				item.name,
-				item.phone,
-				item.email,
-				...vehicleTerms,
-				insights.last_vehicle_label,
-				insights.last_service_name,
-			].some((value) =>
-				String(value ?? '')
-					.toLowerCase()
-					.includes(term),
-			)
-		})
-	}, [customerCardFilter, customerVehicleSearchTextById, customers, search])
+	const filteredCustomers = useMemo(
+		() =>
+			filterCustomersForList(
+				customers,
+				customerCardFilter,
+				search,
+				customerVehicleSearchTextById,
+			),
+		[customerCardFilter, customerVehicleSearchTextById, customers, search],
+	)
 
 	const filteredVehicles = useMemo(() => {
 		return vehicles.filter((item) => vehicleMatchesSearch(item, search))
 	}, [vehicles, search])
 
-	const filteredTools = useMemo(() => {
-		const term = search.toLowerCase()
-		if (!term) return tools
-		return tools.filter((item) =>
-			[
-				item.name,
-				toolStatusLabels[item.status],
-				item.status,
-				item.notes,
-			].some((value) =>
-				String(value ?? '')
-					.toLowerCase()
-					.includes(term),
-			),
-		)
-	}, [tools, search])
+	const filteredTools = useMemo(
+		() => filterToolsForSearch(tools, search, toolStatusLabels),
+		[tools, search],
+	)
 
 	const filteredDebts = useMemo(() => {
 		return debts.filter((item) => debtMatchesFilters(item, debtFilters, search))
 	}, [debtFilters, debts, search])
 
-	const filteredSuppliers = useMemo(() => {
-		const term = search.trim().toLowerCase()
-		if (!term) return suppliers
-		return suppliers.filter((item) => {
-			const insights = item.list_insights ?? {}
-			return [
-				item.name,
-				item.legal_name,
-				item.category,
-				item.tax_condition,
-				item.contact_name,
-				item.phone,
-				item.email,
-				item.tax_id,
-				item.website,
-				insights.last_purchase_on,
-			].some((value) =>
-				String(value ?? '')
-					.toLowerCase()
-					.includes(term),
-			)
-		})
-	}, [suppliers, search])
+	const filteredSuppliers = useMemo(
+		() => filterSuppliersForSearch(suppliers, search),
+		[suppliers, search],
+	)
 
 	const agendaHeaderDays = useMemo(
 		() =>
@@ -2078,28 +1808,14 @@ export default function Home() {
 		() => buildWorkOrderByReservation(workOrders),
 		[workOrders],
 	)
+	const workReservationRow = createWorkReservationRow(workOrderByReservation)
 	const sectorSelectOptions = useMemo(
-		() =>
-			sectors
-				.filter((s) => s.is_active !== false)
-				.map((s) => ({ value: String(s.id), label: String(s.name ?? '') })),
+		() => agendaSectorSelectOptions(sectors),
 		[sectors],
 	)
 
-	function serviceTypeFromSectorId(sectorId: string | number): string {
-		const sector = sectors.find((s) => String(s.id) === String(sectorId))
-		return sector?.key === 'detailing' ? 'detailing' : 'wash'
-	}
-
 	const sectorIdByServiceId = useMemo(
-		() =>
-			services.reduce<Record<string, number | null>>((byId, service) => {
-				const id = String(service.id ?? '')
-				if (!id) return byId
-				const sectorId = Number(service.sector)
-				byId[id] = Number.isFinite(sectorId) && sectorId > 0 ? sectorId : null
-				return byId
-			}, {}),
+		() => sectorIdsByServiceId(services),
 		[services],
 	)
 	const visibleAgendaReservations = useMemo(
@@ -2236,117 +1952,16 @@ export default function Home() {
 			workOrder,
 		} satisfies AgendaOperationalRow
 	}, [activeWorkStatusReservationId, reservations, workOrderByReservation])
-	const quoteBoard = useMemo(() => {
-		const draft = quotes.filter((item) => quoteLaneStatus(item) === 'draft')
-		const sent = quotes.filter((item) => quoteLaneStatus(item) === 'sent')
-		return { draft, sent }
-	}, [quotes])
+	const quoteBoard = useMemo(() => quoteBoardForQuotes(quotes), [quotes])
 	const activeQuoteDrag = useMemo(() => {
 		if (!activeQuoteDragId) return null
 		return quotes.find((item) => String(item.id) === activeQuoteDragId) ?? null
 	}, [activeQuoteDragId, quotes])
 
-	function serviceForLine(item: AnyRecord) {
-		return services.find(
-			(serviceItem) => String(serviceItem.id) === String(item.service),
-		)
-	}
-
-	function serviceNotesForLine(item: AnyRecord) {
-		return item.service_notes ?? serviceForLine(item)?.notes ?? ''
-	}
-
-	function serviceNameForLine(item: AnyRecord) {
-		const service = serviceForLine(item)
-		return serviceDisplayName(
-			{
-				...service,
-				...item,
-				service_icon: item.service_icon ?? service?.icon,
-				service_name: item.service_name ?? item.description ?? service?.name,
-			},
-			'Servicio',
-		)
-	}
-
-	function serviceLinePayload(items: AnyRecord[]) {
-		return items.map((item) => {
-			const service = serviceForLine(item)
-			return {
-				service: item.service,
-				description: item.description || service?.name || 'Servicio',
-				quantity: item.quantity || '1',
-				unit_price: item.unit_price || service?.base_price || '0',
-			}
-		})
-	}
-
-	function groupValidationNotice(
-		title: string,
-		description: string,
-		lines: AnyRecord[],
-	) {
-		const errors = validateGroupVehicleLines(lines)
-		if (!errors.length) return null
-		return createValidationNotice(title, description, errors)
-	}
-
-	function firstGroupReservationLine(item: AnyRecord) {
-		return (item.vehicle_lines ?? []).find(
-			(line: AnyRecord) => line.reservation || line.reservation_id,
-		)
-	}
-
-	function serviceLinesTotal(items: AnyRecord[]) {
-		return items.reduce(
-			(total: number, item: AnyRecord) =>
-				total + Number(item.quantity || 0) * Number(item.unit_price || 0),
-			0,
-		)
-	}
-
-	function quoteDefaultsFromBusinessProfile() {
-		const validityDays = Number(businessFormRef.current.default_quote_validity_days ?? 7)
-		const validUntil = new Date()
-		validUntil.setDate(
-			validUntil.getDate() + (Number.isFinite(validityDays) ? validityDays : 7),
-		)
-		return {
-			valid_until: toIsoDate(validUntil),
-			tax_rate: String(businessFormRef.current.default_quote_tax_rate ?? '0'),
-			discount_rate: String(
-				businessFormRef.current.default_quote_discount_rate ?? '0',
-			),
-			terms: String(businessFormRef.current.default_quote_terms ?? ''),
-			payment_instructions: String(
-				businessFormRef.current.default_quote_payment_instructions ?? '',
-			),
-		}
-	}
-
-	function blankQuoteFormWithDefaults(reservationDay = '') {
-		return {
-			...blankQuoteForm(reservationDay),
-			...quoteDefaultsFromBusinessProfile(),
-		}
-	}
+	const serviceNotesForLine = createServiceNotesForLine(services)
 
 	const quoteTotals = useMemo(() => {
-		const subtotal = quoteForm.is_group
-			? groupVehicleLinesSubtotal(ensureGroupVehicleLines(quoteForm))
-			: serviceLinesTotal(quoteForm.items ?? [])
-		const discountRate = Number(quoteForm.discount_rate || 0)
-		const taxRate = Number(quoteForm.tax_rate || 0)
-		const discountAmount = subtotal * Math.max(discountRate, 0) / 100
-		const taxableAmount = Math.max(subtotal - discountAmount, 0)
-		const taxAmount = taxableAmount * Math.max(taxRate, 0) / 100
-		return {
-			subtotal,
-			discountAmount,
-			taxableAmount,
-			taxAmount,
-			total: taxableAmount + taxAmount,
-		}
+		return quoteTotalsForForm(quoteForm)
 	}, [
 		quoteForm,
 		quoteForm.items,
@@ -2356,35 +1971,18 @@ export default function Home() {
 	])
 
 	const auditModuleOptions = useMemo(
-		() =>
-			Array.from(new Set(auditLogs.map((item) => String(item.module ?? ''))))
-				.filter(Boolean)
-				.sort((left, right) =>
-					auditModuleLabel(left).localeCompare(auditModuleLabel(right), 'es-AR'),
-				),
+		() => sortedAuditValues(auditLogs, 'module', auditModuleLabel),
 		[auditLogs],
 	)
 	const auditActionOptions = useMemo(
-		() =>
-			Array.from(new Set(auditLogs.map((item) => String(item.action ?? ''))))
-				.filter(Boolean)
-				.sort((left, right) =>
-					auditActionLabel(left).localeCompare(auditActionLabel(right), 'es-AR'),
-				),
+		() => sortedAuditValues(auditLogs, 'action', auditActionLabel),
 		[auditLogs],
 	)
 	const auditActorOptions = useMemo(
-		() =>
-			Array.from(
-				new Set(
-					auditLogs.map((item) => String(item.actor_username ?? '')).filter(Boolean),
-				),
-			).sort((left, right) => left.localeCompare(right, 'es-AR')),
+		() => sortedAuditActorValues(auditLogs),
 		[auditLogs],
 	)
-	const auditFiltersActive = Object.values(auditFilters).some((value) =>
-		String(value ?? '').trim(),
-	)
+	const auditFiltersActive = hasActiveAuditFilters(auditFilters)
 
 	const auditActionLabel = useCallback(
 		(action: string) => auditActionLabels[action] ?? action,
@@ -2735,23 +2333,8 @@ export default function Home() {
 		}
 	}, [])
 
-	function recordFlashKey(kind: string, id: string | number | null | undefined) {
-		return id === null || id === undefined || id === ''
-			? null
-			: `record:${kind}:${id}`
-	}
-
-	function fieldFlashKey(target: string) {
-		return `field:${target}`
-	}
-
-	function flashClass(target: string | null) {
-		return target && flashTarget === target ? 'motion-flash' : ''
-	}
-
-	function recordClass(kind: string, id: string | number, extraClass?: string) {
-		return cx('record', extraClass, flashClass(recordFlashKey(kind, id)))
-	}
+	const flashClass = createFlashClass(flashTarget)
+	const recordClass = createRecordClass(flashTarget)
 
 	function focusField(focusKey: string, openCombo = false) {
 		if (!focusKey) return
@@ -2784,86 +2367,6 @@ export default function Home() {
 		}
 	}
 
-	function vehiclesForCustomerId(customerId: string) {
-		if (!customerId) return []
-		return vehicles.filter(
-			(vehicle) => String(vehicle.customer) === String(customerId),
-		)
-	}
-
-	function singleVehicleIdForCustomer(customerId: string) {
-		const matches = vehiclesForCustomerId(customerId)
-		return matches.length === 1 ? String(matches[0].id) : ''
-	}
-
-	function vehicleDescription(item: AnyRecord) {
-		return vehicleDescriptionText(item)
-	}
-
-	function reservationVehicleModel(reservation: AnyRecord) {
-		const vehicle = vehicles.find(
-			(item) => String(item.id) === String(reservation.vehicle),
-		)
-		return [vehicle?.brand, vehicle?.model]
-			.map((value) => String(value ?? '').trim())
-			.filter(Boolean)
-			.join(' ')
-	}
-
-	function reservationAgendaServices(reservation: AnyRecord) {
-		const itemLines = Array.isArray(reservation.items)
-			? reservation.items
-					.map((item: AnyRecord, index: number) => ({
-						key: String(item.id ?? item.service ?? item.description ?? index),
-						name: serviceDisplayName(
-							{
-								service_icon: item.service_icon,
-								service_name: item.service_name ?? item.description,
-							},
-							'',
-						),
-					}))
-					.filter((item) => item.name)
-			: []
-		if (itemLines.length) return itemLines
-		return String(reservation.service_name ?? '')
-			.split(',')
-			.map((name, index) => ({
-				key: `${name.trim()}-${index}`,
-				name: name.trim(),
-			}))
-			.filter((item) => item.name)
-	}
-
-	function reservationAgendaCardClass(status: string) {
-		return cx(
-			'agenda-operational-card',
-			reservationAgendaClassNames[status] ?? '',
-		)
-	}
-
-	function agendaCardFlashKey(rowKey: string) {
-		return `agenda:${rowKey}`
-	}
-
-	function agendaColumnStyle(column: number): CSSProperties {
-		return { gridColumn: String(column) }
-	}
-
-	function agendaLaneStyle(column: number, laneEndRow: number): CSSProperties {
-		return {
-			gridColumn: String(column),
-			gridRow: `1 / ${laneEndRow}`,
-		}
-	}
-
-	function agendaSegmentStyle(segment: AgendaCalendarSegment): CSSProperties {
-		return {
-			gridColumn: `${segment.startColumn} / span ${segment.spanDays}`,
-			gridRow: String(segment.stackRow + 1),
-		}
-	}
-
 	const shouldSuppressEnteringAgendaOverlap =
 		agendaOverlapSuppressedStartDay === agendaBoardModel.startDay &&
 		agendaSlideWindowsOverlap(agendaSlideMotion, AGENDA_VISIBLE_DAYS)
@@ -2876,195 +2379,9 @@ export default function Home() {
 		!agendaLoadError &&
 		!agendaBoardModel.segments.length
 
-	function shouldHideEnteringAgendaColumn(column: number) {
-		if (!shouldSuppressEnteringAgendaOverlap) return false
-		const offset = Math.abs(agendaSlideMotion.offsetDays)
-		if (offset <= 0 || offset >= AGENDA_VISIBLE_DAYS) return false
-
-		return agendaSlideMotion.direction === 'forward'
-			? column <= AGENDA_VISIBLE_DAYS - offset
-			: column > offset
-	}
-
-	function shouldHideEnteringAgendaSegment(segment: AgendaCalendarSegment) {
-		if (!shouldSuppressEnteringAgendaOverlap) return false
-		const offset = Math.abs(agendaSlideMotion.offsetDays)
-		if (offset <= 0 || offset >= AGENDA_VISIBLE_DAYS) return false
-
-		const endColumn = segment.startColumn + segment.spanDays - 1
-		return agendaSlideMotion.direction === 'forward'
-			? segment.startColumn <= AGENDA_VISIBLE_DAYS - offset
-			: endColumn > offset
-	}
-
-	function agendaBoardGridStyle(
-		dayCount: number,
-		stackRows: number,
-	): CSSProperties {
-		const rows = ['auto']
-		for (let index = 0; index < stackRows; index += 1) {
-			rows.push('auto')
-		}
-		rows.push('minmax(240px, 1fr)')
-		return {
-			'--agenda-board-days': String(dayCount),
-			gridTemplateRows: rows.join(' '),
-		} as CSSProperties
-	}
-
-	function agendaCardClass(row: AgendaOperationalRow) {
-		const reservationStatus = row.reservation?.status
-		return cx(
-			reservationAgendaCardClass(reservationStatus),
-			row.workOrder ? 'agenda-operational-card--with-order' : '',
-		)
-	}
-
-	function reservationShowsWork(reservation: AnyRecord, workOrder: AnyRecord | null | undefined) {
-		return Boolean(
-			workOrder &&
-				!['pending', 'canceled'].includes(String(reservation.status ?? '')),
-		)
-	}
-
-	function reservationStartTimeLabel(
-		reservation: AnyRecord | null | undefined,
-		fallback = '',
-	) {
-		if (!useReservationTimes) return ''
-		return formatTimeLabel(reservation?.start_time) || fallback
-	}
-
-	function reservationExitTimeLabel(reservation: AnyRecord | null | undefined) {
-		if (!useReservationTimes) return ''
-		return formatTimeLabel(reservation?.exit_time)
-	}
-
-	function reservationCustomerTitle(reservation: AnyRecord) {
-		const startTime = reservationStartTimeLabel(reservation, 'Sin hora')
-		return startTime
-			? `${startTime} - ${reservation.customer_name}`
-			: String(reservation.customer_name ?? '')
-	}
-
-	function quoteTentativeTimeLabel(value: any) {
-		if (!useReservationTimes) return ''
-		const time = formatTimeLabel(value)
-		return time ? ` ${time}` : ''
-	}
-
-	function quoteCode(item: AnyRecord) {
-		return item.public_code ?? `#${item.id}`
-	}
-
-	function quoteHasReservation(item: AnyRecord) {
-		return Boolean(item.has_reservation ?? item.reservation)
-	}
-
-	function quoteReservationId(item: AnyRecord) {
-		if (item.is_group) {
-			const line = firstGroupReservationLine(item)
-			return line?.reservation === null || line?.reservation === undefined
-				? String(line?.reservation_id ?? '')
-				: String(line.reservation)
-		}
-		return item.reservation === null || item.reservation === undefined
-			? ''
-			: String(item.reservation)
-	}
-
-	function quoteLaneStatus(item: AnyRecord): 'draft' | 'sent' {
-		return String(item.status ?? 'draft') === 'draft' ? 'draft' : 'sent'
-	}
-
-	function reservationRangeLabel(reservation: AnyRecord) {
-		const entryDay = String(reservation.day ?? '')
-		const exitDay = String(reservation.exit_day ?? '')
-		const startTime = reservationStartTimeLabel(reservation)
-		const exitTime = reservationExitTimeLabel(reservation)
-		if (!entryDay) {
-			return ''
-		}
-		if (!exitDay || exitDay === entryDay) {
-			return exitTime ? `Egreso ${exitTime}` : ''
-		}
-		const entryLabel = `${formatDayLabel(entryDay)}${startTime ? ` ${startTime}` : ''}`
-		const exitLabel = `${formatDayLabel(exitDay)}${exitTime ? ` ${exitTime}` : ''}`
-		return `Ingresa ${entryLabel} - Egresa ${exitLabel}`
-	}
-
-	function renderWorkOrderSummary(
-		workOrder: AnyRecord,
-		options: { showDetailAction?: boolean } = {},
-	) {
-		return (
-			<div className="agenda-workorder-summary">
-				<div className="agenda-workorder-summary-head">
-					<strong>Trabajo de la reserva</strong>
-					<div className="record-actions">
-						<StatusPill value={workOrder.status} labels={orderLabels} />
-						{options.showDetailAction ? (
-							<Button
-								type="button"
-								variant="ghost"
-								onClick={() =>
-									openDetailModal('Orden de trabajo', workOrder)
-								}
-							>
-								Editar trabajo
-							</Button>
-						) : null}
-					</div>
-				</div>
-				{canViewEconomy ? (
-					<div className="agenda-workorder-metrics">
-						<div>
-							<span>Total</span>
-							<strong>{money(workOrder.total_amount)}</strong>
-						</div>
-						<div>
-							<span>Pagado</span>
-							<strong>{money(workOrder.paid_amount)}</strong>
-						</div>
-						<div>
-							<span>Deuda</span>
-							<strong className="debt">
-								{money(workOrder.balance_due)}
-							</strong>
-						</div>
-						<div>
-							<span>Materiales</span>
-							<strong>{money(workOrder.material_cost)}</strong>
-						</div>
-					</div>
-				) : null}
-			</div>
-		)
-	}
-
-	function renderAgendaWorkDebt(workOrder: AnyRecord) {
-		if (!canViewEconomy) return null
-		const materialUsage = workOrderMaterialUsageSummary(workOrder)
-		return (
-			<div className="agenda-work-debt">
-				<div className="agenda-work-debt-main">
-					<span>Deuda</span>
-					<strong className={Number(workOrder.balance_due) > 0 ? 'debt' : ''}>
-						{money(workOrder.balance_due)}
-					</strong>
-				</div>
-				{materialUsage ? (
-					<span
-						className="agenda-work-materials"
-						title={`${materialUsage.label}${materialUsage.extra}`}
-					>
-						{materialUsage.label}
-						{materialUsage.extra}
-					</span>
-				) : null}
-			</div>
-		)
-	}
+	const quoteTentativeTimeLabel = createQuoteTentativeTimeLabel(
+		useReservationTimes,
+	)
 
 	async function runAgendaReservationAction(
 		action: AgendaReservationAction,
@@ -3157,27 +2474,6 @@ export default function Home() {
 			openPaymentForOrder(workOrder)
 		}
 		return undefined
-	}
-
-	function agendaActionIcon(action: AgendaReservationAction) {
-		if (action.kind === 'work-order-charge') return <CreditCard size={15} />
-		if (
-			action.kind === 'reservation' &&
-			(action.action === 'cancel' || action.action === 'delete')
-		) {
-			return <Trash2 size={15} />
-		}
-		return <CheckCircle2 size={15} />
-	}
-
-	function agendaActionTone(action: AgendaReservationAction): QuickAction['tone'] {
-		if (
-			action.kind === 'reservation' &&
-			(action.action === 'cancel' || action.action === 'delete')
-		) {
-			return 'danger'
-		}
-		return action.variant === 'filled' ? 'primary' : 'default'
 	}
 
 	function agendaReservationQuickActions(
@@ -3354,7 +2650,7 @@ export default function Home() {
 							: action.label
 				}`,
 				label: action.label,
-				icon: agendaActionIcon(action),
+				icon: <AgendaQuickActionIcon action={action} />,
 				tone: agendaActionTone(action),
 				requiresConfirm:
 					action.kind === 'reservation' &&
@@ -3370,616 +2666,19 @@ export default function Home() {
 		] satisfies QuickAction[]
 	}
 
-	function reservationWorkOrder(reservation: AnyRecord) {
-		return workOrderForReservation(reservation, workOrderByReservation)
-	}
-
-	function workReservationRow(reservation: AnyRecord) {
-		const reservationId = String(reservation.id ?? '')
-		const workOrder = reservationWorkOrder(reservation)
-		const entryDay = String(reservation.day ?? '')
-		return {
-			key: `reservation:${reservationId}`,
-			day: entryDay,
-			displayDay: entryDay,
-			phase: 'entry',
-			kind: workOrder ? 'reservation-work-order' : 'reservation-only',
-			reservation,
-			workOrder,
-		} satisfies AgendaOperationalRow
-	}
-
-	function renderWorkReservationListCard(reservation: AnyRecord) {
-		const row = workReservationRow(reservation)
-		return (
-			<MotionFlashSurface
-				className={recordClass(
-					'reservation',
-					reservation.id,
-					cx(
-						'compact',
-						agendaCardClass(row),
-						flashClass(agendaCardFlashKey(row.key)),
-					),
-				)}
-				key={`work-reservation-${reservation.id}`}
-			>
-				<div className="agenda-card-stack">
-					{renderAgendaReservationCard(reservation, row.workOrder, row, {
-						statusMode: 'work-order',
-					})}
-				</div>
-			</MotionFlashSurface>
-		)
-	}
-
-	function renderWorkFreeQuoteCard(item: AnyRecord) {
-		const quickActions = quoteQuickActions(item)
-		return (
-			<MotionFlashSurface
-				className={recordClass('quote', item.id, 'quote-board-card')}
-				key={`work-free-quote-${item.id}`}
-				{...detailRecordProps('Cotizacion', item)}
-				{...quickActionTargetProps('Acciones de cotizacion', quickActions)}
-			>
-				{renderQuickActionsTrigger(
-					'Acciones de cotizacion',
-					quickActions,
-					'Acciones rapidas de cotizacion',
-				)}
-				<QuoteCardContent
-					item={item}
-					quoteCode={quoteCode}
-					quoteHasReservation={quoteHasReservation}
-					quoteLaneStatus={quoteLaneStatus}
-					quoteTentativeTimeLabel={quoteTentativeTimeLabel}
-					onCreateReservationFromQuote={createReservationFromQuote}
-					onDownloadQuotePdf={downloadQuotePdf}
-					onDownloadQuotePdfAndMarkSent={downloadQuotePdfAndMarkSent}
-					onSendQuoteWhatsapp={sendQuoteWhatsapp}
-					whatsappButtonVisible={quoteWhatsappButtonVisible}
-					whatsappButtonLabel={quoteWhatsappButtonLabel}
-					onOpenQuoteReservationInAgenda={openQuoteReservationInAgenda}
-				/>
-			</MotionFlashSurface>
-		)
-	}
-
-	function renderQuoteCardContent(item: AnyRecord) {
-		return (
-			<QuoteCardContent
-				item={item}
-				quoteCode={quoteCode}
-				quoteHasReservation={quoteHasReservation}
-				quoteLaneStatus={quoteLaneStatus}
-				quoteTentativeTimeLabel={quoteTentativeTimeLabel}
-				onCreateReservationFromQuote={createReservationFromQuote}
-				onDownloadQuotePdf={downloadQuotePdf}
-				onDownloadQuotePdfAndMarkSent={downloadQuotePdfAndMarkSent}
-				onSendQuoteWhatsapp={sendQuoteWhatsapp}
-				whatsappButtonVisible={quoteWhatsappButtonVisible}
-				whatsappButtonLabel={quoteWhatsappButtonLabel}
-				onOpenQuoteReservationInAgenda={openQuoteReservationInAgenda}
-			/>
-		)
-	}
-
-	function WorkStatusDraggableReservation({
-		reservation,
-	}: {
-		reservation: AnyRecord
-	}) {
-		const row = workReservationRow(reservation)
-		const reservationId = String(reservation.id ?? '')
-		const workOrder = row.workOrder
-		const workOrderId = String(workOrder?.id ?? '')
-		const status = workStatusForReservation(reservation, workOrderByReservation)
-		const statusColumn = workStatusColumnForStatus(status, workStatusColumns)
-		const canDrag = reservationCanMoveWorkStatus(
-			reservation,
-			workOrderByReservation,
-		)
-		const { listeners, setNodeRef, isDragging } = useDraggable({
-			id: `work-status-reservation:${reservationId}`,
-			data: {
-				reservationId,
-				status,
-				statusGroup: statusColumn?.key,
-				workOrderId,
-			},
-			disabled:
-				!reservationId ||
-				!canDrag ||
-				Boolean(workStatusMovePendingId),
-		})
-
-		return (
-			<MotionFlashSurface
-				ref={setNodeRef}
-				{...listeners}
-				className={recordClass(
-					'reservation',
-					reservation.id,
-					cx(
-						'compact',
-						agendaCardClass(row),
-						flashClass(agendaCardFlashKey(row.key)),
-						'work-status-card',
-						'agenda-operational-card--draggable',
-						!canDrag && 'agenda-operational-card--locked',
-						isDragging && 'agenda-operational-card--dragging',
-						workStatusMovePendingId === reservationId &&
-							'agenda-operational-card--moving',
-					),
-				)}
-			>
-				<div className="agenda-card-stack">
-					{renderAgendaReservationCard(reservation, row.workOrder, row, {
-						statusMode: 'work-order',
-					})}
-				</div>
-			</MotionFlashSurface>
-		)
-	}
-
-	function WorkStatusDroppableLane({
-		group,
-	}: {
-		group: {
-			key: string
-			label: string
-			dropStatus?: string
-			reservations: AnyRecord[]
-		}
-	}) {
-		const { setNodeRef } = useDroppable({
-			id: `work-status:${group.key}`,
-			data: { status: group.dropStatus ?? group.key, statusGroup: group.key },
-		})
-
-		return (
-			<section
-				ref={setNodeRef}
-				className={cx(
-					'panel',
-					'work-group-panel',
-					'work-status-lane',
-					workStatusDropStatus === group.key &&
-						'work-status-lane--drop-target',
-				)}
-				key={group.key}
-			>
-				<div className="panel-head">
-					<div>
-						<h2>{group.label}</h2>
-						<p>{group.reservations.length} reservas</p>
-					</div>
-				</div>
-				<div className="records compact-records">
-					{group.reservations.length ? (
-						group.reservations.map((reservation) => (
-							<WorkStatusDraggableReservation
-								key={`work-status-${group.key}-${reservation.id}`}
-								reservation={reservation}
-							/>
-						))
-					) : (
-						<Empty
-							text={`Sin trabajos en ${group.label.toLowerCase()}.`}
-							hint="La columna queda lista para recibir trabajos cuando cambie el avance operativo."
-						/>
-					)}
-				</div>
-			</section>
-		)
-	}
-
-	function renderWorkReservationsByStatusView() {
-		return (
-			<DndContext
-				sensors={agendaSensors}
-				collisionDetection={closestCenter}
-				onDragStart={handleWorkStatusDragStart}
-				onDragOver={handleWorkStatusDragOver}
-				onDragEnd={handleWorkStatusDragEnd}
-				onDragCancel={handleWorkStatusDragCancel}
-			>
-				<div className="grid work-groups work-status-groups">
-					{workStatusGroups.map((group) => (
-						<WorkStatusDroppableLane group={group} key={group.key} />
-					))}
-				</div>
-				<DragOverlay>
-					{renderAgendaDragOverlay(activeWorkStatusRow, {
-						statusMode: 'work-order',
-					})}
-				</DragOverlay>
-			</DndContext>
-		)
-	}
-
-	function renderWorkReservationsByEntryDateView() {
-		const hasContent =
-			workEntryDateGroups.length || workFreeQuotesWithoutEntryDate.length
-		if (!hasContent) {
-			return (
-				<section className="panel">
-					<Empty
-						text="Sin reservas o cotizaciones para este filtro."
-						hint="Crea una reserva o cambia el tipo de servicio para ver trabajos por fecha de ingreso."
-						action={
-							<Button
-								type="button"
-								variant="primary"
-								onClick={() => openQuickReservation(selectedDay)}
-							>
-								<Plus size={16} />
-								Crear reserva
-							</Button>
-						}
-					/>
-				</section>
-			)
-		}
-
-		return (
-			<div className="grid work-groups work-groups--entry-date">
-				{workEntryDateGroups.map((group) => (
-					<section className="panel work-group-panel" key={group.key}>
-						<div className="panel-head">
-							<div>
-								<h2>{formatDateLabel(group.entryDate)}</h2>
-								<p>{group.reservations.length} reservas</p>
-							</div>
-						</div>
-						<div className="records compact-records">
-							{group.reservations.map((reservation) =>
-								renderWorkReservationListCard(reservation),
-							)}
-						</div>
-					</section>
-				))}
-				{workFreeQuotesWithoutEntryDate.length ? (
-					<section
-						className="panel work-group-panel"
-						key="without-entry-date"
-					>
-						<div className="panel-head">
-							<div>
-								<h2>Sin fecha de ingreso</h2>
-								<p>{workFreeQuotesWithoutEntryDate.length} cotizaciones libres</p>
-							</div>
-						</div>
-						<div className="records compact-records">
-							{workFreeQuotesWithoutEntryDate.map((quote) =>
-								renderWorkFreeQuoteCard(quote),
-							)}
-						</div>
-					</section>
-				) : null}
-			</div>
-		)
-	}
-
-	function renderAgendaReservationCard(
-		reservation: AnyRecord,
-		workOrder: AnyRecord | null | undefined,
-		row: AgendaOperationalRow,
-		options: { statusMode?: 'reservation' | 'work-order' } = {},
-	) {
-		const showWork = reservationShowsWork(reservation, workOrder)
-		const rangeLabel = reservationRangeLabel(reservation)
-		const serviceLines = reservationAgendaServices(reservation)
-		const vehicleModel = reservationVehicleModel(reservation)
-		const workOrderForDetail = workOrder
-			? { ...workOrder, _agenda_day: row.day }
-			: workOrder
-		const workStatusValue = String(
-			workStatusForReservation(reservation, workOrderByReservation) ??
-				reservation.status ??
-				'',
-		)
-		const reservationStatusValue = String(reservation.status ?? '')
-		const actions = buildAgendaReservationActions({
-			balanceDue: showWork ? workOrder?.balance_due : undefined,
-			canCharge: Boolean(showWork && workOrder && canViewEconomy),
-			reservationStatus: reservation.status,
-			workOrderStatus: showWork ? workOrder?.status : undefined,
-			config: reservationStatusConfig,
-		})
-		const quickActions = agendaReservationQuickActions(
-			reservation,
-			workOrder,
-			row,
-			actions,
-		)
-
-		const reservationIdStr = String(reservation.id ?? '')
-		const workOrderId = workOrder?.id != null ? String(workOrder.id) : ''
-		const cardSaving =
-			(agendaMovePendingId !== null &&
-				agendaMovePendingId === reservationIdStr) ||
-			isActionPending(`reservation-status:${reservationIdStr}`) ||
-			(workOrderId
-				? isActionPending(`wo-status:${workOrderId}`)
-				: false)
-
-		return (
-			<AgendaReservationCard
-				actions={actions}
-				detailProps={{
-					...detailRecordProps(
-						'Reserva',
-						showWork
-							? { ...reservation, work_order: workOrderForDetail }
-							: reservation,
-					),
-					...quickActionTargetProps('Acciones de agenda', quickActions),
-				}}
-				phase={row.phase}
-				phaseLabel={agendaPhaseLabels[row.phase]}
-				quickActionsTrigger={renderQuickActionsTrigger(
-					'Acciones de agenda',
-					quickActions,
-					'Acciones rapidas de agenda',
-				)}
-				rangeLabel={rangeLabel}
-				reservation={reservation}
-				reservationStatusLabel={
-					reservationLabels[reservationStatusValue] ?? reservationStatusValue
-				}
-				reservationStatusValue={reservationStatusValue}
-				saving={cardSaving}
-				serviceLines={serviceLines}
-				statusMode={options.statusMode}
-				timeLabel={reservationStartTimeLabel(reservation, 'Sin hora')}
-				title={String(reservation.customer_name ?? '')}
-				vehicleModel={vehicleModel}
-				workDebt={
-					showWork ? renderAgendaWorkDebt(workOrder as AnyRecord) : null
-				}
-				workStatusLabels={orderLabels}
-				workStatusValue={workStatusValue}
-				onAction={(action) =>
-					runAgendaReservationAction(
-						action,
-						reservation,
-						showWork ? (workOrder as AnyRecord) : null,
-						row,
-					)
-				}
-			/>
-		)
-	}
-
-	function AgendaDraggableRecord({
-		row,
-		children,
-		className,
-		style,
-		interactive = true,
-		snapshotKey = 'active',
-	}: {
-		row: AgendaOperationalRow
-		children: ReactNode
-		className?: string
-		style?: CSSProperties
-		interactive?: boolean
-		snapshotKey?: string
-	}) {
-		const reservationId = String(row.reservation?.id ?? '')
-		const canDrag = interactive && row.phase === 'entry'
-		const { listeners, setNodeRef, isDragging } = useDraggable({
-			id: interactive ? row.key : `${snapshotKey}:drag:${row.key}`,
-			data: {
-				reservationId,
-				day: String(row.reservation?.day ?? row.day),
-			},
-			disabled:
-				!interactive || !reservationId || !canDrag || Boolean(agendaMovePendingId),
-		})
-
-		return (
-			<MotionFlashSurface
-				ref={setNodeRef}
-				{...listeners}
-				className={recordClass(
-					row.workOrder ? 'workorder' : 'reservation',
-					row.workOrder?.id ?? row.reservation?.id,
-					cx(
-						'compact',
-						agendaCardClass(row),
-						className,
-						flashClass(agendaCardFlashKey(row.key)),
-						'agenda-operational-card--draggable',
-						!canDrag && 'agenda-operational-card--locked',
-						isDragging && 'agenda-operational-card--dragging',
-						agendaMovePendingId === reservationId &&
-							'agenda-operational-card--moving',
-					),
-				)}
-				style={style}
-			>
-				<div className="agenda-card-stack">{children}</div>
-			</MotionFlashSurface>
-		)
-	}
-
-	function AgendaDroppableDayLane({
-		day,
-		column,
-		interactive,
-		laneEndRow,
-		snapshotKey,
-	}: {
-		day: string
-		column: number
-		interactive: boolean
-		laneEndRow: number
-		snapshotKey: string
-	}) {
-		const { setNodeRef } = useDroppable({
-			id: interactive ? day : `${snapshotKey}:lane:${day}`,
-			data: { day },
-			disabled: !interactive,
-		})
-		const isToday = day === currentDay
-
-		return (
-			<div
-				ref={setNodeRef}
-				className={cx(
-					'day-row',
-					'agenda-day-lane',
-					isToday && 'day-row--today',
-					interactive && agendaDropDay === day && 'day-row--drop-target',
-				)}
-				style={agendaLaneStyle(column, laneEndRow)}
-			/>
-		)
-	}
-
-	function AgendaDayHeader({
-		day,
-		column,
-		count,
-		moneySummary,
-		hiddenDuringEnter = false,
-		interactive,
-	}: {
-		day: string
-		column: number
-		count: number
-		moneySummary: AgendaDayMoneySummary
-		hiddenDuringEnter?: boolean
-		interactive: boolean
-	}) {
-		const isToday = day === currentDay
-		const isSelected = selectedDay === day
-		const fullDateLabel = formatFullDateLabel(day)
-		const wh = businessForm.working_hours as WorkingHoursEntry[] | undefined
-		const dayHoursEntry = wh?.length ? getHoursForDate(day, wh) : null
-		const isNonWorkingDay = dayHoursEntry !== null && !dayHoursEntry?.is_open
-
-		return (
-			<button
-				type="button"
-				className={cx(
-					'agenda-day-head',
-					isToday && 'agenda-day-head--today',
-					isSelected && 'agenda-day-head--active',
-					isNonWorkingDay && 'agenda-day-head--closed',
-					hiddenDuringEnter && 'agenda-entering-overlap-hidden',
-				)}
-				style={agendaColumnStyle(column)}
-				aria-current={isToday ? 'date' : undefined}
-				aria-disabled={!interactive}
-				aria-label={`Crear reserva el ${fullDateLabel}`}
-				title={`Crear reserva el ${fullDateLabel}`}
-				onClick={interactive ? () => openQuickReservation(day, true) : undefined}
-				tabIndex={interactive ? undefined : -1}
-			>
-				<span className="agenda-day-head-row">
-					<span className="day-row-head agenda-day-select">
-						<span className="day-row-date" aria-hidden="true">
-							{formatDayName(day)} {formatDayLabel(day)}
-							{isToday ? (
-								<strong className="day-row-today-badge">Hoy</strong>
-							) : null}
-							{isNonWorkingDay ? (
-								<span className="agenda-day-closed-badge">Cerrado</span>
-							) : null}
-						</span>
-						<span className="agenda-day-summary">
-							<span className="agenda-day-count">
-								{count === 1 ? '1 movimiento' : `${count} movimientos`}
-							</span>
-							<span className="agenda-day-balance agenda-day-balance--collected">
-								Cobrado {money(moneySummary.collected)}
-							</span>
-							<span className="agenda-day-balance agenda-day-balance--receivable">
-								Por cobrar {money(moneySummary.receivable)}
-							</span>
-						</span>
-					</span>
-					<span className="agenda-day-add-button" aria-hidden="true">
-						<Plus size={14} />
-					</span>
-				</span>
-			</button>
-		)
-	}
-
-	function renderAgendaDragOverlay(
-		row: AgendaOperationalRow | null,
-		options: { statusMode?: 'reservation' | 'work-order' } = {},
-	) {
-		if (!row?.reservation) return null
-		const workOrder = row.workOrder
-		const reservation = row.reservation
-		const showWork = reservationShowsWork(reservation, workOrder)
-		const showWorkStatus =
-			options.statusMode === 'work-order' && Boolean(workOrder)
-		const serviceLines = reservationAgendaServices(reservation)
-		const vehicleModel = reservationVehicleModel(reservation)
-		const timeLabel = reservationStartTimeLabel(reservation, 'Sin hora')
-		const workStatusValue = String(
-			workStatusForReservation(reservation, workOrderByReservation) ??
-				reservation.status ??
-				'',
-		)
-		return (
-			<div
-				className={cx(
-					'record',
-					'compact',
-					agendaCardClass(row),
-					'agenda-operational-card--drag-overlay',
-				)}
-			>
-				<div className="agenda-card-stack">
-					<div className="agenda-entry-card agenda-entry-card--reservation">
-						<div className="agenda-entry-head">
-							<div className="agenda-entry-copy">
-								<div className="agenda-entry-kicker">
-									<span className="agenda-entry-eyebrow">
-										{showWorkStatus ? 'Trabajo' : 'Reserva'}
-									</span>
-									{timeLabel ? (
-										<span className="agenda-entry-time">{timeLabel}</span>
-									) : null}
-								</div>
-								<div className="record-title">
-									{String(reservation.customer_name ?? '')}
-								</div>
-								{serviceLines.length ? (
-									<div className="agenda-service-stack" aria-label="Servicios">
-										{serviceLines.map((service) => (
-											<span className="agenda-service-name" key={service.key}>
-												{service.name}
-											</span>
-										))}
-									</div>
-								) : null}
-								{vehicleModel ? (
-									<div className="agenda-vehicle-model">{vehicleModel}</div>
-								) : null}
-							</div>
-							<StatusPill
-								value={
-									showWorkStatus
-										? workStatusValue
-										: reservation.status
-								}
-								labels={showWorkStatus ? orderLabels : reservationLabels}
-							/>
-						</div>
-						{showWork ? renderAgendaWorkDebt(workOrder as AnyRecord) : null}
-					</div>
-				</div>
-			</div>
-		)
-	}
+	const renderQuoteCardContent = createQuoteCardContentRenderer({
+		quoteCode,
+		quoteHasReservation,
+		quoteLaneStatus,
+		quoteTentativeTimeLabel,
+		onCreateReservationFromQuote: createReservationFromQuote,
+		onDownloadQuotePdf: downloadQuotePdf,
+		onDownloadQuotePdfAndMarkSent: downloadQuotePdfAndMarkSent,
+		onSendQuoteWhatsapp: sendQuoteWhatsapp,
+		whatsappButtonVisible: quoteWhatsappButtonVisible,
+		whatsappButtonLabel: quoteWhatsappButtonLabel,
+		onOpenQuoteReservationInAgenda: openQuoteReservationInAgenda,
+	})
 
 	function moveAgenda(offset: number) {
 		const slideMotion = agendaSlideMotionFromOffset(offset, AGENDA_VISIBLE_DAYS)
@@ -4054,20 +2753,6 @@ export default function Home() {
 	function selectAgendaDayFromMonth(isoDate: string) {
 		setAgendaRangeMode('week')
 		goToDate(isoDate)
-	}
-
-	function agendaMonthChipLabel(chip: AgendaMonthChip) {
-		const reservation = chip.reservation
-		const time = String(reservation.start_time ?? '').slice(0, 5)
-		const name = String(
-			reservation.customer_name ?? reservation.vehicle_label ?? 'Reserva',
-		)
-		return time ? `${time} ${name}` : name
-	}
-
-	function agendaMonthChipClass(chip: AgendaMonthChip) {
-		const status = String(chip.reservation.status ?? '')
-		return status ? `agenda-month-chip--${status.replace(/_/g, '-')}` : ''
 	}
 
 	function openQuickReservation(day: string, prefillDay = false) {
@@ -4188,18 +2873,6 @@ export default function Home() {
 			clearProgressToast(progress)
 			pendingActions.end(args.key)
 		}
-	}
-
-	function apiPathForRecord(kind: string, id: string | number | null | undefined) {
-		if (id === null || id === undefined || id === '') return ''
-		const detailPath = detailEndpoint(kind, id)
-		if (detailPath) return detailPath
-		const paths: Record<string, string> = {
-			payment: `/payments/${id}/`,
-			'stock-movement': `/stock-movements/${id}/`,
-			'material-open-unit': `/material-open-units/${id}/`,
-		}
-		return paths[kind] ?? ''
 	}
 
 	function undoCreatedRecord<T extends AnyRecord = AnyRecord>(
@@ -4336,83 +3009,6 @@ export default function Home() {
 		}, 0)
 	}
 
-	function resolveAgendaDropDay(value: unknown) {
-		if (value === null || value === undefined) return null
-		const day = String(value)
-		return weekDays.includes(day) ? day : null
-	}
-
-	function resolveQuoteDropStatus(value: any): 'draft' | 'sent' | null {
-		if (value === null || value === undefined) return null
-		const raw = String(value)
-		const status = raw.startsWith('quote-lane:')
-			? raw.replace('quote-lane:', '')
-			: raw
-		return status === 'draft' || status === 'sent' ? status : null
-	}
-
-	function parseWorkStatusDropValue(value: any) {
-		if (value === null || value === undefined) return null
-		const raw = String(value)
-		return raw.startsWith('work-status:')
-			? raw.replace('work-status:', '')
-			: raw
-	}
-
-	function resolveWorkStatusColumnKey(value: any) {
-		const status = parseWorkStatusDropValue(value)
-		if (!status) return null
-		if (workStatusColumns.some((column) => column.key === status)) {
-			return status
-		}
-		const column = workStatusColumnForStatus(status, workStatusColumns)
-		if (column) return column.key
-		return Object.prototype.hasOwnProperty.call(orderLabels, status)
-			? status
-			: null
-	}
-
-	function resolveWorkStatusDropTarget(over: any) {
-		return resolveWorkStatusColumnKey(
-			over?.data?.current?.statusGroup ??
-				over?.data?.current?.status ??
-				over?.id,
-		)
-	}
-
-	function workStatusDropStatusForColumn(columnKey: string | null) {
-		if (!columnKey) return null
-		const column = workStatusColumns.find((item) => item.key === columnKey)
-		if (column) return column.dropStatus ?? column.statuses[0] ?? null
-		return Object.prototype.hasOwnProperty.call(orderLabels, columnKey)
-			? columnKey
-			: null
-	}
-
-	function updateReservationWorkOrder(
-		reservation: AnyRecord,
-		workOrder: AnyRecord,
-	) {
-		const status = String(workOrder?.status ?? reservation.status ?? '')
-		return {
-			...reservation,
-			...(status
-				? { status, status_label: orderLabels[status] ?? status }
-				: {}),
-			work_order: workOrder,
-		}
-	}
-
-	function upsertWorkOrderRecord(records: AnyRecord[], workOrder: AnyRecord) {
-		const workOrderId = String(workOrder?.id ?? '')
-		if (!workOrderId) return records
-		const exists = records.some((item) => String(item.id) === workOrderId)
-		if (!exists) return [workOrder, ...records]
-		return records.map((item) =>
-			String(item.id) === workOrderId ? workOrder : item,
-		)
-	}
-
 	function handleAgendaDragStart(event: DragStartEvent) {
 		const reservationId = String(
 			event.active.data.current?.reservationId ?? '',
@@ -4430,7 +3026,7 @@ export default function Home() {
 	}
 
 	function handleAgendaDragOver(event: any) {
-		setAgendaDropDay(resolveAgendaDropDay(event.over?.id))
+		setAgendaDropDay(agendaDropDayForValue(event.over?.id, weekDays))
 	}
 
 	async function handleAgendaDragEnd(event: DragEndEvent) {
@@ -4438,7 +3034,7 @@ export default function Home() {
 			event.active.data.current?.reservationId ?? activeAgendaReservationId ?? '',
 		)
 		const originDay = String(event.active.data.current?.day ?? '')
-		const nextDay = resolveAgendaDropDay(event.over?.id)
+		const nextDay = agendaDropDayForValue(event.over?.id, weekDays)
 		const previousReservations = reservations
 		const activeReservation = reservations.find(
 			(item) => String(item.id) === reservationId,
@@ -4522,7 +3118,13 @@ export default function Home() {
 	}
 
 	function handleWorkStatusDragOver(event: any) {
-		setWorkStatusDropStatus(resolveWorkStatusDropTarget(event.over))
+		setWorkStatusDropStatus(
+			workStatusDropTargetForOver(
+				event.over,
+				workStatusColumns,
+				orderLabels,
+			),
+		)
 	}
 
 	async function handleWorkStatusDragEnd(event: DragEndEvent) {
@@ -4535,7 +3137,7 @@ export default function Home() {
 			(item) => String(item.id) === reservationId,
 		)
 		const workOrder = activeReservation
-			? reservationWorkOrder(activeReservation)
+			? workOrderForReservation(activeReservation, workOrderByReservation)
 			: null
 		const workOrderId = String(
 			event.active.data.current?.workOrderId ?? workOrder?.id ?? '',
@@ -4543,13 +3145,23 @@ export default function Home() {
 		const canMoveStatus = activeReservation
 			? reservationCanMoveWorkStatus(activeReservation, workOrderByReservation)
 			: false
-		const originColumn = resolveWorkStatusColumnKey(
+		const originColumn = workStatusColumnKeyForValue(
 			event.active.data.current?.statusGroup ??
 				event.active.data.current?.status ??
 				workOrder?.status,
+			workStatusColumns,
+			orderLabels,
 		)
-		const targetColumn = resolveWorkStatusDropTarget(event.over)
-		const nextStatus = workStatusDropStatusForColumn(targetColumn)
+		const targetColumn = workStatusDropTargetForOver(
+			event.over,
+			workStatusColumns,
+			orderLabels,
+		)
+		const nextStatus = workStatusDropStatusForColumn(
+			targetColumn,
+			workStatusColumns,
+			orderLabels,
+		)
 		const previousReservations = reservations
 		const previousWorkOrders = workOrders
 		const previousStatus = workOrder?.status ?? activeReservation?.status
@@ -4588,7 +3200,7 @@ export default function Home() {
 		setReservations((current) =>
 			current.map((item) =>
 				String(item.id) === reservationId
-					? updateReservationWorkOrder(item, optimisticWorkOrder)
+					? updateReservationWorkOrder(item, optimisticWorkOrder, orderLabels)
 					: item,
 			),
 		)
@@ -4609,11 +3221,12 @@ export default function Home() {
 			)
 			setReservations((current) =>
 				current.map((item) =>
-					String(item.id) === reservationId
-						? updateReservationWorkOrder(
-								item,
-								savedWorkOrder as AnyRecord,
-							)
+				String(item.id) === reservationId
+					? updateReservationWorkOrder(
+							item,
+							savedWorkOrder as AnyRecord,
+							orderLabels,
+						)
 						: item,
 				),
 			)
@@ -4676,17 +3289,17 @@ export default function Home() {
 	}
 
 	function handleQuoteDragOver(event: any) {
-		setQuoteDropStatus(resolveQuoteDropStatus(event.over?.id))
+		setQuoteDropStatus(parseQuoteDropStatus(event.over?.id))
 	}
 
 	async function handleQuoteDragEnd(event: DragEndEvent) {
 		const quoteId = String(
 			event.active.data.current?.quoteId ?? activeQuoteDragId ?? '',
 		)
-		const originStatus = resolveQuoteDropStatus(
+		const originStatus = parseQuoteDropStatus(
 			event.active.data.current?.status,
 		)
-		const nextStatus = resolveQuoteDropStatus(event.over?.id)
+		const nextStatus = parseQuoteDropStatus(event.over?.id)
 		const previousQuotes = quotes
 		const activeQuote = quotes.find((item) => String(item.id) === quoteId)
 
@@ -4917,162 +3530,45 @@ export default function Home() {
 	).length
 	const inactiveEmployeeCount = employees.length - activeEmployeeCount
 	const title = sectionMeta[displayedActive]
-	const buildNavItem = (key: Section): SidebarNavItem => ({
-		key,
-		label: sectionMeta[key].label,
-		icon: sectionMeta[key].icon,
-		badge:
-			key === 'notifications' && pendingPublicRequestsCount
-				? pendingPublicRequestsCount
-				: key === 'tasks' && pendingTasksCount
-					? pendingTasksCount
-					: undefined,
-		badgeVariant: key === 'tasks' && overdueTasksCount > 0 ? 'danger' : undefined,
+	const navItems = buildSidebarNavigation({
+		canViewEconomy,
+		pendingPublicRequestsCount,
+		pendingTasksCount,
+		overdueTasksCount,
 	})
-	const navItems: SidebarNavItem[] = [
-		buildNavItem('dashboard'),
-		{
-			...buildNavItem('agenda'),
-			children: canViewEconomy
-				? [buildNavItem('quotes'), buildNavItem('notifications')]
-				: [],
-		},
-		{
-			...buildNavItem('customers'),
-			children: [
-				buildNavItem('vehicles'),
-				buildNavItem('services'),
-			],
-		},
-		...(canViewEconomy
-			? [
-					{
-						...buildNavItem('cash'),
-						children: [
-							buildNavItem('debts'),
-							buildNavItem('fixed-expenses'),
-							buildNavItem('suppliers'),
-							buildNavItem('inventory'),
-							buildNavItem('tools'),
-						],
-					},
-					buildNavItem('tasks'),
-					buildNavItem('settings'),
-				]
-			: [buildNavItem('tasks')]),
-	]
-	const customerVehicles = vehicles.filter(
-		(vehicle) =>
-			String(vehicle.customer) === String(reservationForm.customer),
+	const customerVehicles = vehiclesMatchingCustomer(
+		vehicles,
+		reservationForm.customer,
 	)
-	const quoteVehicleOptions = quoteForm.customer
-		? vehicles.filter(
-				(vehicle) =>
-					String(vehicle.customer) === String(quoteForm.customer),
-			)
-		: vehicles
-	const customerOptions = customers.map((item) => ({
-		value: String(item.id),
-		label: item.name,
-		meta: joinDisplayParts([item.phone, item.email]),
-	}))
-	const customerFilterOptions = [
-		{ value: 'all', label: 'Todos' },
-		{ value: 'with_reservation', label: 'Con reserva' },
-		{ value: 'birthday_soon', label: 'Cumple pronto' },
-		{ value: 'no_upcoming', label: 'Sin proxima visita' },
-		{ value: 'with_balance', label: 'Con saldo' },
-	] as Array<{
-		value: CustomerCardFilter
-		label: string
-	}>
-	const visibleCustomerFilterOptions = customerFilterOptions.filter(
-		(option) => canViewEconomy || option.value !== 'with_balance',
+	const quoteVehicleOptions = vehiclesForOptionalCustomer(
+		vehicles,
+		quoteForm.customer,
 	)
-	const vehicleOptions = vehicles.map((item) => ({
-		value: String(item.id),
-		label: item.label,
-		meta: item.customer_name,
-	}))
-	const customerVehicleOptions = customerVehicles.map((item) => ({
-		value: String(item.id),
-		label: item.label,
-		meta: item.customer_name,
-	}))
-	const serviceOptions = services.map((item) => ({
-		value: String(item.id),
-		label: serviceDisplayName(item),
-		meta: canViewEconomy
-			? joinDisplayParts([
-					serviceTypeLabels[item.service_type] ?? item.service_type,
-					money(item.base_price),
-				])
-			: serviceTypeLabels[item.service_type] ?? item.service_type,
-	}))
-	const reservationOptions = reservations
-		.filter((item) => item.status !== 'canceled')
-		.map((item) => ({
-			value: String(item.id),
-			label: (() => {
-				const startTime = reservationStartTimeLabel(item, 'Sin hora')
-				return startTime
-					? `${item.day} ${startTime} - ${item.customer_name}`
-					: `${item.day} - ${item.customer_name}`
-			})(),
-			meta: `${item.vehicle_label} - ${serviceDisplayName(item)} - ${reservationLabels[item.status] ?? item.status}`,
-		}))
-	const workOrderOptions = workOrders.map((item) => ({
-		value: String(item.id),
-		label: `${item.customer_name} - ${item.vehicle_label}`,
-		meta: canViewEconomy
-			? `${serviceDisplayName(item)} - deuda ${money(item.balance_due)}`
-			: serviceDisplayName(item),
-	}))
-	const allDebtOptions = debts.map((item) => ({
-		value: String(item.id),
-		label: item.concept,
-		meta: `${debtStatusLabels[item.status] ?? item.status} - saldo ${money(item.balance_due)}`,
-	}))
-	const debtOptions = allDebtOptions.filter((option) => {
-		const debt = debts.find((item) => String(item.id) === option.value)
-		return numberValue(debt?.balance_due) > 0
-	})
-	const materialOptions = materials.map((item) => ({
-		value: String(item.id),
-		label: item.name,
-		meta: `stock ${item.stock_quantity} ${item.unit} - costo ${money(item.estimated_unit_cost)}`,
-	}))
-	const supplierOptions = suppliers.map((item) => ({
-		value: String(item.id),
-		label: item.name,
-		meta: [item.legal_name, item.category, item.contact_name, item.phone, item.email]
-			.filter(Boolean)
-			.join(' - '),
-	}))
-	const openMaterialUnitOptions = materialOpenUnits
-		.filter((item) => item.status === 'open')
-		.map((item) => ({
-			value: String(item.id),
-			label: item.material_name ?? 'Unidad abierta',
-			meta: `abierta ${item.opened_at} - ${item.consumptions_count ?? 0} usos`,
-		}))
-	const quoteVehicleSearchOptions = quoteVehicleOptions.map((item) => ({
-		value: String(item.id),
-		label: item.label,
-		meta: item.customer_name,
-	}))
+	const customerOptions = customerSelectOptions(customers)
+	const visibleCustomerFilterOptions =
+		customerFilterOptionsForEconomy(canViewEconomy)
+	const vehicleOptions = vehicleSelectOptions(vehicles)
+	const customerVehicleOptions = vehicleSelectOptions(customerVehicles)
+	const serviceOptions = serviceSelectOptions(
+		services,
+		canViewEconomy,
+		serviceTypeLabels,
+	)
+	const reservationOptions = reservationSelectOptions(
+		reservations,
+		useReservationTimes,
+		reservationLabels,
+	)
+	const workOrderOptions = workOrderSelectOptions(workOrders, canViewEconomy)
+	const { allDebtOptions, debtOptions } = debtSelectOptions(debts)
+	const materialOptions = materialSelectOptions(materials)
+	const supplierOptions = supplierSelectOptions(suppliers)
+	const openMaterialUnitOptions = openMaterialUnitSelectOptions(materialOpenUnits)
+	const quoteVehicleSearchOptions = vehicleSelectOptions(quoteVehicleOptions)
 	const quoteReservationVehicleOptions = reservationForQuote
-		? vehicles
-				.filter(
-					(vehicle) =>
-						String(vehicle.customer) ===
-						String(reservationForQuote.customer),
-				)
-				.map((item) => ({
-					value: String(item.id),
-					label: item.label,
-					meta: item.customer_name,
-				}))
+		? vehicleSelectOptions(
+				vehiclesMatchingCustomer(vehicles, reservationForQuote.customer),
+			)
 		: vehicleOptions
 	const customerNameValues = uniqueValues(customers, 'name')
 	const customerPhoneValues = uniqueValues(customers, 'phone')
@@ -5128,7 +3624,14 @@ export default function Home() {
 		businessForm.income_category_tree ??
 			businessProfile?.income_category_tree ??
 			cash.income_category_tree ??
-			DEFAULT_INCOME_CATEGORY_TREE,
+		DEFAULT_INCOME_CATEGORY_TREE,
+	)
+	const {
+		validExpenseSubcategoryForCategory,
+		validCashSubcategoryForCategory,
+	} = createCashSubcategoryValidators(
+		incomeCategoryTree,
+		expenseCategoryTree,
 	)
 	const cashIncomeCategoryValues = mergeStringValues(
 		Object.keys(incomeCategoryTree),
@@ -5174,110 +3677,32 @@ export default function Home() {
 		],
 		[incomeClassificationPairs, expenseClassificationPairs],
 	)
-	const incomeCategorySelectOptions = selectOptionsFromValues(
-		cashIncomeCategoryValues,
-		movementForm.category,
-	)
-	const expenseCategorySelectOptions = selectOptionsFromValues(
-		cashExpenseCategoryValues,
-		movementForm.category,
-	)
-	const debtExpenseCategorySelectOptions = selectOptionsFromValues(
-		cashExpenseCategoryValues,
-		debtForm.expense_category,
-	)
-	const fixedExpenseCategorySelectOptions = selectOptionsFromValues(
-		cashExpenseCategoryValues,
-		fixedExpenseForm.expense_category,
-	)
-	const settingsExpenseCategoryOptions = selectOptionsFromValues(
-		cashExpenseCategoryValues,
-		expenseClassificationForm.category,
-	)
-	const settingsIncomeCategoryOptions = selectOptionsFromValues(
-		cashIncomeCategoryValues,
-		expenseClassificationForm.category,
-	)
-	const settingsClassificationCategoryOptions =
-		expenseClassificationForm.movement_type === 'income'
-			? settingsIncomeCategoryOptions
-			: settingsExpenseCategoryOptions
-	const selectedMovementSubcategoryValues = mergeStringValues(
-		movementForm.movement_type === 'income'
-			? incomeSubcategoriesForCategory(
-					incomeCategoryTree,
-					movementForm.category,
-				)
-			: expenseSubcategoriesForCategory(
-					expenseCategoryTree,
-					movementForm.category,
-				),
-		uniqueValues(
-			cashMovements.filter(
-				(item: AnyRecord) =>
-					String(item.category ?? '') === String(movementForm.category ?? ''),
-			),
-			'subcategory',
-		),
-	)
-	const movementSubcategorySelectOptions = selectOptionsFromValues(
+	const {
+		incomeCategorySelectOptions,
+		expenseCategorySelectOptions,
+		debtExpenseCategorySelectOptions,
+		fixedExpenseCategorySelectOptions,
+		settingsClassificationCategoryOptions,
 		selectedMovementSubcategoryValues,
-		movementForm.subcategory,
-	)
-	const debtExpenseSubcategoryValues = mergeStringValues(
-		expenseSubcategoriesForCategory(
-			expenseCategoryTree,
-			debtForm.expense_category,
-		),
-		uniqueValues(
-			debts.filter(
-				(item: AnyRecord) =>
-					String(item.expense_category ?? '') ===
-					String(debtForm.expense_category ?? ''),
-			),
-			'expense_subcategory',
-		),
-	)
-	const debtExpenseSubcategorySelectOptions = selectOptionsFromValues(
+		movementSubcategorySelectOptions,
 		debtExpenseSubcategoryValues,
-		debtForm.expense_subcategory,
-	)
-	const fixedExpenseSubcategoryValues = mergeStringValues(
-		expenseSubcategoriesForCategory(
-			expenseCategoryTree,
-			fixedExpenseForm.expense_category,
-		),
-		uniqueValues(
-			fixedExpenses.filter(
-				(item: AnyRecord) =>
-					String(item.expense_category ?? '') ===
-					String(fixedExpenseForm.expense_category ?? ''),
-			),
-			'expense_subcategory',
-		),
-	)
-	const fixedExpenseSubcategorySelectOptions = selectOptionsFromValues(
+		debtExpenseSubcategorySelectOptions,
 		fixedExpenseSubcategoryValues,
-		fixedExpenseForm.expense_subcategory,
-	)
-	const settingsExpenseSubcategoryOptions = selectOptionsFromValues(
-		expenseSubcategoriesForCategory(
-			expenseCategoryTree,
-			expenseClassificationForm.category,
-		),
-		expenseClassificationForm.subcategory,
-	)
-	const settingsIncomeSubcategoryOptions = selectOptionsFromValues(
-		incomeSubcategoriesForCategory(
-			incomeCategoryTree,
-			expenseClassificationForm.category,
-		),
-		expenseClassificationForm.subcategory,
-	)
-	const settingsClassificationSubcategoryOptions =
-		expenseClassificationForm.movement_type === 'income'
-			? settingsIncomeSubcategoryOptions
-			: settingsExpenseSubcategoryOptions
+		fixedExpenseSubcategorySelectOptions,
+		settingsClassificationSubcategoryOptions,
+	} = cashCategorySelectOptions({
+		cashIncomeCategoryValues,
+		cashExpenseCategoryValues,
+		movementForm,
+		debtForm,
+		fixedExpenseForm,
+		expenseClassificationForm,
+		incomeCategoryTree,
+		expenseCategoryTree,
+		cashMovements,
+		debts,
+		fixedExpenses,
+	})
 	const cashSubcategoryValues = mergeStringValues(
 		Object.values(incomeCategoryTree).flat(),
 		Object.values(expenseCategoryTree).flat(),
@@ -5321,10 +3746,7 @@ export default function Home() {
 		uniqueValues(cashEntries, 'source_kind'),
 		cashFilters.sourceKind ? [cashFilters.sourceKind] : undefined,
 	)
-	const cashSourceKindOptions = cashSourceKindValues.map((value) => ({
-		value,
-		label: cashSourceKindLabel(value),
-	}))
+	const cashSourceKindOptions = cashSourceKindSelectOptions(cashSourceKindValues)
 	const cashFlowSummary = useMemo(
 		() => buildCashFlowSummary(cashEntries, cashSummaryMode),
 		[cashEntries, cashSummaryMode],
@@ -5430,11 +3852,7 @@ export default function Home() {
 	const stockMovementRequiresReservation =
 		stockMovementForm.movement_type === 'consumption'
 	const stockMovementLines = stockMovementForm.lines ?? []
-	const stockMovementTotal = stockMovementLines.reduce(
-		(total: number, line: AnyRecord) =>
-			total + numberValue(line.quantity) * numberValue(line.unit_price),
-		0,
-	)
+	const stockMovementTotal = stockMovementLinesTotal(stockMovementLines)
 	const selectedWorkOrderForPayment = workOrders.find(
 		(item) => String(item.id) === String(paymentForm.work_order),
 	)
@@ -5460,808 +3878,85 @@ export default function Home() {
 
 	// Fallback uniforme de carga/error para secciones que antes aparecian "pop-in":
 	// muestra skeleton mientras carga o un ErrorState con reintento si la carga fallo.
-	const sectionFallback = (
-		key: DataSetKey,
-		hasData: boolean,
-		loadingLabel: string,
-	): ReactNode => {
-		const showLoading = isDataSetLoading(key) && !hasData
-		return (
-			<div className="grid">
-				<section className="panel">
-					{showLoading ? (
-						<SkeletonList rows={6} label={loadingLabel} />
-					) : (
-						<ErrorState
-							text={loadErrorNotice?.title ?? 'No se pudieron cargar los datos'}
-							hint={loadErrorNotice?.description}
-							action={
-								<Button
-									type="button"
-									variant="ghost"
-									onClick={() => loadData({ force: true })}
-								>
-									Actualizar
-								</Button>
-							}
-						/>
-					)}
-				</section>
-			</div>
-		)
-	}
+	const sectionFallback = createSectionFallbackRenderer({
+		isDataSetLoading,
+		errorNotice: loadErrorNotice,
+		onReload: () => loadData({ force: true }),
+	})
 
-	function materialUsageRows(material: AnyRecord) {
-		const legacyRows = consumptions.filter(
-			(item) => String(item.material) === String(material.id),
-		)
-		const movementRows = stockMovements
-			.filter((movement) => movement.movement_type === 'consumption')
-			.flatMap((movement) =>
-				(movement.lines ?? [])
-					.filter((line: AnyRecord) => String(line.material) === String(material.id))
-					.map((line: AnyRecord) => ({
-						...line,
-						id: `stock-${movement.id}-${line.id}`,
-						material: line.material,
-						material_name: line.material_name,
-						consumed_at: movement.occurred_on,
-						work_order: movement.work_order,
-						estimated_total_cost: line.estimated_total_cost,
-					})),
-			)
-		return [...legacyRows, ...movementRows]
-	}
+	const {
+		materialOpenUnitRows,
+		materialUsageRows,
+		materialUsageSummary,
+		workOrderMaterialUsageSummary,
+	} = inventoryUsageSelectors({
+		consumptions,
+		materialOpenUnits,
+		materials,
+		stockMovements,
+	})
 
-	function materialOpenUnitRows(material: AnyRecord) {
-		return materialOpenUnits.filter(
-			(item) => String(item.material) === String(material.id),
-		)
-	}
-
-	function workOrderMaterialUsageSummary(workOrder: AnyRecord) {
-		const legacyRows = consumptions.filter(
-			(item) => String(item.work_order) === String(workOrder.id),
-		)
-		const movementRows = stockMovements
-			.filter(
-				(movement) =>
-					movement.movement_type === 'consumption' &&
-					String(movement.work_order) === String(workOrder.id),
-			)
-			.flatMap((movement) =>
-				(movement.lines ?? []).map((line: AnyRecord) => ({
-					...line,
-					material: line.material,
-					material_name: line.material_name,
-				})),
-			)
-		const rows = [...legacyRows, ...movementRows]
-		if (!rows.length) return null
-
-		const groups = rows.reduce<AnyRecord[]>((summary, item) => {
-			const materialId = String(item.material)
-			const existing = summary.find((group) => group.materialId === materialId)
-			const material = materials.find(
-				(candidate) => String(candidate.id) === materialId,
-			)
-			if (existing) {
-				existing.quantity += numberValue(item.quantity)
-				existing.openUnitUses += item.open_unit ? 1 : 0
-				return summary
-			}
-			summary.push({
-				materialId,
-				name: item.material_name ?? material?.name ?? 'Material',
-				quantity: numberValue(item.quantity),
-				openUnitUses: item.open_unit ? 1 : 0,
-				unit: material?.unit ?? '',
-			})
-			return summary
-		}, [])
-
-		const first = groups[0]
-		const extraCount = groups.length - 1
-		const firstLabel =
-			first.openUnitUses > 0 && first.quantity === 0
-				? `${first.name}: ${first.openUnitUses} usos de unidad abierta`
-				: `${first.name}: ${quantity(first.quantity, first.unit)}`
-		return {
-			label: firstLabel,
-			extra: extraCount > 0 ? ` +${extraCount}` : '',
-		}
-	}
-
-	function renderBirthdayBadge(customer: AnyRecord) {
-		if (!customer?.birthday_label) return null
-		return (
-			<span
-				className={cx(
-					'birthday-badge',
-					customer.has_birthday_alert ? 'birthday-badge--alert' : '',
-				)}
-			>
-				{birthdayText(customer)}
-			</span>
-		)
-	}
-
-	function renderBirthdayAlerts() {
-		const alerts = dashboard.birthday_alerts ?? []
-		return (
-			<Panel>
-				<div className="panel-head">
-					<h2>Cumpleanos proximos</h2>
-					<span className="panel-kicker">
-						{dashboard.birthday_alert_days ?? 3} dias
-					</span>
-				</div>
-				<div className="records compact-records">
-					{alerts.length ? (
-						alerts.map((customer: AnyRecord) => (
-							<MotionFlashSurface
-								className={recordClass('customer', customer.id)}
-								key={`birthday-${customer.id}`}
-								{...detailRecordProps('Cliente', customer)}
-							>
-								<div className="record-head">
-									<div>
-										<div className="record-title">{customer.name}</div>
-										<div className="record-sub">
-											{customer.phone || 'Sin telefono'}
-										</div>
-										{renderBirthdayBadge(customer)}
-									</div>
-								</div>
-							</MotionFlashSurface>
-						))
-					) : (
-						<Empty
-							text="Sin cumpleanos en los proximos dias."
-							hint="La alerta vuelve a aparecer aca cuando un cliente entre en la ventana configurada."
-						/>
-					)}
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderCustomerHistory() {
-		if (!canViewEconomy) return null
-		if (customerHistoryLoading) {
-			return <LoadingState text="Cargando historial del cliente..." />
-		}
-		if (!customerHistory) {
-			return <div className="info-note">Historial economico no disponible.</div>
-		}
-		const summary = customerHistory.summary ?? {}
-		const orders = customerHistory.work_orders ?? []
-		return (
-			<div className="customer-history">
-				<div className="material-summary">
-					<div className="material-kpi">
-						<span>Trabajos</span>
-						<strong>{summary.work_orders_count ?? 0}</strong>
-					</div>
-					<div className="material-kpi">
-						<span>Cobrado</span>
-						<strong>{money(summary.paid_total)}</strong>
-					</div>
-					<div className="material-kpi">
-						<span>Gastado</span>
-						<strong>{money(summary.material_cost_total)}</strong>
-					</div>
-					<div className="material-kpi">
-						<span>Margen</span>
-						<strong>{money(summary.margin_total)}</strong>
-					</div>
-				</div>
-				<div className="linked-records">
-					<div className="linked-records-head">
-						<strong>Historial de trabajos</strong>
-						<span>{orders.length} registros</span>
-					</div>
-					{orders.length ? (
-						orders.map((order: AnyRecord) => (
-							<button
-								className="linked-record"
-								key={`customer-history-${order.id}`}
-								onClick={() => openDetailModal('Orden de trabajo', order)}
-								type="button"
-							>
-								<strong>
-									{order.service} - {order.vehicle}
-								</strong>
-								<small>
-									{orderLabels[order.status] ?? order.status} -{' '}
-									{formatDateLabel(order.received_at)} - cobrado{' '}
-									{money(order.paid_amount)} - materiales{' '}
-									{money(order.material_cost)}
-								</small>
-							</button>
-						))
-					) : (
-						<Empty text="Este cliente todavia no tiene trabajos." />
-					)}
-				</div>
-			</div>
-		)
-	}
-
-	function renderCustomerRankingPanel(
-		title: string,
-		rows: AnyRecord[],
-		labelKey: string,
-		emptyText: string,
-	) {
-		return (
-			<Panel title={title}>
-				<div className="customer-ranking-list">
-					{rows.length ? (
-						rows.slice(0, 6).map((item: AnyRecord, index: number) => (
-							<div
-								className="customer-ranking-row"
-								key={`${title}-${item.id ?? item.name ?? item[labelKey]}`}
-							>
-								<div className="customer-ranking-main">
-									<div className="customer-ranking-title">
-										<span className="customer-ranking-position">
-											#{index + 1}
-										</span>
-										<strong>{item[labelKey] || 'Sin dato'}</strong>
-									</div>
-									<span>
-										{item.work_orders_count ?? 0}{' '}
-										{item.work_orders_count === 1 ? 'trabajo' : 'trabajos'}
-									</span>
-								</div>
-								<div className="customer-ranking-values">
-									<span>
-										Ventas <strong>{money(item.billed_total)}</strong>
-									</span>
-									<span>
-										Cobrado <strong>{money(item.paid_total)}</strong>
-									</span>
-									<span>
-										Margen <strong>{money(item.margin_total)}</strong>
-									</span>
-								</div>
-							</div>
-						))
-					) : (
-						<Empty text={emptyText} />
-					)}
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderCustomerSalesHistory(orders: AnyRecord[]) {
-		return (
-			<Panel
-				title="Ventas del cliente"
-				subtitle={`${orders.length} trabajos registrados`}
-			>
-				<div className="records compact-records">
-					{orders.length ? (
-						orders.map((order: AnyRecord) => {
-							const detailOrder =
-								workOrders.find((item) => String(item.id) === String(order.id)) ??
-								order
-							return (
-							<button
-								className="record compact"
-								key={`customer-sale-${order.id}`}
-								onClick={() =>
-									openDetailModal('Orden de trabajo', detailOrder)
-								}
-								type="button"
-							>
-								<div className="record-head">
-									<div>
-										<div className="record-title">
-											{order.service} - {order.vehicle}
-										</div>
-										<div className="record-sub">
-											{formatDateTimeLabel(order.received_at)} - cobrado{' '}
-											{money(order.paid_amount)} - saldo{' '}
-											{money(order.balance_due)} - materiales{' '}
-											{money(order.material_cost)}
-										</div>
-									</div>
-									<div className="record-actions">
-										<StatusPill value={order.status} labels={orderLabels} />
-										<span className="status payment">
-											{money(order.total_amount)}
-										</span>
-									</div>
-								</div>
-							</button>
-							)
-						})
-					) : (
-						<Empty text="Este cliente todavia no tiene ventas." />
-					)}
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderCustomerOperationalSnapshot(
-		history: AnyRecord,
-		upcomingReservations: AnyRecord[],
-		recentQuotes: AnyRecord[],
-	) {
-		const insights = history.insights ?? {}
-		const summary = history.summary ?? {}
-		const nextReservation =
-			insights.next_reservation ?? upcomingReservations[0] ?? null
-		const latestQuote = recentQuotes[0] ?? null
-		return (
-			<Panel
-				title="Estado del cliente"
-				subtitle="Actividad, cobranza y oportunidades en una sola vista"
-			>
-				<div className="customer-dashboard-insights">
-					<div className="customer-dashboard-card">
-						<span>Ultima visita</span>
-						<strong>
-							{insights.last_visit_at
-								? formatDateLabel(insights.last_visit_at)
-								: 'Sin trabajos'}
-						</strong>
-						<small>
-							{insights.last_visit_at
-								? `${customerDaysAgoText(
-										insights.days_since_last_visit,
-									)} · ${insights.last_service_name || 'Sin servicio'} · ${
-										insights.last_vehicle_label || 'Sin vehiculo'
-									}`
-								: 'Todavia no tiene trabajos registrados.'}
-						</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Proxima reserva</span>
-						<strong>
-							{customerScheduleLabel(nextReservation, useReservationTimes)}
-						</strong>
-						<small>
-							{nextReservation
-								? `${nextReservation.services} · ${nextReservation.vehicle}`
-								: 'Sin agenda futura para este cliente.'}
-						</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Cotizaciones abiertas</span>
-						<strong>{insights.open_quotes_count ?? 0}</strong>
-						<small>
-							{latestQuote
-								? `Ultima ${formatDateLabel(latestQuote.quote_date)} · ${money(
-										latestQuote.total,
-									)}`
-								: `${insights.quotes_total ?? 0} cotizaciones registradas`}
-						</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Trabajos con saldo</span>
-						<strong>{insights.balance_due_work_orders_count ?? 0}</strong>
-						<small>{`Saldo total ${money(summary.balance_due_total)}`}</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Ticket promedio</span>
-						<strong>{money(insights.average_ticket)}</strong>
-						<small>{customerAverageGapText(insights.average_days_between_visits)}</small>
-					</div>
-					<div className="customer-dashboard-card">
-						<span>Patron principal</span>
-						<strong>
-							{insights.preferred_service_name || 'Sin servicio frecuente'}
-						</strong>
-						<small>
-							{insights.preferred_vehicle_label
-								? `${insights.preferred_vehicle_label} · ${
-										insights.preferred_brand_name || 'Sin marca'
-									}`
-								: 'Todavia no hay recurrencia suficiente.'}
-						</small>
-					</div>
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderCustomerUpcomingReservations(reservationRows: AnyRecord[]) {
-		return (
-			<Panel
-				title="Agenda del cliente"
-				subtitle={`${reservationRows.length} reservas futuras visibles`}
-			>
-				<div className="records compact-records">
-					{reservationRows.length ? (
-						reservationRows.map((reservation: AnyRecord) => {
-							const detailReservation =
-								reservations.find(
-									(item) => String(item.id) === String(reservation.id),
-								) ?? reservation
-							return (
-							<button
-								className="record compact"
-								key={`customer-reservation-${reservation.id}`}
-								onClick={() =>
-									openDetailModal('Reserva', detailReservation)
-								}
-								type="button"
-							>
-								<div className="record-head">
-									<div>
-										<div className="record-title">
-											{reservation.services} - {reservation.vehicle}
-										</div>
-										<div className="record-sub">
-											{customerScheduleLabel(
-												reservation,
-												useReservationTimes,
-											)} -{' '}
-											{reservationRangeLabel(reservation) ||
-												'sin salida extendida'}
-										</div>
-									</div>
-									<div className="record-actions">
-										<StatusPill
-											value={reservation.status}
-											labels={reservationLabels}
-										/>
-									</div>
-								</div>
-							</button>
-							)
-						})
-					) : (
-						<Empty text="Este cliente no tiene reservas futuras." />
-					)}
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderCustomerRecentQuotes(quotesRows: AnyRecord[]) {
-		return (
-			<Panel
-				title="Cotizaciones recientes"
-				subtitle={`${quotesRows.length} cotizaciones registradas`}
-			>
-				<div className="records compact-records">
-					{quotesRows.length ? (
-						quotesRows.map((quote: AnyRecord) => {
-							const quoteCode = quote.public_code ?? `#${quote.id}`
-							const detailQuote =
-								quotes.find((item) => String(item.id) === String(quote.id)) ??
-								quote
-							return (
-								<button
-									className="record compact"
-									key={`customer-quote-${quote.id}`}
-									onClick={() => openDetailModal('Cotizacion', detailQuote)}
-									type="button"
-								>
-									<div className="record-head">
-										<div>
-											<div className="record-title">
-												Cotizacion {quoteCode} -{' '}
-												{quote.vehicle || 'Sin vehiculo'}
-											</div>
-											<div className="record-sub">
-												{formatDateLabel(quote.quote_date)} - {quote.services}
-											</div>
-										</div>
-										<div className="record-actions">
-											<StatusPill
-												value={quote.status}
-												labels={quoteStatusLabels}
-											/>
-											<span className="status payment">{money(quote.total)}</span>
-										</div>
-									</div>
-								</button>
-							)
-						})
-					) : (
-						<Empty text="Este cliente todavia no tiene cotizaciones." />
-					)}
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderCustomerPaymentHistory(payments: AnyRecord[]) {
-		return (
-			<Panel
-				title="Historial de pagos"
-				subtitle={`${payments.length} pagos registrados`}
-			>
-				<div className="records compact-records">
-					{payments.length ? (
-						payments.map((payment: AnyRecord) => (
-							<div
-								className="record compact"
-								key={`customer-payment-${payment.id}`}
-							>
-								<div className="record-head">
-									<div>
-										<div className="record-title">
-											{payment.service} - {payment.vehicle}
-										</div>
-										<div className="record-sub">
-											{formatDateTimeLabel(payment.paid_at)} -{' '}
-											{payment.payment_type === 'deposit' ? 'Sena' : 'Pago'} -{' '}
-											{debtPaymentMethodLabels[payment.method] ?? payment.method}
-										</div>
-										{payment.notes ? (
-											<div className="record-sub">{payment.notes}</div>
-										) : null}
-									</div>
-									<span className="status payment">
-										{money(payment.amount)}
-									</span>
-								</div>
-							</div>
-						))
-					) : (
-						<Empty text="Este cliente todavia no tiene pagos." />
-					)}
-				</div>
-			</Panel>
-		)
-	}
-
-	function renderCustomerVehicles(customerVehicles: AnyRecord[]) {
-		return (
-			<Panel
-				title="Vehiculos del cliente"
-				subtitle={`${customerVehicles.length} ${
-					customerVehicles.length === 1 ? 'vehiculo vinculado' : 'vehiculos vinculados'
-				}`}
-			>
-				<div className="records compact-records">
-					{customerVehicles.length ? (
-						customerVehicles.map((vehicle: AnyRecord) => {
-							const detailVehicle =
-								vehicles.find((item) => String(item.id) === String(vehicle.id)) ??
-								vehicle
-							const title =
-								vehicle.label ||
-								vehicle.license_plate ||
-								joinDisplayParts([vehicle.brand, vehicle.model]) ||
-								'Vehiculo sin identificar'
-							return (
-								<button
-									className="record compact"
-									key={`customer-vehicle-${vehicle.id ?? title}`}
-									onClick={() => openDetailModal('Vehiculo', detailVehicle)}
-									type="button"
-								>
-									<div className="record-head">
-										<div>
-											<div className="record-title">{title}</div>
-											<div className="record-sub">
-												{joinDisplayParts([
-													vehicle.brand,
-													vehicle.model,
-													vehicle.color,
-												]) || 'Sin detalle tecnico'}
-											</div>
-										</div>
-										<div className="record-actions">
-											<span className="status draft">
-												{vehicle.license_plate || 'Sin patente'}
-											</span>
-										</div>
-									</div>
-								</button>
-							)
-						})
-					) : (
-						<Empty text="Este cliente todavia no tiene vehiculos." />
-					)}
-				</div>
-			</Panel>
-		)
-	}
+	const renderAgendaWorkDebt = createAgendaWorkDebtRenderer({
+		canViewEconomy,
+		materialUsageForWorkOrder: workOrderMaterialUsageSummary,
+	})
+	const renderAgendaReservationCard = createAgendaReservationCardRenderer({
+		vehicles,
+		useReservationTimes,
+		workOrderByReservation,
+		canViewEconomy,
+		reservationStatusConfig,
+		agendaMovePendingId,
+		isActionPending,
+		getQuickActions: agendaReservationQuickActions,
+		detailRecordProps,
+		quickActionTargetProps,
+		renderQuickActionsTrigger,
+		renderWorkDebt: renderAgendaWorkDebt,
+		orderLabels,
+		reservationLabels,
+		onAction: runAgendaReservationAction,
+	})
+	const renderAgendaDragOverlay = createAgendaDragOverlayRenderer({
+		vehicles,
+		useReservationTimes,
+		workOrderByReservation,
+		agendaCardClass: agendaCardClassForRow,
+		orderLabels,
+		reservationLabels,
+		renderWorkDebt: renderAgendaWorkDebt,
+	})
 
 	function renderCustomerDashboard() {
-		if (!customerDashboard || !canViewEconomy) return null
-		const hasDashboardHistory = Boolean(customerDashboardHistory)
-		const history = customerDashboardHistory ?? {}
-		const customer = history.customer ?? customerDashboard
-		const summary = history.summary ?? {}
-		const customerVehicles = history.vehicles ?? []
-		const servicesRanking = history.services ?? []
-		const vehiclesRanking = history.vehicles_ranking ?? []
-		const brandsRanking = history.brands_ranking ?? []
-		const orders = history.work_orders ?? []
-		const payments = history.payments_history ?? []
-		const upcomingReservations = history.upcoming_reservations ?? []
-		const recentQuotes = history.recent_quotes ?? []
-		const profileItems: CustomerDashboardProfileItem[] = [
-			{
-				key: 'phone',
-				label: 'Telefono',
-				value: customer.phone || 'Sin telefono',
-			},
-			{ key: 'email', label: 'Email', value: customer.email || 'Sin email' },
-			{
-				key: 'birthday',
-				label: 'Cumpleanos',
-				value: customer.birthday_label || 'Sin cumpleanos',
-			},
-			{
-				key: 'vehicles',
-				label: 'Vehiculos',
-				value: customerVehicles.length,
-			},
-		]
-		const dashboardMetrics: CustomerDashboardMetric[] = [
-			{
-				key: 'sales',
-				label: 'Ventas',
-				value: money(summary.sales_total ?? summary.billed_total),
-			},
-			{ key: 'paid', label: 'Cobrado', value: money(summary.paid_total) },
-			{
-				key: 'balance',
-				label: 'Saldo',
-				value: money(summary.balance_due_total),
-			},
-			{
-				key: 'materials',
-				label: 'Materiales',
-				value: money(summary.material_cost_total),
-			},
-			{ key: 'margin', label: 'Margen', value: money(summary.margin_total) },
-			{
-				key: 'orders',
-				label: 'Trabajos',
-				value: summary.work_orders_count ?? 0,
-			},
-		]
-		return (
-			<CustomerDashboardShell
-				title={customer.name}
-				subtitle="Historial, vehiculos, agenda, deuda y pagos disponibles"
-				birthdayBadge={renderBirthdayBadge(customer)}
-				profileItems={profileItems}
-				metrics={dashboardMetrics}
-				isLoading={customerDashboardLoading}
-				hasHistory={hasDashboardHistory}
-				onBack={() => setCustomerDashboard(null)}
-				onEdit={() => openDetailModal('Cliente', customer, { startEditing: true })}
-			>
-				{renderCustomerOperationalSnapshot(
-					history,
-					upcomingReservations,
-					recentQuotes,
-				)}
-
-				<div className="grid customer-dashboard-duo">
-					{renderCustomerVehicles(customerVehicles)}
-					{renderCustomerUpcomingReservations(upcomingReservations)}
-				</div>
-
-				<div className="grid three customer-dashboard-rankings">
-					{renderCustomerRankingPanel(
-						'Ranking de servicios',
-						servicesRanking,
-						'name',
-						'Sin servicios vendidos para este cliente.',
-					)}
-					{renderCustomerRankingPanel(
-						'Ranking de vehiculos',
-						vehiclesRanking,
-						'label',
-						'Sin vehiculos con trabajos.',
-					)}
-					{renderCustomerRankingPanel(
-						'Ranking de marcas',
-						brandsRanking,
-						'name',
-						'Sin marcas con trabajos.',
-					)}
-				</div>
-
-				<div className="grid customer-dashboard-duo">
-					{renderCustomerRecentQuotes(recentQuotes)}
-					{renderCustomerSalesHistory(orders)}
-				</div>
-
-				<div className="grid">
-					{renderCustomerPaymentHistory(payments)}
-				</div>
-			</CustomerDashboardShell>
-		)
+		return renderCustomerDashboardForState({
+			dashboard: customerDashboard,
+			canViewEconomy,
+			history: customerDashboardHistory,
+			loading: customerDashboardLoading,
+			vehicles,
+			reservations,
+			quotes,
+			workOrders,
+			useReservationTimes,
+			orderLabels,
+			reservationLabels,
+			quoteStatusLabels,
+			paymentMethodLabels: debtPaymentMethodLabels,
+			onBack: () => setCustomerDashboard(null),
+			onOpenDetail: openDetailModal,
+		})
 	}
 
-	function supplierListInsight(supplier: AnyRecord) {
-		return supplier.list_insights ?? {}
-	}
-
-	function materialUnitValue(material: AnyRecord) {
-		return numberValue(
-			material.last_purchase_unit_cost ?? material.estimated_unit_cost,
-		)
-	}
-
-	function materialStockValue(material: AnyRecord) {
-		if (material.stock_value !== undefined && material.stock_value !== null) {
-			return numberValue(material.stock_value)
-		}
-		return numberValue(material.stock_quantity) * materialUnitValue(material)
-	}
-
-	function materialUsageSummary(material: AnyRecord) {
-		const rows = materialUsageRows(material)
-		return {
-			count:
-				material.usage_count !== undefined
-					? numberValue(material.usage_count)
-					: rows.length,
-			totalQuantity:
-				material.total_consumed_quantity !== undefined
-					? numberValue(material.total_consumed_quantity)
-					: rows.reduce(
-							(total, item) => total + numberValue(item.quantity),
-							0,
-						),
-			totalCost:
-				material.total_consumed_estimated_cost !== undefined
-					? numberValue(material.total_consumed_estimated_cost)
-					: rows.reduce(
-							(total, item) =>
-								total + numberValue(item.estimated_total_cost),
-							0,
-						),
-			lastConsumedAt:
-				material.last_consumed_at ?? rows[0]?.consumed_at ?? null,
-			rows,
-		}
-	}
-
-	const inventorySummary = materials.reduce(
-		(summary, material) => {
-			const usage = materialUsageSummary(material)
-			return {
-				stockValue: summary.stockValue + materialStockValue(material),
-				usageCount: summary.usageCount + usage.count,
-				consumedCost: summary.consumedCost + usage.totalCost,
-				openUnits:
-					summary.openUnits +
-					numberValue(material.open_units_active_count),
-			}
-		},
-		{ stockValue: 0, usageCount: 0, consumedCost: 0, openUnits: 0 },
+	const inventorySummary = inventorySummaryForMaterials(
+		materials,
+		materialUsageSummary,
 	)
-
-	function toolTotalValue(tool: AnyRecord) {
-		if (tool.total_value !== undefined && tool.total_value !== null) {
-			return numberValue(tool.total_value)
-		}
-		return numberValue(tool.quantity) * numberValue(tool.unit_value)
-	}
-
-	const toolSummary = tools.reduce(
-		(summary, tool) => ({
-			records: summary.records + 1,
-			quantity: summary.quantity + numberValue(tool.quantity),
-			value: summary.value + toolTotalValue(tool),
-		}),
-		{ records: 0, quantity: 0, value: 0 },
-	)
+	const toolSummary = toolSummaryForTools(tools)
 
 	function updateQuoteItem(index: number, patch: AnyRecord) {
-		setQuoteForm((current: AnyRecord) => {
-			const items = [...(current.items ?? [])]
-			items[index] = { ...items[index], ...patch }
-			return { ...current, items }
-		})
+		setQuoteForm((current: AnyRecord) =>
+			quoteFormWithPatchedItem(current, index, patch),
+		)
 	}
 
 	function selectQuoteService(index: number, serviceId: string) {
@@ -6279,34 +3974,21 @@ export default function Home() {
 	}
 
 	function addQuoteItem() {
-		setQuoteForm((current: AnyRecord) => ({
-			...current,
-			items: [...(current.items ?? []), blankQuoteItem()],
-		}))
+		setQuoteForm((current: AnyRecord) =>
+			quoteFormWithAddedItem(current, blankQuoteItem),
+		)
 	}
 
 	function removeQuoteItem(index: number) {
-		setQuoteForm((current: AnyRecord) => {
-			const items = (current.items ?? []).filter(
-				(_: AnyRecord, itemIndex: number) => itemIndex !== index,
-			)
-			return {
-				...current,
-				items: items.length ? items : [blankQuoteItem()],
-			}
-		})
+		setQuoteForm((current: AnyRecord) =>
+			quoteFormWithRemovedItem(current, index, blankQuoteItem),
+		)
 	}
 
 	function updateReservationItem(index: number, patch: AnyRecord) {
-		setReservationForm((current: AnyRecord) => {
-			const items = [...(current.items ?? [])]
-			items[index] = { ...items[index], ...patch }
-			return {
-				...current,
-				service: index === 0 && patch.service !== undefined ? patch.service : current.service,
-				items,
-			}
-		})
+		setReservationForm((current: AnyRecord) =>
+			reservationFormWithPatchedItem(current, index, patch),
+		)
 	}
 
 	function selectReservationService(index: number, serviceId: string) {
@@ -6324,180 +4006,102 @@ export default function Home() {
 	}
 
 	function addReservationItem() {
-		setReservationForm((current: AnyRecord) => ({
-			...current,
-			items: [...(current.items ?? []), blankQuoteItem()],
-		}))
+		setReservationForm((current: AnyRecord) =>
+			reservationFormWithAddedItem(current, blankQuoteItem),
+		)
 	}
 
 	function removeReservationItem(index: number) {
-		setReservationForm((current: AnyRecord) => {
-			const items = (current.items ?? []).filter(
-				(_: AnyRecord, itemIndex: number) => itemIndex !== index,
-			)
-			const nextItems = items.length ? items : [blankQuoteItem()]
-			return {
-				...current,
-				service: nextItems[0]?.service ?? '',
-				items: nextItems,
-			}
-		})
-	}
-
-	function repricedItems(items: AnyRecord[] | undefined, vehicleId: string) {
-		return repriceItemsForVehicle(
-			items ?? [],
-			vehicleTypeForId(vehicles, vehicleId),
-			services,
+		setReservationForm((current: AnyRecord) =>
+			reservationFormWithRemovedItem(current, index, blankQuoteItem),
 		)
 	}
 
 	function updateReservationCustomer(value: string) {
+		const selection = formForCustomerSelection(
+			reservationForm,
+			value,
+			vehicles,
+			services,
+		)
+		setReservationForm(selection.form)
 		if (reservationForm.is_group) {
-			setReservationForm({
-				...reservationForm,
-				customer: value,
-				vehicle_lines: repriceGroupVehicleLines(
-					ensureGroupVehicleLines(reservationForm).map((line) =>
-						line.use_new_vehicle ? line : { ...line, vehicle: '' },
-					),
-					vehicles,
-					services,
-				),
-			})
 			focusField('reservation.vehicle_lines.0.vehicle', true)
 			return
 		}
-		const vehicle = singleVehicleIdForCustomer(value)
-		setReservationForm({
-			...reservationForm,
-			customer: value,
-			vehicle,
-			items: repricedItems(reservationForm.items, vehicle),
-		})
-		focusField(vehicle ? 'reservation.service.0' : 'reservation.vehicle', !vehicle)
+		focusField(
+			selection.vehicle ? 'reservation.service.0' : 'reservation.vehicle',
+			!selection.vehicle,
+		)
 	}
 
 	function updateReservationVehicle(value: string) {
-		setReservationForm({
-			...reservationForm,
-			vehicle: value,
-			items: repricedItems(reservationForm.items, value),
-		})
+		setReservationForm(
+			formForVehicleSelection(reservationForm, value, vehicles, services),
+		)
 		focusField('reservation.service.0', true)
 	}
 
 	function updateQuoteCustomer(value: string) {
+		const selection = formForCustomerSelection(
+			quoteForm,
+			value,
+			vehicles,
+			services,
+		)
+		setQuoteForm(selection.form)
 		if (quoteForm.is_group) {
-			setQuoteForm({
-				...quoteForm,
-				customer: value,
-				vehicle_lines: repriceGroupVehicleLines(
-					ensureGroupVehicleLines(quoteForm).map((line) =>
-						line.use_new_vehicle ? line : { ...line, vehicle: '' },
-					),
-					vehicles,
-					services,
-				),
-			})
 			focusField('quote.vehicle_lines.0.vehicle', true)
 			return
 		}
-		const vehicle = singleVehicleIdForCustomer(value)
-		setQuoteForm({
-			...quoteForm,
-			customer: value,
-			vehicle,
-			items: repricedItems(quoteForm.items, vehicle),
-		})
-		focusField(vehicle ? 'quote.service.0' : 'quote.vehicle', !vehicle)
+		focusField(
+			selection.vehicle ? 'quote.service.0' : 'quote.vehicle',
+			!selection.vehicle,
+		)
 	}
 
 	function updateQuoteVehicle(value: string) {
-		setQuoteForm({
-			...quoteForm,
-			vehicle: value,
-			items: repricedItems(quoteForm.items, value),
-		})
+		setQuoteForm(
+			formForVehicleSelection(quoteForm, value, vehicles, services),
+		)
 		focusField('quote.service.0', true)
 	}
 
 	function updateVehicleCustomer(value: string) {
-		setVehicleForm({ ...vehicleForm, customer: value })
+		setVehicleForm(vehicleFormWithCustomer(vehicleForm, value))
 		focusField('vehicle.brand')
 	}
 
-	function validVehicleModelForBrand(brand: string, model: any) {
-		const currentModel = String(model ?? '').trim()
-		if (!brand || !currentModel) return ''
-		return vehicleModelOptionsForBrand(brand, vehicles).includes(currentModel)
-			? currentModel
-			: ''
-	}
-
 	function updateVehicleBrand(value: string) {
-		setVehicleForm((current: AnyRecord) => ({
-			...current,
-			brand: value,
-			model: validVehicleModelForBrand(value, current.model),
-		}))
+		setVehicleForm((current: AnyRecord) =>
+			vehicleFormWithBrand(current, value, vehicles),
+		)
 		focusField('vehicle.model')
 	}
 
 	function updateDetailVehicleBrand(value: string) {
-		updateDetailEdit({
-			brand: value,
-			model: validVehicleModelForBrand(value, detailModal?.editData?.model),
-		})
+		updateDetailEdit(
+			detailVehiclePatchForBrand(detailModal?.editData, value, vehicles),
+		)
 		focusField('detail.vehicle.model')
 	}
 
-	function validExpenseSubcategoryForCategory(category: string, subcategory: any) {
-		const currentSubcategory = String(subcategory ?? '').trim()
-		if (!category || !currentSubcategory) return ''
-		return expenseSubcategoriesForCategory(expenseCategoryTree, category).includes(
-			currentSubcategory,
-		)
-			? currentSubcategory
-			: ''
-	}
-
-	function validCashSubcategoryForCategory(
-		movementType: string,
-		category: string,
-		subcategory: any,
-	) {
-		const currentSubcategory = String(subcategory ?? '').trim()
-		if (!category || !currentSubcategory) return ''
-		const subcategories =
-			movementType === 'income'
-				? incomeSubcategoriesForCategory(incomeCategoryTree, category)
-				: expenseSubcategoriesForCategory(expenseCategoryTree, category)
-		return subcategories.includes(currentSubcategory) ? currentSubcategory : ''
-	}
-
 	function updateMovementCashCategory(value: string) {
-		setMovementForm((current: AnyRecord) => ({
-			...current,
-			category: value,
-			subcategory: validCashSubcategoryForCategory(
-				current.movement_type,
+		setMovementForm((current: AnyRecord) =>
+			cashMovementFormWithCategory(
+				current,
 				value,
-				current.subcategory,
+				incomeCategoryTree,
+				expenseCategoryTree,
 			),
-		}))
+		)
 		focusField('cash-movement.subcategory')
 	}
 
 	function updateDebtExpenseCategory(value: string) {
-		setDebtForm((current: AnyRecord) => ({
-			...current,
-			expense_category: value,
-			expense_subcategory: validExpenseSubcategoryForCategory(
-				value,
-				current.expense_subcategory,
-			),
-		}))
+		setDebtForm((current: AnyRecord) =>
+			debtFormWithExpenseCategory(current, value, expenseCategoryTree),
+		)
 		focusField('debt.expense_subcategory')
 	}
 
@@ -6781,7 +4385,7 @@ export default function Home() {
 	}
 
 	function updateDetailCustomer(kind: string, value: string) {
-		const vehicle = singleVehicleIdForCustomer(value)
+		const vehicle = singleVehicleIdForCustomer(vehicles, value)
 		updateDetailEdit({ customer: value, vehicle })
 		focusField(
 			vehicle ? `detail.${kind}.service` : `detail.${kind}.vehicle`,
@@ -6789,20 +4393,9 @@ export default function Home() {
 		)
 	}
 
-	function cashMovementPayload() {
-		const payload = { ...movementForm }
-		if (!payload.adjusts_closed_day) {
-			delete payload.adjusts_closed_day
-		}
-		if (!payload.subcategory) {
-			delete payload.subcategory
-		}
-		return payload
-	}
-
 	function openAdjustmentForClosedDay(day: string) {
 		setMovementForm(
-			blankMovementForm(today, {
+			blankCashMovementForm(today, {
 				category: 'Ajustes',
 				subcategory: 'Ajuste de cierre',
 				amount: '',
@@ -6811,10 +4404,6 @@ export default function Home() {
 			}),
 		)
 		setFormModal({ kind: 'cash-movement' })
-	}
-
-	function cashEntryKey(item: AnyRecord) {
-		return `${item.source_kind ?? 'cash'}-${item.source_id ?? item.id}`
 	}
 
 	function updateCashFilter(
@@ -6840,24 +4429,12 @@ export default function Home() {
 		setDebtFilters(DEBT_FILTER_DEFAULTS)
 	}
 
-	function debtPaymentDetailData(item: AnyRecord) {
-		const sourceId = item.source_id ?? item.id
-		const payment = debtPayments.find(
-			(current) => String(current.id) === String(sourceId),
-		)
-		if (payment) return payment
-		return {
-			...item,
-			id: sourceId,
-			debt: item.debt,
-			paid_at: String(item.occurred_at ?? '').slice(0, 10),
-			notes: item.description ?? '',
-		}
-	}
-
 	function openCashEntryDetail(item: AnyRecord) {
 		if (item.source_kind === 'debt_payment') {
-			openDetailModal('Pago de deuda', debtPaymentDetailData(item))
+			openDetailModal(
+				'Pago de deuda',
+				debtPaymentDetailData(item, debtPayments),
+			)
 			return
 		}
 		openDetailModal('Movimiento de caja', item)
@@ -6951,7 +4528,7 @@ export default function Home() {
 			})
 		}
 		if (kind === 'quote') {
-			setQuoteForm(blankQuoteFormWithDefaults())
+		setQuoteForm(blankQuoteFormWithBusinessDefaults(businessFormRef.current))
 		}
 		if (kind === 'service') {
 			setServiceForm({
@@ -6975,10 +4552,10 @@ export default function Home() {
 			setPaymentForm(blankPaymentForm())
 		}
 		if (kind === 'cash-movement') {
-			setMovementForm(blankMovementForm(selectedDay))
+			setMovementForm(blankCashMovementForm(selectedDay))
 		}
 		if (kind === 'cash-load') {
-			setMovementForm(blankMovementForm(selectedDay))
+			setMovementForm(blankCashMovementForm(selectedDay))
 			setPaymentForm(blankPaymentForm())
 			setDebtPaymentForm(blankDebtPaymentForm(today))
 			setCashLoadTab('cash-movement')
@@ -7148,18 +4725,6 @@ export default function Home() {
 		})
 	}
 
-	// El costo estimado es opcional: enviar '' rompe el DecimalField del backend,
-	// así que lo normalizamos a null cuando viene vacío.
-	function serviceCreatePayload(form: AnyRecord) {
-		const payload = asPayload(form)
-		delete payload.templateId
-		payload.estimated_material_cost =
-			String(payload.estimated_material_cost ?? '').trim() === ''
-				? null
-				: payload.estimated_material_cost
-		return payload
-	}
-
 	async function createStarterServices() {
 		if (!canViewEconomy) return
 		const plan = buildStarterServicesPlan({ services, sectors })
@@ -7300,172 +4865,6 @@ export default function Home() {
 		})
 	}
 
-	function buildBusinessProfilePayload(
-		currentBusinessForm: AnyRecord,
-		options: { includeLogo?: boolean } = {},
-	) {
-		const payload = new FormData()
-		payload.append('name', String(currentBusinessForm.name ?? '').trim())
-		payload.append('cuit', String(currentBusinessForm.cuit ?? ''))
-		payload.append(
-			'vat_condition',
-			String(currentBusinessForm.vat_condition ?? ''),
-		)
-		payload.append(
-			'contact_phone',
-			String(currentBusinessForm.contact_phone ?? ''),
-		)
-		payload.append(
-			'contact_email',
-			String(currentBusinessForm.contact_email ?? ''),
-		)
-		payload.append('address', String(currentBusinessForm.address ?? ''))
-		payload.append('maps_url', String(currentBusinessForm.maps_url ?? ''))
-		payload.append(
-			'default_quote_validity_days',
-			String(currentBusinessForm.default_quote_validity_days ?? '7'),
-		)
-		payload.append(
-			'default_quote_tax_rate',
-			String(currentBusinessForm.default_quote_tax_rate ?? '0'),
-		)
-		payload.append(
-			'default_quote_discount_rate',
-			String(currentBusinessForm.default_quote_discount_rate ?? '0'),
-		)
-		payload.append(
-			'default_quote_terms',
-			String(currentBusinessForm.default_quote_terms ?? ''),
-		)
-		payload.append(
-			'default_quote_payment_instructions',
-			String(currentBusinessForm.default_quote_payment_instructions ?? ''),
-		)
-		payload.append(
-			'use_reservation_times',
-			String(currentBusinessForm.use_reservation_times !== false),
-		)
-		payload.append(
-			'show_stay_days_in_agenda',
-			String(currentBusinessForm.show_stay_days_in_agenda !== false),
-		)
-		payload.append(
-			'allow_overlapping_reservations',
-			String(currentBusinessForm.allow_overlapping_reservations === true),
-		)
-		payload.append(
-			'enforce_capacity_limit',
-			String(currentBusinessForm.enforce_capacity_limit !== false),
-		)
-		payload.append(
-			'default_capacity_wash',
-			String(currentBusinessForm.default_capacity_wash ?? '8'),
-		)
-		payload.append(
-			'default_capacity_detailing',
-			String(currentBusinessForm.default_capacity_detailing ?? '4'),
-		)
-		payload.append(
-			'reservation_use_pending',
-			String(currentBusinessForm.reservation_use_pending !== false),
-		)
-		payload.append(
-			'reservation_use_in_progress',
-			String(currentBusinessForm.reservation_use_in_progress !== false),
-		)
-		payload.append(
-			'reservation_use_ready',
-			String(currentBusinessForm.reservation_use_ready !== false),
-		)
-		payload.append(
-			'reservation_use_canceled',
-			String(currentBusinessForm.reservation_use_canceled !== false),
-		)
-		payload.append(
-			'reservation_auto_charge_on_delivery',
-			String(currentBusinessForm.reservation_auto_charge_on_delivery === true),
-		)
-		payload.append(
-			'public_landing_enabled',
-			String(currentBusinessForm.public_landing_enabled !== false),
-		)
-		payload.append(
-			'public_landing_intro',
-			String(currentBusinessForm.public_landing_intro ?? ''),
-		)
-		payload.append(
-			'allow_public_booking_requests',
-			String(currentBusinessForm.allow_public_booking_requests !== false),
-		)
-		payload.append(
-			'allow_public_quote_requests',
-			String(currentBusinessForm.allow_public_quote_requests !== false),
-		)
-		payload.append(
-			'public_hidden_service_ids',
-			JSON.stringify(
-				Array.isArray(currentBusinessForm.public_hidden_service_ids)
-					? currentBusinessForm.public_hidden_service_ids
-							.map((value: unknown) => Number(value))
-							.filter(
-								(value: number) =>
-									Number.isFinite(value) && value > 0,
-							)
-					: [],
-			),
-		)
-		payload.append(
-			'onboarding_dismissed_step_ids',
-			JSON.stringify(
-				Array.isArray(currentBusinessForm.onboarding_dismissed_step_ids)
-					? currentBusinessForm.onboarding_dismissed_step_ids.map(
-							(value: unknown) => String(value),
-						)
-					: [],
-			),
-		)
-		payload.append(
-			'public_show_service_description',
-			String(currentBusinessForm.public_show_service_description !== false),
-		)
-		payload.append(
-			'public_show_service_price',
-			String(currentBusinessForm.public_show_service_price === true),
-		)
-		payload.append(
-			'opening_time',
-			currentBusinessForm.opening_time
-				? String(currentBusinessForm.opening_time)
-				: '',
-		)
-		payload.append(
-			'closing_time',
-			currentBusinessForm.closing_time
-				? String(currentBusinessForm.closing_time)
-				: '',
-		)
-		payload.append(
-			'income_category_tree',
-			JSON.stringify(
-				normalizeIncomeCategoryTree(
-					currentBusinessForm.income_category_tree,
-				),
-			),
-		)
-		payload.append(
-			'expense_category_tree',
-			JSON.stringify(
-				normalizeExpenseCategoryTree(
-					currentBusinessForm.expense_category_tree,
-				),
-			),
-		)
-		if (options.includeLogo && businessLogoFile) {
-			payload.append('logo', businessLogoFile)
-		}
-		return payload
-	}
-
 	async function persistBusinessProfile(
 		nextBusinessForm: AnyRecord,
 		options: { includeLogo?: boolean; successTitle?: string } = {},
@@ -7477,7 +4876,11 @@ export default function Home() {
 					'/settings/business-profile/',
 					{
 						method: 'PATCH',
-						body: buildBusinessProfilePayload(nextBusinessForm, options),
+					body: businessProfilePayload(
+						nextBusinessForm,
+						options,
+						businessLogoFile,
+					),
 					},
 				)
 				syncBusinessProfile(saved)
@@ -8041,29 +5444,6 @@ export default function Home() {
 		}
 	}
 
-	function detailKindFromTitle(title: string) {
-		return (
-			{
-				Cliente: 'customer',
-				Vehiculo: 'vehicle',
-				Servicio: 'service',
-				Reserva: 'reservation',
-				'Orden de trabajo': 'workorder',
-				Material: 'material',
-				Proveedor: 'supplier',
-				'Movimiento de stock': 'stock-movement',
-				'Unidad abierta': 'material-open-unit',
-				'Compra de material': 'material-purchase',
-				'Consumo de material': 'material-consumption',
-				Herramienta: 'tool',
-				Cotizacion: 'quote',
-				'Movimiento de caja': 'cash-movement',
-				Deuda: 'debt',
-				'Pago de deuda': 'debt-payment',
-			}[title] ?? ''
-		)
-	}
-
 	function openDetailModal(
 		title: string,
 		data: AnyRecord,
@@ -8132,10 +5512,6 @@ export default function Home() {
 		setSupplierDashboard(supplier)
 	}
 
-	function availableQuickActions(actions: QuickAction[]) {
-		return actions.filter((action) => !action.hidden)
-	}
-
 	function openQuickActionsAt(
 		anchorPoint: { x: number; y: number },
 		title: string,
@@ -8195,17 +5571,13 @@ export default function Home() {
 		actions: QuickAction[],
 		ariaLabel = 'Abrir acciones rapidas',
 	) {
-		if (!availableQuickActions(actions).length) return null
 		return (
-			<button
-				type="button"
-				className="ghost icon-button quick-actions-trigger"
-				aria-label={ariaLabel}
-				title={ariaLabel}
-				onClick={(event) => openQuickActionsFromTrigger(event, title, actions)}
-			>
-				<MoreHorizontal size={16} />
-			</button>
+			<QuickActionsTrigger
+				title={title}
+				actions={actions}
+				ariaLabel={ariaLabel}
+				onOpen={openQuickActionsFromTrigger}
+			/>
 		)
 	}
 
@@ -8267,30 +5639,6 @@ export default function Home() {
 			update_recipe: false,
 		})
 		setFormModal({ kind: 'material-historical-usage' })
-	}
-
-	function customerForRecord(record: AnyRecord | null | undefined) {
-		const customerId =
-			record?.customer ?? record?.customer_id ?? record?.customerId ?? null
-		if (customerId === null || customerId === undefined || customerId === '') {
-			return null
-		}
-		return (
-			customers.find((customer) => String(customer.id) === String(customerId)) ??
-			null
-		)
-	}
-
-	function vehicleForRecord(record: AnyRecord | null | undefined) {
-		const vehicleId =
-			record?.vehicle ?? record?.vehicle_id ?? record?.vehicleId ?? null
-		if (vehicleId === null || vehicleId === undefined || vehicleId === '') {
-			return null
-		}
-		return (
-			vehicles.find((vehicle) => String(vehicle.id) === String(vehicleId)) ??
-			null
-		)
 	}
 
 	function deleteRecordQuickAction(
@@ -8504,7 +5852,7 @@ export default function Home() {
 		const sourceId = entry.source_id ?? entry.id
 		const deleteKind = isDebtPayment ? 'debt-payment' : 'cash-movement'
 		const deleteData = isDebtPayment
-			? debtPaymentDetailData(entry)
+			? debtPaymentDetailData(entry, debtPayments)
 			: { ...entry, id: sourceId }
 		const actions: QuickAction[] = [
 			{
@@ -8667,36 +6015,19 @@ export default function Home() {
 		)
 	}
 
-	function detailReservationItems(data: AnyRecord) {
-		return data.items?.length
-			? data.items
-			: [
-					{
-						service: data.service ?? '',
-						quantity: '1',
-						unit_price:
-							services.find(
-								(item) => String(item.id) === String(data.service),
-							)?.base_price ?? '',
-					},
-				]
-	}
+	const detailReservationItems = createDetailReservationItems(services)
 
 	function updateDetailReservationItem(index: number, patch: AnyRecord) {
 		setDetailModal((current) => {
 			if (!current) return current
-			const items = [...detailReservationItems(current.editData)]
-			items[index] = { ...items[index], ...patch }
 			return {
 				...current,
-				editData: {
-					...current.editData,
-					service:
-						index === 0 && patch.service !== undefined
-							? patch.service
-							: current.editData.service,
-					items,
-				},
+				editData: detailReservationDataWithPatchedItem(
+					current.editData,
+					index,
+					patch,
+					services,
+				),
 			}
 		})
 	}
@@ -8717,11 +6048,12 @@ export default function Home() {
 			current
 				? {
 						...current,
-						editData: {
-							...current.editData,
-							items: [...detailReservationItems(current.editData), blankQuoteItem()],
-						},
-					}
+						editData: detailReservationDataWithAddedItem(
+							current.editData,
+							services,
+							blankQuoteItem,
+						),
+				  }
 				: current,
 		)
 	}
@@ -8729,17 +6061,14 @@ export default function Home() {
 	function removeDetailReservationItem(index: number) {
 		setDetailModal((current) => {
 			if (!current) return current
-			const items = detailReservationItems(current.editData).filter(
-				(_: AnyRecord, itemIndex: number) => itemIndex !== index,
-			)
-			const nextItems = items.length ? items : [blankQuoteItem()]
 			return {
 				...current,
-				editData: {
-					...current.editData,
-					service: nextItems[0]?.service ?? '',
-					items: nextItems,
-				},
+				editData: detailReservationDataWithRemovedItem(
+					current.editData,
+					index,
+					services,
+					blankQuoteItem,
+				),
 			}
 		})
 	}
@@ -8884,231 +6213,11 @@ export default function Home() {
 
 	function editableDetailKind(kind: string) {
 		if (!canViewEconomy && detailRequiresEconomy(kind)) return false
-		return [
-			'customer',
-			'vehicle',
-			'service',
-			'reservation',
-			'workorder',
-			'material',
-			'supplier',
-			'material-purchase',
-			'material-consumption',
-			'tool',
-			'quote',
-			'cash-movement',
-			'debt',
-			'debt-payment',
-		].includes(kind)
+		return isEditableDetailKind(kind)
 	}
 
-	function cleanDetailPayload(kind: string, data: AnyRecord) {
-		const allowed: Record<string, string[]> = {
-			customer: [
-				'name',
-				'phone',
-				'email',
-				'birthday_month',
-				'birthday_day',
-				'notes',
-			],
-			vehicle: [
-				'customer',
-				'license_plate',
-				'brand',
-				'model',
-				'color',
-				'vehicle_type',
-				'notes',
-			],
-			service: serviceDetailPayloadFields,
-			reservation: [
-				'customer',
-				'vehicle',
-				'service',
-				'items',
-				'day',
-				'exit_day',
-				'start_time',
-				'exit_time',
-				'status',
-				'notes',
-			],
-			workorder: [
-				'customer',
-				'vehicle',
-				'service',
-				'status',
-				'total_amount',
-				'internal_notes',
-				'estimated_delivery_at',
-			],
-			material: ['name', 'unit', 'stock_quantity', 'notes', 'is_active'],
-			supplier: [
-				'name',
-				'legal_name',
-				'category',
-				'tax_condition',
-				'website',
-				'contact_name',
-				'phone',
-				'email',
-				'tax_id',
-				'address',
-				'notes',
-				'is_active',
-			],
-			tool: [
-				'name',
-				'quantity',
-				'status',
-				'unit_value',
-				'purchased_at',
-				'notes',
-				'is_active',
-			],
-			'material-purchase': [
-				'material',
-				'purchased_at',
-				'quantity',
-				'total_cost',
-				'affects_cash',
-				'observations',
-			],
-			'material-consumption': [
-				'work_order',
-				'material',
-				'consumed_at',
-				'quantity',
-				'observations',
-			],
-			quote: [
-				'public_code',
-				'status',
-				'is_group',
-				'vehicle_lines',
-				'observations',
-				'valid_until',
-				'tax_rate',
-				'discount_rate',
-				'terms',
-				'payment_instructions',
-			],
-			'cash-movement': [
-				'movement_type',
-				'category',
-				'subcategory',
-				'amount',
-				'occurred_at',
-				'adjusts_closed_day',
-				'description',
-			],
-			debt: [
-				'concept',
-				'creditor',
-				'supplier',
-				'principal_amount',
-				'origin_date',
-				'due_date',
-				'expense_category',
-				'expense_subcategory',
-				'notes',
-			],
-			'debt-payment': ['debt', 'amount', 'paid_at', 'method', 'notes'],
-		}
-		const payload = Object.fromEntries(
-			(allowed[kind] ?? [])
-				.filter((key) => key in data)
-				.map((key) => [key, data[key]]),
-		)
-		if (kind === 'reservation') {
-			payload.start_time = payload.start_time || null
-			payload.exit_day = payload.exit_day || null
-			payload.exit_time = payload.exit_time || null
-			payload.items = serviceLinePayload(payload.items ?? [])
-			payload.service = payload.items[0]?.service ?? payload.service
-		}
-		if (kind === 'quote') {
-			payload.valid_until = payload.valid_until || null
-			payload.tax_rate = payload.tax_rate || '0'
-			payload.discount_rate = payload.discount_rate || '0'
-			if (payload.is_group) {
-				payload.vehicle_lines = groupVehicleLinePayload(
-					ensureGroupVehicleLines(data),
-					services,
-					vehicles,
-				)
-			} else {
-				delete payload.is_group
-				delete payload.vehicle_lines
-			}
-		}
-		if (kind === 'customer') {
-			payload.birthday_month = payload.birthday_month
-				? Number(payload.birthday_month)
-				: null
-			payload.birthday_day = payload.birthday_day
-				? Number(payload.birthday_day)
-				: null
-		}
-		if (kind === 'service') {
-			payload.estimated_material_cost =
-				String(payload.estimated_material_cost ?? '').trim() === ''
-					? null
-					: payload.estimated_material_cost
-		}
-		if (kind === 'workorder') {
-			payload.estimated_delivery_at = payload.estimated_delivery_at || null
-		}
-		if (kind === 'tool') {
-			payload.purchased_at = payload.purchased_at || null
-		}
-		if (kind === 'debt') {
-			payload.due_date = payload.due_date || null
-			payload.supplier = payload.supplier || null
-		}
-		return payload
-	}
-
-	function detailEndpoint(kind: string, id: string | number) {
-		const paths: Record<string, string> = {
-			customer: `/customers/${id}/`,
-			vehicle: `/vehicles/${id}/`,
-			service: `/services/${id}/`,
-			reservation: `/reservations/${id}/`,
-			workorder: `/work-orders/${id}/`,
-			material: `/materials/${id}/`,
-			supplier: `/suppliers/${id}/`,
-			tool: `/tools/${id}/`,
-			'material-purchase': `/material-purchases/${id}/`,
-			'material-consumption': `/material-consumptions/${id}/`,
-			quote: `/quotes/${id}/`,
-			'cash-movement': `/cash-movements/${id}/`,
-			debt: `/debts/${id}/`,
-			'debt-payment': `/debt-payments/${id}/`,
-			'fixed-expense': `/fixed-expenses/${id}/`,
-		}
-		return paths[kind]
-	}
-
-	function normalizedDetailPayload(kind: string, data: AnyRecord) {
-		return Object.fromEntries(
-			Object.entries(cleanDetailPayload(kind, data)).map(([key, value]) => {
-				if (value === null || value === undefined) return [key, '']
-				if (key === 'items' || key === 'vehicle_lines') {
-					return [key, JSON.stringify(value)]
-				}
-				if (key === 'start_time' || key === 'exit_time') {
-					return [key, String(value).slice(0, 5)]
-				}
-				if (key === 'estimated_delivery_at') {
-					return [key, String(value).slice(0, 16)]
-				}
-				if (key === 'occurred_at') return [key, String(value).slice(0, 16)]
-				return [key, String(value)]
-			}),
-		)
-	}
+	const { cleanDetailPayload, normalizedDetailPayload } =
+		createDetailPayloadHelpers({ services, vehicles })
 
 	function isDetailDirty() {
 		if (!detailModal) return false
@@ -9190,1866 +6299,129 @@ export default function Home() {
 		})
 	}
 
-	function renderDetailEditActions(beforeSubmit?: ReactNode) {
-		if (!detailModal) return null
-		const canDelete = Boolean(
-			detailModal.data.id &&
-				detailEndpoint(detailModal.kind, detailModal.data.id),
-		)
-		return (
-			<div className="modal-actions split">
-				{canDelete ? (
-					<Button
-						type="button"
-						variant="danger"
-						onClick={deleteDetail}
-					>
-						<Trash2 size={16} />
-						Eliminar
-					</Button>
-				) : (
-					<span />
-				)}
-				<div className="modal-actions detail-save-actions">
-					{beforeSubmit}
-					<Button type="submit" variant="primary" disabled={!isDetailDirty()}>
-						Editar
-					</Button>
-				</div>
-			</div>
-		)
-	}
+	const renderDetailEditActions = createDetailEditActionsRenderer({
+		detail: detailModal,
+		onDelete: deleteDetail,
+		disabled: !isDetailDirty(),
+	})
 
 	function renderDetailEditForm() {
 		if (!detailModal) return null
 		const data = detailModal.editData
-		const vehicleOptionsForDetail =
-			detailModal.kind === 'reservation' || detailModal.kind === 'workorder'
-				? vehicleOptions.filter(
-						(option) =>
-							!data.customer ||
-							String(
-								vehicles.find(
-									(item) => String(item.id) === option.value,
-								)?.customer,
-							) === String(data.customer),
-					)
-				: vehicleOptions
+		const vehicleOptionsForDetail = detailVehicleOptions(
+			detailModal.kind,
+			data,
+			vehicleOptions,
+			vehicles,
+		)
 
-		if (detailModal.kind === 'customer') {
-			return (
-				<form className="form-grid" onSubmit={saveDetailEdit}>
-					<Field label="Nombre">
-						<input
-							data-focus-key="detail.customer.name"
-							required
-							value={data.name ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ name: event.target.value })
-							}
-							onKeyDown={focusNextOnEnter('detail.customer.phone')}
-						/>
-					</Field>
-					<Field label="Telefono">
-						<input
-							data-focus-key="detail.customer.phone"
-							type="tel"
-							inputMode="tel"
-							autoComplete="tel"
-							value={data.phone ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ phone: event.target.value })
-							}
-							onKeyDown={focusNextOnEnter('detail.customer.email')}
-						/>
-					</Field>
-					<Field label="Email">
-						<input
-							data-focus-key="detail.customer.email"
-							type="email"
-							autoComplete="email"
-							value={data.email ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ email: event.target.value })
-							}
-							onKeyDown={focusNextOnEnter('detail.customer.birthday_day')}
-						/>
-					</Field>
-					<BirthdayFields
-						day={data.birthday_day}
-						month={data.birthday_month}
-						dayFocusKey="detail.customer.birthday_day"
-						monthFocusKey="detail.customer.birthday_month"
-						onDayChange={(value) => updateDetailEdit({ birthday_day: value })}
-						onMonthChange={(value) =>
-							updateDetailEdit({ birthday_month: value })
-						}
-						onDayKeyDown={focusNextOnEnter('detail.customer.birthday_month')}
-						onMonthKeyDown={focusNextOnEnter('detail.customer.notes')}
-					/>
-					{data.birthday_label ? renderBirthdayBadge(data) : null}
-					<Field label="Notas">
-						<textarea
-							data-focus-key="detail.customer.notes"
-							value={data.notes ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ notes: event.target.value })
-							}
-						/>
-					</Field>
-					{renderCustomerHistory()}
-					{renderDetailEditActions()}
-				</form>
-			)
+		const coreDetailForm = renderCoreDetailFormRouter({
+			detail: detailModal,
+			onSubmit: saveDetailEdit,
+			onPatch: updateDetailEdit,
+			focusNextOnEnter,
+			canViewEconomy,
+			customerHistoryLoading,
+			customerHistory,
+			orderLabels,
+			onOpenDetail: openDetailModal,
+			vehicleOptions,
+			vehicles,
+			customerOptions,
+			vehicleBrandValues,
+			onUpdateVehicleBrand: updateDetailVehicleBrand,
+			focusField,
+			sectorOptions: sectorSelectOptions,
+			sectors,
+			serviceMaterialLines,
+			materials,
+			materialOptions,
+			onAddMaterialLine: addServiceMaterialLine,
+			onRemoveMaterialLine: removeServiceMaterialLine,
+			onUpdateMaterialLine: updateServiceMaterialLine,
+			materialUsageSummary,
+			materialOpenUnitRows,
+			renderActions: renderDetailEditActions,
+		})
+		if (coreDetailForm !== undefined) {
+			return coreDetailForm
 		}
 
-		if (detailModal.kind === 'vehicle') {
-			const detailVehicleBrandOptions = selectOptionsFromValues(
-				vehicleBrandOptions(vehicleBrandValues),
-				data.brand,
-			)
-			const detailVehicleModelOptions = selectOptionsFromValues(
-				vehicleModelOptionsForBrand(data.brand, vehicles, [data.model]),
-				data.model,
-			)
-
-			return (
-				<form className="form-grid" onSubmit={saveDetailEdit}>
-					<SearchSelect
-						label="Cliente"
-						value={String(data.customer ?? '')}
-						options={customerOptions}
-						focusKey="detail.vehicle.customer"
-						onChange={(value) => {
-							updateDetailEdit({ customer: value })
-							focusField('detail.vehicle.brand')
-						}}
-					/>
-					<SearchSelect
-						label="Tipo de vehiculo"
-						value={String(data.vehicle_type ?? 'auto')}
-						options={VEHICLE_TYPE_OPTIONS}
-						focusKey="detail.vehicle.vehicle_type"
-						onChange={(value) =>
-							updateDetailEdit({ vehicle_type: value || 'auto' })
-						}
-					/>
-					<div className="form-row">
-						<SearchSelect
-							label="Marca"
-							value={String(data.brand ?? '')}
-							options={detailVehicleBrandOptions}
-							placeholder="Sin marca"
-							focusKey="detail.vehicle.brand"
-							onChange={updateDetailVehicleBrand}
-							onCreate={updateDetailVehicleBrand}
-							createLabel={(value) => `Crear marca "${value}"`}
-						/>
-						<SearchSelect
-							label="Modelo"
-							value={String(data.model ?? '')}
-							options={detailVehicleModelOptions}
-							placeholder={data.brand ? 'Sin modelo' : 'Elegir marca'}
-							disabled={!data.brand && !data.model}
-							focusKey="detail.vehicle.model"
-							onChange={(value) => {
-								updateDetailEdit({ model: value })
-								focusField('detail.vehicle.color')
-							}}
-							onCreate={(value) => {
-								updateDetailEdit({ model: value })
-								focusField('detail.vehicle.color')
-							}}
-							createLabel={(value) => `Crear modelo "${value}"`}
-						/>
-					</div>
-					<div className="form-row">
-						<Field label="Color">
-							<input
-								data-focus-key="detail.vehicle.color"
-								value={data.color ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ color: event.target.value })
-								}
-								onKeyDown={focusNextOnEnter(
-									'detail.vehicle.license_plate',
-								)}
-							/>
-						</Field>
-						<Field label="Patente">
-							<input
-								data-focus-key="detail.vehicle.license_plate"
-								value={data.license_plate ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										license_plate: event.target.value,
-									})
-								}
-								onKeyDown={focusNextOnEnter('detail.vehicle.notes')}
-							/>
-						</Field>
-					</div>
-					<Field label="Notas">
-						<textarea
-							data-focus-key="detail.vehicle.notes"
-							value={data.notes ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ notes: event.target.value })
-							}
-						/>
-					</Field>
-					{renderDetailEditActions()}
-				</form>
-			)
+		const operationalDetailForm = renderOperationalDetailFormRouter({
+			detail: detailModal,
+			onSubmit: saveDetailEdit,
+			onPatch: updateDetailEdit,
+			customerOptions,
+			vehicleOptions: vehicleOptionsForDetail,
+			reservationLabels,
+			onUpdateCustomer: updateDetailCustomer,
+			onFocusField: focusField,
+			focusNextOnEnter,
+			useReservationTimes,
+			reservationItems: detailReservationItems,
+			serviceOptions,
+			onAddService: addDetailReservationItem,
+			onSelectService: selectDetailReservationService,
+			onUpdateService: updateDetailReservationItem,
+			onRemoveService: removeDetailReservationItem,
+			canViewEconomy,
+			orderLabels,
+			onOpenDetail: openDetailModal,
+			onCreateQuote: createQuoteFromReservation,
+			services,
+			selectedDay,
+			onOpenConsumption: openConsumptionForOrder,
+			quoteStatusLabels,
+			vehicles,
+			quoteVehicleOptions: vehicleOptions,
+			openQuickCreate,
+			serviceNotesForLine,
+			flashClass,
+			fieldFlashKey,
+			quoteTentativeTimeLabel,
+			onDownloadQuotePdf: downloadQuotePdf,
+			onDownloadQuotePdfAndMarkSent: downloadQuotePdfAndMarkSent,
+			renderActions: renderDetailEditActions,
+		})
+		if (operationalDetailForm !== undefined) {
+			return operationalDetailForm
 		}
 
-		if (detailModal.kind === 'service') {
-			return (
-				<form className="form-grid" onSubmit={saveDetailEdit}>
-					<div className="form-row">
-						<Field label="Nombre">
-							<input
-								required
-								value={data.name ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ name: event.target.value })
-								}
-							/>
-						</Field>
-						<ServiceIconPicker
-							value={String(data.icon ?? '')}
-							onChange={(icon) => updateDetailEdit({ icon })}
-						/>
-					</div>
-					<SearchSelect
-						label="Sector"
-						value={String(data.sector ?? '')}
-						options={sectorSelectOptions}
-						onChange={(value) =>
-							updateDetailEdit({
-								sector: value ? Number(value) : null,
-								service_type: value ? serviceTypeFromSectorId(value) : 'wash',
-							})
-						}
-					/>
-					<div className="form-row">
-						<Field label="Precio base">
-							<input
-								required
-								type="number"
-								min="0"
-								value={data.base_price ?? ''}
-								onChange={(event) =>
-									updateDetailEdit(
-										applyBasePriceToTypes(data, event.target.value),
-									)
-								}
-							/>
-						</Field>
-						<DurationInput
-							form={data}
-							onPatch={(patch) => updateDetailEdit(patch)}
-						/>
-					</div>
-					<div className="form-row">
-						{VEHICLE_TYPES.map((type) => (
-							<Field key={type.value} label={`Precio ${type.label}`}>
-								<input
-									type="number"
-									min="0"
-									value={data[type.priceField] ?? ''}
-									onChange={(event) =>
-										updateDetailEdit({
-											[type.priceField]: event.target.value,
-										})
-									}
-								/>
-							</Field>
-						))}
-					</div>
-					<Field label="Costo estimado de materiales">
-						<input
-							type="number"
-							min="0"
-							value={data.estimated_material_cost ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({
-									estimated_material_cost: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<div className="info-note">
-						Opcional. Solo se usa para estimar el ratio cuando el servicio no
-						tiene receta de materiales; ese valor se muestra con un “~”.
-					</div>
-					<Field label="Notas">
-						<textarea
-							value={data.notes ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ notes: event.target.value })
-							}
-						/>
-					</Field>
-					<div className="form-section-label">Materiales por servicio</div>
-					<div className="info-note">
-						Al cerrar un trabajo con este servicio, los materiales se descuentan
-						automáticamente del stock.
-					</div>
-					<div className="stock-lines">
-						{serviceMaterialLines.map((line: AnyRecord, index: number) => {
-							const mat = materials.find(
-								(m) => String(m.id) === String(line.material),
-							)
-							return (
-								<div className="quote-line stock-line" key={index}>
-									<SearchSelect
-										label="Material"
-										value={line.material}
-										options={materialOptions}
-										onChange={(value) =>
-											updateServiceMaterialLine(index, { material: value })
-										}
-									/>
-									<Field label={`Cantidad${mat?.unit ? ` (${mat.unit})` : ''}`}>
-										<input
-											type="number"
-											min="0.001"
-											step="0.001"
-											value={line.quantity}
-											onChange={(event) =>
-												updateServiceMaterialLine(index, {
-													quantity: event.target.value,
-												})
-											}
-										/>
-									</Field>
-									<Button
-										type="button"
-										variant="ghost"
-										onClick={() => removeServiceMaterialLine(index)}
-									>
-										<Trash2 size={16} />
-									</Button>
-								</div>
-							)
-						})}
-					</div>
-					<Button
-						type="button"
-						variant="ghost"
-						onClick={addServiceMaterialLine}
-					>
-						<Plus size={16} />
-						Agregar material
-					</Button>
-					{renderDetailEditActions()}
-				</form>
-			)
+		const financialDetailForm = renderFinancialDetailFormRouter({
+			detail: detailModal,
+			onSubmit: saveDetailEdit,
+			onPatch: updateDetailEdit,
+			cashIncomeCategoryValues,
+			cashExpenseCategoryValues,
+			expenseCategoryTree,
+			cashMovements,
+			validExpenseSubcategory: validExpenseSubcategoryForCategory,
+			onCreateExpenseSubcategory: updateExpenseCategoryTreeLocal,
+			supplierOptions,
+			suppliers,
+			debts,
+			debtStatusLabels,
+			debtOptions: allDebtOptions,
+			debtPaymentMethodLabels,
+			defaultPaymentMethod: DEFAULT_PAYMENT_METHOD,
+			renderActions: renderDetailEditActions,
+		})
+		if (financialDetailForm !== undefined) {
+			return financialDetailForm
 		}
 
-		if (detailModal.kind === 'material') {
-			const usage = materialUsageSummary(data)
-			const openUnits = materialOpenUnitRows(data)
-			const unitValue = materialUnitValue(data)
-			return (
-				<form className="form-grid" onSubmit={saveDetailEdit}>
-					<Field label="Nombre">
-						<input
-							required
-							value={data.name ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ name: event.target.value })
-							}
-						/>
-					</Field>
-					{sectorSelectOptions.length > 0 && (
-						<SearchSelect
-							label="Sector"
-							value={String(data.sector ?? '')}
-							options={[{ value: '', label: 'Sin sector' }, ...sectorSelectOptions]}
-							onChange={(value) =>
-								updateDetailEdit({ sector: value ? Number(value) : null })
-							}
-						/>
-					)}
-					<div className="form-row">
-						<Field label="Unidad">
-							<input
-								required
-								value={data.unit ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ unit: event.target.value })
-								}
-							/>
-						</Field>
-						<Field label="Stock">
-							<input
-								type="number"
-								min="0"
-								value={data.stock_quantity ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										stock_quantity: event.target.value,
-									})
-								}
-							/>
-						</Field>
-					</div>
-					<div className="material-summary">
-						<div className="material-kpi">
-							<span>Valor por unidad</span>
-							<strong>{money(unitValue)}</strong>
-						</div>
-						<div className="material-kpi">
-							<span>Stock valorizado</span>
-							<strong>{money(materialStockValue(data))}</strong>
-						</div>
-						<div className="material-kpi">
-							<span>Usos</span>
-							<strong>{usage.count}</strong>
-						</div>
-						<div className="material-kpi">
-							<span>Costo usado</span>
-							<strong>{money(usage.totalCost)}</strong>
-						</div>
-					</div>
-					<section className="linked-records">
-						<div className="linked-records-head">
-							<strong>Usos del material</strong>
-							<span>
-								{quantity(usage.totalQuantity, data.unit)} usados
-							</span>
-						</div>
-						{usage.rows.length ? (
-							usage.rows.map((item) => (
-								<button
-									type="button"
-									className="linked-record"
-									key={item.id}
-									onClick={() =>
-										openDetailModal(
-											'Consumo de material',
-											item,
-										)
-									}
-								>
-									<span>
-										Trabajo asociado -{' '}
-										{item.work_order_label ?? item.consumed_at}
-									</span>
-									<strong>
-										{quantity(item.quantity, data.unit)} -{' '}
-										{money(item.estimated_total_cost)}
-									</strong>
-									<small>{item.consumed_at}</small>
-								</button>
-							))
-						) : (
-							<div className="info-note">
-								Sin usos registrados para este material.
-							</div>
-						)}
-					</section>
-					<section className="linked-records">
-						<div className="linked-records-head">
-							<strong>Unidades abiertas</strong>
-							<span>
-								{numberValue(data.open_units_active_count)} activas
-							</span>
-						</div>
-						{openUnits.length ? (
-							openUnits.map((item) => (
-								<button
-									type="button"
-									className="linked-record"
-									key={item.id}
-									onClick={() =>
-										openDetailModal('Unidad abierta', item)
-									}
-								>
-									<span>
-										{item.status === 'open'
-											? 'Abierta'
-											: 'Finalizada'}{' '}
-										- {item.opened_at}
-									</span>
-									<strong>
-										{item.consumptions_count ?? 0} usos -{' '}
-										{item.work_orders_count ?? 0} trabajos
-									</strong>
-									<small>
-										{item.duration_days
-											? `${item.duration_days} dias`
-											: 'En uso'}
-									</small>
-								</button>
-							))
-						) : (
-							<div className="info-note">
-								Sin unidades abiertas para este material.
-							</div>
-						)}
-					</section>
-					<Field label="Notas">
-						<textarea
-							value={data.notes ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ notes: event.target.value })
-							}
-						/>
-					</Field>
-					{renderDetailEditActions()}
-				</form>
-			)
-		}
-
-		if (detailModal.kind === 'supplier') {
-			return (
-				<form className="form-grid" onSubmit={saveDetailEdit}>
-					<Field label="Nombre visible">
-						<input
-							required
-							list="supplier-name-options"
-							value={data.name ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ name: event.target.value })
-							}
-						/>
-					</Field>
-					<Field label="Razon social">
-						<input
-							list="supplier-legal-name-options"
-							value={data.legal_name ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ legal_name: event.target.value })
-							}
-						/>
-					</Field>
-					<div className="form-row">
-						<Field label="Rubro">
-							<input
-								list="supplier-category-options"
-								value={data.category ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ category: event.target.value })
-								}
-							/>
-						</Field>
-						<Field label="Condicion fiscal">
-							<input
-								list="supplier-tax-condition-options"
-								value={data.tax_condition ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ tax_condition: event.target.value })
-								}
-							/>
-						</Field>
-					</div>
-					<div className="form-row">
-						<Field label="Contacto principal">
-							<input
-								value={data.contact_name ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ contact_name: event.target.value })
-								}
-							/>
-						</Field>
-						<Field label="Telefono">
-							<input
-								type="tel"
-								inputMode="tel"
-								autoComplete="tel"
-								value={data.phone ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ phone: event.target.value })
-								}
-							/>
-						</Field>
-					</div>
-					<div className="form-row">
-						<Field label="Email">
-							<input
-								type="email"
-								autoComplete="email"
-								value={data.email ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ email: event.target.value })
-								}
-							/>
-						</Field>
-						<Field label="CUIT / tax id">
-							<input
-								value={data.tax_id ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ tax_id: event.target.value })
-								}
-							/>
-						</Field>
-					</div>
-					<Field label="Website">
-						<input
-							type="url"
-							value={data.website ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ website: event.target.value })
-							}
-						/>
-					</Field>
-					<Field label="Direccion">
-						<input
-							value={data.address ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ address: event.target.value })
-							}
-						/>
-					</Field>
-					<Toggle
-						checked={data.is_active !== false}
-						onChange={(checked) => updateDetailEdit({ is_active: checked })}
-					>
-						Proveedor activo
-					</Toggle>
-					<Field label="Notas internas">
-						<textarea
-							value={data.notes ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ notes: event.target.value })
-							}
-						/>
-					</Field>
-					{renderDetailEditActions()}
-				</form>
-			)
-		}
-
-		if (detailModal.kind === 'reservation') {
-			return (
-				<form className="form-grid" onSubmit={saveDetailEdit}>
-					<SearchSelect
-						label="Cliente"
-						value={String(data.customer ?? '')}
-						options={customerOptions}
-						focusKey="detail.reservation.customer"
-						onChange={(value) => updateDetailCustomer('reservation', value)}
-					/>
-					<SearchSelect
-						label="Vehiculo"
-						value={String(data.vehicle ?? '')}
-						options={vehicleOptionsForDetail}
-						focusKey="detail.reservation.vehicle"
-						onChange={(value) => {
-							updateDetailEdit({ vehicle: value })
-							focusField('detail.reservation.service.0', true)
-						}}
-					/>
-					<div className="quote-lines">
-						<div className="quote-lines-head">
-							<h3>Servicios</h3>
-							<Button
-								type="button"
-								variant="ghost"
-								onClick={addDetailReservationItem}
-							>
-								<Plus size={16} />
-								Agregar servicio
-							</Button>
-						</div>
-						{detailReservationItems(data).map(
-							(item: AnyRecord, index: number) => {
-								const lineTotal =
-									Number(item.quantity || 0) *
-									Number(item.unit_price || 0)
-								return (
-									<div className="quote-line" key={index}>
-										<SearchSelect
-											label="Servicio"
-											value={String(item.service ?? '')}
-											options={serviceOptions}
-											focusKey={`detail.reservation.service.${index}`}
-											onChange={(value) =>
-												selectDetailReservationService(index, value)
-											}
-										/>
-										<div className="quote-line-grid">
-											<Field label="Cantidad">
-												<input
-													type="number"
-													min="1"
-													value={item.quantity ?? '1'}
-													onChange={(event) =>
-														updateDetailReservationItem(index, {
-															quantity: event.target.value,
-														})
-													}
-												/>
-											</Field>
-											<Field label="Precio">
-												<input
-													type="number"
-													min="0"
-													value={item.unit_price ?? ''}
-													onChange={(event) =>
-														updateDetailReservationItem(index, {
-															unit_price: event.target.value,
-														})
-													}
-												/>
-											</Field>
-											<div className="line-total">
-												<span>Total</span>
-												<strong>{money(lineTotal)}</strong>
-											</div>
-										</div>
-										{detailReservationItems(data).length > 1 ? (
-											<Button
-												type="button"
-												variant="danger"
-												onClick={() => removeDetailReservationItem(index)}
-											>
-												Quitar
-											</Button>
-										) : null}
-									</div>
-								)
-							},
-						)}
-					</div>
-					<div className="form-row">
-						<Field label="Fecha de ingreso">
-							<input
-								data-focus-key="detail.reservation.day"
-								type="date"
-								value={data.day ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ day: event.target.value })
-								}
-								onKeyDown={focusNextOnEnter(
-									'detail.reservation.exit_day',
-								)}
-							/>
-						</Field>
-						<Field label="Fecha de egreso">
-							<input
-								data-focus-key="detail.reservation.exit_day"
-								type="date"
-								value={data.exit_day ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										exit_day: event.target.value,
-									})
-								}
-								onKeyDown={focusNextOnEnter(
-									useReservationTimes
-										? 'detail.reservation.start_time'
-										: 'detail.reservation.status',
-									!useReservationTimes,
-								)}
-							/>
-						</Field>
-					</div>
-					{useReservationTimes ? (
-						<div className="form-row">
-							<Field label="Hora de ingreso">
-								<input
-									data-focus-key="detail.reservation.start_time"
-									type="time"
-									value={String(data.start_time ?? '').slice(0, 5)}
-									onChange={(event) =>
-										updateDetailEdit({
-											start_time: event.target.value,
-										})
-									}
-									onKeyDown={focusNextOnEnter(
-										'detail.reservation.exit_time',
-									)}
-								/>
-							</Field>
-							<Field label="Hora de egreso">
-								<input
-									data-focus-key="detail.reservation.exit_time"
-									type="time"
-									value={String(data.exit_time ?? '').slice(0, 5)}
-									onChange={(event) =>
-										updateDetailEdit({
-											exit_time: event.target.value,
-										})
-									}
-									onKeyDown={focusNextOnEnter(
-										'detail.reservation.status',
-										true,
-									)}
-								/>
-							</Field>
-						</div>
-					) : null}
-					<SearchSelect
-						label="Estado"
-						value={String(data.status ?? '')}
-						options={Object.entries(reservationLabels).map(
-							([value, label]) => ({ value, label }),
-						)}
-						focusKey="detail.reservation.status"
-						onChange={(value) => {
-							updateDetailEdit({ status: value })
-							focusField('detail.reservation.notes')
-						}}
-					/>
-					<Field label="Notas">
-						<textarea
-							data-focus-key="detail.reservation.notes"
-							value={data.notes ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ notes: event.target.value })
-							}
-						/>
-					</Field>
-					{reservationShowsWork(data, data.work_order)
-						? renderWorkOrderSummary(data.work_order, {
-								showDetailAction: true,
-							})
-						: null}
-					{renderDetailEditActions(
-						canViewEconomy ? (
-							<Button
-								type="button"
-								variant="ghost"
-								onClick={() => createQuoteFromReservation(detailModal.data)}
-							>
-								<FileText size={16} />
-								Crear cotizacion
-							</Button>
-						) : null,
-					)}
-				</form>
-			)
-		}
-
-		if (detailModal.kind === 'workorder') {
-			return (
-				<form className="form-grid" onSubmit={saveDetailEdit}>
-					<SearchSelect
-						label="Cliente"
-						value={String(data.customer ?? '')}
-						options={customerOptions}
-						focusKey="detail.workorder.customer"
-						onChange={(value) => updateDetailCustomer('workorder', value)}
-					/>
-					<SearchSelect
-						label="Vehiculo"
-						value={String(data.vehicle ?? '')}
-						options={vehicleOptionsForDetail}
-						focusKey="detail.workorder.vehicle"
-						onChange={(value) => {
-							updateDetailEdit({ vehicle: value })
-							focusField('detail.workorder.service', true)
-						}}
-					/>
-					<SearchSelect
-						label="Servicio"
-						value={String(data.service ?? '')}
-						options={serviceOptions}
-						focusKey="detail.workorder.service"
-						onChange={(value) => {
-							const service = services.find(
-								(item) => String(item.id) === value,
-							)
-							const patch: AnyRecord = {
-								service: value,
-							}
-							if (canViewEconomy) {
-								patch.total_amount =
-									service?.base_price ?? data.total_amount
-							}
-							updateDetailEdit(patch)
-							focusField('detail.workorder.status', true)
-						}}
-					/>
-					<div className="form-row">
-						<SearchSelect
-							label="Estado"
-							value={String(data.status ?? '')}
-							options={Object.entries(orderLabels).map(
-								([value, label]) => ({ value, label }),
-							)}
-							focusKey="detail.workorder.status"
-							onChange={(value) => {
-								updateDetailEdit({ status: value })
-								focusField(
-									canViewEconomy
-										? 'detail.workorder.total_amount'
-										: 'detail.workorder.estimated_delivery_at',
-								)
-							}}
-						/>
-						{canViewEconomy ? (
-							<Field label="Total">
-								<input
-									data-focus-key="detail.workorder.total_amount"
-									type="number"
-									min="0"
-									value={data.total_amount ?? ''}
-									onChange={(event) =>
-										updateDetailEdit({
-											total_amount: event.target.value,
-										})
-									}
-									onKeyDown={focusNextOnEnter(
-										'detail.workorder.estimated_delivery_at',
-									)}
-								/>
-							</Field>
-						) : null}
-					</div>
-					<Field label="Entrega estimada">
-						<input
-							data-focus-key="detail.workorder.estimated_delivery_at"
-							type="datetime-local"
-							value={String(data.estimated_delivery_at ?? '').slice(
-								0,
-								16,
-							)}
-							onChange={(event) =>
-								updateDetailEdit({
-									estimated_delivery_at: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter(
-								'detail.workorder.internal_notes',
-							)}
-						/>
-					</Field>
-					<Field label="Notas internas">
-						<textarea
-							data-focus-key="detail.workorder.internal_notes"
-							value={data.internal_notes ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({
-									internal_notes: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					{canViewEconomy && detailModal.data.id ? (
-						<div className="modal-actions">
-							<Button
-								type="button"
-								variant="ghost"
-								onClick={() =>
-									openConsumptionForOrder(
-										detailModal.data,
-										detailModal.data._agenda_day ?? selectedDay,
-									)
-								}
-							>
-								<Package size={16} />
-								Consumir material
-							</Button>
-						</div>
-					) : null}
-					{renderDetailEditActions()}
-				</form>
-			)
-		}
-
-		if (detailModal.kind === 'quote') {
-			const quoteCode = data.public_code ?? `#${data.id}`
-			const quoteStatusLabel =
-				data.status_label ??
-				quoteStatusLabels[String(data.status ?? '')] ??
-				String(data.status ?? '')
-			const quoteHasReservation = Boolean(
-				data.has_reservation ?? data.reservation,
-			)
-			const groupLines = data.is_group ? ensureGroupVehicleLines(data) : []
-			const groupCanEdit =
-				Boolean(data.is_group) &&
-				quoteLaneStatus(data) === 'draft' &&
-				!quoteHasReservation
-			const groupVehicleOptions = data.customer
-				? vehicles
-						.filter(
-							(vehicle) =>
-								String(vehicle.customer) === String(data.customer),
-						)
-						.map((item) => ({
-							value: String(item.id),
-							label: item.label,
-							meta: item.customer_name,
-						}))
-				: vehicleOptions
-
-			return (
-				<form className="form-grid" onSubmit={saveDetailEdit}>
-					<div className="quote-detail-summary">
-						<div>
-							<strong>Cotizacion {quoteCode}</strong>
-							<span>
-								{data.customer_name} - {quoteStatusLabel}
-							</span>
-						</div>
-						<div className="record-sub">
-							{data.is_group
-								? `${groupLines.length} autos`
-								: data.vehicle_label || 'Sin vehiculo'}{' '}
-							- {money(data.total)}
-						</div>
-						<div className="quote-detail-meta">
-							<span>
-								Validez:{' '}
-								{data.valid_until
-									? formatDateLabel(data.valid_until)
-									: 'Sin fecha'}
-							</span>
-							<span>
-								Reserva vinculada: {quoteHasReservation ? 'Si' : 'No'}
-							</span>
-							{data.sent_at ? (
-								<span>Enviada: {formatDateLabel(data.sent_at)}</span>
-							) : null}
-						</div>
-						{data.is_group ? (
-							<div className="record-sub">
-								Agenda por auto en la cotizacion grupal.
-							</div>
-						) : data.reservation_day ? (
-							<div className="record-sub">
-								Reserva tentativa: {data.reservation_day}
-								{quoteTentativeTimeLabel(data.reservation_start_time)}
-							</div>
-						) : (
-							<div className="record-sub">Cotizacion libre sin fecha.</div>
-						)}
-						{data.is_group && groupLines.length ? (
-							<div className="quote-item-summary">
-								{groupLines.map((line: AnyRecord, lineIndex: number) => (
-									<div
-										className="quote-item-summary-row"
-										key={line.id ?? `${data.id}-group-${lineIndex}`}
-									>
-										<strong>
-											Auto {lineIndex + 1}:{' '}
-											{line.vehicle_label ||
-												line.vehicle_snapshot_label ||
-												'Vehiculo nuevo'}
-										</strong>
-										<span>
-											{line.reservation_day
-												? `Fecha ${line.reservation_day}${quoteTentativeTimeLabel(line.reservation_start_time)}`
-												: 'Sin fecha'}
-											{' - '}
-											{money(line.subtotal)}
-										</span>
-										{line.items?.map((quoteItem: AnyRecord) => (
-											<span
-												key={
-													quoteItem.id ??
-													`${lineIndex}-${quoteItem.service}`
-												}
-											>
-												{serviceDisplayName({
-													service_icon: quoteItem.service_icon,
-													service_name:
-														quoteItem.service_name ??
-														quoteItem.description,
-												})}
-												: {quoteItem.quantity} x{' '}
-												{money(quoteItem.unit_price)}
-											</span>
-										))}
-									</div>
-								))}
-							</div>
-						) : data.items?.length ? (
-							<div className="quote-item-summary">
-								{data.items.map((quoteItem: AnyRecord) => (
-									<div
-										className="quote-item-summary-row"
-										key={quoteItem.id ?? `${data.id}-${quoteItem.service}`}
-									>
-										<strong>
-											{serviceDisplayName({
-												service_icon: quoteItem.service_icon,
-												service_name:
-													quoteItem.service_name ?? quoteItem.description,
-											})}
-										</strong>
-										<span>
-											{quoteItem.quantity} x {money(quoteItem.unit_price)} ={' '}
-											{money(quoteItem.line_total)}
-										</span>
-										{quoteItem.service_notes ? (
-											<span>{quoteItem.service_notes}</span>
-										) : null}
-									</div>
-								))}
-							</div>
-						) : null}
-					</div>
-					<Field label="Nombre de la cotizacion">
-						<input
-							type="text"
-							maxLength={20}
-							value={data.public_code ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ public_code: event.target.value })
-							}
-						/>
-					</Field>
-					<SearchSelect
-						label="Estado"
-						value={String(data.status ?? '')}
-						options={[
-							{ value: 'draft', label: 'Sin enviar' },
-							{ value: 'sent', label: 'Enviado' },
-							{ value: 'accepted', label: 'Aceptada' },
-							{ value: 'rejected', label: 'Rechazada' },
-						]}
-						onChange={(value) => updateDetailEdit({ status: value })}
-					/>
-					<div className="form-row">
-						<Field label="Validez">
-							<input
-								type="date"
-								value={data.valid_until ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ valid_until: event.target.value })
-								}
-							/>
-						</Field>
-						<Field label="Descuento %">
-							<input
-								min="0"
-								max="100"
-								step="0.01"
-								type="number"
-								value={data.discount_rate ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										discount_rate: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="IVA %">
-							<input
-								min="0"
-								max="100"
-								step="0.01"
-								type="number"
-								value={data.tax_rate ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ tax_rate: event.target.value })
-								}
-							/>
-						</Field>
-					</div>
-					{data.is_group ? (
-						groupCanEdit ? (
-							<QuoteGroupVehicleLinesEditor
-								title="Autos del grupo"
-								lines={groupLines}
-								onChange={(vehicleLines) =>
-									updateDetailEdit({ vehicle_lines: vehicleLines })
-								}
-								vehicleOptions={groupVehicleOptions}
-								serviceOptions={serviceOptions}
-								vehicles={vehicles}
-								services={services}
-								canViewEconomy={canViewEconomy}
-								useReservationTimes={useReservationTimes}
-								fieldPrefix="detail.quote"
-								openQuickCreate={openQuickCreate}
-								serviceNotesForLine={serviceNotesForLine}
-								focusNextOnEnter={focusNextOnEnter}
-								flashClass={flashClass}
-								fieldFlashKey={fieldFlashKey}
-							/>
-						) : (
-							<div className="info-note">
-								Las reservas hijas se editan individualmente desde la agenda.
-							</div>
-						)
-					) : null}
-					<div className="quote-total quote-total--breakdown">
-						<span>Subtotal {money(data.subtotal)}</span>
-						<span>Descuento {money(data.discount_amount)}</span>
-						<span>Base imponible {money(data.taxable_amount)}</span>
-						<span>IVA {money(data.tax_amount)}</span>
-						<strong>Total {money(data.total)}</strong>
-					</div>
-					<Field label="Observaciones">
-						<textarea
-							value={data.observations ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({
-									observations: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<Field label="Terminos">
-						<textarea
-							value={data.terms ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({
-									terms: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<Field label="Instrucciones de pago">
-						<textarea
-							value={data.payment_instructions ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({
-									payment_instructions: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<div className="modal-actions">
-						<Button
-							type="button"
-							variant="ghost"
-							onClick={() => downloadQuotePdf(data)}
-						>
-							<FileText size={16} />
-							Bajar PDF
-						</Button>
-						{quoteLaneStatus(data) === 'draft' ? (
-							<Button
-								type="button"
-								variant="primary"
-								onClick={() => downloadQuotePdfAndMarkSent(data)}
-							>
-								<FileText size={16} />
-								Bajar y marcar enviado
-							</Button>
-						) : null}
-					</div>
-					{renderDetailEditActions()}
-				</form>
-			)
-		}
-
-		if (detailModal.kind === 'cash-movement') {
-			return (
-				<form className="form-grid" onSubmit={saveDetailEdit}>
-					<SearchSelect
-						label="Tipo"
-						value={String(data.movement_type ?? '')}
-						options={[
-							{ value: 'income', label: 'Ingreso' },
-							{ value: 'expense', label: 'Egreso' },
-						]}
-						onChange={(value) =>
-							updateDetailEdit({ movement_type: value })
-						}
-					/>
-					<div className="form-row">
-						<SearchSelect
-							label="Categoria"
-							value={String(data.category ?? '')}
-							options={
-								data.movement_type === 'income'
-									? selectOptionsFromValues(
-											cashIncomeCategoryValues,
-											data.category,
-										)
-									: selectOptionsFromValues(
-											cashExpenseCategoryValues,
-											data.category,
-										)
-							}
-							onChange={(value) => {
-								updateDetailEdit({
-									category: value,
-									subcategory:
-										data.movement_type === 'expense'
-											? validExpenseSubcategoryForCategory(
-													value,
-													data.subcategory,
-												)
-											: '',
-								})
-							}}
-							onCreate={
-								data.movement_type === 'expense'
-									? (value) =>
-											updateDetailEdit({
-												category: value,
-												subcategory: '',
-											})
-									: undefined
-							}
-							createLabel={(value) => `Crear categoria "${value}"`}
-						/>
-						<Field label="Importe">
-							<input
-								required
-								type="number"
-								min="0"
-								value={data.amount ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										amount: event.target.value,
-									})
-								}
-							/>
-						</Field>
-					</div>
-					{data.movement_type === 'expense' ? (
-						<SearchSelect
-							label="Subcategoria"
-							value={String(data.subcategory ?? '')}
-							options={selectOptionsFromValues(
-								mergeStringValues(
-									expenseSubcategoriesForCategory(
-										expenseCategoryTree,
-										data.category,
-									),
-									uniqueValues(
-										cashMovements.filter(
-											(item: AnyRecord) =>
-												String(item.category ?? '') ===
-												String(data.category ?? ''),
-										),
-										'subcategory',
-									),
-								),
-								data.subcategory,
-							)}
-							placeholder={
-								data.category ? 'Subcategoria' : 'Elegir categoria'
-							}
-							disabled={!data.category}
-							onChange={(value) =>
-								updateDetailEdit({
-									subcategory: value,
-								})
-							}
-							onCreate={(value) => {
-								updateExpenseCategoryTreeLocal(data.category, value)
-								updateDetailEdit({ subcategory: value })
-							}}
-							createLabel={(value) => `Crear subcategoria "${value}"`}
-						/>
-					) : null}
-					<Field label="Fecha">
-						<input
-							type="datetime-local"
-							value={String(data.occurred_at ?? '').slice(0, 16)}
-							onChange={(event) =>
-								updateDetailEdit({
-									occurred_at: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<Field label="Corrige cierre">
-						<input
-							type="date"
-							value={data.adjusts_closed_day ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({
-									adjusts_closed_day: event.target.value || null,
-									category: event.target.value
-										? 'Ajustes'
-										: data.category,
-									subcategory: event.target.value
-										? 'Ajuste de cierre'
-										: data.subcategory,
-								})
-							}
-						/>
-					</Field>
-					<Field label="Detalle">
-						<textarea
-							value={data.description ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({
-									description: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					{renderDetailEditActions()}
-				</form>
-			)
-		}
-
-		if (detailModal.kind === 'debt') {
-			return (
-				<form className="form-grid" onSubmit={saveDetailEdit}>
-					<Field label="Concepto">
-						<input
-							required
-							list="debt-concept-options"
-							value={data.concept ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ concept: event.target.value })
-							}
-						/>
-					</Field>
-					<Field label="Acreedor">
-						<input
-							list="debt-creditor-options"
-							value={data.creditor ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ creditor: event.target.value })
-							}
-						/>
-					</Field>
-					<div className="form-row">
-						<Field label="Total deuda">
-							<input
-								required
-								type="number"
-								min="0"
-								value={data.principal_amount ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										principal_amount: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="Origen">
-							<input
-								type="date"
-								value={data.origin_date ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										origin_date: event.target.value,
-									})
-								}
-							/>
-						</Field>
-					</div>
-					<Field label="Fecha limite">
-						<input
-							type="date"
-							value={data.due_date ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ due_date: event.target.value })
-							}
-						/>
-					</Field>
-					<SearchSelect
-						label="Proveedor vinculado"
-						value={String(data.supplier ?? '')}
-						options={supplierOptions}
-						placeholder="Sin proveedor"
-						onChange={(value) => {
-							const supplier = suppliers.find(
-								(item) => String(item.id) === String(value),
-							)
-							updateDetailEdit({
-								supplier: value || null,
-								creditor: supplier?.name ?? data.creditor,
-							})
-						}}
-					/>
-					<div className="form-row">
-						<SearchSelect
-							label="Categoria del egreso"
-							value={String(data.expense_category ?? '')}
-							options={selectOptionsFromValues(
-								cashExpenseCategoryValues,
-								data.expense_category,
-							)}
-							placeholder="Categoria de egreso"
-							onChange={(value) =>
-								updateDetailEdit({
-									expense_category: value,
-									expense_subcategory:
-										validExpenseSubcategoryForCategory(
-											value,
-											data.expense_subcategory,
-										),
-								})
-							}
-							onCreate={(value) =>
-								updateDetailEdit({
-									expense_category: value,
-									expense_subcategory: '',
-								})
-							}
-							createLabel={(value) => `Crear categoria "${value}"`}
-						/>
-						<SearchSelect
-							label="Subcategoria"
-							value={String(data.expense_subcategory ?? '')}
-							options={selectOptionsFromValues(
-								mergeStringValues(
-									expenseSubcategoriesForCategory(
-										expenseCategoryTree,
-										data.expense_category,
-									),
-									uniqueValues(
-										debts.filter(
-											(item: AnyRecord) =>
-												String(item.expense_category ?? '') ===
-												String(data.expense_category ?? ''),
-										),
-										'expense_subcategory',
-									),
-								),
-								data.expense_subcategory,
-							)}
-							placeholder={
-								data.expense_category
-									? 'Subcategoria'
-									: 'Elegir categoria'
-							}
-							disabled={!data.expense_category}
-							onChange={(value) =>
-								updateDetailEdit({
-									expense_subcategory: value,
-								})
-							}
-							onCreate={(value) => {
-								updateExpenseCategoryTreeLocal(
-									data.expense_category,
-									value,
-								)
-								updateDetailEdit({ expense_subcategory: value })
-							}}
-							createLabel={(value) => `Crear subcategoria "${value}"`}
-						/>
-					</div>
-					<div className="material-summary">
-						<div className="material-kpi">
-							<span>Pagado</span>
-							<strong>{money(data.total_paid)}</strong>
-						</div>
-						<div className="material-kpi">
-							<span>Saldo</span>
-							<strong>{money(data.balance_due)}</strong>
-						</div>
-						<div className="material-kpi">
-							<span>Estado</span>
-							<strong>
-								{debtStatusLabels[data.status] ?? data.status}
-							</strong>
-						</div>
-					</div>
-					<Field label="Notas">
-						<textarea
-							value={data.notes ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ notes: event.target.value })
-							}
-						/>
-					</Field>
-					{renderDetailEditActions()}
-				</form>
-			)
-		}
-
-		if (detailModal.kind === 'debt-payment') {
-			return (
-				<form className="form-grid" onSubmit={saveDetailEdit}>
-					<SearchSelect
-						label="Deuda"
-						value={String(data.debt ?? '')}
-						options={allDebtOptions}
-						onChange={(value) => updateDetailEdit({ debt: value })}
-					/>
-					<div className="form-row">
-						<Field label="Importe">
-							<input
-								required
-								type="number"
-								min="0"
-								value={data.amount ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ amount: event.target.value })
-								}
-							/>
-						</Field>
-						<Field label="Fecha pago">
-							<input
-								type="date"
-								value={data.paid_at ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ paid_at: event.target.value })
-								}
-							/>
-						</Field>
-					</div>
-					<SearchSelect
-						label="Medio"
-						value={String(data.method ?? DEFAULT_PAYMENT_METHOD)}
-						options={Object.entries(debtPaymentMethodLabels).map(
-							([value, label]) => ({ value, label }),
-						)}
-						onChange={(value) =>
-							updateDetailEdit({
-								method: value || DEFAULT_PAYMENT_METHOD,
-							})
-						}
-					/>
-					<Field label="Notas">
-						<textarea
-							value={data.notes ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ notes: event.target.value })
-							}
-						/>
-					</Field>
-					{renderDetailEditActions()}
-				</form>
-			)
-		}
-
-		if (detailModal.kind === 'tool') {
-			return (
-				<form className="form-grid" onSubmit={saveDetailEdit}>
-					<Field label="Nombre">
-						<input
-							required
-							value={data.name ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ name: event.target.value })
-							}
-						/>
-					</Field>
-					<div className="form-row">
-						<Field label="Cantidad">
-							<input
-								required
-								type="number"
-								min="0"
-								step="1"
-								value={data.quantity ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({ quantity: event.target.value })
-								}
-							/>
-						</Field>
-						<SearchSelect
-							label="Estado"
-							value={String(data.status ?? 'in_use')}
-							options={toolStatusOptions}
-							onChange={(value) =>
-								updateDetailEdit({ status: value || 'in_use' })
-							}
-						/>
-					</div>
-					<div className="form-row">
-						<Field label="Valor unitario">
-							<input
-								type="number"
-								min="0"
-								value={data.unit_value ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										unit_value: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="Fecha compra">
-							<input
-								type="date"
-								value={data.purchased_at ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										purchased_at: event.target.value,
-									})
-								}
-							/>
-						</Field>
-					</div>
-					<div className="material-summary">
-						<div className="material-kpi">
-							<span>Estado</span>
-							<strong>
-								{toolStatusLabels[data.status] ?? data.status}
-							</strong>
-						</div>
-						<div className="material-kpi">
-							<span>Cantidad</span>
-							<strong>{numberValue(data.quantity)}</strong>
-						</div>
-						<div className="material-kpi">
-							<span>Valor unidad</span>
-							<strong>{money(data.unit_value)}</strong>
-						</div>
-						<div className="material-kpi">
-							<span>Valor total</span>
-							<strong>{money(toolTotalValue(data))}</strong>
-						</div>
-					</div>
-					<Field label="Notas">
-						<textarea
-							value={data.notes ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({ notes: event.target.value })
-							}
-						/>
-					</Field>
-					{renderDetailEditActions()}
-				</form>
-			)
-		}
-
-		if (detailModal.kind === 'material-purchase') {
-			return (
-				<form className="form-grid" onSubmit={saveDetailEdit}>
-					<SearchSelect
-						label="Material"
-						value={String(data.material ?? '')}
-						options={materialOptions}
-						onChange={(value) => updateDetailEdit({ material: value })}
-					/>
-					<div className="form-row">
-						<Field label="Fecha">
-							<input
-								type="date"
-								value={data.purchased_at ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										purchased_at: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						<Field label="Cantidad">
-							<input
-								required
-								type="number"
-								min="0"
-								value={data.quantity ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										quantity: event.target.value,
-									})
-								}
-							/>
-						</Field>
-					</div>
-					<Field label="Costo total">
-						<input
-							required
-							type="number"
-							min="0"
-							value={data.total_cost ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({
-									total_cost: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<div className="info-note">
-						Valor calculado por unidad:{' '}
-						<strong>
-							{money(
-								calculatedUnitCost(
-									data.quantity,
-									data.total_cost,
-								),
-							)}
-						</strong>
-					</div>
-					<Toggle
-						checked={Boolean(data.affects_cash)}
-						onChange={(checked) => updateDetailEdit({ affects_cash: checked })}
-					>
-						Impacta en caja
-					</Toggle>
-					<Field label="Observaciones">
-						<textarea
-							value={data.observations ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({
-									observations: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					{renderDetailEditActions()}
-				</form>
-			)
-		}
-
-		if (detailModal.kind === 'material-consumption') {
-			const openUnitConsumption = Boolean(data.open_unit)
-			return (
-				<form className="form-grid" onSubmit={saveDetailEdit}>
-					<SearchSelect
-						label="Reserva/trabajo"
-						value={String(data.work_order ?? '')}
-						options={workOrderOptions}
-						onChange={(value) =>
-							updateDetailEdit({ work_order: value })
-						}
-					/>
-					{openUnitConsumption ? (
-						<div className="info-note">
-							Uso desde unidad abierta:{' '}
-							<strong>
-								{data.open_unit_label ?? `#${data.open_unit}`}
-							</strong>
-							. No descuenta stock directo.
-						</div>
-					) : (
-						<SearchSelect
-							label="Material"
-							value={String(data.material ?? '')}
-							options={materialOptions}
-							onChange={(value) => updateDetailEdit({ material: value })}
-						/>
-					)}
-					<div className="form-row">
-						<Field label="Fecha">
-							<input
-								type="date"
-								value={data.consumed_at ?? ''}
-								onChange={(event) =>
-									updateDetailEdit({
-										consumed_at: event.target.value,
-									})
-								}
-							/>
-						</Field>
-						{openUnitConsumption ? null : (
-							<Field label="Cantidad">
-								<input
-									required
-									type="number"
-									min="0"
-									value={data.quantity ?? ''}
-									onChange={(event) =>
-										updateDetailEdit({
-											quantity: event.target.value,
-										})
-									}
-								/>
-							</Field>
-						)}
-					</div>
-					<div className="info-note">
-						{openUnitConsumption
-							? 'El costo y stock se imputan cuando se finaliza la unidad abierta.'
-							: 'El costo estimado se recalcula si cambia el material o la cantidad.'}
-					</div>
-					<Field label="Observaciones">
-						<textarea
-							value={data.observations ?? ''}
-							onChange={(event) =>
-								updateDetailEdit({
-									observations: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					{renderDetailEditActions()}
-				</form>
-			)
+		const inventoryDetailForm = renderInventoryDetailFormRouter({
+			detail: detailModal,
+			onSubmit: saveDetailEdit,
+			onPatch: updateDetailEdit,
+			toolStatusOptions,
+			toolStatusLabels,
+			materialOptions,
+			workOrderOptions,
+			renderActions: renderDetailEditActions,
+		})
+		if (inventoryDetailForm !== undefined) {
+			return inventoryDetailForm
 		}
 
 	return null
@@ -11137,21 +6509,18 @@ export default function Home() {
 	}
 
 	function addServiceMaterialLine() {
-		setServiceMaterialLines([
-			...serviceMaterialLines,
-			{ id: '', material: '', quantity: '' },
-		])
+		setServiceMaterialLines(addServiceMaterialLineForLines(serviceMaterialLines))
 	}
 
 	function removeServiceMaterialLine(index: number) {
-		setServiceMaterialLines(serviceMaterialLines.filter((_, i) => i !== index))
+		setServiceMaterialLines(
+			removeServiceMaterialLineForLines(serviceMaterialLines, index),
+		)
 	}
 
 	function updateServiceMaterialLine(index: number, changes: AnyRecord) {
 		setServiceMaterialLines(
-			serviceMaterialLines.map((line, i) =>
-				i === index ? { ...line, ...changes } : line,
-			),
+			updateServiceMaterialLineForLines(serviceMaterialLines, index, changes),
 		)
 	}
 
@@ -11385,7 +6754,7 @@ export default function Home() {
 						reservation_day: null,
 						reservation_start_time: null,
 						observations: reservationForm.notes,
-						items: serviceLinePayload(reservationItems),
+						items: serviceLinePayloadForServices(reservationItems, services),
 					}),
 				})
 				setReservationForm(blankReservationForm())
@@ -11417,7 +6786,7 @@ export default function Home() {
 						exit_time: useReservationTimes
 							? reservationForm.exit_time || null
 							: null,
-						items: serviceLinePayload(reservationItems),
+						items: serviceLinePayloadForServices(reservationItems, services),
 					}),
 			})
 			const createdQuote = await apiFetch<AnyRecord>(`/reservations/${created.id}/quote/`, {
@@ -11479,9 +6848,9 @@ export default function Home() {
 		await runAction(async () => {
 			const created = await apiFetch<AnyRecord>('/cash-movements/', {
 				method: 'POST',
-				body: JSON.stringify(cashMovementPayload()),
+				body: JSON.stringify(cashMovementPayload(movementForm)),
 			})
-			setMovementForm(blankMovementForm(selectedDay))
+			setMovementForm(blankCashMovementForm(selectedDay))
 			formModalExit.close()
 			return created
 		}, {
@@ -11770,98 +7139,38 @@ export default function Home() {
 	}
 
 	function updateStockMovementLine(index: number, patch: AnyRecord) {
-		setStockMovementForm((current: AnyRecord) => {
-			const lines = [...(current.lines ?? [])]
-			lines[index] = { ...lines[index], ...patch }
-			return { ...current, lines }
-		})
+		setStockMovementForm((current: AnyRecord) =>
+			stockMovementFormWithPatchedLine(current, index, patch),
+		)
 	}
 
 	function addStockMovementLine() {
-		setStockMovementForm((current: AnyRecord) => ({
-			...current,
-			lines: [...(current.lines ?? []), blankStockMovementLine()],
-		}))
+		setStockMovementForm((current: AnyRecord) =>
+			stockMovementFormWithAddedLine(current),
+		)
 	}
 
 	function removeStockMovementLine(index: number) {
-		setStockMovementForm((current: AnyRecord) => {
-			const lines = (current.lines ?? []).filter(
-				(_: AnyRecord, itemIndex: number) => itemIndex !== index,
-			)
-			return {
-				...current,
-				lines: lines.length ? lines : [blankStockMovementLine()],
-			}
-		})
-	}
-
-	function buildStockMovementPayload() {
-		const lines = (stockMovementForm.lines ?? [])
-			.filter((line: AnyRecord) => line.material && numberValue(line.quantity) > 0)
-			.map((line: AnyRecord) => ({
-				material: line.material,
-				quantity: line.quantity,
-				unit_price:
-					stockMovementForm.movement_type === 'consumption'
-						? line.unit_price || '0'
-						: line.unit_price,
-			}))
-
-		const payload: AnyRecord = {
-			...stockMovementForm,
-			supplier: stockMovementRequiresSupplier
-				? stockMovementForm.supplier || null
-				: null,
-			customer: stockMovementRequiresCustomer
-				? stockMovementForm.customer || null
-				: null,
-			reservation: stockMovementRequiresReservation
-				? stockMovementForm.reservation || null
-				: null,
-			document_type: stockMovementRequiresSupplier
-				? stockMovementForm.document_type || ''
-				: '',
-			document_number: stockMovementRequiresSupplier
-				? stockMovementForm.document_number || ''
-				: '',
-			affects_cash:
-				stockMovementForm.movement_type === 'purchase'
-					? Boolean(stockMovementForm.affects_cash)
-					: stockMovementForm.movement_type === 'sale',
-			products_received:
-				stockMovementForm.movement_type === 'purchase'
-					? Boolean(stockMovementForm.products_received)
-					: true,
-			payment_method: stockMovementForm.payment_method || DEFAULT_PAYMENT_METHOD,
-			lines,
-		}
-		if (stockMovementDocumentFile) {
-			const formData = new FormData()
-			Object.entries(payload).forEach(([key, value]) => {
-				if (key === 'lines') {
-					formData.append('lines', JSON.stringify(value))
-				} else if (typeof value === 'boolean') {
-					formData.append(key, String(value))
-				} else if (value !== undefined && value !== null) {
-					formData.append(key, String(value))
-				}
-			})
-			formData.append('document_file', stockMovementDocumentFile)
-			return formData
-		}
-		return payload
+		setStockMovementForm((current: AnyRecord) =>
+			stockMovementFormWithRemovedLine(current, index),
+		)
 	}
 
 	async function saveStockMovement(event: FormEvent) {
 		event.preventDefault()
 		await runAction(async () => {
+			const payload = buildStockMovementPayload(stockMovementForm, {
+				requiresSupplier: stockMovementRequiresSupplier,
+				requiresCustomer: stockMovementRequiresCustomer,
+				requiresReservation: stockMovementRequiresReservation,
+				documentFile: stockMovementDocumentFile,
+			})
 			const created = await apiFetch<AnyRecord>('/stock-movements/', {
 				method: 'POST',
 				body:
 					stockMovementDocumentFile
-						? (buildStockMovementPayload() as FormData)
-						: JSON.stringify(buildStockMovementPayload()),
+						? (payload as FormData)
+						: JSON.stringify(payload),
 			})
 			setStockMovementForm(blankStockMovementForm(selectedDay))
 			setStockMovementDocumentFile(null)
@@ -12081,173 +7390,23 @@ export default function Home() {
 	}
 
 	function updateConsumptionMode(mode: 'direct' | 'open_unit') {
-		setConsumptionForm({
-			...consumptionForm,
-			mode,
-			material: '',
-			open_unit: '',
-			quantity: '',
-		})
+		setConsumptionForm(consumptionFormWithMode(consumptionForm, mode))
 	}
 
-	function renderConsumptionFields(showWorkOrder = true) {
-		const directMode = consumptionForm.mode !== 'open_unit'
-		return (
-			<>
-				{showWorkOrder ? (
-					<SearchSelect
-						label="Reserva/trabajo"
-						value={consumptionForm.work_order}
-						options={workOrderOptions}
-						focusKey="material-consumption.work_order"
-						onChange={(value) =>
-							setConsumptionForm({
-								...consumptionForm,
-								work_order: value,
-							})
-						}
-					/>
-				) : null}
-				<div className="mode-toggle" role="group" aria-label="Modo de consumo">
-					<button
-						type="button"
-						className={directMode ? 'selected' : ''}
-						onClick={() => updateConsumptionMode('direct')}
-					>
-						Consumo directo
-					</button>
-					<button
-						type="button"
-						className={!directMode ? 'selected' : ''}
-						onClick={() => updateConsumptionMode('open_unit')}
-					>
-						Unidad abierta
-					</button>
-				</div>
-				{directMode ? (
-					<>
-						<SearchSelect
-							label="Material"
-							value={consumptionForm.material}
-							options={materialOptions}
-							focusKey="consumption.material"
-							className={flashClass(fieldFlashKey('consumption.material'))}
-							onAdd={() =>
-								openQuickCreate('material', 'consumption.material')
-							}
-							onChange={(value) =>
-								setConsumptionForm({
-									...consumptionForm,
-									material: value,
-								})
-							}
-						/>
-						{selectedConsumptionMaterial ? (
-							<div className="info-note">
-								Stock disponible:{' '}
-								<strong>
-									{quantity(
-										selectedConsumptionMaterial.stock_quantity,
-										selectedConsumptionMaterial.unit,
-									)}
-								</strong>{' '}
-								- valor por unidad{' '}
-								<strong>
-									{money(
-										materialUnitValue(
-											selectedConsumptionMaterial,
-										),
-									)}
-								</strong>
-							</div>
-						) : null}
-					</>
-				) : (
-					<>
-						<SearchSelect
-							label="Unidad abierta"
-							value={consumptionForm.open_unit}
-							options={openMaterialUnitOptions}
-							placeholder="Seleccionar unidad abierta"
-							focusKey="material-consumption.open_unit"
-							className={flashClass(fieldFlashKey('consumption.open_unit'))}
-							onChange={(value) =>
-								setConsumptionForm({
-									...consumptionForm,
-									open_unit: value,
-								})
-							}
-						/>
-						{selectedOpenUnit ? (
-							<div className="info-note">
-								{selectedOpenUnit.material_name} abierta el{' '}
-								<strong>{selectedOpenUnit.opened_at}</strong> -{' '}
-								{selectedOpenUnit.consumptions_count ?? 0} usos. Al
-								finalizar descuenta{' '}
-								<strong>
-									{quantity(
-										selectedOpenUnit.stock_quantity_to_decrement,
-										materials.find(
-											(item) =>
-												String(item.id) ===
-												String(selectedOpenUnit.material),
-										)?.unit,
-									)}
-								</strong>
-								.
-							</div>
-						) : (
-							<div className="info-note">
-								Primero abri una unidad desde Materiales si todavia no hay
-								envases abiertos.
-							</div>
-						)}
-					</>
-				)}
-				<div className="form-row">
-					<Field label="Fecha">
-						<input
-							type="date"
-							value={consumptionForm.consumed_at}
-							onChange={(event) =>
-								setConsumptionForm({
-									...consumptionForm,
-									consumed_at: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					{directMode ? (
-						<Field label="Cantidad">
-							<input
-								required
-								type="number"
-								min="0"
-								value={consumptionForm.quantity}
-								onChange={(event) =>
-									setConsumptionForm({
-										...consumptionForm,
-										quantity: event.target.value,
-									})
-								}
-							/>
-						</Field>
-					) : null}
-				</div>
-				<Field label="Observaciones">
-					<textarea
-						value={consumptionForm.observations}
-						onChange={(event) =>
-							setConsumptionForm({
-								...consumptionForm,
-								observations: event.target.value,
-							})
-						}
-					/>
-				</Field>
-			</>
-		)
-	}
+	const renderConsumptionFields = createMaterialConsumptionFieldsRenderer({
+		consumptionForm,
+		setConsumptionForm,
+		workOrderOptions,
+		materialOptions,
+		openMaterialUnitOptions,
+		selectedConsumptionMaterial,
+		selectedOpenUnit,
+		materials,
+		onChangeMode: updateConsumptionMode,
+		flashClass,
+		fieldFlashKey,
+		onOpenQuickCreate: openQuickCreate,
+	})
 
 	async function saveQuote(event: FormEvent) {
 		event.preventDefault()
@@ -12281,7 +7440,7 @@ export default function Home() {
 						),
 					}),
 				})
-				setQuoteForm(blankQuoteFormWithDefaults())
+				setQuoteForm(blankQuoteFormWithBusinessDefaults(businessFormRef.current))
 				formModalExit.close()
 				return created
 			}, {
@@ -12329,10 +7488,10 @@ export default function Home() {
 					observations: quoteForm.observations,
 					terms: quoteForm.terms,
 					payment_instructions: quoteForm.payment_instructions,
-					items: serviceLinePayload(quoteItems),
+					items: serviceLinePayloadForServices(quoteItems, services),
 				}),
 			})
-			setQuoteForm(blankQuoteFormWithDefaults())
+				setQuoteForm(blankQuoteFormWithBusinessDefaults(businessFormRef.current))
 			formModalExit.close()
 			return created
 		}, {
@@ -12344,766 +7503,17 @@ export default function Home() {
 		})
 	}
 
-	function renderPurchaseForm(submitLabel: string) {
-		return (
-			<form className="form-grid" onSubmit={savePurchase}>
-				<SearchSelect
-					label="Material"
-					value={purchaseForm.material}
-					options={materialOptions}
-					focusKey="material-purchase.material"
-					className={flashClass(fieldFlashKey('purchase.material'))}
-					onAdd={() => openQuickCreate('material', 'purchase.material')}
-					onChange={(value) => {
-						setPurchaseForm({
-							...purchaseForm,
-							material: value,
-						})
-						focusField('material-purchase.quantity')
-					}}
-				/>
-				<div className="form-row">
-					<Field label="Cantidad">
-						<input
-							data-focus-key="material-purchase.quantity"
-							required
-							type="number"
-							min="0"
-							value={purchaseForm.quantity}
-							onChange={(event) =>
-								setPurchaseForm({
-									...purchaseForm,
-									quantity: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('material-purchase.total_cost')}
-						/>
-					</Field>
-					<Field label="Costo total">
-						<input
-							data-focus-key="material-purchase.total_cost"
-							required
-							type="number"
-							min="0"
-							value={purchaseForm.total_cost}
-							onChange={(event) =>
-								setPurchaseForm({
-									...purchaseForm,
-									total_cost: event.target.value,
-								})
-							}
-						/>
-					</Field>
-				</div>
-				<div className="info-note">
-					Valor calculado por unidad:{' '}
-					<strong>
-						{money(
-							calculatedUnitCost(
-								purchaseForm.quantity,
-								purchaseForm.total_cost,
-							),
-						)}
-					</strong>
-					{selectedPurchaseMaterial ? ` por ${selectedPurchaseMaterial.unit}` : ''}
-				</div>
-				<Toggle
-					checked={purchaseForm.affects_cash}
-					onChange={(checked) =>
-						setPurchaseForm({ ...purchaseForm, affects_cash: checked })
-					}
-				>
-					Impacta en caja
-				</Toggle>
-				<Button type="submit" variant="primary" loading={pendingActions.pending}>
-					{submitLabel}
-				</Button>
-			</form>
-		)
-	}
-
-	function renderOpenUnitForm(submitLabel: string) {
-		const unitLabel = selectedOpenUnitFormMaterial?.unit
-			? `en ${selectedOpenUnitFormMaterial.unit}`
-			: ''
-		const unitCost = selectedOpenUnitFormMaterial
-			? numberValue(selectedOpenUnitFormMaterial.estimated_unit_cost)
-			: 0
-		return (
-			<form className="form-grid" onSubmit={saveOpenUnit}>
-				<SearchSelect
-					label="Material"
-					value={openUnitForm.material}
-					options={materialOptions}
-					focusKey="material-open-unit.material"
-					className={flashClass(fieldFlashKey('open-unit.material'))}
-					onAdd={() => openQuickCreate('material', 'open-unit.material')}
-					onChange={(value) => {
-						setOpenUnitForm({
-							...openUnitForm,
-							material: value,
-						})
-						focusField('material-open-unit.work_order', true)
-					}}
-				/>
-				{selectedOpenUnitFormMaterial ? (
-					<div className="info-note open-unit-material-info">
-						<div className="open-unit-material-stats">
-							<span>
-								Stock actual{' '}
-								<strong>
-									{quantity(
-										selectedOpenUnitFormMaterial.stock_quantity,
-										selectedOpenUnitFormMaterial.unit,
-									)}
-								</strong>
-							</span>
-							{unitCost > 0 && (
-								<span>
-									Costo unitario <strong>{money(unitCost)}</strong>
-								</span>
-							)}
-						</div>
-						<span className="open-unit-material-disclaimer">
-							Abrir una unidad no descuenta stock; el descuento se aplica al finalizar.
-						</span>
-					</div>
-				) : null}
-				<SearchSelect
-					label="Trabajo de apertura"
-					value={openUnitForm.opened_by_work_order}
-					options={workOrderOptions}
-					placeholder="Sin trabajo asociado"
-					focusKey="material-open-unit.work_order"
-					onChange={(value) => {
-						setOpenUnitForm({
-							...openUnitForm,
-							opened_by_work_order: value,
-						})
-						focusField('material-open-unit.opened_at')
-					}}
-				/>
-				<div className="form-row">
-					<Field label="Fecha de apertura">
-						<input
-							data-focus-key="material-open-unit.opened_at"
-							type="date"
-							value={openUnitForm.opened_at}
-							onChange={(event) =>
-								setOpenUnitForm({
-									...openUnitForm,
-									opened_at: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('material-open-unit.quantity')}
-						/>
-					</Field>
-					<Field
-						label="Cantidad al cerrar"
-						hint={
-							selectedOpenUnitFormMaterial
-								? `Se descuenta del stock ${unitLabel} al finalizar`
-								: 'Se descuenta del stock al finalizar la unidad'
-						}
-					>
-						<input
-							data-focus-key="material-open-unit.quantity"
-							required
-							type="number"
-							min="0"
-							value={openUnitForm.stock_quantity_to_decrement}
-							onChange={(event) =>
-								setOpenUnitForm({
-									...openUnitForm,
-									stock_quantity_to_decrement: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('material-open-unit.notes')}
-						/>
-					</Field>
-				</div>
-				<Field label="Observaciones">
-					<textarea
-						data-focus-key="material-open-unit.notes"
-						value={openUnitForm.observations}
-						onChange={(event) =>
-							setOpenUnitForm({
-								...openUnitForm,
-								observations: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<Button
-					type="submit"
-					variant="primary"
-					loading={pendingActions.pending}
-					leadingIcon={<Package size={16} />}
-				>
-					{submitLabel}
-				</Button>
-			</form>
-		)
-	}
-
-	function renderHistoricalUsageForm(submitLabel: string) {
-		const selectedMaterial = materials.find(
-			(item) => String(item.id) === historicalUsageForm.material,
-		)
-		const selectedReservationIds: string[] = historicalUsageForm.reservations ?? []
-		const pastServiceReservations = historicalUsageForm.service
-			? reservations
-					.filter(
-						(item) =>
-							String(item.service) === String(historicalUsageForm.service) &&
-							item.status !== 'canceled' &&
-							String(item.day) <= today,
-					)
-					.sort((a, b) => String(b.day).localeCompare(String(a.day)))
-			: []
-		const selectedCount = selectedReservationIds.length
-		const unitQuantity =
-			numberValue(historicalUsageForm.stock_quantity_to_decrement) || 1
-		const consumptionPerService = selectedCount > 0 ? unitQuantity / selectedCount : 0
-		const unitCost = selectedMaterial
-			? numberValue(selectedMaterial.estimated_unit_cost)
-			: 0
-		const materialUnit = selectedMaterial?.unit ?? 'unidad'
-
-		function toggleReservation(id: string) {
-			const set = new Set(selectedReservationIds)
-			if (set.has(id)) set.delete(id)
-			else set.add(id)
-			const nextIds = Array.from(set)
-			const days = (nextIds
-				.map((rid) => reservations.find((item) => String(item.id) === rid)?.day)
-				.filter(Boolean) as string[]).sort()
-			setHistoricalUsageForm({
-				...historicalUsageForm,
-				reservations: nextIds,
-				opened_at: days.length ? days[0] : '',
-				finished_at: days.length ? days[days.length - 1] : '',
-			})
-		}
-
-		return (
-			<form className="form-grid" onSubmit={saveHistoricalUsage}>
-				<div className="info-note">
-					Registra una unidad ya consumida en el pasado: elegi el producto, el
-					servicio y las reservas donde lo usaste. Calcula el rendimiento por
-					servicio y no descuenta stock actual.
-				</div>
-				<SearchSelect
-					label="Producto"
-					value={historicalUsageForm.material}
-					options={materialOptions}
-					focusKey="material-historical-usage.material"
-					onChange={(value) =>
-						setHistoricalUsageForm({ ...historicalUsageForm, material: value })
-					}
-				/>
-				<SearchSelect
-					label="Servicio"
-					value={historicalUsageForm.service}
-					options={serviceOptions}
-					placeholder="Elegi un servicio"
-					focusKey="material-historical-usage.service"
-					onChange={(value) =>
-						setHistoricalUsageForm({
-							...historicalUsageForm,
-							service: value,
-							reservations: [],
-							opened_at: '',
-							finished_at: '',
-						})
-					}
-				/>
-				{historicalUsageForm.service ? (
-					<Field
-						label={`Reservas pasadas de este servicio (${selectedCount} elegidas)`}
-					>
-						{pastServiceReservations.length ? (
-							<div className="usage-reservation-list">
-								{pastServiceReservations.map((item) => (
-									<Toggle
-										key={item.id}
-										checked={selectedReservationIds.includes(String(item.id))}
-										onChange={() => toggleReservation(String(item.id))}
-									>
-										<span>
-											{item.day} - {item.customer_name}
-											{item.vehicle_label ? (
-												<small>{item.vehicle_label}</small>
-											) : null}
-										</span>
-									</Toggle>
-								))}
-							</div>
-						) : (
-							<div className="info-note">
-								No hay reservas pasadas de este servicio.
-							</div>
-						)}
-					</Field>
-				) : null}
-				<div className="form-row">
-					<Field label="Apertura">
-						<input
-							type="date"
-							value={historicalUsageForm.opened_at}
-							onChange={(event) =>
-								setHistoricalUsageForm({
-									...historicalUsageForm,
-									opened_at: event.target.value,
-								})
-							}
-						/>
-					</Field>
-					<Field label="Cierre">
-						<input
-							type="date"
-							value={historicalUsageForm.finished_at}
-							onChange={(event) =>
-								setHistoricalUsageForm({
-									...historicalUsageForm,
-									finished_at: event.target.value,
-								})
-							}
-						/>
-					</Field>
-				</div>
-				<Field label="Cantidad de producto usada (unidades)">
-					<input
-						type="number"
-						min="0"
-						step="0.01"
-						value={historicalUsageForm.stock_quantity_to_decrement}
-						onChange={(event) =>
-							setHistoricalUsageForm({
-								...historicalUsageForm,
-								stock_quantity_to_decrement: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				{selectedCount > 0 ? (
-					<div className="info-note">
-						Rendimiento estimado:{' '}
-						<strong>
-							{unitQuantity.toLocaleString('es-AR', {
-								maximumFractionDigits: 2,
-							})}{' '}
-							{materialUnit} en {selectedCount} servicio
-							{selectedCount === 1 ? '' : 's'}
-						</strong>
-						. Cada servicio gasta ~
-						{consumptionPerService.toLocaleString('es-AR', {
-							maximumFractionDigits: 3,
-						})}{' '}
-						{materialUnit}
-						{unitCost > 0 ? ` (~${money(consumptionPerService * unitCost)})` : ''}.
-					</div>
-				) : null}
-				<Toggle
-					checked={Boolean(historicalUsageForm.update_recipe)}
-					onChange={(checked) =>
-						setHistoricalUsageForm({ ...historicalUsageForm, update_recipe: checked })
-					}
-				>
-					Actualizar la receta del servicio con este consumo estimado
-				</Toggle>
-				<Field label="Observaciones">
-					<textarea
-						value={historicalUsageForm.observations}
-						onChange={(event) =>
-							setHistoricalUsageForm({
-								...historicalUsageForm,
-								observations: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<Button
-					type="submit"
-					variant="primary"
-					loading={pendingActions.pending}
-					disabled={
-						!historicalUsageForm.material ||
-						!historicalUsageForm.service ||
-						selectedCount === 0
-					}
-					leadingIcon={<Package size={16} />}
-				>
-					{submitLabel}
-				</Button>
-			</form>
-		)
-	}
-
-	function renderMaterialConsumptionForm(submitLabel: string) {
-		return (
-			<form className="form-grid" onSubmit={saveConsumption}>
-				{renderConsumptionFields(true)}
-				<Button type="submit" variant="primary" loading={pendingActions.pending}>
-					{submitLabel}
-				</Button>
-			</form>
-		)
-	}
-
-	function renderToolForm(submitLabel: string) {
-		return (
-			<form className="form-grid" onSubmit={saveTool}>
-				<Field label="Nombre">
-					<input
-						data-focus-key="tool.name"
-						required
-						list="tool-name-options"
-						value={toolForm.name}
-						onChange={(event) =>
-							setToolForm({
-								...toolForm,
-								name: event.target.value,
-							})
-						}
-						onKeyDown={focusNextOnEnter('tool.quantity')}
-					/>
-				</Field>
-				<div className="form-row">
-					<Field label="Cantidad">
-						<input
-							data-focus-key="tool.quantity"
-							required
-							type="number"
-							min="0"
-							step="1"
-							value={toolForm.quantity}
-							onChange={(event) =>
-								setToolForm({
-									...toolForm,
-									quantity: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('tool.status', true)}
-						/>
-					</Field>
-					<SearchSelect
-						label="Estado"
-						value={toolForm.status}
-						options={toolStatusOptions}
-						focusKey="tool.status"
-						onChange={(value) => {
-							setToolForm({
-								...toolForm,
-								status: value || 'in_use',
-							})
-							focusField('tool.unit_value')
-						}}
-					/>
-				</div>
-				<div className="form-row">
-					<Field label="Valor unitario">
-						<input
-							data-focus-key="tool.unit_value"
-							type="number"
-							min="0"
-							value={toolForm.unit_value}
-							onChange={(event) =>
-								setToolForm({
-									...toolForm,
-									unit_value: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('tool.purchased_at')}
-						/>
-					</Field>
-					<Field label="Fecha compra">
-						<input
-							data-focus-key="tool.purchased_at"
-							type="date"
-							value={toolForm.purchased_at}
-							onChange={(event) =>
-								setToolForm({
-									...toolForm,
-									purchased_at: event.target.value,
-								})
-							}
-							onKeyDown={focusNextOnEnter('tool.notes')}
-						/>
-					</Field>
-				</div>
-				<div className="info-note">
-					Valor total estimado: <strong>{money(toolTotalValue(toolForm))}</strong>
-				</div>
-				<Field label="Notas">
-					<textarea
-						data-focus-key="tool.notes"
-						value={toolForm.notes}
-						onChange={(event) =>
-							setToolForm({
-								...toolForm,
-								notes: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<Button
-					type="submit"
-					variant="primary"
-					loading={pendingActions.pending}
-					leadingIcon={<Hammer size={16} />}
-				>
-					{submitLabel}
-				</Button>
-			</form>
-		)
-	}
-
-	function renderExpenseClassificationForm() {
-		const editing = Boolean(expenseClassificationForm.originalCategory)
-		const lockCategory = Boolean(expenseClassificationForm.lockCategory)
-		const movementType =
-			expenseClassificationForm.movement_type === 'income'
-				? 'income'
-				: 'expense'
-		const movementLabel = movementType === 'income' ? 'ingreso' : 'egreso'
-		return (
-			<form className="form-grid" onSubmit={saveExpenseClassification}>
-				<SearchSelect
-					label="Tipo"
-					value={movementType}
-					options={[
-						{ value: 'income', label: 'Ingreso' },
-						{ value: 'expense', label: 'Egreso' },
-					]}
-					disabled={editing || lockCategory}
-					focusKey="expense-classification.type"
-					onChange={(value) => {
-						const nextType = value === 'income' ? 'income' : 'expense'
-						setExpenseClassificationForm({
-							...expenseClassificationForm,
-							movement_type: nextType,
-							category: '',
-							subcategory: '',
-						})
-						focusField('expense-classification.category')
-					}}
-				/>
-				<SearchSelect
-					label={`Categoria de ${movementLabel}`}
-					value={expenseClassificationForm.category}
-					options={settingsClassificationCategoryOptions}
-					placeholder={`Categoria de ${movementLabel}`}
-					disabled={lockCategory}
-					focusKey="expense-classification.category"
-					onChange={(value) =>
-						setExpenseClassificationForm({
-							...expenseClassificationForm,
-							category: value,
-						})
-					}
-					onCreate={(value) =>
-						setExpenseClassificationForm({
-							...expenseClassificationForm,
-							category: value,
-						})
-					}
-					createLabel={(value) => `Crear categoria "${value}"`}
-				/>
-				<Field label="Denominacion subcategoria">
-					<input
-						required
-						list="settings-classification-subcategory-options"
-						data-focus-key="expense-classification.subcategory"
-						value={expenseClassificationForm.subcategory}
-						onChange={(event) =>
-							setExpenseClassificationForm({
-								...expenseClassificationForm,
-								subcategory: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<div className="info-note">
-					Las combinaciones guardadas alimentan los desplegables de Caja.
-					Las de egresos tambien se usan en Deudas.
-				</div>
-				<div className="record-actions">
-					{editing ? (
-						<Button
-							type="button"
-							variant="ghost"
-							onClick={() => {
-								resetExpenseClassificationForm()
-								formModalExit.close()
-							}}
-						>
-							Cancelar
-						</Button>
-					) : null}
-					<Button
-						type="submit"
-						variant="primary"
-						loading={pendingActions.pending}
-						leadingIcon={<ReceiptText size={16} />}
-					>
-						{editing
-							? 'Guardar cambios'
-							: lockCategory
-								? 'Agregar subcategoria'
-								: 'Crear subcategoria'}
-					</Button>
-				</div>
-			</form>
-		)
-	}
-
-	function renderCashCategoryForm() {
-		const editing = Boolean(cashCategoryForm.originalName)
-		const movementType =
-			cashCategoryForm.movement_type === 'income' ? 'income' : 'expense'
-		const movementLabel = movementType === 'income' ? 'ingreso' : 'egreso'
-		return (
-			<form className="form-grid" onSubmit={saveCashCategory}>
-				<SearchSelect
-					label="Tipo"
-					value={movementType}
-					options={[
-						{ value: 'income', label: 'Ingreso' },
-						{ value: 'expense', label: 'Egreso' },
-					]}
-					disabled={editing}
-					focusKey="cash-category.type"
-					onChange={(value) => {
-						const nextType = value === 'income' ? 'income' : 'expense'
-						setCashCategoryForm({
-							...cashCategoryForm,
-							movement_type: nextType,
-						})
-						focusField('cash-category.name')
-					}}
-				/>
-				<Field label={`Nombre de la categoria de ${movementLabel}`}>
-					<input
-						required
-						data-focus-key="cash-category.name"
-						value={cashCategoryForm.name}
-						placeholder={`Categoria de ${movementLabel}`}
-						onChange={(event) =>
-							setCashCategoryForm({
-								...cashCategoryForm,
-								name: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<div className="info-note">
-					Podes crear la categoria ahora y agregarle subcategorias mas
-					tarde desde el listado.
-				</div>
-				<div className="record-actions">
-					{editing ? (
-						<Button
-							type="button"
-							variant="ghost"
-							onClick={() => {
-								resetCashCategoryForm()
-								formModalExit.close()
-							}}
-						>
-							Cancelar
-						</Button>
-					) : null}
-					<Button
-						type="submit"
-						variant="primary"
-						loading={pendingActions.pending}
-						leadingIcon={<Plus size={16} />}
-					>
-						{editing ? 'Guardar cambios' : 'Crear categoria'}
-					</Button>
-				</div>
-			</form>
-		)
-	}
-
-	function renderEmployeeForm(submitLabel: string) {
-		return (
-			<form className="form-grid" onSubmit={saveEmployee}>
-				<Field label="Usuario">
-					<input
-						data-focus-key="employee.username"
-						required
-						autoComplete="username"
-						value={employeeForm.username}
-						onChange={(event) =>
-							setEmployeeForm({
-								...employeeForm,
-								username: event.target.value,
-							})
-						}
-						onKeyDown={focusNextOnEnter('employee.email')}
-					/>
-				</Field>
-				<Field label="Email">
-					<input
-						data-focus-key="employee.email"
-						type="email"
-						autoComplete="email"
-						value={employeeForm.email}
-						onChange={(event) =>
-							setEmployeeForm({
-								...employeeForm,
-								email: event.target.value,
-							})
-						}
-						onKeyDown={focusNextOnEnter('employee.password')}
-					/>
-				</Field>
-				<Field label="Contrasena inicial">
-					<input
-						data-focus-key="employee.password"
-						required
-						type="password"
-						minLength={4}
-						autoComplete="new-password"
-						value={employeeForm.password}
-						onChange={(event) =>
-							setEmployeeForm({
-								...employeeForm,
-								password: event.target.value,
-							})
-						}
-					/>
-				</Field>
-				<Button
-					type="submit"
-					variant="primary"
-					loading={pendingActions.pending}
-					leadingIcon={<Plus size={16} />}
-				>
-					{submitLabel}
-				</Button>
-			</form>
-		)
-	}
-
 	function publicRequestSelection(item: AnyRecord) {
-		return publicRequestSelections[String(item.id)] ?? {}
+		return publicRequestSelectionForId(publicRequestSelections, item.id)
 	}
 
 	function patchPublicRequestSelection(
 		item: AnyRecord,
-		patch: { customer?: string; vehicle?: string },
+		patch: PublicRequestSelection,
 	) {
-		const itemId = String(item.id)
-		setPublicRequestSelections((current) => ({
-			...current,
-			[itemId]: {
-				...current[itemId],
-				...patch,
-			},
-		}))
+		setPublicRequestSelections((current) =>
+			patchPublicRequestSelectionForState(current, item.id, patch),
+		)
 	}
 
 	async function archivePublicRequest(item: AnyRecord) {
@@ -13123,13 +7533,7 @@ export default function Home() {
 	async function convertPublicRequest(item: AnyRecord) {
 		if (!canViewEconomy) return
 		const selection = publicRequestSelection(item)
-		const payload: AnyRecord = {}
-		if (selection.customer) {
-			payload.customer = Number(selection.customer)
-		}
-		if (selection.vehicle) {
-			payload.vehicle = Number(selection.vehicle)
-		}
+		const payload = publicRequestConversionPayload(selection)
 		const converted = await runAction(
 			() =>
 				apiFetch<AnyRecord>(`/public-requests/${item.id}/convert/`, {
@@ -13148,270 +7552,210 @@ export default function Home() {
 			},
 		)
 		if (!converted) return
-		setPublicRequestSelections((current) => {
-			const next = { ...current }
-			delete next[String(item.id)]
-			return next
-		})
+		setPublicRequestSelections((current) =>
+			clearPublicRequestSelection(current, item.id),
+		)
 		setActive(converted.created_type === 'reservation' ? 'agenda' : 'quotes')
 	}
 
 	return (
 		<>
-			<DataList id="customer-name-options" values={customerNameValues} />
-			<DataList
-				id="customer-phone-options"
-				values={customerPhoneValues}
-			/>
-			<DataList
-				id="customer-email-options"
-				values={customerEmailValues}
-			/>
-			<DataList id="vehicle-plate-options" values={vehiclePlateValues} />
-			<DataList id="vehicle-color-options" values={vehicleColorValues} />
-			<DataList id="service-name-options" values={serviceNameValues} />
-			<DataList id="material-name-options" values={materialNameValues} />
-			<DataList id="material-category-options" values={materialCategoryValues} />
-			<DataList id="material-unit-options" values={materialUnitValues} />
-			<DataList id="supplier-name-options" values={supplierNameValues} />
-			<DataList
-				id="supplier-legal-name-options"
-				values={supplierLegalNameValues}
-			/>
-			<DataList
-				id="supplier-category-options"
-				values={supplierCategoryValues}
-			/>
-			<DataList
-				id="supplier-tax-condition-options"
-				values={supplierTaxConditionValues}
-			/>
-			<DataList id="tool-name-options" values={toolNameValues} />
-			<DataList id="debt-concept-options" values={debtConceptValues} />
-			<DataList id="debt-creditor-options" values={debtCreditorValues} />
-			<DataList id="cash-category-options" values={cashCategoryValues} />
-			<DataList
-				id="cash-category-income-options"
-				values={cashIncomeCategoryValues}
-			/>
-			<DataList
-				id="cash-category-expense-options"
-				values={cashExpenseCategoryValues}
-			/>
-			<DataList
-				id="cash-subcategory-options"
-				values={selectedMovementSubcategoryValues.length ? selectedMovementSubcategoryValues : cashSubcategoryValues}
-			/>
-			<DataList
-				id="debt-expense-subcategory-options"
-				values={debtExpenseSubcategoryValues.length ? debtExpenseSubcategoryValues : cashSubcategoryValues}
-			/>
-			<DataList
-				id="settings-classification-subcategory-options"
-				values={settingsClassificationSubcategoryOptions.map((option) => option.value)}
+			<EntityDataLists
+				customerNameValues={customerNameValues}
+				customerPhoneValues={customerPhoneValues}
+				customerEmailValues={customerEmailValues}
+				vehiclePlateValues={vehiclePlateValues}
+				vehicleColorValues={vehicleColorValues}
+				serviceNameValues={serviceNameValues}
+				materialNameValues={materialNameValues}
+				materialCategoryValues={materialCategoryValues}
+				materialUnitValues={materialUnitValues}
+				supplierNameValues={supplierNameValues}
+				supplierLegalNameValues={supplierLegalNameValues}
+				supplierCategoryValues={supplierCategoryValues}
+				supplierTaxConditionValues={supplierTaxConditionValues}
+				toolNameValues={toolNameValues}
+				debtConceptValues={debtConceptValues}
+				debtCreditorValues={debtCreditorValues}
+				cashCategoryValues={cashCategoryValues}
+				cashIncomeCategoryValues={cashIncomeCategoryValues}
+				cashExpenseCategoryValues={cashExpenseCategoryValues}
+				selectedMovementSubcategoryValues={selectedMovementSubcategoryValues}
+				debtExpenseSubcategoryValues={debtExpenseSubcategoryValues}
+				cashSubcategoryValues={cashSubcategoryValues}
+				settingsClassificationSubcategoryOptions={
+					settingsClassificationSubcategoryOptions
+				}
 			/>
 			<AnimatePresence initial={false}>
-				{profileModalOpen ? (
-					<Modal
-						key="profile-modal"
-						title="Mi perfil"
-						onClose={profileExit.close}
-					>
-						{currentUser ? (
-						<ProfileModal submitting={isActionPending('save:profile')}
-							onSubmit={saveProfile}
-							currentUser={currentUser}
-							profileForm={profileForm}
-							setProfileForm={setProfileForm}
-							canViewEconomy={canViewEconomy}
-							onLogout={handleProfileLogout}
-							roleLabel={profileRoleLabel(currentUser)}
-							activeText={profileActiveText(currentUser)}
-							trialText={profileTrialText(currentUser)}
-							joinedText={profileJoinedText(currentUser)}
-							lastLoginText={profileLastLoginText(currentUser)}
-							avatarInputRef={profileAvatarInputRef}
-							avatarInputKey={profileAvatarInputKey}
-							avatarPreview={safeProfileAvatarPreview}
-							avatarPdfThumbnail={safeProfileAvatarPdfThumbnail}
-							avatarIsPdf={profileAvatarIsPdf}
-							avatarInitial={profileInitial(currentUser)}
-							hasStoredAvatar={Boolean(currentUser.avatar_url)}
-							onAvatarChange={handleProfileAvatarChange}
-							onOpenAvatarPicker={openProfileAvatarPicker}
-						/>
-					) : null}
-					</Modal>
-				) : null}
-				{formModal?.kind === 'customer' ? (
-					<Modal
-						key="form-customer"
-						title="Nuevo cliente"
-						onClose={formModalExit.close}
-					>
-						<CustomerForm fieldErrors={formFieldErrors}
-						submitLabel="Guardar cliente"
-						onSubmit={saveCustomer}
-						customerForm={customerForm}
-						setCustomerForm={setCustomerForm}
-						focusNextOnEnter={focusNextOnEnter}
-						submitting={isActionPending('save:customer')}
-					/>
-					</Modal>
-				) : null}
-				{formModal?.kind === 'vehicle' ? (
-					<Modal
-						key="form-vehicle"
-						title="Nuevo vehiculo"
-						onClose={formModalExit.close}
-					>
-						<VehicleForm fieldErrors={formFieldErrors}
-						submitLabel="Guardar vehiculo"
-						onSubmit={saveVehicle}
-						vehicleForm={vehicleForm}
-						setVehicleForm={setVehicleForm}
-						customerOptions={customerOptions}
-						vehicleBrandSelectOptions={vehicleBrandSelectOptions}
-						vehicleModelSelectOptions={vehicleModelSelectOptions}
-						flashClass={flashClass}
-						fieldFlashKey={fieldFlashKey}
-						openQuickCreate={openQuickCreate}
-						updateVehicleCustomer={updateVehicleCustomer}
-						updateVehicleBrand={updateVehicleBrand}
-						focusField={focusField}
-						focusNextOnEnter={focusNextOnEnter}
-						submitting={isActionPending('save:vehicle')}
-					/>
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'quote' ? (
-					<Modal
-						key="form-quote"
-						title="Nueva cotizacion"
-						onClose={formModalExit.close}
-					>
-						<QuoteForm fieldErrors={formFieldErrors}
-						submitLabel="Crear cotizacion"
-						onSubmit={saveQuote}
-						quoteForm={quoteForm}
-						setQuoteForm={setQuoteForm}
-						customerOptions={customerOptions}
-						quoteVehicleSearchOptions={quoteVehicleSearchOptions}
-						serviceOptions={serviceOptions}
-						vehicles={vehicles}
-						services={services}
-						canViewEconomy={canViewEconomy}
-						useReservationTimes={useReservationTimes}
-						quoteTotals={quoteTotals}
-						openQuickCreate={openQuickCreate}
-						updateQuoteCustomer={updateQuoteCustomer}
-						updateQuoteVehicle={updateQuoteVehicle}
-						addQuoteItem={addQuoteItem}
-						selectQuoteService={selectQuoteService}
-						updateQuoteItem={updateQuoteItem}
-						removeQuoteItem={removeQuoteItem}
-						serviceNotesForLine={serviceNotesForLine}
-						focusField={focusField}
-						focusNextOnEnter={focusNextOnEnter}
-						flashClass={flashClass}
-						fieldFlashKey={fieldFlashKey}
-						submitting={isActionPending('save:quote')}
-					/>
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'service' ? (
-					<Modal
-						key="form-service"
-						title="Nuevo servicio"
-						onClose={formModalExit.close}
-					>
-						<ServiceForm fieldErrors={formFieldErrors} submitting={isActionPending('save:service')}
-						submitLabel="Guardar servicio"
-						onSubmit={saveService}
-						serviceForm={serviceForm}
-						setServiceForm={setServiceForm}
-						sectors={sectors}
-						materialOptions={materialOptions}
-						materials={materials}
-						serviceMaterialLines={serviceMaterialLines}
-						addServiceMaterialLine={addServiceMaterialLine}
-						removeServiceMaterialLine={removeServiceMaterialLine}
-						updateServiceMaterialLine={updateServiceMaterialLine}
-						focusNextOnEnter={focusNextOnEnter}
-						focusField={focusField}
-					/>
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'payment' ? (
-					<Modal
-						key="form-payment"
-						title="Registrar pago"
-						onClose={formModalExit.close}
-					>
-						<PaymentForm fieldErrors={formFieldErrors}
-						submitLabel="Guardar pago"
-						onSubmit={savePayment}
-						paymentForm={paymentForm}
-						setPaymentForm={setPaymentForm}
-						workOrders={workOrders}
-						workOrderOptions={workOrderOptions}
-						selectedWorkOrderForPayment={selectedWorkOrderForPayment}
-						focusField={focusField}
-						focusNextOnEnter={focusNextOnEnter}
-						submitting={isActionPending('save:payment')}
-					/>
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'cash-movement' ? (
-					<Modal
-						key="form-cash-movement"
-						title="Movimiento manual"
-						onClose={formModalExit.close}
-					>
-						<CashMovementForm fieldErrors={formFieldErrors}
-						submitLabel="Guardar movimiento"
-						onSubmit={saveCashMovement}
-						movementForm={movementForm}
-						setMovementForm={setMovementForm}
-						incomeCategorySelectOptions={incomeCategorySelectOptions}
-						expenseCategorySelectOptions={expenseCategorySelectOptions}
-						movementSubcategorySelectOptions={movementSubcategorySelectOptions}
-						updateMovementCashCategory={updateMovementCashCategory}
-						registerMovementSubcategory={registerMovementSubcategory}
-						validCashSubcategoryForCategory={validCashSubcategoryForCategory}
-						focusField={focusField}
-						focusNextOnEnter={focusNextOnEnter}
-						submitting={isActionPending('save:cash')}
-					/>
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'cash-load' ? (
-					<Modal
-						key="form-cash-load"
-						title="Cargar movimiento"
-						onClose={formModalExit.close}
-					>
-						<div className="cash-load-modal">
-							<SegmentedControl
-								ariaLabel="Tipo de movimiento"
-								className="cash-load-toggle"
-								selectionMode="tabs"
-								options={cashLoadTabOptions}
-								value={cashLoadTab}
-								onChange={(nextValue) => {
-									const tab = nextValue as typeof cashLoadTab
-									setCashLoadTab(tab)
-									if (tab === 'cash-movement') {
-										focusField('cash-movement.type')
-									} else if (tab === 'payment') {
-										focusField('payment.work_order', true)
-									} else {
-										focusField('debt-payment.debt', true)
-									}
-								}}
-							/>
-							{cashLoadTab === 'cash-movement' ? (
-								<CashMovementForm fieldErrors={formFieldErrors}
+				{profileModalOpen
+					? renderProfileModal({
+							hasCurrentUser: Boolean(currentUser),
+							onClose: profileExit.close,
+							renderProfile: () =>
+								currentUser ? (
+									<ProfileModal
+										submitting={isActionPending('save:profile')}
+										onSubmit={saveProfile}
+										currentUser={currentUser}
+										profileForm={profileForm}
+										setProfileForm={setProfileForm}
+										canViewEconomy={canViewEconomy}
+										onLogout={handleProfileLogout}
+										roleLabel={profileRoleLabel(currentUser)}
+										activeText={profileActiveText(currentUser)}
+										trialText={profileTrialText(currentUser)}
+										joinedText={profileJoinedText(currentUser)}
+										lastLoginText={profileLastLoginText(currentUser)}
+										avatarInputRef={profileAvatarInputRef}
+										avatarInputKey={profileAvatarInputKey}
+										avatarPreview={safeProfileAvatarPreview}
+										avatarPdfThumbnail={safeProfileAvatarPdfThumbnail}
+										avatarIsPdf={profileAvatarIsPdf}
+										avatarInitial={profileInitial(currentUser)}
+										hasStoredAvatar={Boolean(currentUser.avatar_url)}
+										onAvatarChange={handleProfileAvatarChange}
+										onOpenAvatarPicker={openProfileAvatarPicker}
+									/>
+								) : null,
+						})
+					: null}
+				{formModal &&
+				(formModal.kind === 'customer' ||
+					formModal.kind === 'vehicle' ||
+					(canViewEconomy &&
+						(formModal.kind === 'quote' ||
+							formModal.kind === 'service' ||
+							formModal.kind === 'payment'))) ? renderCoreFormModal({
+					kind: formModal?.kind,
+					canViewEconomy,
+					onClose: formModalExit.close,
+					customerFormProps: {
+						fieldErrors: formFieldErrors,
+						submitLabel: 'Guardar cliente',
+						onSubmit: saveCustomer,
+						customerForm,
+						setCustomerForm,
+						focusNextOnEnter,
+						submitting: isActionPending('save:customer'),
+					},
+					vehicleFormProps: {
+						fieldErrors: formFieldErrors,
+						submitLabel: 'Guardar vehiculo',
+						onSubmit: saveVehicle,
+						vehicleForm,
+						setVehicleForm,
+						customerOptions,
+						vehicleBrandSelectOptions,
+						vehicleModelSelectOptions,
+						flashClass,
+						fieldFlashKey,
+						openQuickCreate,
+						updateVehicleCustomer,
+						updateVehicleBrand,
+						focusField,
+						focusNextOnEnter,
+						submitting: isActionPending('save:vehicle'),
+					},
+					quoteFormProps: {
+						fieldErrors: formFieldErrors,
+						submitLabel: 'Crear cotizacion',
+						onSubmit: saveQuote,
+						quoteForm,
+						setQuoteForm,
+						customerOptions,
+						quoteVehicleSearchOptions,
+						serviceOptions,
+						vehicles,
+						services,
+						canViewEconomy,
+						useReservationTimes,
+						quoteTotals,
+						openQuickCreate,
+						updateQuoteCustomer,
+						updateQuoteVehicle,
+						addQuoteItem,
+						selectQuoteService,
+						updateQuoteItem,
+						removeQuoteItem,
+						serviceNotesForLine,
+						focusField,
+						focusNextOnEnter,
+						flashClass,
+						fieldFlashKey,
+						submitting: isActionPending('save:quote'),
+					},
+					serviceFormProps: {
+						fieldErrors: formFieldErrors,
+						submitting: isActionPending('save:service'),
+						submitLabel: 'Guardar servicio',
+						onSubmit: saveService,
+						serviceForm,
+						setServiceForm,
+						sectors,
+						materialOptions,
+						materials,
+						serviceMaterialLines,
+						addServiceMaterialLine,
+						removeServiceMaterialLine,
+						updateServiceMaterialLine,
+						focusNextOnEnter,
+						focusField,
+					},
+					paymentFormProps: {
+						fieldErrors: formFieldErrors,
+						submitLabel: 'Guardar pago',
+						onSubmit: savePayment,
+						paymentForm,
+						setPaymentForm,
+						workOrders,
+						workOrderOptions,
+						selectedWorkOrderForPayment,
+						focusField,
+						focusNextOnEnter,
+						submitting: isActionPending('save:payment'),
+					},
+				}) : null}
+				{canViewEconomy && formModal?.kind === 'cash-movement'
+					? renderCashMovementModal({
+							onClose: formModalExit.close,
+							formProps: {
+								fieldErrors: formFieldErrors,
+								submitLabel: 'Guardar movimiento',
+								onSubmit: saveCashMovement,
+								movementForm,
+								setMovementForm,
+								incomeCategorySelectOptions,
+								expenseCategorySelectOptions,
+								movementSubcategorySelectOptions,
+								updateMovementCashCategory,
+								registerMovementSubcategory,
+								validCashSubcategoryForCategory,
+								focusField,
+								focusNextOnEnter,
+								submitting: isActionPending('save:cash'),
+							},
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'cash-load'
+					? renderCashLoadModal({
+							cashLoadTab,
+							cashLoadTabOptions,
+							onTabChange: (nextValue) => {
+								const tab = nextValue as typeof cashLoadTab
+								setCashLoadTab(tab)
+								if (tab === 'cash-movement') {
+									focusField('cash-movement.type')
+								} else if (tab === 'payment') {
+									focusField('payment.work_order', true)
+								} else {
+									focusField('debt-payment.debt', true)
+								}
+							},
+							onClose: formModalExit.close,
+							renderCashMovementForm: () => (
+								<CashMovementForm
+									fieldErrors={formFieldErrors}
 									submitLabel="Guardar movimiento"
 									onSubmit={saveCashMovement}
 									movementForm={movementForm}
@@ -13430,9 +7774,10 @@ export default function Home() {
 									focusNextOnEnter={focusNextOnEnter}
 									submitting={isActionPending('save:cash')}
 								/>
-							) : null}
-							{cashLoadTab === 'payment' ? (
-								<PaymentForm fieldErrors={formFieldErrors}
+							),
+							renderPaymentForm: () => (
+								<PaymentForm
+									fieldErrors={formFieldErrors}
 									submitLabel="Guardar pago"
 									onSubmit={savePayment}
 									paymentForm={paymentForm}
@@ -13444,9 +7789,11 @@ export default function Home() {
 									focusNextOnEnter={focusNextOnEnter}
 									submitting={isActionPending('save:payment')}
 								/>
-							) : null}
-							{cashLoadTab === 'debt-payment' ? (
-								<DebtPaymentForm fieldErrors={formFieldErrors} submitting={isActionPending('save:debt-payment')}
+							),
+							renderDebtPaymentForm: () => (
+								<DebtPaymentForm
+									fieldErrors={formFieldErrors}
+									submitting={isActionPending('save:debt-payment')}
 									submitLabel="Guardar pago de deuda"
 									onSubmit={saveDebtPayment}
 									debtPaymentForm={debtPaymentForm}
@@ -13456,421 +7803,304 @@ export default function Home() {
 									focusField={focusField}
 									focusNextOnEnter={focusNextOnEnter}
 								/>
-							) : null}
-						</div>
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'expense-classification' ? (
-					<Modal
-						key="form-expense-classification"
-						title={
-							expenseClassificationForm.originalCategory
+							),
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'expense-classification'
+					? renderExpenseClassificationModal({
+							title: expenseClassificationForm.originalCategory
 								? 'Editar subcategoria de caja'
 								: expenseClassificationForm.lockCategory
 									? 'Nueva subcategoria de caja'
-									: 'Nueva clasificacion de caja'
-						}
-						onClose={() => {
-							resetExpenseClassificationForm()
-							formModalExit.close()
-						}}
-					>
-						{renderExpenseClassificationForm()}
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'cash-category' ? (
-					<Modal
-						key="form-cash-category"
-						title={
-							cashCategoryForm.originalName
+									: 'Nueva clasificacion de caja',
+							onReset: resetExpenseClassificationForm,
+							onClose: formModalExit.close,
+							formProps: {
+								form: expenseClassificationForm,
+								setForm: setExpenseClassificationForm,
+								onSubmit: saveExpenseClassification,
+								categoryOptions: settingsClassificationCategoryOptions,
+								focusField,
+								submitting: pendingActions.pending,
+							},
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'cash-category'
+					? renderCashCategoryModal({
+							title: cashCategoryForm.originalName
 								? 'Editar categoria de caja'
-								: 'Nueva categoria de caja'
-						}
-						onClose={() => {
-							resetCashCategoryForm()
-							formModalExit.close()
-						}}
-					>
-						{renderCashCategoryForm()}
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'debt' ? (
-					<Modal
-						key="form-debt"
-						title="Nueva deuda"
-						onClose={formModalExit.close}
-					>
-						<DebtForm fieldErrors={formFieldErrors}
-						submitLabel="Guardar deuda"
-						onSubmit={saveDebt}
-						debtForm={debtForm}
-						setDebtForm={setDebtForm}
-						supplierOptions={supplierOptions}
-						suppliers={suppliers}
-						debtExpenseCategorySelectOptions={debtExpenseCategorySelectOptions}
-						debtExpenseSubcategorySelectOptions={debtExpenseSubcategorySelectOptions}
-						updateDebtExpenseCategory={updateDebtExpenseCategory}
-						registerDebtSubcategory={registerDebtSubcategory}
-						focusField={focusField}
-						focusNextOnEnter={focusNextOnEnter}
-						submitting={isActionPending('save:debt')}
-					/>
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'fixed-expense' ? (
-					<Modal
-						key="form-fixed-expense"
-						title={fixedExpenseForm.id ? 'Editar gasto fijo' : 'Nuevo gasto fijo'}
-						onClose={formModalExit.close}
-					>
-						<FixedExpenseForm fieldErrors={formFieldErrors}
-							submitLabel="Guardar gasto fijo"
-							onSubmit={saveFixedExpense}
-							fixedExpenseForm={fixedExpenseForm}
-							setFixedExpenseForm={setFixedExpenseForm}
-							supplierOptions={supplierOptions}
-							suppliers={suppliers}
-							categorySelectOptions={fixedExpenseCategorySelectOptions}
-							subcategorySelectOptions={fixedExpenseSubcategorySelectOptions}
-							updateCategory={updateFixedExpenseCategory}
-							registerSubcategory={registerFixedExpenseSubcategory}
-							focusField={focusField}
-							focusNextOnEnter={focusNextOnEnter}
-							submitting={isActionPending('save:fixed-expense')}
-						/>
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'fixed-expense-pay' ? (
-					<Modal
-						key="form-fixed-expense-pay"
-						title="Registrar pago de gasto fijo"
-						onClose={formModalExit.close}
-					>
-						<form
-							onSubmit={confirmFixedExpenseOccurrencePayment}
-							className="form-body"
-						>
-							<Field label="Monto">
-								<input
-									id="fixed-expense-pay.amount"
-									type="number"
-									min="0.01"
-									step="any"
-									placeholder="Ej: 94300 o 94300.50"
-									value={payOccurrenceForm.amount}
-									onChange={(e) => {
-										const newAmount = e.target.value
-										const isOriginal =
-											newAmount === '' ||
-											Number(newAmount) ===
-												Number(payOccurrenceForm.original_amount)
-										setPayOccurrenceForm({
-											...payOccurrenceForm,
-											amount: newAmount,
-											update_template: isOriginal
-												? false
-												: payOccurrenceForm.update_template,
-										})
-									}}
-								/>
-								<small>
-									Usá punto como decimal. Si lo dejás vacío, se usa el monto
-									estimado de la ocurrencia.
-								</small>
-							</Field>
-							{payOccurrenceForm.amount !== '' &&
-							Number(payOccurrenceForm.amount) !==
-								Number(payOccurrenceForm.original_amount) ? (
-								<Toggle
-									checked={payOccurrenceForm.update_template}
-									onChange={(checked) =>
-										setPayOccurrenceForm({
-											...payOccurrenceForm,
-											update_template: checked,
-										})
-									}
-								>
-									Actualizar el monto estimado de la plantilla (
-									{money(Number(payOccurrenceForm.original_amount))} →{' '}
-									{money(Number(payOccurrenceForm.amount))})
-								</Toggle>
-							) : null}
-							<Field label="Metodo de pago">
-								<select
-									id="fixed-expense-pay.method"
-									value={payOccurrenceForm.method}
-									onChange={(e) =>
-										setPayOccurrenceForm({
-											...payOccurrenceForm,
-											method: e.target.value,
-										})
-									}
-								>
-									{Object.entries(debtPaymentMethodLabels).map(
-										([value, label]) => (
-											<option key={value} value={value}>
-												{label}
-											</option>
-										),
-									)}
-								</select>
-							</Field>
-							<Field label="Fecha de pago">
-								<input
-									id="fixed-expense-pay.paid_at"
-									type="date"
-									value={payOccurrenceForm.paid_at}
-									onChange={(e) =>
-										setPayOccurrenceForm({
-											...payOccurrenceForm,
-											paid_at: e.target.value,
-										})
-									}
-								/>
-							</Field>
-							<div className="form-actions">
-								<Button type="submit" variant="primary">
-									<CreditCard size={16} />
-									Confirmar pago
-								</Button>
-							</div>
-						</form>
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'debt-payment' ? (
-					<Modal
-						key="form-debt-payment"
-						title="Registrar pago de deuda"
-						onClose={formModalExit.close}
-					>
-						<DebtPaymentForm fieldErrors={formFieldErrors} submitting={isActionPending('save:debt-payment')}
-						onSubmit={saveDebtPayment}
-						debtPaymentForm={debtPaymentForm}
-						setDebtPaymentForm={setDebtPaymentForm}
-						debtOptions={debtOptions}
-						selectedDebtForPayment={selectedDebtForPayment}
-						focusField={focusField}
-						focusNextOnEnter={focusNextOnEnter}
-					/>
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'material' ? (
-					<Modal
-						key="form-material"
-						title="Nuevo material"
-						onClose={formModalExit.close}
-					>
-						<MaterialForm fieldErrors={formFieldErrors}
-						submitLabel="Guardar material"
-						onSubmit={saveMaterial}
-						materialForm={materialForm}
-						setMaterialForm={setMaterialForm}
-						focusNextOnEnter={focusNextOnEnter}
-						sectors={sectors}
-						submitting={isActionPending('save:material')}
-					/>
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'supplier' ? (
-					<Modal
-						key="form-supplier"
-						title="Nuevo proveedor"
-						onClose={formModalExit.close}
-					>
-						<SupplierForm fieldErrors={formFieldErrors}
-						submitLabel="Guardar proveedor"
-						onSubmit={saveSupplier}
-						supplierForm={supplierForm}
-						setSupplierForm={setSupplierForm}
-						focusNextOnEnter={focusNextOnEnter}
-						submitting={isActionPending('save:supplier')}
-					/>
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'stock-movement' ? (
-					<Modal
-						key="form-stock-movement"
-						title="Crear movimiento de stock"
-						onClose={formModalExit.close}
-					>
-						<StockMovementForm fieldErrors={formFieldErrors}
-						submitLabel="Crear movimiento"
-						onSubmit={saveStockMovement}
-						stockMovementForm={stockMovementForm}
-						setStockMovementForm={setStockMovementForm}
-						stockMovementDocumentFile={stockMovementDocumentFile}
-						setStockMovementDocumentFile={setStockMovementDocumentFile}
-						stockMovementTypeOptions={stockMovementTypeOptions}
-						stockDocumentTypeOptions={stockDocumentTypeOptions}
-						customerOptions={customerOptions}
-						supplierOptions={supplierOptions}
-						reservationOptions={reservationOptions}
-						materialOptions={materialOptions}
-						stockPaymentMethodOptions={stockPaymentMethodOptions}
-						materials={materials}
-						stockMovementLines={stockMovementLines}
-						selectedDay={selectedDay}
-						stockMovementRequiresSupplier={stockMovementRequiresSupplier}
-						stockMovementRequiresCustomer={stockMovementRequiresCustomer}
-						stockMovementRequiresReservation={stockMovementRequiresReservation}
-						stockMovementTotal={stockMovementTotal}
-						blankStockMovementForm={blankStockMovementForm}
-						updateStockMovementLine={updateStockMovementLine}
-						addStockMovementLine={addStockMovementLine}
-						removeStockMovementLine={removeStockMovementLine}
-						openQuickCreate={openQuickCreate}
-						createSupplierFromName={createSupplierFromName}
-						flashClass={flashClass}
-						fieldFlashKey={fieldFlashKey}
-						submitting={isActionPending('save:stock')}
-					/>
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'material-purchase' ? (
-					<Modal
-						key="form-material-purchase"
-						title="Registrar compra"
-						onClose={formModalExit.close}
-					>
-						{renderPurchaseForm('Guardar compra')}
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'material-open-unit' ? (
-					<Modal
-						key="form-material-open-unit"
-						title="Abrir unidad"
-						onClose={formModalExit.close}
-					>
-						{renderOpenUnitForm('Abrir unidad')}
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'material-historical-usage' ? (
-					<Modal
-						key="form-material-historical-usage"
-						title="Registrar consumo historico"
-						onClose={formModalExit.close}
-					>
-						{renderHistoricalUsageForm('Registrar consumo')}
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'material-consumption' ? (
-					<Modal
-						key="form-material-consumption"
-						title="Registrar consumo"
-						onClose={formModalExit.close}
-					>
-						{renderMaterialConsumptionForm('Registrar consumo')}
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'tool' ? (
-					<Modal
-						key="form-tool"
-						title="Nueva herramienta"
-						onClose={formModalExit.close}
-					>
-						{renderToolForm('Guardar herramienta')}
-					</Modal>
-				) : null}
-				{canViewEconomy && formModal?.kind === 'employee' ? (
-					<Modal
-						key="form-employee"
-						title="Nuevo empleado"
-						onClose={formModalExit.close}
-					>
-						{renderEmployeeForm('Crear empleado')}
-					</Modal>
-				) : null}
-				{reservationForQuote ? (
-					<Modal
-						key={`reservation-from-quote:${reservationForQuote.id}`}
-						title={`Crear reserva desde cotizacion #${reservationForQuote.id}`}
-						onClose={quoteReservationExit.close}
-					>
-						<form className="form-grid" onSubmit={saveReservationFromQuote}>
-							{reservationForQuote.vehicle ? null : (
-								<SearchSelect
-									label="Vehiculo"
-									value={quoteReservationForm.vehicle}
-									options={quoteReservationVehicleOptions}
-									name="quote_reservation_vehicle"
-									onChange={(value) =>
-										setQuoteReservationForm({
-											...quoteReservationForm,
-											vehicle: value,
-										})
-									}
-								/>
-							)}
-							<div className="form-row">
-								<Field label="Fecha de reserva">
-									<input
-										name="quote_reservation_day"
-										required
-										type="date"
-										value={quoteReservationForm.day}
-										onChange={(event) =>
-											setQuoteReservationForm({
-												...quoteReservationForm,
-												day: event.target.value,
-											})
-										}
-									/>
-								</Field>
-							</div>
-							{useReservationTimes ? (
-								<div className="form-row">
-									<Field label="Hora de ingreso">
-										<input
-											type="time"
-											name="quote_reservation_start_time"
-											value={quoteReservationForm.start_time}
-											onChange={(event) =>
-												setQuoteReservationForm({
-													...quoteReservationForm,
-													start_time: event.target.value,
-												})
-											}
-										/>
-									</Field>
-									<Field label="Hora de egreso">
-										<input
-											type="time"
-											name="quote_reservation_exit_time"
-											value={quoteReservationForm.exit_time}
-											onChange={(event) =>
-												setQuoteReservationForm({
-													...quoteReservationForm,
-													exit_time: event.target.value,
-												})
-											}
-										/>
-									</Field>
-								</div>
-							) : null}
-							<Button
-								type="submit"
-								variant="primary"
-								loading={pendingActions.pending}
-								leadingIcon={<CalendarDays size={16} />}
-							>
-								Crear reserva
-							</Button>
-						</form>
-					</Modal>
-				) : null}
-				{quickReservationDay ? (
-					<Modal
-						key={`quick-reservation:${quickReservationDay}`}
-						title={
-							quickReservationPrefillDay
+								: 'Nueva categoria de caja',
+							onReset: resetCashCategoryForm,
+							onClose: formModalExit.close,
+							formProps: {
+								form: cashCategoryForm,
+								setForm: setCashCategoryForm,
+								onSubmit: saveCashCategory,
+								focusField,
+								submitting: pendingActions.pending,
+							},
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'debt'
+					? renderDebtModal({
+							onClose: formModalExit.close,
+							formProps: {
+								fieldErrors: formFieldErrors,
+								submitLabel: 'Guardar deuda',
+								onSubmit: saveDebt,
+								debtForm,
+								setDebtForm,
+								supplierOptions,
+								suppliers,
+								debtExpenseCategorySelectOptions,
+								debtExpenseSubcategorySelectOptions,
+								updateDebtExpenseCategory,
+								registerDebtSubcategory,
+								focusField,
+								focusNextOnEnter,
+								submitting: isActionPending('save:debt'),
+							},
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'fixed-expense'
+					? renderFixedExpenseModal({
+							title: fixedExpenseForm.id
+								? 'Editar gasto fijo'
+								: 'Nuevo gasto fijo',
+							onClose: formModalExit.close,
+							formProps: {
+								fieldErrors: formFieldErrors,
+								submitLabel: 'Guardar gasto fijo',
+								onSubmit: saveFixedExpense,
+								fixedExpenseForm,
+								setFixedExpenseForm,
+								supplierOptions,
+								suppliers,
+								categorySelectOptions: fixedExpenseCategorySelectOptions,
+								subcategorySelectOptions: fixedExpenseSubcategorySelectOptions,
+								updateCategory: updateFixedExpenseCategory,
+								registerSubcategory: registerFixedExpenseSubcategory,
+								focusField,
+								focusNextOnEnter,
+								submitting: isActionPending('save:fixed-expense'),
+							},
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'fixed-expense-pay'
+					? renderFixedExpensePaymentModal({
+							form: payOccurrenceForm,
+							setForm: setPayOccurrenceForm,
+							onSubmit: confirmFixedExpenseOccurrencePayment,
+							paymentMethodOptions: Object.entries(
+								debtPaymentMethodLabels,
+							).map(([value, label]) => ({ value, label })),
+							formatMoney: money,
+							onClose: formModalExit.close,
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'debt-payment'
+					? renderDebtPaymentModal({
+							onClose: formModalExit.close,
+							formProps: {
+								fieldErrors: formFieldErrors,
+								submitting: isActionPending('save:debt-payment'),
+								onSubmit: saveDebtPayment,
+								debtPaymentForm,
+								setDebtPaymentForm,
+								debtOptions,
+								selectedDebtForPayment,
+								focusField,
+								focusNextOnEnter,
+							},
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'material'
+					? renderMaterialModal({
+							onClose: formModalExit.close,
+							formProps: {
+								fieldErrors: formFieldErrors,
+								submitLabel: 'Guardar material',
+								onSubmit: saveMaterial,
+								materialForm,
+								setMaterialForm,
+								focusNextOnEnter,
+								sectors,
+								submitting: isActionPending('save:material'),
+							},
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'supplier'
+					? renderSupplierModal({
+							onClose: formModalExit.close,
+							formProps: {
+								fieldErrors: formFieldErrors,
+								submitLabel: 'Guardar proveedor',
+								onSubmit: saveSupplier,
+								supplierForm,
+								setSupplierForm,
+								focusNextOnEnter,
+								submitting: isActionPending('save:supplier'),
+							},
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'stock-movement'
+					? renderStockMovementModal({
+							onClose: formModalExit.close,
+							formProps: {
+								fieldErrors: formFieldErrors,
+								submitLabel: 'Crear movimiento',
+								onSubmit: saveStockMovement,
+								stockMovementForm,
+								setStockMovementForm,
+								stockMovementDocumentFile,
+								setStockMovementDocumentFile,
+								stockMovementTypeOptions,
+								stockDocumentTypeOptions,
+								customerOptions,
+								supplierOptions,
+								reservationOptions,
+								materialOptions,
+								stockPaymentMethodOptions,
+								materials,
+								stockMovementLines,
+								selectedDay,
+								stockMovementRequiresSupplier,
+								stockMovementRequiresCustomer,
+								stockMovementRequiresReservation,
+								stockMovementTotal,
+								blankStockMovementForm,
+								updateStockMovementLine,
+								addStockMovementLine,
+								removeStockMovementLine,
+								openQuickCreate,
+								createSupplierFromName,
+								flashClass,
+								fieldFlashKey,
+								submitting: isActionPending('save:stock'),
+							},
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'material-purchase'
+					? renderMaterialPurchaseModal({
+							onClose: formModalExit.close,
+							formProps: {
+								submitLabel: 'Guardar compra',
+								purchaseForm,
+								setPurchaseForm,
+								onSubmit: savePurchase,
+								materialOptions,
+								materialClassName: flashClass(fieldFlashKey('purchase.material')),
+								onOpenMaterial: () =>
+									openQuickCreate('material', 'purchase.material'),
+								selectedMaterial: selectedPurchaseMaterial,
+								focusField,
+								focusNextOnEnter,
+								submitting: pendingActions.pending,
+							},
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'material-open-unit'
+					? renderMaterialOpenUnitModal({
+							onClose: formModalExit.close,
+							formProps: {
+								submitLabel: 'Abrir unidad',
+								openUnitForm,
+								setOpenUnitForm,
+								onSubmit: saveOpenUnit,
+								materialOptions,
+								workOrderOptions,
+								materialClassName: flashClass(
+									fieldFlashKey('open-unit.material'),
+								),
+								onOpenMaterial: () =>
+									openQuickCreate('material', 'open-unit.material'),
+								selectedMaterial: selectedOpenUnitFormMaterial,
+								focusField,
+								focusNextOnEnter,
+								submitting: pendingActions.pending,
+							},
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'material-historical-usage'
+					? renderHistoricalMaterialUsageModal({
+							onClose: formModalExit.close,
+							formProps: {
+								submitLabel: 'Registrar consumo',
+								historicalUsageForm,
+								setHistoricalUsageForm,
+								onSubmit: saveHistoricalUsage,
+								materialOptions,
+								serviceOptions,
+								materials,
+								reservations,
+								today,
+								submitting: pendingActions.pending,
+							},
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'material-consumption'
+					? renderMaterialConsumptionModal({
+							onClose: formModalExit.close,
+							onSubmit: saveConsumption,
+							renderFields: () => renderConsumptionFields(true),
+							submitLabel: 'Registrar consumo',
+							submitting: pendingActions.pending,
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'tool'
+					? renderToolModal({
+							onClose: formModalExit.close,
+							formProps: {
+								submitLabel: 'Guardar herramienta',
+								toolForm,
+								setToolForm,
+								onSubmit: saveTool,
+								toolStatusOptions,
+								focusNextOnEnter,
+								focusField,
+								submitting: pendingActions.pending,
+							},
+						})
+					: null}
+				{canViewEconomy && formModal?.kind === 'employee'
+					? renderEmployeeModal({
+							onClose: formModalExit.close,
+							formProps: {
+								submitLabel: 'Crear empleado',
+								employeeForm,
+								setEmployeeForm,
+								onSubmit: saveEmployee,
+								focusNextOnEnter,
+								submitting: pendingActions.pending,
+							},
+						})
+					: null}
+				{reservationForQuote
+					? renderQuoteReservationModal({
+							quoteId: reservationForQuote.id,
+							onClose: quoteReservationExit.close,
+							formProps: {
+								form: quoteReservationForm,
+								onSubmit: saveReservationFromQuote,
+								onPatch: (patch) =>
+									setQuoteReservationForm({ ...quoteReservationForm, ...patch }),
+								vehicleOptions: quoteReservationVehicleOptions,
+								showVehicleSelect: !reservationForQuote.vehicle,
+								useReservationTimes,
+								submitting: pendingActions.pending,
+							},
+						})
+					: null}
+				{quickReservationDay
+					? renderQuickReservationModal({
+							day: quickReservationDay,
+							title: quickReservationPrefillDay
 								? `Nueva reserva - ${formatDayName(quickReservationDay)} ${formatDayLabel(quickReservationDay)}`
-								: 'Crear cotizacion o reserva'
-						}
-						onClose={quickReservationExit.close}
-					>
-						<ReservationForm fieldErrors={formFieldErrors}
-							submitLabel={
-								reservationForm.is_group
+								: 'Crear cotizacion o reserva',
+							onClose: quickReservationExit.close,
+							formProps: {
+								fieldErrors: formFieldErrors,
+								submitLabel: reservationForm.is_group
 									? groupReservationMode(
 											ensureGroupVehicleLines(reservationForm),
 										) === 'reservation'
@@ -13878,544 +8108,131 @@ export default function Home() {
 										: 'Crear cotizacion'
 									: reservationForm.day
 										? 'Crear reserva'
-										: 'Crear cotizacion'
-							}
-							onSubmit={saveReservation}
-							prefillDayMode={Boolean(quickReservationPrefillDay)}
-							reservationForm={reservationForm}
-							setReservationForm={setReservationForm}
-							customerOptions={customerOptions}
-							customerVehicleOptions={customerVehicleOptions}
-							serviceOptions={serviceOptions}
-							vehicles={vehicles}
-							canViewEconomy={canViewEconomy}
-							useReservationTimes={useReservationTimes}
-							allowOverlap={
-								businessForm.allow_overlapping_reservations === true
-							}
-							openingTime={businessForm.opening_time as string | null}
-							closingTime={businessForm.closing_time as string | null}
-							workingHours={businessForm.working_hours as WorkingHoursEntry[] | undefined}
-							enforceCapacity={
-								businessForm.enforce_capacity_limit !== false
-							}
-							sectors={sectors}
-							services={services}
-							reservations={reservations}
-							openQuickCreate={openQuickCreate}
-							updateReservationCustomer={updateReservationCustomer}
-							updateReservationVehicle={updateReservationVehicle}
-							addReservationItem={addReservationItem}
-							selectReservationService={selectReservationService}
-							updateReservationItem={updateReservationItem}
-							removeReservationItem={removeReservationItem}
-							focusField={focusField}
-							focusNextOnEnter={focusNextOnEnter}
-							flashClass={flashClass}
-							fieldFlashKey={fieldFlashKey}
-							submitting={isActionPending('save:reservation')}
-						/>
-					</Modal>
-				) : null}
-				{quickCreate?.kind === 'customer' ? (
-					<Modal
-						key="quick-customer"
-						title="Nuevo cliente"
-						onClose={quickCreateExit.close}
-					>
-						<form className="form-grid" onSubmit={saveQuickCustomer}>
-							<Field label="Nombre">
-								<input
-									name="quick_customer_name"
-									autoComplete="name"
-									required
-									list="customer-name-options"
-									value={customerForm.name}
-									onChange={(event) =>
-										setCustomerForm({
-											...customerForm,
-											name: event.target.value,
-										})
-									}
-								/>
-							</Field>
-							<Field label="Telefono">
-								<input
-									name="quick_customer_phone"
-									autoComplete="tel"
-									inputMode="tel"
-									list="customer-phone-options"
-									value={customerForm.phone}
-									onChange={(event) =>
-										setCustomerForm({
-											...customerForm,
-											phone: event.target.value,
-										})
-									}
-								/>
-							</Field>
-							<Field label="Email">
-								<input
-									name="quick_customer_email"
-									type="email"
-									autoComplete="email"
-									list="customer-email-options"
-									value={customerForm.email}
-									onChange={(event) =>
-										setCustomerForm({
-											...customerForm,
-											email: event.target.value,
-										})
-									}
-								/>
-							</Field>
-							<div className="form-row">
-								<Field label="CUIT/DNI">
-									<input
-										name="quick_customer_tax_id"
-										autoComplete="off"
-										value={customerForm.tax_id}
-										onChange={(event) =>
-											setCustomerForm({
-												...customerForm,
-												tax_id: event.target.value,
-											})
-										}
-									/>
-								</Field>
-								<Field label="Domicilio fiscal">
-									<input
-										name="quick_customer_billing_address"
-										autoComplete="street-address"
-										value={customerForm.billing_address}
-										onChange={(event) =>
-											setCustomerForm({
-												...customerForm,
-												billing_address: event.target.value,
-											})
-										}
-									/>
-								</Field>
-							</div>
-							<BirthdayFields
-								day={customerForm.birthday_day}
-								month={customerForm.birthday_month}
-								dayName="quick_customer_birthday_day"
-								monthName="quick_customer_birthday_month"
-								onDayChange={(value) =>
-									setCustomerForm({
-										...customerForm,
-										birthday_day: value,
-									})
-								}
-								onMonthChange={(value) =>
-									setCustomerForm({
-										...customerForm,
-										birthday_month: value,
-									})
-								}
-							/>
-							<Button
-								type="submit"
-								variant="primary"
-								loading={pendingActions.pending}
-								leadingIcon={<Plus size={16} />}
-							>
-								Crear cliente
-							</Button>
-						</form>
-					</Modal>
-				) : null}
-				{quickCreate?.kind === 'vehicle' ? (
-					<Modal
-						key="quick-vehicle"
-						title="Nuevo vehiculo"
-						onClose={quickCreateExit.close}
-					>
-						<form className="form-grid" onSubmit={saveQuickVehicle}>
-							<SearchSelect
-								label="Cliente"
-								value={vehicleForm.customer}
-								options={customerOptions}
-								name="quick_vehicle_customer"
-								className={flashClass(fieldFlashKey('vehicle.customer'))}
-								onAdd={() =>
-									openQuickCreate('customer', 'vehicle.customer')
-								}
-								onChange={(value) =>
-									setVehicleForm({
-										...vehicleForm,
-										customer: value,
-									})
-								}
-							/>
-							<SearchSelect
-								label="Tipo de vehiculo"
-								value={vehicleForm.vehicle_type}
-								options={VEHICLE_TYPE_OPTIONS}
-								name="quick_vehicle_type"
-								onChange={(value) =>
-									setVehicleForm({
-										...vehicleForm,
-										vehicle_type: value || 'auto',
-									})
-								}
-							/>
-							<div className="form-row">
-								<SearchSelect
-									label="Marca"
-									value={vehicleForm.brand}
-									options={vehicleBrandSelectOptions}
-									name="quick_vehicle_brand"
-									placeholder="Sin marca"
-									onChange={updateVehicleBrand}
-									onCreate={updateVehicleBrand}
-									createLabel={(value) => `Crear marca "${value}"`}
-								/>
-								<SearchSelect
-									label="Modelo"
-									value={vehicleForm.model}
-									options={vehicleModelSelectOptions}
-									name="quick_vehicle_model"
-									placeholder={
-										vehicleForm.brand ? 'Sin modelo' : 'Elegir marca'
-									}
-									disabled={!vehicleForm.brand && !vehicleForm.model}
-									onChange={(value) =>
-										setVehicleForm({
-											...vehicleForm,
-											model: value,
-										})
-									}
-									onCreate={(value) =>
-										setVehicleForm({
-											...vehicleForm,
-											model: value,
-										})
-									}
-									createLabel={(value) => `Crear modelo "${value}"`}
-								/>
-							</div>
-							<div className="form-row">
-								<Field label="Color">
-									<input
-										name="quick_vehicle_color"
-										autoComplete="off"
-										list="vehicle-color-options"
-										value={vehicleForm.color}
-										onChange={(event) =>
-											setVehicleForm({
-												...vehicleForm,
-												color: event.target.value,
-											})
-										}
-									/>
-								</Field>
-								<Field label="Patente">
-									<input
-										name="quick_vehicle_license_plate"
-										autoComplete="off"
-										list="vehicle-plate-options"
-										value={vehicleForm.license_plate}
-										onChange={(event) =>
-											setVehicleForm({
-												...vehicleForm,
-												license_plate: event.target.value,
-											})
-										}
-									/>
-								</Field>
-							</div>
-							<Button
-								type="submit"
-								variant="primary"
-								loading={pendingActions.pending}
-								leadingIcon={<Plus size={16} />}
-							>
-								Crear vehiculo
-							</Button>
-						</form>
-					</Modal>
-				) : null}
-				{canViewEconomy && quickCreate?.kind === 'service' ? (
-					<Modal
-						key="quick-service"
-						title="Nuevo servicio"
-						onClose={quickCreateExit.close}
-					>
-						<form className="form-grid" onSubmit={saveQuickService}>
-							<Field label="Nombre">
-								<input
-									required
-									list="service-name-options"
-									value={serviceForm.name}
-									onChange={(event) =>
-										setServiceForm({
-											...serviceForm,
-											name: event.target.value,
-										})
-									}
-								/>
-							</Field>
-							<ServiceIconPicker
-								value={String(serviceForm.icon ?? '')}
-								onChange={(icon) =>
-									setServiceForm({
-										...serviceForm,
-										icon,
-									})
-								}
-							/>
-							<SearchSelect
-								label="Sector"
-								value={String(serviceForm.sector ?? '')}
-								options={sectorSelectOptions}
-								onChange={(value) =>
+										: 'Crear cotizacion',
+								onSubmit: saveReservation,
+								prefillDayMode: Boolean(quickReservationPrefillDay),
+								reservationForm,
+								setReservationForm,
+								customerOptions,
+								customerVehicleOptions,
+								serviceOptions,
+								vehicles,
+								canViewEconomy,
+								useReservationTimes,
+								allowOverlap:
+									businessForm.allow_overlapping_reservations === true,
+								openingTime: businessForm.opening_time as string | null,
+								closingTime: businessForm.closing_time as string | null,
+								workingHours: businessForm.working_hours as
+									| WorkingHoursEntry[]
+									| undefined,
+								enforceCapacity:
+									businessForm.enforce_capacity_limit !== false,
+								sectors,
+								services,
+								reservations,
+								openQuickCreate,
+								updateReservationCustomer,
+								updateReservationVehicle,
+								addReservationItem,
+								selectReservationService,
+								updateReservationItem,
+								removeReservationItem,
+								focusField,
+								focusNextOnEnter,
+								flashClass,
+								fieldFlashKey,
+								submitting: isActionPending('save:reservation'),
+							},
+						})
+					: null}
+				{quickCreate
+					? renderQuickCreateModal({
+							kind: quickCreate.kind,
+							canViewEconomy,
+							onClose: quickCreateExit.close,
+							customerFormProps: {
+								customerForm,
+								setCustomerForm,
+								onSubmit: saveQuickCustomer,
+								submitting: pendingActions.pending,
+							},
+							vehicleFormProps: {
+								vehicleForm,
+								setVehicleForm,
+								onSubmit: saveQuickVehicle,
+								customerOptions,
+								vehicleBrandSelectOptions,
+								vehicleModelSelectOptions,
+								customerClassName: flashClass(fieldFlashKey('vehicle.customer')),
+								onAddCustomer: () =>
+									openQuickCreate('customer', 'vehicle.customer'),
+								updateVehicleBrand,
+								submitting: pendingActions.pending,
+							},
+							serviceFormProps: {
+								serviceForm,
+								setServiceForm,
+								onSubmit: saveQuickService,
+								sectorOptions: sectorSelectOptions,
+								onSectorChange: (value) =>
 									setServiceForm({
 										...serviceForm,
 										sector: value ? Number(value) : null,
-										service_type: value ? serviceTypeFromSectorId(value) : 'wash',
-									})
-								}
-							/>
-							<div className="form-row">
-								<Field label="Precio base">
-									<input
-										required
-										type="number"
-										min="0"
-										value={serviceForm.base_price}
-										onChange={(event) =>
-											setServiceForm(
-												applyBasePriceToTypes(
-													serviceForm,
-													event.target.value,
-												),
-											)
-										}
-									/>
-								</Field>
-								<DurationInput
-									form={serviceForm}
-									onPatch={(patch) =>
-										setServiceForm({ ...serviceForm, ...patch })
-									}
-								/>
-							</div>
-							<div className="form-row">
-								{VEHICLE_TYPES.map((type) => (
-									<Field
-										key={type.value}
-										label={`Precio ${type.label}`}
-									>
-										<input
-											type="number"
-											min="0"
-											value={serviceForm[type.priceField] ?? ''}
-											onChange={(event) =>
-												setServiceForm({
-													...serviceForm,
-													[type.priceField]: event.target.value,
-												})
-											}
-										/>
-									</Field>
-								))}
-							</div>
-							<Button
-								type="submit"
-								variant="primary"
-								loading={pendingActions.pending}
-								leadingIcon={<Plus size={16} />}
-							>
-								Crear servicio
-							</Button>
-						</form>
-					</Modal>
-				) : null}
-				{canViewEconomy && quickCreate?.kind === 'material' ? (
-					<Modal
-						key="quick-material"
-						title="Nuevo material"
-						onClose={quickCreateExit.close}
-					>
-						<form className="form-grid" onSubmit={saveQuickMaterial}>
-							<Field label="Nombre">
-								<input
-									required
-									list="material-name-options"
-									value={materialForm.name}
-									onChange={(event) =>
-										setMaterialForm({
-											...materialForm,
-											name: event.target.value,
-										})
-									}
-								/>
-							</Field>
-							<div className="form-row">
-								<Field label="Unidad">
-									<input
-										required
-										list="material-unit-options"
-										value={materialForm.unit}
-										onChange={(event) =>
-											setMaterialForm({
-												...materialForm,
-												unit: event.target.value,
-											})
-										}
-									/>
-								</Field>
-								<Field label="Stock inicial">
-									<input
-										type="number"
-										min="0"
-										value={materialForm.stock_quantity}
-										onChange={(event) =>
-											setMaterialForm({
-												...materialForm,
-												stock_quantity: event.target.value,
-											})
-										}
-									/>
-								</Field>
-							</div>
-							<div className="info-note">
-								El costo unitario se completa con la primera compra.
-							</div>
-							<Button
-								type="submit"
-								variant="primary"
-								loading={pendingActions.pending}
-								leadingIcon={<Plus size={16} />}
-							>
-								Crear material
-							</Button>
-						</form>
-					</Modal>
-				) : null}
-				{canViewEconomy && quickCreate?.kind === 'supplier' ? (
-					<Modal
-						key="quick-supplier"
-						title="Nuevo proveedor"
-						onClose={quickCreateExit.close}
-					>
-						<SupplierForm fieldErrors={formFieldErrors}
-						submitLabel="Crear proveedor"
-						onSubmit={saveQuickSupplier}
-						supplierForm={supplierForm}
-						setSupplierForm={setSupplierForm}
-						focusNextOnEnter={focusNextOnEnter}
-						submitting={isActionPending('save:supplier:quick')}
-					/>
-					</Modal>
-				) : null}
-				{canViewEconomy && consumeForOrder ? (
-					<Modal
-						key={`consumption:${consumeForOrder.id}`}
-						title="Consumir materiales del trabajo"
-						onClose={consumptionExit.close}
-					>
-						<form className="form-grid" onSubmit={saveConsumption}>
-							<div className="info-note">
-								{consumeForOrder.customer_name} -{' '}
-								{consumeForOrder.vehicle_label} -{' '}
-								{serviceDisplayName(consumeForOrder)}
-							</div>
-							{renderConsumptionFields(false)}
-							<Button
-								type="submit"
-								variant="primary"
-								loading={pendingActions.pending}
-								leadingIcon={<Package size={16} />}
-							>
-								Registrar consumo
-							</Button>
-						</form>
-					</Modal>
-				) : null}
-				{canViewEconomy && paymentForOrder ? (
-					<Modal
-						key={`payment:${paymentForOrder.id}`}
-						title="Cobrar trabajo de la reserva"
-						onClose={paymentExit.close}
-					>
-						<form className="form-grid" onSubmit={savePayment}>
-							<div className="info-note">
-								{paymentForOrder.customer_name} -{' '}
-								{paymentForOrder.vehicle_label} -{' '}
-								{serviceDisplayName(paymentForOrder)}
-							</div>
-							{renderWorkOrderSummary(paymentForOrder)}
-							<div className="form-row">
-								<Field label="Importe">
-									<input
-										required
-										type="number"
-										min="0"
-										value={agendaPaymentForm.amount}
-										onChange={(event) =>
-											setAgendaPaymentForm({
-												...agendaPaymentForm,
-												amount: event.target.value,
-											})
-										}
-									/>
-								</Field>{' '}
-								<SearchSelect
-									label="Tipo"
-									value={agendaPaymentForm.payment_type}
-									options={[
-										{ value: 'payment', label: 'Pago' },
-										{ value: 'deposit', label: 'Sena' },
-									]}
-									onChange={(value) =>
-										setAgendaPaymentForm({
-											...agendaPaymentForm,
-											payment_type: value || DEFAULT_PAYMENT_TYPE,
-										})
-									}
-								/>
-							</div>{' '}
-							<SearchSelect
-								label="Medio"
-								value={agendaPaymentForm.method}
-								options={[
-									{ value: 'cash', label: 'Efectivo' },
-									{ value: 'card', label: 'Tarjeta' },
-									{ value: 'transfer', label: 'Transferencia' },
-									{ value: 'other', label: 'Otro' },
-								]}
-								onChange={(value) =>
-									setAgendaPaymentForm({
-										...agendaPaymentForm,
-										method: value || DEFAULT_PAYMENT_METHOD,
-									})
-								}
-							/>
-							<Field label="Observaciones">
-								<textarea
-									value={agendaPaymentForm.notes}
-									onChange={(event) =>
-										setAgendaPaymentForm({
-											...agendaPaymentForm,
-											notes: event.target.value,
-										})
-									}
-								/>
-							</Field>
-							<Button
-								type="submit"
-								variant="primary"
-								loading={pendingActions.pending}
-								leadingIcon={<CreditCard size={16} />}
-							>
-								Registrar pago
-							</Button>
-						</form>
-					</Modal>
-				) : null}
+										service_type: value
+											? serviceTypeForSectorId(value, sectors)
+											: 'wash',
+									}),
+								onBasePriceChange: (value) =>
+									setServiceForm(applyBasePriceToTypes(serviceForm, value)),
+								submitting: pendingActions.pending,
+							},
+							materialFormProps: {
+								materialForm,
+								setMaterialForm,
+								onSubmit: saveQuickMaterial,
+								submitting: pendingActions.pending,
+							},
+							supplierFormProps: {
+								fieldErrors: formFieldErrors,
+								submitLabel: 'Crear proveedor',
+								onSubmit: saveQuickSupplier,
+								supplierForm,
+								setSupplierForm,
+								focusNextOnEnter,
+								submitting: isActionPending('save:supplier:quick'),
+							},
+						})
+					: null}
+				{renderWorkOrderConsumptionModal({
+					canViewEconomy,
+					order: consumeForOrder,
+					onClose: consumptionExit.close,
+					onSubmit: saveConsumption,
+					renderFields: () => renderConsumptionFields(false),
+					submitting: pendingActions.pending,
+				})}
+				{renderWorkOrderPaymentModal({
+					canViewEconomy,
+					order: paymentForOrder,
+					onClose: paymentExit.close,
+					form: agendaPaymentForm,
+					onSubmit: savePayment,
+					onPatch: (patch) =>
+						setAgendaPaymentForm({ ...agendaPaymentForm, ...patch }),
+					onPaymentTypeChange: (value) =>
+						setAgendaPaymentForm({
+							...agendaPaymentForm,
+							payment_type: value || DEFAULT_PAYMENT_TYPE,
+						}),
+					onMethodChange: (value) =>
+						setAgendaPaymentForm({
+							...agendaPaymentForm,
+							method: value || DEFAULT_PAYMENT_METHOD,
+						}),
+					orderLabels,
+					submitting: pendingActions.pending,
+				})}
 				{detailModal &&
 				(canViewEconomy || !detailRequiresEconomy(detailModal.kind)) ? (
 					<DetailModal
@@ -14450,214 +8267,52 @@ export default function Home() {
 						collapsed={sidebarCollapsed}
 						mobileOpen={sidebarMobileOpen}
 						header={
-							<>
-								{businessProfile && sidebarBusinessLogoSrc ? (
-									currentUser?.business?.slug ? (
-										<a
-											className="ghost sidebar-business-button"
-											href={`/publica/${String(currentUser.business.slug)}`}
-											rel="noreferrer"
-											target="_blank"
-											aria-label={`Abrir turnera de ${String(businessProfile.name ?? 'negocio')}`}
-											title="Abrir turnera"
-										>
-											<img
-												src={sidebarBusinessLogoSrc}
-												alt={String(businessProfile.name ?? '')}
-												className="sidebar-business-logo"
-											/>
-										</a>
-									) : (
-										<button
-											type="button"
-											className="ghost sidebar-business-button"
-											onClick={() => {
-												handleSectionChange('settings')
-												setSettingsSection('business')
-											}}
-											aria-label={`Abrir configuracion de ${String(businessProfile.name ?? 'negocio')}`}
-											title="Configuracion del negocio"
-										>
-											<img
-												src={sidebarBusinessLogoSrc}
-												alt={String(businessProfile.name ?? '')}
-												className="sidebar-business-logo"
-											/>
-										</button>
-									)
-								) : null}
-								<GlobalSearchInput
-									collapsed={sidebarCollapsed}
-									onSubmitQuery={submitGlobalSearch}
-									onOpenResult={openSearchResult}
-								/>
-							</>
+							<SidebarHeaderContent
+								showBusinessProfile={Boolean(businessProfile)}
+								businessName={String(businessProfile?.name ?? 'negocio')}
+								businessImageAlt={String(businessProfile?.name ?? '')}
+								businessLogoSrc={sidebarBusinessLogoSrc}
+								businessSlug={
+									currentUser?.business?.slug
+										? String(currentUser.business.slug)
+										: null
+								}
+								collapsed={sidebarCollapsed}
+								onOpenBusinessSettings={() => {
+									handleSectionChange('settings')
+									setSettingsSection('business')
+								}}
+								onSubmitQuery={submitGlobalSearch}
+								onOpenResult={openSearchResult}
+							/>
 						}
 						items={navItems}
 						active={active}
 						onChange={handleSectionChange}
 						onItemHover={(key) => prefetchSection(key as Section)}
 						footer={
-							<div className="sidebar-footer-stack">
-								<div className="sidebar-footer-row">
-									<button
-										aria-label={
-											themeMode === 'dark'
-												? 'Cambiar a modo claro'
-												: 'Cambiar a modo oscuro'
-										}
-										aria-pressed={themeMode === 'dark'}
-										className={cx(
-											'theme-switch',
-											sidebarCollapsed && 'theme-switch--compact',
-										)}
-										onClick={toggleThemeMode}
-										title={
-											themeMode === 'dark'
-												? 'Cambiar a modo claro'
-												: 'Cambiar a modo oscuro'
-										}
-										type="button"
-									>
-										{sidebarCollapsed ? (
-											<span className="theme-switch-icon" aria-hidden="true">
-												{themeMode === 'dark' ? (
-													<Moon
-														className="theme-switch-symbol"
-														size={16}
-														strokeWidth={2}
-													/>
-												) : (
-													<Sun
-														className="theme-switch-symbol"
-														size={16}
-														strokeWidth={2}
-													/>
-												)}
-											</span>
-										) : (
-											<span className="theme-switch-track" aria-hidden="true">
-												<span className="theme-switch-thumb">
-													{themeMode === 'dark' ? (
-														<Moon
-															className="theme-switch-symbol"
-															size={16}
-															strokeWidth={2}
-														/>
-													) : (
-														<Sun
-															className="theme-switch-symbol"
-															size={16}
-															strokeWidth={2}
-														/>
-													)}
-												</span>
-											</span>
-										)}
-									</button>
-									<button
-										type="button"
-										className="ghost sidebar-icon-button"
-										aria-label={
-											fullscreenActive
-												? 'Salir de pantalla completa'
-												: 'Activar pantalla completa'
-										}
-										aria-pressed={fullscreenActive}
-										title={
-											fullscreenActive
-												? 'Salir de pantalla completa'
-												: 'Activar pantalla completa'
-										}
-										onClick={handleFullscreenToggle}
-										disabled={!fullscreenSupported}
-									>
-										{fullscreenActive ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-									</button>
-									<button
-										type="button"
-										className="ghost sidebar-collapse-toggle"
-										aria-controls={SIDEBAR_NAV_ID}
-										aria-expanded={sidebarMobileOpen ? true : !sidebarCollapsed}
-										aria-label={
-											sidebarMobileOpen
-												? 'Cerrar menu lateral'
-												: sidebarCollapsed
-													? 'Expandir sidebar'
-													: 'Colapsar sidebar'
-										}
-										title={
-											sidebarMobileOpen
-												? 'Cerrar menu lateral'
-												: sidebarCollapsed
-													? 'Expandir sidebar'
-													: 'Colapsar sidebar'
-										}
-										onClick={() => {
-											if (sidebarMobileOpen) {
-												closeSidebarMobileMenu()
-												return
-											}
-											setSidebarCollapsed((current) => !current)
-										}}
-									>
-										{sidebarMobileOpen ? (
-											<X size={16} />
-										) : sidebarCollapsed ? (
-											<ChevronsRight size={16} />
-										) : (
-											<ChevronsLeft size={16} />
-										)}
-									</button>
-								</div>
-								<button
-									className="ghost sidebar-profile-button"
-									onClick={openProfileModal}
-									type="button"
-									aria-label={`Abrir perfil de ${profileDisplayName(currentUser)}`}
-								>
-									<span className="sidebar-profile-avatar" aria-hidden="true">
-										{safeSidebarAvatarUrl && !sidebarAvatarIsPdf ? (
-											<NextImage
-												src={safeSidebarAvatarUrl}
-												alt=""
-												width={42}
-												height={42}
-												loading="lazy"
-												unoptimized
-											/>
-										) : safeSidebarAvatarPdfThumbnail ? (
-											<NextImage
-												src={safeSidebarAvatarPdfThumbnail}
-												alt=""
-												width={42}
-												height={42}
-												loading="lazy"
-												unoptimized
-											/>
-										) : currentUser.avatar_url ? (
-											<FileText size={18} />
-										) : (
-											<span>{profileInitial(currentUser)}</span>
-										)}
-									</span>
-									{!sidebarCollapsed ? (
-										<span className="sidebar-profile-copy">
-											<strong>{profileDisplayName(currentUser)}</strong>
-											<span>{profileRoleLabel(currentUser)}</span>
-											{profileTrialText(currentUser) ? (
-												<span>{profileTrialText(currentUser)}</span>
-											) : null}
-										</span>
-									) : null}
-								</button>
-								<AppBrand
-									className="sidebar-brand"
-									collapsed={sidebarCollapsed}
-									themeMode={themeMode}
-									titleAs="span"
-								/>
-							</div>
+							<SidebarFooterContent
+								themeMode={themeMode}
+								collapsed={sidebarCollapsed}
+								mobileOpen={sidebarMobileOpen}
+								sidebarNavId={SIDEBAR_NAV_ID}
+								onToggleTheme={toggleThemeMode}
+								fullscreenActive={fullscreenActive}
+								fullscreenSupported={fullscreenSupported}
+								onToggleFullscreen={handleFullscreenToggle}
+								onToggleSidebar={() => {
+									if (sidebarMobileOpen) {
+										closeSidebarMobileMenu()
+										return
+									}
+									setSidebarCollapsed((current) => !current)
+								}}
+								onOpenProfile={openProfileModal}
+								currentUser={currentUser}
+								safeAvatarUrl={safeSidebarAvatarUrl}
+								avatarIsPdf={sidebarAvatarIsPdf}
+								safeAvatarPdfThumbnail={safeSidebarAvatarPdfThumbnail}
+							/>
 						}
 					/>
 				}
@@ -14674,141 +8329,53 @@ export default function Home() {
 					onClose={() => setQuickActionsMenu(null)}
 				/>
 				<AnimatedWorkspaceView viewKey={displayedActive}>
-					<PageHeader
+					<WorkspaceHeaderContent
 						title={title.label}
-						titleAddon={
-							displayedActive === 'agenda' && sectorSelectOptions.length > 0 ? (
-								<SegmentedControl
-									ariaLabel="Sector de agenda"
-									className="agenda-type-toggle"
-									options={[
-										{ value: 'todos', label: 'Todos' },
-										...sectorSelectOptions,
-									]}
-									selectionMode="tabs"
-									value={agendaSectorId === null ? 'todos' : String(agendaSectorId)}
-									onChange={(nextValue) =>
-										setAgendaSectorId(
-											nextValue === 'todos' ? null : Number(nextValue),
-										)
-									}
-								/>
-							) : null
+						activeView={displayedActive}
+						canViewEconomy={canViewEconomy}
+						showAgendaSectorControl={sectorSelectOptions.length > 0}
+						agendaSectorOptions={[
+							{ value: 'todos', label: 'Todos' },
+							...sectorSelectOptions,
+						]}
+						agendaSectorValue={
+							agendaSectorId === null ? 'todos' : String(agendaSectorId)
 						}
-						actions={
-							<>
-								{displayedActive === 'dashboard' && canViewEconomy ? (
-									<form
-										aria-label="Filtrar dashboard por periodo"
-										className="toolbar dashboard-period-toolbar"
-										onSubmit={(event) => {
-											event.preventDefault()
-											triggerPeriodReloadNow()
-										}}
-									>
-										<Button
-											type="button"
-											variant="ghost" className="icon-button"
-											onClick={() => goToMonth(-1)}
-											aria-label="Mes anterior"
-											title="Mes anterior"
-										>
-											<ChevronLeft size={16} />
-										</Button>
-										<Field label="Desde">
-											<input
-												type="date"
-												value={period.from}
-												onChange={(event) =>
-													schedulePeriodReload({ ...period, from: event.target.value })
-												}
-											/>
-										</Field>
-										<Field label="Hasta">
-											<input
-												type="date"
-												value={period.to}
-												onChange={(event) =>
-													schedulePeriodReload({ ...period, to: event.target.value })
-												}
-											/>
-										</Field>
-										<Button
-											type="button"
-											variant="ghost" className="icon-button"
-											onClick={() => goToMonth(1)}
-											aria-label="Mes siguiente"
-											title="Mes siguiente"
-										>
-											<ChevronRight size={16} />
-										</Button>
-										<Button
-											type="submit"
-											variant="primary"
-											loading={isDataSetLoading('dashboard')}
-											leadingIcon={<Search size={16} />}
-										>
-											Ver periodo
-										</Button>
-										{isDataSetLoading('dashboard') ? (
-											<span className="panel-stale-badge" role="status" aria-live="polite">
-												Actualizando
-											</span>
-										) : null}
-									</form>
-								) : null}
-								<div className="record-actions">
-									<button
-										ref={sidebarMobileToggleRef}
-										type="button"
-										className="ghost shell-mobile-toggle"
-										aria-controls={SIDEBAR_NAV_ID}
-										aria-expanded={sidebarMobileOpen}
-										aria-label={
-											sidebarMobileOpen
-												? 'Cerrar menu lateral'
-												: 'Abrir menu lateral'
-										}
-										title={
-											sidebarMobileOpen
-												? 'Cerrar menu lateral'
-												: 'Abrir menu lateral'
-										}
-										onClick={toggleSidebarMobileMenu}
-									>
-										{sidebarMobileOpen ? <X size={16} /> : <Menu size={16} />}
-										Menu
-									</button>
-									{displayedActive === 'agenda' ? (
-										<Button
-											type="button"
-											variant="primary"
-											aria-label="Crear reserva para el dia seleccionado"
-											title="Crear reserva para el dia seleccionado"
-											onClick={() => openQuickReservation(selectedDay)}
-										>
-											<Plus size={16} />
-											Crear
-										</Button>
-									) : null}
-									<Button
-										type="button"
-										variant="ghost"
-										aria-label={`Actualizar ${title.label.toLowerCase()}`}
-										title={`Actualizar ${title.label.toLowerCase()}`}
-										onClick={() => loadData({ force: true })}
-										disabled={loading}
-									>
-										<RefreshCw size={16} />
-										Actualizar
-									</Button>
-								</div>
-							</>
+						onAgendaSectorChange={(nextValue) =>
+							setAgendaSectorId(
+								nextValue === 'todos' ? null : Number(nextValue),
+							)
 						}
+						period={period}
+						onDashboardPeriodSubmit={(event) => {
+							event.preventDefault()
+							triggerPeriodReloadNow()
+						}}
+						onPreviousMonth={() => goToMonth(-1)}
+						onNextMonth={() => goToMonth(1)}
+						onFromChange={(from) =>
+							schedulePeriodReload({ ...period, from })
+						}
+						onToChange={(to) => schedulePeriodReload({ ...period, to })}
+						dashboardLoading={isDataSetLoading('dashboard')}
+						mobileToggleRef={sidebarMobileToggleRef}
+						sidebarNavId={SIDEBAR_NAV_ID}
+						mobileOpen={sidebarMobileOpen}
+						onToggleMobileMenu={toggleSidebarMobileMenu}
+						onCreateReservation={() => openQuickReservation(selectedDay)}
+						onRefresh={() => loadData({ force: true })}
+						loading={loading}
 					/>
 				{displayedActive === 'dashboard' ? (
 					<DashboardPanel
-						birthdayAlerts={renderBirthdayAlerts()}
+						birthdayAlerts={
+							<BirthdayAlertsPanel
+								alerts={dashboard.birthday_alerts ?? []}
+								alertDays={dashboard.birthday_alert_days ?? 3}
+								recordClass={recordClass}
+								detailRecordProps={detailRecordProps}
+							/>
+						}
 						canViewEconomy={canViewEconomy}
 						currentUser={currentUser}
 						dashboard={dashboard}
@@ -14840,114 +8407,66 @@ export default function Home() {
 				) : null}
 
 				{displayedActive === 'notifications' ? (
-					<div className="grid">
-						<Panel
-							title="Solicitudes pendientes"
-							subtitle={`${pendingPublicRequestsCount} pendientes`}
-						>
-							<div className="records">
-								{pendingPublicRequests.length ? (
-									pendingPublicRequests.map((item) => (
-										<PublicRequestCard
-											key={item.id}
-											item={item}
-											selection={publicRequestSelection(item)}
-											onPatchSelection={(patch) =>
-												patchPublicRequestSelection(item, patch)
-											}
-											onConvert={() => convertPublicRequest(item)}
-											onArchive={() => archivePublicRequest(item)}
-											recordClass={recordClass}
-										/>
-									))
-								) : (
-									<Empty
-										text="Sin solicitudes pendientes"
-										hint="Las solicitudes publicas nuevas van a aparecer aca."
-									/>
-								)}
-								{managedPublicRequests.length ? (
-									<CollapsibleSection
-										title="Gestionadas"
-										count={managedPublicRequests.length}
-										defaultOpen={pendingPublicRequests.length === 0}
-									>
-										{managedPublicRequests.map((item) => (
-											<PublicRequestCard
-												key={item.id}
-												item={item}
-												selection={publicRequestSelection(item)}
-												onPatchSelection={(patch) =>
-													patchPublicRequestSelection(item, patch)
-												}
-												onConvert={() => convertPublicRequest(item)}
-												onArchive={() => archivePublicRequest(item)}
-												recordClass={recordClass}
-											/>
-										))}
-									</CollapsibleSection>
-								) : null}
-							</div>
-						</Panel>
-					</div>
+					<PublicRequestsView
+						pendingRequests={pendingPublicRequests}
+						managedRequests={managedPublicRequests}
+						pendingCount={pendingPublicRequestsCount}
+						selectionFor={publicRequestSelection}
+						onPatchSelection={patchPublicRequestSelection}
+						onConvert={convertPublicRequest}
+						onArchive={archivePublicRequest}
+						recordClass={recordClass}
+					/>
 				) : null}
 
 				{displayedActive === 'customers' ? (
 					<>
 						{customerDashboard && canViewEconomy ? (
 							renderCustomerDashboard()
-						) : isDataSetLoading('customers') && !customers.length ? (
-							<div className="grid">
-								<section className="panel">
-									<SkeletonList rows={8} columns={3} label="Cargando clientes" />
-								</section>
-							</div>
 						) : (
-					<div className="grid">
-						<CustomerListPanel
-							customers={filteredCustomers}
-							loading={isDataSetLoading('customers')}
-							totalCustomers={customers.length}
-							search={search}
-							filter={customerCardFilter}
-							filterOptions={visibleCustomerFilterOptions}
-							canViewEconomy={canViewEconomy}
-							showReservationTimes={useReservationTimes}
-							vehicleCountByCustomerId={customerVehicleCountById}
-							getRecordClassName={(item) =>
-								recordClass('customer', item.id)
-							}
-							onSearchChange={setSearch}
-							onFilterChange={setCustomerCardFilter}
-							onCreate={() => openFormModal('customer')}
-							onOpenDashboard={openCustomerDashboard}
-							onEdit={(item) =>
-								openDetailModal('Cliente', item, { startEditing: true })
-							}
-							onDelete={(item) =>
-								runAction(
-									() =>
-										apiFetch(`/customers/${item.id}/`, {
-											method: 'DELETE',
-										}),
-									{
-										successTitle: entityFeedbackTitle(
-											'customer',
-											'deleted',
-										),
-										undo: undoRestoreActiveRecord('customer', item),
-									},
-								)
-							}
-							onOpenQuickActions={(event, item) =>
-								openQuickActionsFromContext(
-									event,
-									'Acciones de cliente',
-									customerQuickActions(item),
-								)
-							}
-						/>
-					</div>
+							<CustomersWorkspace
+								showLoadingSkeleton={
+									isDataSetLoading('customers') && !customers.length
+								}
+								customers={filteredCustomers}
+								loading={isDataSetLoading('customers')}
+								totalCustomers={customers.length}
+								search={search}
+								filter={customerCardFilter}
+								filterOptions={visibleCustomerFilterOptions}
+								canViewEconomy={canViewEconomy}
+								showReservationTimes={useReservationTimes}
+								vehicleCountByCustomerId={customerVehicleCountById}
+								getRecordClassName={(item) =>
+									recordClass('customer', item.id)
+								}
+								onSearchChange={setSearch}
+								onFilterChange={setCustomerCardFilter}
+								onCreate={() => openFormModal('customer')}
+								onOpenDashboard={openCustomerDashboard}
+								onEdit={(item) =>
+									openDetailModal('Cliente', item, { startEditing: true })
+								}
+								onDelete={(item) =>
+									runAction(
+										() =>
+											apiFetch(`/customers/${item.id}/`, {
+												method: 'DELETE',
+											}),
+										{
+											successTitle: entityFeedbackTitle('customer', 'deleted'),
+											undo: undoRestoreActiveRecord('customer', item),
+										},
+									)
+								}
+								onOpenQuickActions={(event, item) =>
+									openQuickActionsFromContext(
+										event,
+										'Acciones de cliente',
+										customerQuickActions(item),
+									)
+								}
+							/>
 						)}
 					</>
 				) : null}
@@ -14964,274 +8483,67 @@ export default function Home() {
 							onOpenDetail={openDetailModal}
 						/>
 					) : (
-					<div className="grid">
-						<section className="panel">
-							<div className="panel-head">
-								<div>
-									<h2>Proveedores</h2>
-									<p>Compras, materiales, comprobantes, caja y deuda vinculada.</p>
-								</div>
-								<div className="record-actions">
-									<Button
-										type="button"
-										variant="primary"
-										onClick={() => openFormModal('supplier')}
-									>
-										<Building2 size={16} />
-										Nuevo proveedor
-									</Button>
-									<Button
-										type="button"
-										variant="ghost"
-										onClick={() => openFormModal('stock-movement')}
-									>
-										<Package size={16} />
-										Nueva compra
-									</Button>
-								</div>
-							</div>
-							<div className="toolbar toolbar-spaced">
-								<input
-									placeholder="Buscar por proveedor, razon social, rubro, contacto o CUIT"
-									value={search}
-									onChange={(event) => setSearch(event.target.value)}
-								/>
-							</div>
-							<div className="records">
-								{filteredSuppliers.length ? (
-									filteredSuppliers.map((item) => {
-										const insights = supplierListInsight(item)
-										const quickActions = supplierQuickActions(item)
-										return (
-											<MotionFlashSurface
-												className={recordClass('supplier', item.id)}
-												key={`supplier-page-${item.id}`}
-												{...quickActionTargetProps(
-													'Acciones de proveedor',
-													quickActions,
-												)}
-											>
-												<RecordCardHeader
-													title={item.name}
-													subtitle={
-														supplierProfileSubtitle(item) ||
-														[item.contact_name, item.phone, item.email]
-															.filter(Boolean)
-															.join(' - ') ||
-														'Sin datos de contacto'
-													}
-													primaryAction={
-														canViewEconomy
-															? {
-																	ariaLabel: `Abrir proveedor ${item.name}`,
-																	onClick: () => openSupplierDashboard(item),
-															  }
-															: undefined
-													}
-													actions={
-														<>
-														<Button
-															type="button"
-															variant="primary"
-															onClick={() => openStockPurchaseForSupplier(item)}
-														>
-															Nueva compra
-														</Button>
-														<Button
-															type="button"
-															variant="ghost"
-															onClick={() =>
-																openDetailModal('Proveedor', item, {
-																	startEditing: true,
-																})
-															}
-														>
-															Editar
-														</Button>
-														<Button
-															type="button"
-															variant="danger"
-															onClick={() =>
-																runAction(
-																	() =>
-																		apiFetch(`/suppliers/${item.id}/`, {
-																			method: 'DELETE',
-																		}),
-																	{
-																		successTitle: entityFeedbackTitle(
-																			'supplier',
-																			'deleted',
-																		),
-																		undo: undoRestoreActiveRecord(
-																			'supplier',
-																			item,
-																		),
-																	},
-																)
-															}
-														>
-															Inactivar
-														</Button>
-														{renderQuickActionsTrigger(
-															'Acciones de proveedor',
-															quickActions,
-															'Acciones rapidas de proveedor',
-														)}
-														</>
-													}
-												>
-													<div className="record-sub">
-														Comprado {money(insights.total_purchased)} -{' '}
-														{insights.purchase_count ?? 0} compras
-														{insights.last_purchase_on
-															? ` - ultima ${formatDateLabel(insights.last_purchase_on)}`
-															: ''}
-														{insights.materials_count
-															? ` - ${insights.materials_count} materiales`
-															: ''}
-													</div>
-													<div className="record-sub">
-														{item.is_active === false ? 'Inactivo' : 'Activo'}
-														{insights.pending_reception_count
-															? ` - ${insights.pending_reception_count} compras pendientes de recepcion`
-															: ' - sin recepcion pendiente'}
-													</div>
-												</RecordCardHeader>
-											</MotionFlashSurface>
-										)
-									})
-								) : (
-									<Empty
-										text={
-											search.trim()
-												? 'No hay proveedores para esta busqueda.'
-												: 'Sin proveedores.'
-										}
-										hint={
-											search.trim()
-												? 'Proba con otro nombre, contacto o CUIT.'
-												: 'Crea el primer proveedor para registrar compras.'
-										}
-									/>
-								)}
-							</div>
-						</section>
-					</div>
+						<SuppliersWorkspace
+							suppliers={filteredSuppliers}
+							search={search}
+							onSearchChange={setSearch}
+							onCreateSupplier={() => openFormModal('supplier')}
+							onCreatePurchase={() => openFormModal('stock-movement')}
+							canViewEconomy={canViewEconomy}
+							getRecordClassName={(item) => recordClass('supplier', item.id)}
+							quickActionTargetProps={quickActionTargetProps}
+							supplierQuickActions={supplierQuickActions}
+							renderQuickActionsTrigger={renderQuickActionsTrigger}
+							onOpenDashboard={openSupplierDashboard}
+							onNewPurchaseForSupplier={openStockPurchaseForSupplier}
+							onEdit={(item) =>
+								openDetailModal('Proveedor', item, { startEditing: true })
+							}
+							onDeactivate={(item) =>
+								runAction(
+									() =>
+										apiFetch(`/suppliers/${item.id}/`, {
+											method: 'DELETE',
+										}),
+									{
+										successTitle: entityFeedbackTitle('supplier', 'deleted'),
+										undo: undoRestoreActiveRecord('supplier', item),
+									},
+								)
+							}
+							money={money}
+							formatDateLabel={formatDateLabel}
+						/>
 					)
 				) : null}
 
 				{displayedActive === 'vehicles' ? (
-					<div className="grid">
-						<section className="panel">
-							<div className="panel-head">
-								<h2>Vehiculos</h2>
-								<Button
-									type="button"
-									variant="primary"
-									onClick={() => openFormModal('vehicle')}
-								>
-									<Car size={16} />
-									Nuevo vehiculo
-								</Button>
-							</div>
-							<div
-								className="toolbar toolbar-spaced"
-							>
-								<input
-									placeholder="Buscar por patente, marca, modelo, color o cliente"
-									value={search}
-									onChange={(event) =>
-										setSearch(event.target.value)
-									}
-								/>
-							</div>
-							<div className="records">
-								{filteredVehicles.length ? (
-									filteredVehicles.map((item) => {
-										const quickActions = vehicleQuickActions(item)
-										return (
-										<MotionFlashSurface
-											className={recordClass('vehicle', item.id)}
-											key={`v-page-${item.id}`}
-											{...detailRecordProps('Vehiculo', item)}
-											{...quickActionTargetProps(
-												'Acciones de vehiculo',
-												quickActions,
-											)}
-										>
-											{renderQuickActionsTrigger(
-												'Acciones de vehiculo',
-												quickActions,
-												'Acciones rapidas de vehiculo',
-											)}
-											<div className="record-head">
-												<div>
-													<div className="record-title">
-														{vehicleDisplayTitle(item)}
-													</div>
-													<div className="record-sub">
-														{vehicleDescription(item)}
-													</div>
-												</div>
-												<div className="record-actions">
-													<Button
-														variant="ghost"
-														onClick={() =>
-															openDetailModal('Vehiculo', item, {
-																startEditing: true,
-															})
-														}
-													>
-														Editar
-													</Button>
-													<Button
-														variant="danger"
-														onClick={() =>
-															runAction(() =>
-																apiFetch(
-																	`/vehicles/${item.id}/`,
-																	{
-																		method: 'DELETE',
-																	},
-																),
-																{
-																	successTitle:
-																		entityFeedbackTitle(
-																			'vehicle',
-																			'deleted',
-																		),
-																	undo: undoRestoreActiveRecord(
-																		'vehicle',
-																		item,
-																	),
-																},
-															)
-													}
-												>
-													Baja
-												</Button>
-											</div>
-										</div>
-										</MotionFlashSurface>
-										)
-									})
-								) : (
-									<Empty
-										text={
-											search.trim()
-												? 'No hay vehiculos para esta busqueda.'
-												: 'Sin vehiculos.'
-										}
-										hint={
-											search.trim()
-												? 'Proba con otra patente, marca o cliente.'
-												: 'Crea el primer vehiculo para vincular reservas.'
-										}
-									/>
-								)}
-							</div>
-						</section>
-					</div>
+					<VehiclesWorkspace
+						vehicles={filteredVehicles}
+						search={search}
+						onSearchChange={setSearch}
+						onCreate={() => openFormModal('vehicle')}
+						getRecordClassName={(item) => recordClass('vehicle', item.id)}
+						detailProps={(item) => detailRecordProps('Vehiculo', item)}
+						quickActionTargetProps={quickActionTargetProps}
+						vehicleQuickActions={vehicleQuickActions}
+						renderQuickActionsTrigger={renderQuickActionsTrigger}
+						onEdit={(item) =>
+							openDetailModal('Vehiculo', item, { startEditing: true })
+						}
+						onDeactivate={(item) =>
+							runAction(
+								() =>
+									apiFetch(`/vehicles/${item.id}/`, {
+										method: 'DELETE',
+									}),
+								{
+									successTitle: entityFeedbackTitle('vehicle', 'deleted'),
+									undo: undoRestoreActiveRecord('vehicle', item),
+								},
+							)
+						}
+					/>
 				) : null}
 
 				{displayedActive === 'services' &&
@@ -15288,238 +8600,88 @@ export default function Home() {
 				) : null}
 
 				{displayedActive === 'agenda' ? (
-					<div className="work-view-strip">
-						<div className="work-view-copy">
-							<strong>{agendaSectorLabel}</strong>
-							<small>
-								{visibleAgendaReservations.length}{' '}
-								{visibleAgendaReservations.length === 1
-									? 'reserva visible'
-									: 'reservas visibles'}
-							</small>
-						</div>
-						{workViewMode === 'agenda' ? (
-							<SegmentedControl
-								ariaLabel="Rango de la agenda"
-								className="agenda-range-toggle"
-								options={agendaRangeModes}
-								value={agendaRangeMode}
-								onChange={(nextValue) =>
-									setAgendaRangeMode(nextValue as 'week' | 'month')
-								}
-							/>
-						) : null}
-						<SegmentedControl
-							ariaLabel="Visualizacion de trabajos"
-							className="work-view-toggle"
-							options={workViewModes}
-							selectionMode="tabs"
-							value={workViewMode}
-							onChange={(nextValue) =>
-								setWorkViewMode(nextValue as WorkOrderViewMode)
-							}
-						/>
-					</div>
+					<AgendaViewControls
+						agendaSectorLabel={agendaSectorLabel}
+						visibleReservationCount={visibleAgendaReservations.length}
+						workViewMode={workViewMode}
+						agendaRangeMode={agendaRangeMode}
+						agendaRangeModes={agendaRangeModes}
+						workViewModes={workViewModes}
+						onAgendaRangeChange={setAgendaRangeMode}
+						onWorkViewChange={setWorkViewMode}
+					/>
 				) : null}
 
 				{displayedActive === 'agenda' && workViewMode === 'agenda' ? (
-					<div className="grid agenda-layout">
-						<section className="panel agenda-panel">
-							<AgendaBoardToolbar
-								currentDay={agendaStartDay}
-								endLabel={formatDayLabel(weekEndDay)}
-								startLabel={formatDayLabel(agendaStartDay)}
-								visibleDays={AGENDA_VISIBLE_DAYS}
-								rangeMode={agendaRangeMode}
-								title={
-									agendaRangeMode === "month"
-										? `Agenda de ${agendaMonthLabel}`
-										: undefined
+					<AgendaSchedulePanel
+						currentDay={agendaStartDay}
+						endLabel={formatDayLabel(weekEndDay)}
+						startLabel={formatDayLabel(agendaStartDay)}
+						visibleDays={AGENDA_VISIBLE_DAYS}
+						rangeMode={agendaRangeMode}
+						title={
+							agendaRangeMode === 'month'
+								? `Agenda de ${agendaMonthLabel}`
+								: undefined
+						}
+						onMove={handleAgendaToolbarMove}
+						onToday={goToToday}
+						onGoToDate={goToDate}
+						onOpenCashForRange={openCashForAgendaPeriod}
+						agendaLoadError={agendaLoadError}
+						onReload={() => loadData({ force: true })}
+						monthWeeks={agendaMonthModel.weeks}
+						monthWeekdayLabels={agendaMonthWeekdayLabels}
+						onSelectDay={selectAgendaDayFromMonth}
+						onSelectReservation={(chip) =>
+							selectAgendaDayFromMonth(
+								String(chip.reservation.day ?? agendaStartDay),
+							)
+						}
+						chipClassName={agendaMonthChipClass}
+						chipLabel={agendaMonthChipLabel}
+						dayAriaLabel={(isoDate) =>
+							`Ver agenda del ${formatFullDateLabel(isoDate)}`
+						}
+						agendaWeekSkeletonActive={agendaWeekSkeletonActive}
+						renderWeekBoard={() => (
+							<AgendaWeekBoard
+								agendaBoardModel={agendaBoardModel}
+								agendaSensors={agendaSensors}
+								agendaSlideMotion={agendaSlideMotion}
+								agendaWeekSkeletonActive={agendaWeekSkeletonActive}
+								shouldSuppressEnteringAgendaOverlap={
+									shouldSuppressEnteringAgendaOverlap
 								}
-								onMove={handleAgendaToolbarMove}
-								onToday={goToToday}
-								onGoToDate={goToDate}
-								onOpenCashForRange={openCashForAgendaPeriod}
-							/>
-							{agendaLoadError ? (
-								<ErrorState
-									text={agendaLoadError.title}
-									hint={agendaLoadError.description}
-									action={
-										<Button
-											type="button"
-											variant="ghost"
-											onClick={() => loadData({ force: true })}
-										>
-											<RefreshCw size={16} />
-											Actualizar
-										</Button>
-									}
-								/>
-							) : null}
-							{agendaRangeMode === "month" && !agendaLoadError ? (
-								<AgendaMonthGrid
-									weeks={agendaMonthModel.weeks}
-									weekdayLabels={agendaMonthWeekdayLabels}
-									onSelectDay={selectAgendaDayFromMonth}
-									onSelectReservation={(chip) =>
-										selectAgendaDayFromMonth(
-											String(chip.reservation.day ?? agendaStartDay),
-										)
-									}
-									chipClassName={agendaMonthChipClass}
-									chipLabel={agendaMonthChipLabel}
-									dayAriaLabel={(isoDate) =>
-										`Ver agenda del ${formatFullDateLabel(isoDate)}`
-									}
-								/>
-							) : null}
-							{agendaWeekSkeletonActive ? (
-								<div
-									className="agenda-skeleton-grid"
-									role="status"
-									aria-live="polite"
-									aria-label="Cargando agenda"
-								>
-									{Array.from({ length: AGENDA_VISIBLE_DAYS }).map((_, index) => (
-										<div
-											key={index}
-											className="agenda-skeleton-column"
-											aria-hidden="true"
-										>
-											<div className="agenda-skeleton-head">
-												<SkeletonLine width="70%" height={15} />
-												<SkeletonLine width="45%" height={11} />
-											</div>
-											<div className="agenda-skeleton-lane">
-												<span className="skeleton agenda-skeleton-card" />
-												<span className="skeleton agenda-skeleton-card" />
-											</div>
-										</div>
-									))}
-								</div>
-							) : null}
-							{agendaRangeMode === "week" ? (
-							<DndContext
-								sensors={agendaSensors}
-								collisionDetection={closestCenter}
+								visibleDays={AGENDA_VISIBLE_DAYS}
+								currentDay={currentDay}
+								agendaDropDay={agendaDropDay}
+								agendaMovePendingId={agendaMovePendingId}
+								selectedDay={selectedDay}
+								workingHours={
+									businessForm.working_hours as WorkingHoursEntry[] | undefined
+								}
 								onDragStart={handleAgendaDragStart}
 								onDragOver={handleAgendaDragOver}
 								onDragEnd={handleAgendaDragEnd}
 								onDragCancel={handleAgendaDragCancel}
-							>
-								<div className="agenda-slide-viewport agenda-slide-viewport--board">
-									<AnimatePresence
-										custom={agendaSlideMotion}
-										initial={false}
-										mode={agendaSlidePresenceMode(agendaSlideMotion)}
-									>
-										<m.div
-											key={agendaBoardModel.key}
-											className="agenda-carousel-board"
-											custom={agendaSlideMotion}
-											variants={agendaBoardVariants}
-											initial="initial"
-											animate="animate"
-											exit="exit"
-											onAnimationComplete={() => {
-												setAgendaOverlapSuppressedStartDay((current) =>
-													current === agendaBoardModel.startDay ? null : current,
-												)
-											}}
-										>
-											<m.div
-												className="week-board"
-												style={agendaBoardGridStyle(
-													agendaBoardModel.dayCount,
-													agendaBoardModel.stackRows,
-												)}
-											>
-												{agendaBoardModel.days.map((day, index) => (
-													<AgendaDroppableDayLane
-														column={index + 1}
-														day={day}
-														interactive={agendaBoardModel.isInteractive}
-														key={`lane:${agendaBoardModel.key}:${day}`}
-														laneEndRow={agendaBoardModel.laneEndRow}
-														snapshotKey={agendaBoardModel.key}
-													/>
-												))}
-												{agendaBoardModel.days.map((day, index) => (
-													<AgendaDayHeader
-														column={index + 1}
-														count={
-															agendaBoardModel.rowsByDay[day]?.length ?? 0
-														}
-														day={day}
-														hiddenDuringEnter={
-															agendaWeekSkeletonActive ||
-															shouldHideEnteringAgendaColumn(index + 1)
-														}
-														interactive={agendaBoardModel.isInteractive}
-														key={`head:${agendaBoardModel.key}:${day}`}
-														moneySummary={buildAgendaDayMoneySummary(
-															agendaBoardModel.rowsByDay[day],
-														)}
-													/>
-												))}
-												{agendaBoardModel.segments.map((segment) => {
-													const reservation = segment.reservation
-													const workOrder = segment.workOrder
-													return (
-														<div
-															className={cx(
-																'agenda-board-card-shell',
-																shouldHideEnteringAgendaSegment(segment) &&
-																	'agenda-entering-overlap-hidden',
-															)}
-															key={`${agendaBoardModel.key}:segment:${segment.key}`}
-															style={agendaSegmentStyle(segment)}
-														>
-															<AgendaDraggableRecord
-																className={cx(
-																	'agenda-operational-card--spanning',
-																	segment.spanDays > 1 &&
-																		'agenda-operational-card--multi-day',
-																	segment.startsBeforeWindow &&
-																		'agenda-operational-card--continues-before',
-																	segment.endsAfterWindow &&
-																		'agenda-operational-card--continues-after',
-																)}
-																interactive={agendaBoardModel.isInteractive}
-																row={segment.row}
-																snapshotKey={agendaBoardModel.key}
-															>
-																{reservation
-																	? renderAgendaReservationCard(
-																			reservation,
-																			workOrder,
-																			segment.row,
-																			{ statusMode: 'work-order' },
-																	  )
-																	: null}
-																{!reservation && !workOrder ? (
-																	<span className="agenda-manual-badge">
-																		Sin datos
-																	</span>
-																) : null}
-															</AgendaDraggableRecord>
-														</div>
-													)
-												})}
-											</m.div>
-										</m.div>
-									</AnimatePresence>
-								</div>
-								<DragOverlay>
-									{renderAgendaDragOverlay(activeAgendaRow, {
-										statusMode: 'work-order',
-									})}
-								</DragOverlay>
-							</DndContext>
-							) : null}
-						</section>
-					</div>
+								onBoardAnimationComplete={() => {
+									setAgendaOverlapSuppressedStartDay((current) =>
+										current === agendaBoardModel.startDay ? null : current,
+									)
+								}}
+								onOpenQuickReservation={openQuickReservation}
+								recordClass={recordClass}
+								agendaCardClass={agendaCardClassForRow}
+								flashClass={flashClass}
+								renderReservationCard={renderAgendaReservationCard}
+								renderDragOverlay={(row) =>
+									renderAgendaDragOverlay(row, { statusMode: 'work-order' })
+								}
+								activeAgendaRow={activeAgendaRow}
+							/>
+						)}
+					/>
 				) : null}
 
 				{displayedActive === 'agenda' && workViewMode === 'status' &&
@@ -15540,7 +8702,7 @@ export default function Home() {
 						activeWorkStatusRow={activeWorkStatusRow}
 						workOrderByReservation={workOrderByReservation}
 						recordClass={recordClass}
-						agendaCardClass={agendaCardClass}
+						agendaCardClass={agendaCardClassForRow}
 						flashClass={flashClass}
 						renderReservationCard={renderAgendaReservationCard}
 						renderDragOverlay={(row) =>
@@ -15561,7 +8723,7 @@ export default function Home() {
 						onCreateReservation={() => openQuickReservation(selectedDay)}
 						getReservationRow={workReservationRow}
 						recordClass={recordClass}
-						agendaCardClass={agendaCardClass}
+						agendaCardClass={agendaCardClassForRow}
 						flashClass={flashClass}
 						renderReservationCard={renderAgendaReservationCard}
 						quoteQuickActions={quoteQuickActions}
