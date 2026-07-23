@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-07-23
+- [SearchSelect compatible con ModalFrame de Radix](docs/registro/cambios/2026-07-23-searchselect-radix-dialog.md)
+
 ## 2026-07-22
 - [Frontend: override seguro de sharp](docs/registro/cambios/2026-07-22-frontend-sharp-security-override.md)
 

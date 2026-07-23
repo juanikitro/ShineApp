@@ -324,6 +324,30 @@ test('SearchSelect filters, creates and clears selections from the current surfa
 	assert.deepEqual(created, ['Nuevo'])
 })
 
+test('SearchSelect allows pointer selection from inside a Radix modal', async () => {
+	const user = userEvent.setup()
+	const onChange = vi.fn()
+	const onClose = vi.fn()
+
+	render(
+		<ModalFrame title="Nueva reserva" onClose={onClose}>
+			<SearchSelect
+				label="Cliente"
+				value=""
+				options={[{ value: '1', label: 'Ana Lopez' }]}
+				onChange={onChange}
+			/>
+		</ModalFrame>,
+	)
+
+	await user.click(screen.getByRole('combobox', { name: 'Cliente' }))
+	await user.click(screen.getByRole('option', { name: 'Ana Lopez' }))
+
+	assert.deepEqual(onChange.mock.calls, [['1']])
+	assert.equal(onClose.mock.calls.length, 0)
+	assert.ok(screen.getByRole('dialog', { name: 'Nueva reserva' }))
+})
+
 test('SearchSelect supports selected labels, disabled hidden inputs and trigger toggling', async () => {
 	const user = userEvent.setup()
 	const changes: string[] = []
