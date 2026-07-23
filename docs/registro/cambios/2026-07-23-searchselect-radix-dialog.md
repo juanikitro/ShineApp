@@ -17,6 +17,11 @@ Cambio:
   posicion fija y comportamiento existente de escape del scroll.
 - No cambia la API publica ni los valores emitidos por `onChange`.
 
+Ajuste de CI:
+- Se actualizan `next` y `eslint-config-next` a `15.5.21`, la primera
+  version fuera del rango vulnerable que detectaba `npm audit` en CI.
+
 Validacion:
 - `vitest run app/components/ui/ui.test.tsx --maxWorkers=1`: 26 tests verdes,
   incluido el clic de seleccion dentro de `ModalFrame`.
+- `npm audit --omit=dev`: sin vulnerabilidades.
