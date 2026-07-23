@@ -6,6 +6,16 @@ export function isPdfAssetName(value: string | null | undefined) {
 	return typeof value === 'string' && PDF_ASSET_PATTERN.test(value.trim())
 }
 
+export function isPdfFile(
+	file:
+		| { type?: string | null; name?: string | null }
+		| null
+		| undefined,
+) {
+	if (!file) return false
+	return file.type === 'application/pdf' || isPdfAssetName(file.name)
+}
+
 export function isPdfAssetSource(value: string | null | undefined) {
 	return typeof value === 'string' && PDF_ASSET_PATTERN.test(value)
 }

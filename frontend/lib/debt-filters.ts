@@ -1,10 +1,16 @@
 import {
 	type AnyRecord,
 	debtStatusLabels,
+	money,
 	numberValue,
 } from '@/lib/page-support'
 import type { DebtFilterState } from '@/app/components/debts/DebtPanel'
 import { normalizedCashText } from '@/lib/cash-entry'
+
+export const DEBT_FILTER_DEFAULTS: DebtFilterState = {
+	status: '',
+	balance: '',
+}
 
 export function debtMatchesFilters(
 	item: AnyRecord,
@@ -40,4 +46,17 @@ export function debtMatchesFilters(
 
 export function hasDebtFilters(filters: DebtFilterState) {
 	return Object.values(filters).some((value) => String(value ?? '').trim())
+}
+
+export function debtSelectOptions(debts: AnyRecord[]) {
+	const allDebtOptions = debts.map((item) => ({
+		value: String(item.id),
+		label: item.concept,
+		meta: `${debtStatusLabels[item.status] ?? item.status} - saldo ${money(item.balance_due)}`,
+	}))
+	const debtOptions = allDebtOptions.filter((option) => {
+		const debt = debts.find((item) => String(item.id) === option.value)
+		return numberValue(debt?.balance_due) > 0
+	})
+	return { allDebtOptions, debtOptions }
 }

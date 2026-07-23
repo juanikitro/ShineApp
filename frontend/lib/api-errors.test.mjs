@@ -4,9 +4,26 @@ import { test } from 'vitest'
 import {
 	ApiResponseError,
 	createValidationNotice,
+	fieldErrorMapFromNotice,
 	formatApiError,
 	normalizeApiErrorPayload,
 } from './api-errors'
+
+test('maps the first message for each field path and ignores missing paths', () => {
+	assert.deepEqual(
+		fieldErrorMapFromNotice({
+			title: 'Error',
+			description: 'Revisa los datos',
+			fields: [
+				{ path: 'name', label: 'Nombre', message: 'Obligatorio' },
+				{ path: 'name', label: 'Nombre', message: 'Duplicado' },
+				{ path: '', label: '', message: 'Sin campo' },
+				{ path: 'notes', label: 'Notas', message: null },
+			],
+		}),
+		{ name: 'Obligatorio', notes: '' },
+	)
+})
 
 test('normalizes DRF field arrays into a readable notice with affected fields', () => {
 	const notice = normalizeApiErrorPayload({

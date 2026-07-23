@@ -11,6 +11,7 @@ export type AgendaReservationActionVariant =
 	| 'icon-danger'
 
 export type AgendaReservationActionPriority = 'high' | 'medium' | 'low'
+export type AgendaReservationActionTone = 'danger' | 'primary' | 'default'
 
 export type AgendaReservationActionIcon = 'trash'
 
@@ -235,6 +236,18 @@ export function reservationStatusActions(
 	}
 
 	return []
+}
+
+export function agendaActionTone(
+	action: AgendaReservationAction,
+): AgendaReservationActionTone {
+	if (
+		action.kind === 'reservation' &&
+		(action.action === 'cancel' || action.action === 'delete')
+	) {
+		return 'danger'
+	}
+	return action.variant === 'filled' ? 'primary' : 'default'
 }
 
 export function buildAgendaReservationActions(

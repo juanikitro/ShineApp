@@ -12,6 +12,7 @@ vi.mock('pdfjs-dist/webpack.mjs', () => ({
 import {
 	isPdfAssetName,
 	isPdfAssetSource,
+	isPdfFile,
 	renderPdfPreviewDataUrl,
 	safeImageAssetSource,
 } from './pdf-preview'
@@ -25,6 +26,13 @@ test('detects pdf file names regardless of case', () => {
 	assert.equal(isPdfAssetName('LOGO.PDF'), true)
 	assert.equal(isPdfAssetName('logo.png'), false)
 	assert.equal(isPdfAssetName(''), false)
+})
+
+test('detects PDF files by MIME type or filename', () => {
+	assert.equal(isPdfFile({ type: 'application/pdf', name: 'avatar.png' }), true)
+	assert.equal(isPdfFile({ type: 'image/png', name: 'avatar.PDF' }), true)
+	assert.equal(isPdfFile({ type: 'image/png', name: 'avatar.png' }), false)
+	assert.equal(isPdfFile(null), false)
 })
 
 test('detects pdf asset urls with querystrings and ignores other assets', () => {

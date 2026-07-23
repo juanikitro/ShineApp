@@ -471,6 +471,36 @@ function expenseSubcategoriesForCategory(value: any, category: any) {
 	return normalizeExpenseCategoryTree(value)[categoryName] ?? []
 }
 
+function validExpenseSubcategoryForCategory(
+	value: any,
+	category: string,
+	subcategory: any,
+) {
+	const currentSubcategory = String(subcategory ?? '').trim()
+	if (!category || !currentSubcategory) return ''
+	return expenseSubcategoriesForCategory(value, category).includes(
+		currentSubcategory,
+	)
+		? currentSubcategory
+		: ''
+}
+
+function validCashSubcategoryForCategory(
+	incomeTree: any,
+	expenseTree: any,
+	movementType: string,
+	category: string,
+	subcategory: any,
+) {
+	const currentSubcategory = String(subcategory ?? '').trim()
+	if (!category || !currentSubcategory) return ''
+	const subcategories =
+		movementType === 'income'
+			? incomeSubcategoriesForCategory(incomeTree, category)
+			: expenseSubcategoriesForCategory(expenseTree, category)
+	return subcategories.includes(currentSubcategory) ? currentSubcategory : ''
+}
+
 function incomeSubcategoriesForCategory(value: any, category: any) {
 	const categoryName = String(category ?? '').trim()
 	if (!categoryName) return []
@@ -2225,6 +2255,8 @@ export {
 	expenseCategoryTreeFromText,
 	expenseCategoryTreeToText,
 	expenseSubcategoriesForCategory,
+	validCashSubcategoryForCategory,
+	validExpenseSubcategoryForCategory,
 	incomeCategoryPairs,
 	incomeSubcategoriesForCategory,
 	formatDateLabel,

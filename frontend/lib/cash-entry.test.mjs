@@ -2,8 +2,14 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
 import {
+	CASH_FILTER_DEFAULTS,
+	blankCashMovementForm,
+	cashMovementPayload,
+	debtPaymentDetailData,
 	normalizedCashText,
+	cashEntryKey,
 	cashSourceKindLabel,
+	cashSourceKindSelectOptions,
 	cashEntryTitleText,
 	cashEntryDescriptionText,
 	compareExpenseClassificationPair,
@@ -25,6 +31,19 @@ import {
 	sortCashEntries,
 } from './cash-entry'
 
+test('keeps the empty cash filter state shared by the cash view', () => {
+	assert.deepEqual(CASH_FILTER_DEFAULTS, {
+		query: '',
+		movementType: '',
+		sourceKind: '',
+		category: '',
+		subcategory: '',
+		effect: '',
+		amountMin: '',
+		amountMax: '',
+	})
+})
+
 // normalizedCashText
 test('normalizedCashText trims and lowercases', () => {
 	assert.equal(normalizedCashText('  Hola Mundo  '), 'hola mundo')
@@ -33,6 +52,94 @@ test('normalizedCashText trims and lowercases', () => {
 test('normalizedCashText handles null and undefined', () => {
 	assert.equal(normalizedCashText(null), '')
 	assert.equal(normalizedCashText(undefined), '')
+})
+
+test('cashEntryKey preserves source identifiers and nullish fallbacks', () => {
+	assert.equal(
+		cashEntryKey({ source_kind: 'payment', source_id: 0, id: 7 }),
+		'payment-0',
+	)
+	assert.equal(cashEntryKey({ source_kind: null, source_id: null, id: 7 }), 'cash-7')
+})
+
+test('cashMovementPayload preserves provided optional cash fields', () => {
+	const form = {
+		amount: '100',
+		subcategory: 'Ajuste de cierre',
+		adjusts_closed_day: '2026-07-22',
+	}
+
+	assert.deepEqual(cashMovementPayload(form), form)
+	assert.deepEqual(form, {
+		amount: '100',
+		subcategory: 'Ajuste de cierre',
+		adjusts_closed_day: '2026-07-22',
+	})
+})
+
+test('cashMovementPayload omits empty optional cash fields', () => {
+	assert.deepEqual(
+		cashMovementPayload({ amount: '100', subcategory: '', adjusts_closed_day: null }),
+		{ amount: '100' },
+	)
+})
+
+test('blankCashMovementForm keeps the manual cash movement defaults and supplied overrides', () => {
+	assert.deepEqual(blankCashMovementForm('2026-07-23'), {
+		movement_type: 'expense',
+		category: 'Otros',
+		subcategory: '',
+		amount: '',
+		occurred_at: '2026-07-23T12:00',
+		description: '',
+		adjusts_closed_day: '',
+	})
+	assert.deepEqual(
+		blankCashMovementForm('', {
+			movement_type: 'income',
+			amount: 0,
+			adjusts_closed_day: '2026-07-22',
+		}),
+		{
+			movement_type: 'income',
+			category: 'Otros',
+			subcategory: '',
+			amount: 0,
+			occurred_at: 'T12:00',
+			description: '',
+			adjusts_closed_day: '2026-07-22',
+		},
+	)
+})
+
+test('debtPaymentDetailData prefers the existing debt payment by source id', () => {
+	const payment = { id: 7, notes: 'Pago completo' }
+	assert.equal(
+		debtPaymentDetailData({ source_id: '7', description: 'Caja' }, [payment]),
+		payment,
+	)
+})
+
+test('debtPaymentDetailData preserves the fallback cash entry mapping', () => {
+	assert.deepEqual(
+		debtPaymentDetailData(
+			{
+				id: 0,
+				debt: 4,
+				occurred_at: '2026-07-22T10:30:00',
+				description: null,
+			},
+			[],
+		),
+		{
+			id: 0,
+			debt: 4,
+			occurred_at: '2026-07-22T10:30:00',
+			description: null,
+			paid_at: '2026-07-22',
+			notes: '',
+		},
+	)
 })
 
 // cashSourceKindLabel
@@ -56,6 +163,17 @@ test('cashSourceKindLabel uses kind as fallback when fallback not provided', () 
 test('cashSourceKindLabel returns Origen when kind and fallback are empty', () => {
 	assert.equal(cashSourceKindLabel(null), 'Origen')
 	assert.equal(cashSourceKindLabel(''), 'Origen')
+})
+
+test('cashSourceKindSelectOptions preserves values and derives their labels', () => {
+	assert.deepEqual(
+		cashSourceKindSelectOptions(['payment', 'custom', '']),
+		[
+			{ value: 'payment', label: 'Cobro' },
+			{ value: 'custom', label: 'custom' },
+			{ value: '', label: 'Origen' },
+		],
+	)
 })
 
 // cashEntryTitleText

@@ -1,11 +1,30 @@
 import {
 	type ReservationStatusConfig,
 } from './reservation-status-config'
+import { type AgendaOperationalRow } from './agenda'
+import { money } from './page-support'
+import { serviceDisplayName } from './service-display'
 
 export type AnyRecord = Record<string, any>
 
 export type WorkOrderViewMode = 'agenda' | 'status' | 'entry-date'
 
+export const workViewModes: Array<{
+	value: WorkOrderViewMode
+	label: string
+}> = [
+	{ value: 'agenda', label: 'Agenda' },
+	{ value: 'status', label: 'Estado' },
+	{ value: 'entry-date', label: 'Fecha de ingreso' },
+]
+
+export const agendaRangeModes: Array<{
+	value: 'week' | 'month'
+	label: string
+}> = [
+	{ value: 'week', label: 'Semana' },
+	{ value: 'month', label: 'Mes' },
+]
 
 export type ReservationStatusGroup = {
 	key: string
@@ -83,6 +102,54 @@ export function workOrderForReservation(
 	return workOrderByReservation[reservationId] ?? null
 }
 
+export function workReservationRow(
+	reservation: AnyRecord,
+	workOrder: AnyRecord | null,
+): AgendaOperationalRow {
+	const reservationId = String(reservation.id ?? '')
+	const entryDay = String(reservation.day ?? '')
+	return {
+		key: `reservation:${reservationId}`,
+		day: entryDay,
+		displayDay: entryDay,
+		phase: 'entry',
+		kind: workOrder ? 'reservation-work-order' : 'reservation-only',
+		reservation,
+		workOrder,
+	}
+}
+
+export function createWorkReservationRow(
+	workOrders: AnyRecord[] | Record<string, AnyRecord>,
+) {
+	return (reservation: AnyRecord) =>
+		workReservationRow(
+			reservation,
+			workOrderForReservation(reservation, workOrders),
+		)
+}
+
+export function workOrderSelectOptions(
+	workOrders: AnyRecord[],
+	canViewEconomy: boolean,
+) {
+	return workOrders.map((item) => ({
+		value: String(item.id),
+		label: `${item.customer_name} - ${item.vehicle_label}`,
+		meta: canViewEconomy
+			? `${serviceDisplayName(item)} - deuda ${money(item.balance_due)}`
+			: serviceDisplayName(item),
+	}))
+}
+
+export function workStatusDropValue(value: any) {
+	if (value === null || value === undefined) return null
+	const raw = String(value)
+	return raw.startsWith('work-status:')
+		? raw.replace('work-status:', '')
+		: raw
+}
+
 export function entryDateForReservation(reservation: AnyRecord) {
 	return normalizeId(reservation.day)
 }
@@ -126,6 +193,76 @@ export function workStatusColumnForStatus(
 	if (!status) return null
 	return (
 		statusColumns.find((column) => column.statuses.includes(status)) ?? null
+	)
+}
+
+export function workStatusColumnKeyForValue(
+	value: any,
+	statusColumns: readonly WorkOrderStatusColumn[],
+	statusLabels: Record<string, string>,
+) {
+	const status = workStatusDropValue(value)
+	if (!status) return null
+	if (statusColumns.some((column) => column.key === status)) {
+		return status
+	}
+	const column = workStatusColumnForStatus(status, statusColumns)
+	if (column) return column.key
+	return Object.prototype.hasOwnProperty.call(statusLabels, status)
+		? status
+		: null
+}
+
+export function workStatusDropTargetForOver(
+	over: any,
+	statusColumns: readonly WorkOrderStatusColumn[],
+	statusLabels: Record<string, string>,
+) {
+	return workStatusColumnKeyForValue(
+		over?.data?.current?.statusGroup ??
+			over?.data?.current?.status ??
+			over?.id,
+		statusColumns,
+		statusLabels,
+	)
+}
+
+export function workStatusDropStatusForColumn(
+	columnKey: string | null,
+	statusColumns: readonly WorkOrderStatusColumn[],
+	statusLabels: Record<string, string>,
+) {
+	if (!columnKey) return null
+	const column = statusColumns.find((item) => item.key === columnKey)
+	if (column) return column.dropStatus ?? column.statuses[0] ?? null
+	return Object.prototype.hasOwnProperty.call(statusLabels, columnKey)
+		? columnKey
+		: null
+}
+
+export function updateReservationWorkOrder(
+	reservation: AnyRecord,
+	workOrder: AnyRecord,
+	statusLabels: Record<string, string>,
+) {
+	const status = String(workOrder?.status ?? reservation.status ?? '')
+	return {
+		...reservation,
+		...(status ? { status, status_label: statusLabels[status] ?? status } : {}),
+		work_order: workOrder,
+	}
+}
+
+export function upsertWorkOrderRecord(
+	records: AnyRecord[],
+	workOrder: AnyRecord,
+) {
+	const workOrderId = String(workOrder?.id ?? '')
+	if (!workOrderId) return records
+	const exists = records.some((item) => String(item.id) === workOrderId)
+	if (!exists) return [workOrder, ...records]
+	return records.map((item) =>
+		String(item.id) === workOrderId ? workOrder : item,
 	)
 }
 

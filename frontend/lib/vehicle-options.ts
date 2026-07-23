@@ -1,6 +1,13 @@
+import { type AnyRecord } from './page-support'
+
 type VehicleOptionSource = {
 	brand?: unknown
 	model?: unknown
+}
+
+type VehicleCustomerSource = {
+	customer?: unknown
+	id?: unknown
 }
 
 type VehicleCatalogEntry = {
@@ -143,4 +150,58 @@ export function vehicleModelOptionsForBrand(
 		.map((vehicle) => vehicle.model)
 
 	return mergeVehicleValues(knownModels, historicalModels, extraModels)
+}
+
+export function validVehicleModelForBrand(
+	brand: string,
+	model: any,
+	vehicles: VehicleOptionSource[] = [],
+) {
+	const currentModel = String(model ?? '').trim()
+	if (!brand || !currentModel) return ''
+	return vehicleModelOptionsForBrand(brand, vehicles).includes(currentModel)
+		? currentModel
+		: ''
+}
+
+export function vehiclesForCustomerId<T extends VehicleCustomerSource>(
+	vehicles: T[],
+	customerId: string,
+) {
+	if (!customerId) return []
+	return vehicles.filter(
+		(vehicle) => String(vehicle.customer) === String(customerId),
+	)
+}
+
+export function vehiclesMatchingCustomer<T extends VehicleCustomerSource>(
+	vehicles: T[],
+	customerId: unknown,
+) {
+	return vehicles.filter(
+		(vehicle) => String(vehicle.customer) === String(customerId),
+	)
+}
+
+export function vehiclesForOptionalCustomer<T extends VehicleCustomerSource>(
+	vehicles: T[],
+	customerId: unknown,
+) {
+	return customerId ? vehiclesMatchingCustomer(vehicles, customerId) : vehicles
+}
+
+export function vehicleSelectOptions(vehicles: AnyRecord[]) {
+	return vehicles.map((item) => ({
+		value: String(item.id),
+		label: item.label,
+		meta: item.customer_name,
+	}))
+}
+
+export function singleVehicleIdForCustomer(
+	vehicles: VehicleCustomerSource[],
+	customerId: string,
+) {
+	const matches = vehiclesForCustomerId(vehicles, customerId)
+	return matches.length === 1 ? String(matches[0].id) : ''
 }

@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
-import { buildAgendaReservationActions, reservationStatusActions } from './reservation-actions'
+import {
+	agendaActionTone,
+	buildAgendaReservationActions,
+	reservationStatusActions,
+} from './reservation-actions'
 
 test('canceled reservations expose an activation action and a delete action', () => {
 	assert.deepEqual(reservationStatusActions('canceled'), [
@@ -57,6 +61,22 @@ test('confirmed reservations keep only the icon-only cancel action', () => {
 			variant: 'icon-danger',
 		},
 	])
+})
+
+test('maps cancellation, primary and secondary agenda action tones', () => {
+	const [confirmAction, cancelAction] = reservationStatusActions('pending')
+	assert.equal(agendaActionTone(cancelAction), 'danger')
+	assert.equal(agendaActionTone(confirmAction), 'primary')
+	assert.equal(
+		agendaActionTone({
+			kind: 'work-order-status',
+			label: 'Iniciar',
+			priority: 'medium',
+			status: 'in_progress',
+			variant: 'outline',
+		}),
+		'default',
+	)
 })
 
 test('confirmed reservations expose the first work step as primary and charge as secondary', () => {

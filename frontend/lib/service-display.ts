@@ -1,3 +1,6 @@
+import { joinDisplayParts } from './display-text'
+import { money, type AnyRecord } from './page-support'
+
 type ServiceDisplayRecord = Record<string, any> | null | undefined
 
 function cleanText(value: any) {
@@ -13,4 +16,21 @@ export function serviceDisplayName(
 		cleanText(record?.service_name ?? record?.name ?? record?.description) ||
 		fallback
 	return icon ? `${icon} ${name}` : name
+}
+
+export function serviceSelectOptions(
+	services: AnyRecord[],
+	canViewEconomy: boolean,
+	serviceTypeLabels: Record<string, string>,
+) {
+	return services.map((item) => ({
+		value: String(item.id),
+		label: serviceDisplayName(item),
+		meta: canViewEconomy
+			? joinDisplayParts([
+					serviceTypeLabels[item.service_type] ?? item.service_type,
+					money(item.base_price),
+				])
+			: serviceTypeLabels[item.service_type] ?? item.service_type,
+	}))
 }

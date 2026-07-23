@@ -16,6 +16,15 @@ export type AgendaOperationalRow = {
 	workOrder: AnyRecord | null
 }
 
+export function agendaDropDayForValue(
+	value: unknown,
+	visibleDays: string[],
+) {
+	if (value === null || value === undefined) return null
+	const day = String(value)
+	return visibleDays.includes(day) ? day : null
+}
+
 export type AgendaCalendarSegment = {
 	key: string
 	startDay: string
