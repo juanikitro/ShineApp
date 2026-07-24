@@ -66,3 +66,32 @@ export function formForVehicleSelection(
 		),
 	}
 }
+
+export function groupVehicleLineIndexForQuickTarget(
+	target: string,
+	owner: 'quote' | 'reservation',
+) {
+	const match = target.match(
+		new RegExp(`^${owner}\\.vehicle_lines\\.(\\d+)\\.vehicle$`),
+	)
+	return match ? Number(match[1]) : null
+}
+
+export function formForGroupVehicleLineSelection(
+	form: AnyRecord,
+	lineIndex: number,
+	vehicle: string,
+	vehicles: AnyRecord[],
+	services: AnyRecord[],
+) {
+	return {
+		...form,
+		vehicle_lines: repriceGroupVehicleLines(
+			ensureGroupVehicleLines(form).map((line, index) =>
+				index === lineIndex ? { ...line, vehicle } : line,
+			),
+			vehicles,
+			services,
+		),
+	}
+}

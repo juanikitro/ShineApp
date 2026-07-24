@@ -3,7 +3,9 @@ import { test } from 'vitest'
 
 import {
 	formForCustomerSelection,
+	formForGroupVehicleLineSelection,
 	formForVehicleSelection,
+	groupVehicleLineIndexForQuickTarget,
 } from './quote-reservation-form-selection'
 
 const services = [
@@ -105,4 +107,63 @@ test('formForVehicleSelection reuses the selected vehicle type and supports no i
 		formForVehicleSelection({}, '', vehicles, services),
 		{ vehicle: '', items: [] },
 	)
+})
+
+test('quick-created group vehicles select their target line and keep type pricing', () => {
+	const createdVehicle = {
+		id: 'moto-new',
+		customer: 'customer-1',
+		vehicle_type: 'moto',
+	}
+	const form = {
+		is_group: true,
+		vehicle_lines: [
+			{
+				vehicle: 'auto-1',
+				items: [{ service: 'wash', quantity: '1', unit_price: '150' }],
+			},
+			{
+				vehicle: '',
+				items: [{ service: 'wash', quantity: '1', unit_price: '' }],
+			},
+		],
+	}
+
+	assert.equal(
+		groupVehicleLineIndexForQuickTarget(
+			'quote.vehicle_lines.1.vehicle',
+			'quote',
+		),
+		1,
+	)
+	assert.equal(
+		groupVehicleLineIndexForQuickTarget(
+			'reservation.vehicle_lines.0.vehicle',
+			'reservation',
+		),
+		0,
+	)
+	assert.equal(
+		groupVehicleLineIndexForQuickTarget('quote.vehicle', 'quote'),
+		null,
+	)
+
+	const result = formForGroupVehicleLineSelection(
+		form,
+		1,
+		createdVehicle.id,
+		[...vehicles, createdVehicle],
+		services,
+	)
+
+	assert.deepEqual(result.vehicle_lines, [
+		{
+			vehicle: 'auto-1',
+			items: [{ service: 'wash', quantity: '1', unit_price: '150' }],
+		},
+		{
+			vehicle: 'moto-new',
+			items: [{ service: 'wash', quantity: '1', unit_price: '80' }],
+		},
+	])
 })
