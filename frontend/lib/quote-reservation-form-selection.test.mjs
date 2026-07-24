@@ -3,9 +3,10 @@ import { test } from 'vitest'
 
 import {
 	formForCustomerSelection,
+	formForGroupServiceLineSelection,
 	formForGroupVehicleLineSelection,
 	formForVehicleSelection,
-	groupVehicleLineIndexForQuickTarget,
+	groupQuickTargetForOwner,
 } from './quote-reservation-form-selection'
 
 const services = [
@@ -129,24 +130,25 @@ test('quick-created group vehicles select their target line and keep type pricin
 		],
 	}
 
-	assert.equal(
-		groupVehicleLineIndexForQuickTarget(
-			'quote.vehicle_lines.1.vehicle',
-			'quote',
-		),
-		1,
+	assert.deepEqual(
+		groupQuickTargetForOwner('quote.vehicle_lines.1.vehicle', 'quote'),
+		{ field: 'vehicle', lineIndex: 1 },
 	)
-	assert.equal(
-		groupVehicleLineIndexForQuickTarget(
+	assert.deepEqual(
+		groupQuickTargetForOwner(
 			'reservation.vehicle_lines.0.vehicle',
 			'reservation',
 		),
-		0,
+		{ field: 'vehicle', lineIndex: 0 },
 	)
-	assert.equal(
-		groupVehicleLineIndexForQuickTarget('quote.vehicle', 'quote'),
-		null,
+	assert.deepEqual(
+		groupQuickTargetForOwner(
+			'detail.quote.vehicle_lines.0.vehicle',
+			'detail.quote',
+		),
+		{ field: 'vehicle', lineIndex: 0 },
 	)
+	assert.equal(groupQuickTargetForOwner('quote.vehicle', 'quote'), null)
 
 	const result = formForGroupVehicleLineSelection(
 		form,
@@ -164,6 +166,98 @@ test('quick-created group vehicles select their target line and keep type pricin
 		{
 			vehicle: 'moto-new',
 			items: [{ service: 'wash', quantity: '1', unit_price: '80' }],
+		},
+	])
+})
+
+test('quick-created group services select their target item with the created catalog price', () => {
+	const createdService = {
+		id: 'polish-new',
+		base_price: '120',
+		price_auto: '180',
+		price_moto: '90',
+	}
+	const form = {
+		is_group: true,
+		vehicle_lines: [
+			{
+				vehicle: 'auto-1',
+				items: [{ service: 'wash', quantity: '1', unit_price: '999' }],
+			},
+			{
+				vehicle: 'moto-1',
+				items: [
+					{ service: 'wash', quantity: '1', unit_price: '80' },
+					{ service: '', quantity: '1', unit_price: '' },
+				],
+			},
+		],
+	}
+
+	assert.deepEqual(
+		groupQuickTargetForOwner(
+			'reservation.vehicle_lines.1.service.1',
+			'reservation',
+		),
+		{ field: 'service', lineIndex: 1, itemIndex: 1 },
+	)
+	assert.deepEqual(
+		groupQuickTargetForOwner(
+			'detail.quote.vehicle_lines.1.service.1',
+			'detail.quote',
+		),
+		{ field: 'service', lineIndex: 1, itemIndex: 1 },
+	)
+
+	const result = formForGroupServiceLineSelection(
+		form,
+		1,
+		1,
+		createdService.id,
+		vehicles,
+		[...services, createdService],
+	)
+
+	assert.deepEqual(result.vehicle_lines, [
+		{
+			vehicle: 'auto-1',
+			items: [{ service: 'wash', quantity: '1', unit_price: '999' }],
+		},
+		{
+			vehicle: 'moto-1',
+			items: [
+				{ service: 'wash', quantity: '1', unit_price: '80' },
+				{ service: 'polish-new', quantity: '1', unit_price: '90' },
+			],
+		},
+	])
+})
+
+test('quick-created group services fill the rendered blank item', () => {
+	const createdService = {
+		id: 'polish-new',
+		base_price: '120',
+		price_moto: '90',
+	}
+
+	const result = formForGroupServiceLineSelection(
+		{
+			is_group: true,
+			vehicle_lines: [{ vehicle: 'moto-1', items: [] }],
+		},
+		0,
+		0,
+		createdService.id,
+		vehicles,
+		[...services, createdService],
+	)
+
+	assert.deepEqual(result.vehicle_lines, [
+		{
+			vehicle: 'moto-1',
+			items: [
+				{ service: 'polish-new', quantity: '1', unit_price: '90' },
+			],
 		},
 	])
 })

@@ -321,9 +321,10 @@ import {
 } from '@/lib/quote-reservation-line-items'
 import {
 	formForCustomerSelection,
+	formForGroupServiceLineSelection,
 	formForGroupVehicleLineSelection,
 	formForVehicleSelection,
-	groupVehicleLineIndexForQuickTarget,
+	groupQuickTargetForOwner,
 } from '@/lib/quote-reservation-form-selection'
 import {
 	detailReservationDataWithAddedItem,
@@ -3971,8 +3972,14 @@ export default function Home() {
 		)
 	}
 
-	function selectQuoteService(index: number, serviceId: string) {
-		const service = services.find((item) => String(item.id) === serviceId)
+	function selectQuoteService(
+		index: number,
+		serviceId: string,
+		availableServices: AnyRecord[] = services,
+	) {
+		const service = availableServices.find(
+			(item) => String(item.id) === serviceId,
+		)
 		updateQuoteItem(index, {
 			service: serviceId,
 			unit_price: servicePriceForVehicleType(
@@ -4003,8 +4010,14 @@ export default function Home() {
 		)
 	}
 
-	function selectReservationService(index: number, serviceId: string) {
-		const service = services.find((item) => String(item.id) === serviceId)
+	function selectReservationService(
+		index: number,
+		serviceId: string,
+		availableServices: AnyRecord[] = services,
+	) {
+		const service = availableServices.find(
+			(item) => String(item.id) === serviceId,
+		)
 		updateReservationItem(index, {
 			service: serviceId,
 			unit_price: servicePriceForVehicleType(
@@ -4600,8 +4613,9 @@ export default function Home() {
 	function applyQuickSelection(
 		target: string,
 		value: string,
-		createdVehicle?: AnyRecord,
+		created?: { vehicle?: AnyRecord; service?: AnyRecord },
 	) {
+		const createdVehicle = created?.vehicle
 		const availableVehicles =
 			createdVehicle &&
 			!vehicles.some(
@@ -4609,24 +4623,43 @@ export default function Home() {
 			)
 				? [...vehicles, createdVehicle]
 				: vehicles
-		const reservationGroupLineIndex = groupVehicleLineIndexForQuickTarget(
+		const createdService = created?.service
+		const availableServices =
+			createdService &&
+			!services.some(
+				(service) => String(service.id) === String(createdService.id),
+			)
+				? [...services, createdService]
+				: services
+		const reservationGroupTarget = groupQuickTargetForOwner(
 			target,
 			'reservation',
 		)
-		if (reservationGroupLineIndex !== null) {
+		if (reservationGroupTarget) {
 			setReservationForm((current: AnyRecord) =>
-				formForGroupVehicleLineSelection(
-					current,
-					reservationGroupLineIndex,
-					value,
-					availableVehicles,
-					services,
-				),
+				reservationGroupTarget.field === 'vehicle'
+					? formForGroupVehicleLineSelection(
+							current,
+							reservationGroupTarget.lineIndex,
+							value,
+							availableVehicles,
+							availableServices,
+						)
+					: formForGroupServiceLineSelection(
+							current,
+							reservationGroupTarget.lineIndex,
+							reservationGroupTarget.itemIndex,
+							value,
+							availableVehicles,
+							availableServices,
+						),
 			)
-			focusField(
-				`reservation.vehicle_lines.${reservationGroupLineIndex}.service.0`,
-				true,
-			)
+			if (reservationGroupTarget.field === 'vehicle') {
+				focusField(
+					`reservation.vehicle_lines.${reservationGroupTarget.lineIndex}.service.0`,
+					true,
+				)
+			}
 			return
 		}
 		if (target === 'reservation.customer') {
@@ -4636,37 +4669,95 @@ export default function Home() {
 			updateReservationVehicle(value, availableVehicles)
 		}
 		if (target === 'reservation.service') {
-			selectReservationService(0, value)
+			selectReservationService(0, value, availableServices)
 			focusField('reservation.day')
 		}
 		if (target.startsWith('reservation.service.')) {
-			selectReservationService(Number(target.replace('reservation.service.', '')), value)
+			selectReservationService(
+				Number(target.replace('reservation.service.', '')),
+				value,
+				availableServices,
+			)
 		}
 		if (target === 'quote.customer') {
 			updateQuoteCustomer(value)
 		}
-		const quoteGroupLineIndex = groupVehicleLineIndexForQuickTarget(
+		const quoteGroupTarget = groupQuickTargetForOwner(
 			target,
 			'quote',
 		)
-		if (quoteGroupLineIndex !== null) {
+		if (quoteGroupTarget) {
 			setQuoteForm((current: AnyRecord) =>
-				formForGroupVehicleLineSelection(
-					current,
-					quoteGroupLineIndex,
-					value,
-					availableVehicles,
-					services,
-				),
+				quoteGroupTarget.field === 'vehicle'
+					? formForGroupVehicleLineSelection(
+							current,
+							quoteGroupTarget.lineIndex,
+							value,
+							availableVehicles,
+							availableServices,
+						)
+					: formForGroupServiceLineSelection(
+							current,
+							quoteGroupTarget.lineIndex,
+							quoteGroupTarget.itemIndex,
+							value,
+							availableVehicles,
+							availableServices,
+						),
 			)
-			focusField(`quote.vehicle_lines.${quoteGroupLineIndex}.service.0`, true)
+			if (quoteGroupTarget.field === 'vehicle') {
+				focusField(
+					`quote.vehicle_lines.${quoteGroupTarget.lineIndex}.service.0`,
+					true,
+				)
+			}
 			return
 		}
 		if (target === 'quote.vehicle') {
 			updateQuoteVehicle(value, availableVehicles)
 		}
 		if (target.startsWith('quote.service.')) {
-			selectQuoteService(Number(target.replace('quote.service.', '')), value)
+			selectQuoteService(
+				Number(target.replace('quote.service.', '')),
+				value,
+				availableServices,
+			)
+		}
+		const detailQuoteGroupTarget = groupQuickTargetForOwner(
+			target,
+			'detail.quote',
+		)
+		if (detailQuoteGroupTarget) {
+			setDetailModal((current) => {
+				if (!current || current.kind !== 'quote') return current
+				return {
+					...current,
+					editData:
+						detailQuoteGroupTarget.field === 'vehicle'
+							? formForGroupVehicleLineSelection(
+									current.editData,
+									detailQuoteGroupTarget.lineIndex,
+									value,
+									availableVehicles,
+									availableServices,
+								)
+							: formForGroupServiceLineSelection(
+									current.editData,
+									detailQuoteGroupTarget.lineIndex,
+									detailQuoteGroupTarget.itemIndex,
+									value,
+									availableVehicles,
+									availableServices,
+								),
+				}
+			})
+			if (detailQuoteGroupTarget.field === 'vehicle') {
+				focusField(
+					`detail.quote.vehicle_lines.${detailQuoteGroupTarget.lineIndex}.service.0`,
+					true,
+				)
+			}
+			return
 		}
 		if (target === 'purchase.material') {
 			setPurchaseForm({ ...purchaseForm, material: value })
@@ -4701,7 +4792,9 @@ export default function Home() {
 	}
 	if (kind === 'vehicle') {
 		const customer =
-			target.startsWith('reservation')
+			target.startsWith('detail.quote')
+				? detailModal?.editData?.customer ?? ''
+				: target.startsWith('reservation')
 				? reservationForm.customer
 				: target.startsWith('quote')
 					? quoteForm.customer
@@ -4778,7 +4871,14 @@ export default function Home() {
 				method: 'POST',
 				body: JSON.stringify(asPayload(vehicleForm)),
 			})
-			applyQuickSelection(quickCreate.target, String(created.id), created)
+			setVehicles((current) =>
+				current.some((vehicle) => String(vehicle.id) === String(created.id))
+					? current
+					: [...current, created],
+			)
+			applyQuickSelection(quickCreate.target, String(created.id), {
+				vehicle: created,
+			})
 			setVehicleForm({
 				id: '',
 				customer: '',
@@ -4849,7 +4949,14 @@ export default function Home() {
 				method: 'POST',
 				body: JSON.stringify(serviceCreatePayload(serviceForm)),
 			})
-			applyQuickSelection(quickCreate.target, String(created.id))
+			setServices((current) =>
+				current.some((service) => String(service.id) === String(created.id))
+					? current
+					: [...current, created],
+			)
+			applyQuickSelection(quickCreate.target, String(created.id), {
+				service: created,
+			})
 			setServiceForm({
 				id: '',
 				name: '',
