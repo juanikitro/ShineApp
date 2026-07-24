@@ -214,6 +214,55 @@ test('apiFetch and publicApiFetch return undefined for 204 responses', async () 
 	assert.equal(await publicApiFetch('/public/ping/'), undefined)
 })
 
+test('apiFetch bypasses an in-flight list request after creating an entity', async () => {
+	let getCount = 0
+	let resolveStaleList
+	let resolveFreshList
+	const staleList = new Promise((resolve) => {
+		resolveStaleList = resolve
+	})
+	const freshList = new Promise((resolve) => {
+		resolveFreshList = resolve
+	})
+	global.fetch = vi.fn((_url, options = {}) => {
+		if (options.method === 'POST') {
+			return Promise.resolve({
+				ok: true,
+				status: 201,
+				json: async () => ({ id: 2, name: 'Audi A1' }),
+			})
+		}
+		getCount += 1
+		return getCount === 1 ? staleList : freshList
+	})
+
+	const staleRequest = apiFetch('/vehicles/')
+	const coalescedRequest = apiFetch('/vehicles/')
+	assert.equal(global.fetch.mock.calls.length, 1)
+	await apiFetch('/vehicles/', { method: 'POST', body: JSON.stringify({ name: 'Audi A1' }) })
+	let freshRequest
+	try {
+		freshRequest = apiFetch('/vehicles/', { bypassDedupe: true })
+		assert.equal(global.fetch.mock.calls.length, 3)
+		resolveFreshList({
+			ok: true,
+			status: 200,
+			json: async () => [{ id: 1, name: 'Moto anterior' }, { id: 2, name: 'Audi A1' }],
+		})
+		assert.deepEqual(await freshRequest, [
+			{ id: 1, name: 'Moto anterior' },
+			{ id: 2, name: 'Audi A1' },
+		])
+	} finally {
+		resolveStaleList({
+			ok: true,
+			status: 200,
+			json: async () => [{ id: 1, name: 'Moto anterior' }],
+		})
+		await Promise.all([staleRequest, coalescedRequest])
+	}
+})
+
 test('publicApiFetch normalizes JSON error payloads', async () => {
 	global.fetch = vi.fn(async () => ({
 		ok: false,

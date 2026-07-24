@@ -2128,8 +2128,17 @@ export default function Home() {
 		try {
 			const entries = await loadAppDataSets(keysToLoad, dataScope, {
 				apiFetch: (path, opts) =>
-					apiFetch(path, { ...opts, signal: controller.signal }),
-				apiList: (path) => apiList(path, { signal: controller.signal }),
+					apiFetch(path, {
+						...opts,
+						signal: controller.signal,
+						bypassDedupe: Boolean(options.force),
+					}),
+				apiList: (path, opts) =>
+					apiList(path, {
+						...opts,
+						signal: controller.signal,
+						bypassDedupe: Boolean(options.force),
+					}),
 			})
 			if (controller.signal.aborted) return
 			for (const [key, data] of entries) {
