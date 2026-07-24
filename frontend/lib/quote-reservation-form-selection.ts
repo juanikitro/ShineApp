@@ -1,5 +1,10 @@
 import { type AnyRecord } from './page-support'
-import { ensureGroupVehicleLines, repriceGroupVehicleLines } from './quote-groups'
+import {
+	blankGroupVehicleItem,
+	ensureGroupVehicleLines,
+	repriceGroupVehicleLine,
+	repriceGroupVehicleLines,
+} from './quote-groups'
 import {
 	repriceItemsForVehicle,
 	vehicleTypeForId,
@@ -10,6 +15,12 @@ type CustomerSelectionResult = {
 	form: AnyRecord
 	vehicle: string
 }
+
+type GroupQuickTargetOwner = 'quote' | 'reservation' | 'detail.quote'
+
+export type GroupQuickTarget =
+	| { field: 'vehicle'; lineIndex: number }
+	| { field: 'service'; lineIndex: number; itemIndex: number }
 
 export function formForCustomerSelection(
 	form: AnyRecord,
@@ -67,14 +78,30 @@ export function formForVehicleSelection(
 	}
 }
 
-export function groupVehicleLineIndexForQuickTarget(
+export function groupQuickTargetForOwner(
 	target: string,
-	owner: 'quote' | 'reservation',
-) {
-	const match = target.match(
-		new RegExp(`^${owner}\\.vehicle_lines\\.(\\d+)\\.vehicle$`),
+	owner: GroupQuickTargetOwner,
+): GroupQuickTarget | null {
+	const ownerPattern = owner.replace('.', '\\.')
+	const vehicleMatch = target.match(
+		new RegExp(`^${ownerPattern}\\.vehicle_lines\\.(\\d+)\\.vehicle$`),
 	)
-	return match ? Number(match[1]) : null
+	if (vehicleMatch) {
+		return { field: 'vehicle', lineIndex: Number(vehicleMatch[1]) }
+	}
+
+	const serviceMatch = target.match(
+		new RegExp(
+			`^${ownerPattern}\\.vehicle_lines\\.(\\d+)\\.service\\.(\\d+)$`,
+		),
+	)
+	return serviceMatch
+		? {
+				field: 'service',
+				lineIndex: Number(serviceMatch[1]),
+				itemIndex: Number(serviceMatch[2]),
+			}
+		: null
 }
 
 export function formForGroupVehicleLineSelection(
@@ -93,5 +120,34 @@ export function formForGroupVehicleLineSelection(
 			vehicles,
 			services,
 		),
+	}
+}
+
+export function formForGroupServiceLineSelection(
+	form: AnyRecord,
+	lineIndex: number,
+	itemIndex: number,
+	service: string,
+	vehicles: AnyRecord[],
+	services: AnyRecord[],
+) {
+	return {
+		...form,
+		vehicle_lines: ensureGroupVehicleLines(form).map((line, index) => {
+			if (index !== lineIndex) return line
+			const items = line.items?.length
+				? line.items
+				: [blankGroupVehicleItem()]
+			return repriceGroupVehicleLine(
+				{
+					...line,
+					items: items.map((item: AnyRecord, index: number) =>
+						index === itemIndex ? { ...item, service } : item,
+					),
+				},
+				vehicles,
+				services,
+			)
+		}),
 	}
 }

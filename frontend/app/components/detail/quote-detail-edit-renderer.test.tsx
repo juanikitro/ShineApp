@@ -122,6 +122,7 @@ test('quote detail renderer preserves editable grouped quote props and download 
 	assert.equal(capturedProps.summary?.hasReservation, false)
 	const groupEditor = capturedProps.groupEditor as Record<string, any> | null
 	assert.ok(groupEditor)
+	assert.equal(groupEditor.fieldPrefix, 'detail.quote')
 	assert.deepEqual(groupEditor.vehicleOptions, [
 		{ value: '1', label: 'Ford Fiesta', meta: 'Ana' },
 	])
