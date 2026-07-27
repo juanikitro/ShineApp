@@ -3,20 +3,27 @@
 ## Cambio funcional
 
 El dashboard conserva su vista `Resumen` y agrega la vista `Analisis`, enfocada en
-comparar el periodo sin ocultar la operacion existente. La nueva lectura muestra:
+comparar el periodo sin ocultar la operacion existente. El selector `Resumen /
+Analisis` vive en el toolbar de periodo, alineado con `Desde` y `Hasta`, para que el
+rango y el modo se lean como una sola consulta. La nueva lectura muestra:
 
 - pulso de facturacion y caja real contra el periodo anterior;
+- columnas de facturacion actual frente al periodo anterior y composicion facturada
+  por servicio;
+- ticket promedio actual/anterior, calculado como facturado sobre ordenes operativas;
 - cinta de operacion que conecta cotizaciones, reservas, entregas y cobros sin
   mezclar sus unidades;
 - embudo comercial por cotizacion;
-- comparacion de facturacion y margen estimado por servicio;
+- comparacion de facturacion y margen estimado proporcional por servicio;
 - recurrencia de clientes con trabajo operativo previo;
-- carga semanal de ordenes ingresadas con su estado actual;
+- evolucion semanal apilada de ordenes ingresadas con su estado actual;
 - caja, antiguedad por cobrar y lecturas derivadas explicitamente limitadas por los
   datos disponibles.
 
 No se agregan dependencias, modelos ni migraciones. La vista `Resumen` mantiene sus
-KPIs, alertas, cobranzas, rankings y acciones tal como estaban.
+KPIs, alertas, cobranzas, rankings y acciones tal como estaban. `Siguiente accion` y
+las tareas inmediatas no se renderizan en `Analisis`: esa vista es solo de lectura
+analitica.
 
 ## Contrato API
 
@@ -36,6 +43,9 @@ aditivo `analytics`:
   recurrentes (al menos una orden operativa previa a `from`) y nuevos.
 - `weekly_workload`: ordenes creadas en el periodo, agrupadas por semanas ancladas en
   `from`, con un snapshot de su estado actual. No es una serie historica de entregas.
+- `previous_period.average_ticket`: ticket promedio del periodo equivalente anterior,
+  calculado con su facturacion y cantidad de ordenes operativas. Es aditivo y puede
+  ser `0` cuando el periodo anterior no tiene ordenes.
 
 Los filtros de ordenes reutilizan los estados operativos ya usados por el resumen
 (`in_progress`, `ready`, `delivered`). El payload sigue ausente para usuarios sin
@@ -50,5 +60,5 @@ explicito para evitar que una visualizacion se interprete como un hecho no dispo
 ## Validacion
 
 - `py -3 -m pytest backend/tests/test_dashboard_analytics.py -q`
-- `npm exec vitest run app/components/dashboard/DashboardAnalyticsPanel.test.tsx app/components/dashboard/DashboardPanel.test.tsx`
-- `npm exec tsc -- --noEmit`
+- `npm exec -- vitest run --maxWorkers=1 app/components/dashboard/DashboardPeriodToolbar.test.tsx app/components/layout/WorkspaceHeaderContent.test.tsx app/components/dashboard/DashboardPanel.test.tsx app/components/dashboard/DashboardAnalyticsPanel.test.tsx`
+- `npm exec -- tsc --noEmit --pretty false`

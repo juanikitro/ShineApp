@@ -6,24 +6,29 @@ import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 
 import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
+import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
 
 type DashboardPeriodToolbarProps = {
 	period: { from: string; to: string }
+	dashboardView: 'summary' | 'analysis'
 	onSubmit: (event: FormEvent<HTMLFormElement>) => void
 	onPreviousMonth: () => void
 	onNextMonth: () => void
 	onFromChange: (value: string) => void
 	onToChange: (value: string) => void
+	onDashboardViewChange: (value: 'summary' | 'analysis') => void
 	loading: boolean
 }
 
 export function DashboardPeriodToolbar({
 	period,
+	dashboardView,
 	onSubmit,
 	onPreviousMonth,
 	onNextMonth,
 	onFromChange,
 	onToChange,
+	onDashboardViewChange,
 	loading,
 }: DashboardPeriodToolbarProps) {
 	return (
@@ -56,6 +61,20 @@ export function DashboardPeriodToolbar({
 					onChange={(event) => onToChange(event.target.value)}
 				/>
 			</Field>
+			<div className="dashboard-period-view-field">
+				<Field label="Vista">
+					<SegmentedControl
+						ariaLabel="Vista del dashboard"
+						className="dashboard-view-toggle"
+						options={[
+							{ value: 'summary', label: 'Resumen' },
+							{ value: 'analysis', label: 'Análisis' },
+						]}
+						value={dashboardView}
+						onChange={onDashboardViewChange}
+					/>
+				</Field>
+			</div>
 			<Button
 				type="button"
 				variant="ghost"

@@ -703,6 +703,9 @@ export default function Home() {
 	const [debtFilters, setDebtFilters] =
 		useState<DebtFilterState>(DEBT_FILTER_DEFAULTS)
 	const [period, setPeriod] = useState(() => monthRange(today))
+	const [dashboardView, setDashboardView] = useState<'summary' | 'analysis'>(
+		'summary',
+	)
 
 	const [dashboard, setDashboard] = useState<AnyRecord>({})
 	const [cash, setCash] = useState<AnyRecord>({})
@@ -8536,6 +8539,7 @@ export default function Home() {
 							)
 						}
 						period={period}
+						dashboardView={dashboardView}
 						onDashboardPeriodSubmit={(event) => {
 							event.preventDefault()
 							triggerPeriodReloadNow()
@@ -8546,6 +8550,7 @@ export default function Home() {
 							schedulePeriodReload({ ...period, from })
 						}
 						onToChange={(to) => schedulePeriodReload({ ...period, to })}
+						onDashboardViewChange={setDashboardView}
 						dashboardLoading={isDataSetLoading('dashboard')}
 						mobileToggleRef={sidebarMobileToggleRef}
 						sidebarNavId={SIDEBAR_NAV_ID}
@@ -8568,6 +8573,7 @@ export default function Home() {
 						canViewEconomy={canViewEconomy}
 						currentUser={currentUser}
 						dashboard={dashboard}
+						dashboardView={dashboardView}
 						demoReadiness={demoReadiness}
 						firstChargeableWorkOrder={firstChargeableWorkOrder}
 						tasks={tasks}

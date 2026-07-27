@@ -8,8 +8,9 @@ import { WorkspaceHeaderContent } from './WorkspaceHeaderContent'
 afterEach(cleanup)
 
 function renderHeader(overrides = {}) {
-	const calls = { sector: [], refresh: 0, create: 0 } as {
+	const calls = { sector: [], dashboard: [], refresh: 0, create: 0 } as {
 		sector: string[]
+		dashboard: Array<'summary' | 'analysis'>
 		refresh: number
 		create: number
 	}
@@ -31,6 +32,9 @@ function renderHeader(overrides = {}) {
 		onNextMonth: () => {},
 		onFromChange: () => {},
 		onToChange: () => {},
+		dashboardView: 'summary' as const,
+		onDashboardViewChange: (value: 'summary' | 'analysis') =>
+			calls.dashboard.push(value),
 		dashboardLoading: false,
 		mobileToggleRef: createRef<HTMLButtonElement>(),
 		sidebarNavId: 'sidebar-nav',
@@ -65,7 +69,7 @@ test('WorkspaceHeaderContent preserves agenda title addon and shared actions', (
 })
 
 test('WorkspaceHeaderContent renders dashboard period controls only for economic dashboard access', () => {
-	renderHeader({
+	const { calls } = renderHeader({
 		title: 'Dashboard',
 		activeView: 'dashboard',
 		showAgendaSectorControl: false,
@@ -73,6 +77,9 @@ test('WorkspaceHeaderContent renders dashboard period controls only for economic
 
 	assert.equal(screen.queryByRole('tablist', { name: 'Sector de agenda' }), null)
 	assert.ok(screen.getByRole('form', { name: 'Filtrar dashboard por periodo' }))
+	assert.ok(screen.getByRole('group', { name: 'Vista del dashboard' }))
+	fireEvent.click(screen.getByRole('button', { name: 'Análisis' }))
+	assert.deepEqual(calls.dashboard, ['analysis'])
 	assert.equal(
 		screen.queryByRole('button', {
 			name: 'Crear reserva para el dia seleccionado',

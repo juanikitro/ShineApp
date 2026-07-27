@@ -30,3 +30,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Siguiente accion con tareas importantes](2026-07-21-dashboard-siguiente-accion-tareas-design.md)
 - [Tarjeta de tareas importantes en el dashboard](2026-07-21-dashboard-tareas-importantes-design.md)
 - [Descarte definitivo de pasos de alta guiada](2026-07-21-onboarding-step-dismissal-design.md)
+- [Dashboard: cabina analitica del periodo](2026-07-27-dashboard-analytic-canvas-design.md)

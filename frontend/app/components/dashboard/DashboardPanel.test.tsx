@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, test, vi } from 'vitest'
 
 import { buildDemoReadiness, type DemoReadiness } from '@/lib/demo-readiness'
@@ -18,6 +18,7 @@ function renderDashboard({
 		<DashboardPanel
 			birthdayAlerts={null}
 			canViewEconomy
+			dashboardView="summary"
 			dashboard={{}}
 			demoReadiness={demoReadiness}
 			tasks={[]}
@@ -60,6 +61,7 @@ test('DashboardPanel exposes the next decision actions after the primary one', (
 		<DashboardPanel
 			birthdayAlerts={null}
 			canViewEconomy
+			dashboardView="summary"
 			dashboard={{
 				overdue_debts_count: 1,
 				overdue_debts_total: 1200,
@@ -84,11 +86,12 @@ test('DashboardPanel exposes the next decision actions after the primary one', (
 	assert.deepEqual(onOpenSection.mock.calls, [['debts']])
 })
 
-test('DashboardPanel preserves the operational summary and opens the analytical view on demand', () => {
+test('DashboardPanel renders a pure analytical view without the next-action panel', () => {
 	render(
 		<DashboardPanel
 			birthdayAlerts={null}
 			canViewEconomy
+			dashboardView="analysis"
 			dashboard={{
 				analytics: {
 					previous_series: { points: [] },
@@ -108,11 +111,7 @@ test('DashboardPanel preserves the operational summary and opens the analytical 
 		/>,
 	)
 
-	const analyticsButton = screen.getByRole('button', { name: 'Análisis' })
-	assert.equal(analyticsButton.getAttribute('aria-pressed'), 'false')
-
-	fireEvent.click(analyticsButton)
-
-	assert.equal(analyticsButton.getAttribute('aria-pressed'), 'true')
+	assert.equal(screen.queryByText('Ahora'), null)
+	assert.equal(screen.queryByText('Después'), null)
 	assert.ok(screen.getByRole('heading', { name: 'Pulso comparativo' }))
 })
