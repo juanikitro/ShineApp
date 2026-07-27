@@ -1254,6 +1254,12 @@ class DashboardSummaryView(APIView):
         )
         work_orders_count = summary["work_orders_count"]
         average_ticket = summary["billed_total"] / work_orders_count if work_orders_count else ZERO
+        previous_work_orders_count = previous_summary["work_orders_count"]
+        previous_average_ticket = (
+            previous_summary["billed_total"] / previous_work_orders_count
+            if previous_work_orders_count
+            else ZERO
+        )
         by_status = {
             row["reservation__status"]: row["count"]
             for row in work_orders.values("reservation__status").annotate(count=Count("id"))
@@ -1312,6 +1318,7 @@ class DashboardSummaryView(APIView):
                     "from": previous_from.isoformat(),
                     "to": previous_to.isoformat(),
                     "has_activity": previous_has_activity,
+                    "average_ticket": previous_average_ticket,
                     "billed_total": previous_summary["billed_total"],
                     "collected_total": previous_summary["collected_total"],
                     "balance_due_total": previous_summary["balance_due_total"],

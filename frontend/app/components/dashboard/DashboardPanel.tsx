@@ -1,6 +1,6 @@
 'use client'
 
-import { type CSSProperties, type ReactNode, useState } from 'react'
+import { type CSSProperties, type ReactNode } from 'react'
 
 import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
@@ -58,6 +58,7 @@ type DashboardPanelProps = {
 	canViewEconomy: boolean
 	currentUser?: AnyRecord | null
 	dashboard: AnyRecord
+	dashboardView: 'summary' | 'analysis'
 	demoReadiness: DemoReadiness | null
 	firstChargeableWorkOrder?: AnyRecord | null
 	tasks: readonly AnyRecord[]
@@ -138,6 +139,7 @@ export function DashboardPanel({
 	canViewEconomy,
 	currentUser,
 	dashboard,
+	dashboardView,
 	demoReadiness,
 	firstChargeableWorkOrder,
 	tasks,
@@ -152,9 +154,6 @@ export function DashboardPanel({
 	onOpenSection,
 	onOpenSettingsSection,
 }: DashboardPanelProps) {
-	const [dashboardView, setDashboardView] = useState<'summary' | 'analysis'>(
-		'summary',
-	)
 	const dashboardWorkStatusEntries = Object.entries(orderLabels)
 	const dashboardWorkStatusTotal = dashboardWorkStatusEntries.reduce(
 		(total, [key]) => total + numberValue(dashboard.work_orders_by_status?.[key]),
@@ -504,6 +503,7 @@ export function DashboardPanel({
 							onOpenSettingsSection={onOpenSettingsSection}
 						/>
 					) : null}
+					{dashboardView === 'summary' ? (
 					<Panel
 						className="dashboard-next-action-panel"
 						title="Siguiente accion"
@@ -564,28 +564,7 @@ export function DashboardPanel({
 							/>
 						</div>
 					</Panel>
-					<div
-						aria-label="Vista del dashboard"
-						className="mode-toggle dashboard-view-toggle"
-						role="group"
-					>
-						<button
-							aria-pressed={dashboardView === 'summary'}
-							className={dashboardView === 'summary' ? 'selected' : ''}
-							onClick={() => setDashboardView('summary')}
-							type="button"
-						>
-							Resumen
-						</button>
-						<button
-							aria-pressed={dashboardView === 'analysis'}
-							className={dashboardView === 'analysis' ? 'selected' : ''}
-							onClick={() => setDashboardView('analysis')}
-							type="button"
-						>
-							Análisis
-						</button>
-					</div>
+					) : null}
 					{dashboardView === 'summary' ? (
 						<>
 					{loading && !dashboardHasBusinessActivity ? (

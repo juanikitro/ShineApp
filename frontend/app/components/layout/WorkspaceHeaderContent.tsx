@@ -24,6 +24,8 @@ type WorkspaceHeaderContentProps = {
 	onNextMonth: () => void
 	onFromChange: (from: string) => void
 	onToChange: (to: string) => void
+	dashboardView: 'summary' | 'analysis'
+	onDashboardViewChange: (value: 'summary' | 'analysis') => void
 	dashboardLoading: boolean
 	mobileToggleRef: RefObject<HTMLButtonElement | null>
 	sidebarNavId: string
@@ -48,6 +50,8 @@ export function WorkspaceHeaderContent({
 	onNextMonth,
 	onFromChange,
 	onToChange,
+	dashboardView,
+	onDashboardViewChange,
 	dashboardLoading,
 	mobileToggleRef,
 	sidebarNavId,
@@ -77,11 +81,13 @@ export function WorkspaceHeaderContent({
 					{activeView === 'dashboard' && canViewEconomy ? (
 						<DashboardPeriodToolbar
 							period={period}
+							dashboardView={dashboardView}
 							onSubmit={onDashboardPeriodSubmit}
 							onPreviousMonth={onPreviousMonth}
 							onNextMonth={onNextMonth}
 							onFromChange={onFromChange}
 							onToChange={onToChange}
+							onDashboardViewChange={onDashboardViewChange}
 							loading={dashboardLoading}
 						/>
 					) : null}

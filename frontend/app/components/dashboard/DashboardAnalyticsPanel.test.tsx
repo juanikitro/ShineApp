@@ -14,10 +14,12 @@ const analyticsDashboard = {
 	estimated_margin_total: 190,
 	cashflow_balance: 85,
 	balance_due_total: 90,
+	average_ticket: 105,
 	previous_period: {
 		billed_total: 80,
 		estimated_margin_total: 80,
 		cashflow_balance: 40,
+		average_ticket: 80,
 	},
 	series: {
 		points: [
@@ -86,13 +88,50 @@ test('DashboardAnalyticsPanel keeps commercial and operational units explicit', 
 	render(<DashboardAnalyticsPanel dashboard={analyticsDashboard} />)
 
 	assert.ok(screen.getByRole('heading', { name: 'Pulso comparativo' }))
+	assert.ok(screen.getByRole('heading', { name: 'Facturado vs. período anterior' }))
+	assert.ok(screen.getByRole('img', { name: 'Facturación actual y período anterior por tramo' }))
+	assert.ok(screen.getByRole('heading', { name: 'Composición del facturado' }))
+	assert.ok(screen.getByRole('img', { name: 'Composición del facturado por servicio' }))
+	assert.ok(screen.getByRole('heading', { name: 'Ticket promedio' }))
+	assert.ok(screen.getByRole('heading', { name: 'Margen por servicio' }))
 	assert.ok(screen.getByText('Cinta de operación'))
 	assert.ok(screen.getByText('Cada etapa cuenta una cotización, incluso si es grupal.'))
 	assert.ok(screen.getByText('Cobradas sin saldo'))
-	assert.ok(screen.getByText('Detailing exterior'))
-	assert.ok(screen.getByText('Carga semanal'))
-	assert.ok(screen.getByText(/Órdenes ingresadas por semana y su estado actual/))
+	assert.ok(screen.getAllByText('Detailing exterior').length >= 2)
+	assert.ok(screen.getByRole('heading', { name: 'Evolución de trabajos' }))
+	assert.ok(screen.getByRole('img', { name: 'Evolución semanal de trabajos por estado actual' }))
 	assert.ok(screen.getByText(/No se muestran rentabilidad por técnico/))
+})
+
+test('DashboardAnalyticsPanel does not render an empty workload graph as activity', () => {
+	render(
+		<DashboardAnalyticsPanel
+			dashboard={{
+				...analyticsDashboard,
+				analytics: {
+					...analyticsDashboard.analytics,
+					weekly_workload: {
+						weeks: [
+							{
+								from: '2026-07-01',
+								to: '2026-07-07',
+								entered_count: 0,
+								by_status: {},
+							},
+						],
+					},
+				},
+			}}
+		/>,
+	)
+
+	assert.ok(screen.getByText('Sin órdenes ingresadas en este período.'))
+	assert.equal(
+		screen.queryByRole('img', {
+			name: 'Evolución semanal de trabajos por estado actual',
+		}),
+		null,
+	)
 })
 
 test('DashboardAnalyticsPanel degrades safely when an older dashboard payload lacks analytics', () => {

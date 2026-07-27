@@ -220,6 +220,11 @@ def test_dashboard_summary_exposes_truthful_analytics_from_existing_records(
     )
     assert len(analytics["previous_series"]["points"]) == 14
 
+    assert Decimal(response.data["average_ticket"]) == Decimal("88.75")
+    assert Decimal(response.data["previous_period"]["average_ticket"]) == Decimal(
+        "80.00"
+    )
+
     weekly_total = sum(row["entered_count"] for row in analytics["weekly_workload"]["weeks"])
     assert weekly_total == 4
 
@@ -296,6 +301,7 @@ def test_dashboard_analytics_preserves_empty_periods_and_partial_group_quotes(
 
     assert empty_response.status_code == 200
     empty_analytics = empty_response.data["analytics"]
+    assert Decimal(empty_response.data["average_ticket"]) == Decimal("0.00")
     assert empty_analytics["commercial_funnel"]["total_quotes"] == 0
     assert empty_analytics["customer_recurrence"] == {
         "unit": "customer_with_operational_work_order",

@@ -12,13 +12,16 @@ function renderToolbar(overrides = {}) {
 	const onNextMonth = vi.fn()
 	const onFromChange = vi.fn()
 	const onToChange = vi.fn()
+	const onDashboardViewChange = vi.fn()
 	const props = {
 		period: { from: '2026-07-01', to: '2026-07-31' },
+		dashboardView: 'summary' as const,
 		onSubmit,
 		onPreviousMonth,
 		onNextMonth,
 		onFromChange,
 		onToChange,
+		onDashboardViewChange,
 		loading: false,
 		...overrides,
 	} as Parameters<typeof DashboardPeriodToolbar>[0]
@@ -30,6 +33,7 @@ function renderToolbar(overrides = {}) {
 		onNextMonth,
 		onFromChange,
 		onToChange,
+		onDashboardViewChange,
 	}
 }
 
@@ -41,6 +45,7 @@ test('DashboardPeriodToolbar preserves period controls, callbacks and submit beh
 		onNextMonth,
 		onFromChange,
 		onToChange,
+		onDashboardViewChange,
 	} = renderToolbar()
 
 	assert.equal(container.querySelector('form')?.className, 'toolbar dashboard-period-toolbar')
@@ -56,6 +61,9 @@ test('DashboardPeriodToolbar preserves period controls, callbacks and submit beh
 	assert.equal(onNextMonth.mock.calls.length, 1)
 	assert.deepEqual(onFromChange.mock.calls, [['2026-06-01']])
 	assert.deepEqual(onToChange.mock.calls, [['2026-06-30']])
+	assert.equal(screen.getByRole('group', { name: 'Vista del dashboard' }).textContent, 'ResumenAnálisis')
+	fireEvent.click(screen.getByRole('button', { name: 'Análisis' }))
+	assert.deepEqual(onDashboardViewChange.mock.calls, [['analysis']])
 
 	fireEvent.submit(container.querySelector('form')!)
 	assert.equal(onSubmit.mock.calls.length, 1)
