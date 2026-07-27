@@ -8,6 +8,10 @@ Documento comercial de un unico cliente que agrupa hasta 25 autos. Puede quedar 
 
 Entrada dentro de una cotizacion grupal que representa un auto existente o un auto nuevo del cliente. Tiene servicios, agenda tentativa o reservada, notas y subtotal propios.
 
+## Embudo comercial
+
+Lectura comercial por cotizacion individual o grupal. Cada cotizacion cuenta una sola vez, aunque una cotizacion grupal cree varias reservas hijas. La carga de operacion se mide por orden de trabajo, no por cotizacion.
+
 ## Modo del canal (WhatsApp)
 
 COMO sale un mensaje de WhatsApp. Vive en `WhatsAppConfig.mode` por negocio: `paid` (Meta Cloud API, envio server-side) o `free` (wa.me, el operador abre WhatsApp desde su propia sesion; la app solo deja traza en el Historial). Es ortogonal a la [Politica de despacho (WhatsApp)].

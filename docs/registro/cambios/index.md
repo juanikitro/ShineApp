@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Dashboard: analitica operativa y comercial](2026-07-27-dashboard-analitica-operativa.md)
 - [Paginacion estable en los listados de la app](2026-07-24-paginacion-estable-listados.md)
 - [Creacion rapida en cotizaciones y reservas grupales](2026-07-24-creacion-rapida-en-cotizaciones-reservas-grupales.md)
 - [Actualizacion de seguridad de PostCSS en frontend](2026-07-24-actualizacion-seguridad-postcss.md)
