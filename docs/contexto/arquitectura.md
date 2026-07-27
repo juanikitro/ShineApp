@@ -17,10 +17,15 @@ Aplicaciones registradas en `backend/config/settings.py`:
 - `scheduling`
 - `workorders`
 - `finance`
+- `debts`
+- `fixed_expenses`
 - `inventory`
 - `quotes`
+- `whatsapp`
 - `dashboard`
 - `notifications`
+- `tasks`
+- `search`
 
 Patrones visibles hoy:
 - la API se registra desde `backend/config/urls.py`,

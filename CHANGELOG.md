@@ -12,6 +12,8 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-07-24
 - [Paginacion estable en los listados de la app](docs/registro/cambios/2026-07-24-paginacion-estable-listados.md)
+- [Creacion rapida en cotizaciones y reservas grupales](docs/registro/cambios/2026-07-24-creacion-rapida-en-cotizaciones-reservas-grupales.md)
+- [Actualizacion de seguridad de PostCSS en frontend](docs/registro/cambios/2026-07-24-actualizacion-seguridad-postcss.md)
 
 ## 2026-07-23
 - [SearchSelect compatible con ModalFrame de Radix](docs/registro/cambios/2026-07-23-searchselect-radix-dialog.md)
