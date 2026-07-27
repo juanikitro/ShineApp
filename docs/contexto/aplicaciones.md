@@ -7,10 +7,15 @@
 - `scheduling`: agenda diaria, reservas y capacidad.
 - `workorders`: ordenes de trabajo y cambios de estado.
 - `finance`: pagos, caja diaria y cierres.
+- `debts`: deudas y sus pagos.
+- `fixed_expenses`: gastos fijos y sus ocurrencias.
 - `inventory`: materiales, compras, consumos y herramientas.
 - `quotes`: cotizaciones.
+- `whatsapp`: configuracion, automatizaciones y envio de mensajes.
 - `dashboard`: resumen operativo.
 - `notifications`: notificaciones derivadas de eventos del negocio.
+- `tasks`: tareas internas de empleadores y empleados.
+- `search`: buscador global.
 - `core`: base comun del backend.
 
 ## Frontend Next.js

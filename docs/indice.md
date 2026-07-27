@@ -88,6 +88,9 @@ Reglas vivas:
 - `docs/deployment/fase-2b-production-qa.md`: artifact de QA para publicar y verificar Fase 0 a 2C.
 - `docs/deployment/manual-steps.md`: pasos manuales obligatorios antes de deploy.
 - `docs/deployment/demo-readiness.md`: estado real de recursos demo y bloqueadores.
+- `docs/deployment/operability-runbook.md`: mantenimiento, observabilidad y respuesta operativa.
+- `docs/deployment/security-runbook.md`: controles y respuesta de seguridad operativa.
+- `docs/deployment/upgrade-path.md`: camino documentado de actualizacion de demo a produccion.
 
 ## Diseno y UI
 
