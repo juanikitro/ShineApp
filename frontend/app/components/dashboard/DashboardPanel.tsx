@@ -1,6 +1,6 @@
 'use client'
 
-import { type CSSProperties, type ReactNode } from 'react'
+import { type CSSProperties, type ReactNode, useState } from 'react'
 
 import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
@@ -21,6 +21,7 @@ import { CajaSparkline } from '@/app/components/ui/CajaSparkline'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { RiskMeter } from '@/app/components/ui/RiskMeter'
 import { DemoReadinessPanel } from './DemoReadinessPanel'
+import { DashboardAnalyticsPanel } from './DashboardAnalyticsPanel'
 import { ImportantTasksCard } from './ImportantTasksCard'
 import { TrialLifecycleBanner } from './TrialLifecycleBanner'
 import { DashboardCashByCategory } from './DashboardCashByCategory'
@@ -151,6 +152,9 @@ export function DashboardPanel({
 	onOpenSection,
 	onOpenSettingsSection,
 }: DashboardPanelProps) {
+	const [dashboardView, setDashboardView] = useState<'summary' | 'analysis'>(
+		'summary',
+	)
 	const dashboardWorkStatusEntries = Object.entries(orderLabels)
 	const dashboardWorkStatusTotal = dashboardWorkStatusEntries.reduce(
 		(total, [key]) => total + numberValue(dashboard.work_orders_by_status?.[key]),
@@ -560,6 +564,30 @@ export function DashboardPanel({
 							/>
 						</div>
 					</Panel>
+					<div
+						aria-label="Vista del dashboard"
+						className="mode-toggle dashboard-view-toggle"
+						role="group"
+					>
+						<button
+							aria-pressed={dashboardView === 'summary'}
+							className={dashboardView === 'summary' ? 'selected' : ''}
+							onClick={() => setDashboardView('summary')}
+							type="button"
+						>
+							Resumen
+						</button>
+						<button
+							aria-pressed={dashboardView === 'analysis'}
+							className={dashboardView === 'analysis' ? 'selected' : ''}
+							onClick={() => setDashboardView('analysis')}
+							type="button"
+						>
+							Análisis
+						</button>
+					</div>
+					{dashboardView === 'summary' ? (
+						<>
 					{loading && !dashboardHasBusinessActivity ? (
 						<div
 							className="dashboard-executive-grid"
@@ -1250,6 +1278,10 @@ export function DashboardPanel({
 							</Panel>
 						</>
 					) : null}
+						</>
+					) : (
+						<DashboardAnalyticsPanel dashboard={dashboard} />
+					)}
 				</>
 			) : null}
 			{birthdayAlerts}

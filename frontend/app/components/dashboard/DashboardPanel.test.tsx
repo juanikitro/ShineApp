@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, test, vi } from 'vitest'
 
 import { buildDemoReadiness, type DemoReadiness } from '@/lib/demo-readiness'
@@ -82,4 +82,37 @@ test('DashboardPanel exposes the next decision actions after the primary one', (
 	screen.getByRole('button', { name: /Revisar deudas vencidas/ }).click()
 
 	assert.deepEqual(onOpenSection.mock.calls, [['debts']])
+})
+
+test('DashboardPanel preserves the operational summary and opens the analytical view on demand', () => {
+	render(
+		<DashboardPanel
+			birthdayAlerts={null}
+			canViewEconomy
+			dashboard={{
+				analytics: {
+					previous_series: { points: [] },
+					commercial_funnel: {},
+					customer_recurrence: {},
+					service_comparison: [],
+					weekly_workload: { weeks: [] },
+				},
+			}}
+			demoReadiness={null}
+			tasks={[]}
+			loading={false}
+			onDismissOnboardingStep={vi.fn()}
+			onOpenPaymentForOrder={vi.fn()}
+			onOpenSection={vi.fn()}
+			onOpenSettingsSection={vi.fn()}
+		/>,
+	)
+
+	const analyticsButton = screen.getByRole('button', { name: 'Análisis' })
+	assert.equal(analyticsButton.getAttribute('aria-pressed'), 'false')
+
+	fireEvent.click(analyticsButton)
+
+	assert.equal(analyticsButton.getAttribute('aria-pressed'), 'true')
+	assert.ok(screen.getByRole('heading', { name: 'Pulso comparativo' }))
 })
