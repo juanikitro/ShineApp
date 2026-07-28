@@ -17,6 +17,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Reservas se abren directamente en edición](docs/registro/cambios/2026-07-28-reservas-edicion-directa.md)
 - [Onboarding y trial: CTA comercial y contraste tematico](docs/registro/cambios/2026-07-28-onboarding-trial-cta-y-contraste.md)
 - [Dashboard: señales operativas accionables](docs/registro/cambios/2026-07-28-dashboard-senales-operativas-accionables.md)
+- [Dashboard: densidad equilibrada](docs/registro/cambios/2026-07-28-dashboard-densidad-equilibrada.md)
 - [Agenda: saldos diarios en una fila propia](docs/registro/cambios/2026-07-28-agenda-saldos-en-fila.md)
 
 ## 2026-07-27

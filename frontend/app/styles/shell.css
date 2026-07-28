@@ -3088,11 +3088,12 @@
   min-height: 0;
 }
 
-.dashboard-analytics-overview-grid {
-  align-items: start;
-  display: grid;
-  gap: var(--space-4);
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+.dashboard-analytics-pulse-panel .dashboard-analytics-trend-grid {
+  gap: var(--space-5);
+}
+
+.dashboard-analytics-capacity-panel {
+  min-width: 0;
 }
 
 .dashboard-analytics-ribbon {
@@ -3171,6 +3172,11 @@
   display: grid;
   gap: var(--space-5);
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-analytics-execution-stack {
+  display: grid;
+  gap: var(--space-5);
 }
 
 .dashboard-analytics-financial-grid {
@@ -3477,7 +3483,13 @@
   opacity: 0.7;
 }
 
-.dashboard-analytics-capacity-list,
+.dashboard-analytics-capacity-list {
+  align-items: stretch;
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
 .dashboard-analytics-funnel,
 .dashboard-analytics-workload,
 .dashboard-analytics-aging,
@@ -3511,9 +3523,9 @@
 .dashboard-analytics-capacity-row {
   align-items: center;
   display: grid;
-  gap: var(--space-3);
-  grid-template-columns: minmax(0, 1.2fr) minmax(96px, 0.7fr) minmax(180px, 1fr);
-  min-height: 62px;
+  gap: var(--space-2) var(--space-3);
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 0;
 }
 
 .dashboard-analytics-capacity-row--warning {
@@ -3530,6 +3542,10 @@
   display: grid;
   gap: 3px;
   min-width: 0;
+}
+
+.dashboard-analytics-capacity-status {
+  grid-column: 1 / -1;
 }
 
 .dashboard-analytics-capacity-place strong {
@@ -3990,7 +4006,8 @@
 }
 
 .dashboard-important-tasks {
-  align-self: start;
+  align-self: stretch;
+  align-content: start;
   display: grid;
   gap: var(--space-3);
   min-height: 0;
@@ -4116,10 +4133,10 @@
 }
 
 .dashboard-insight-grid {
-  align-items: start;
+  align-items: stretch;
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .dashboard-composition-grid {
@@ -4719,7 +4736,7 @@
 }
 
 .dashboard-next-action-grid {
-  align-items: start;
+  align-items: stretch;
   display: grid;
   gap: var(--space-3);
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5216,7 +5233,7 @@
 .dashboard-ranking-grid {
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
 }
 
 .dashboard-ranking-column {
@@ -7489,10 +7506,6 @@
 @media (max-width: 980px) {
   .dashboard-executive-grid,
   .dashboard-insight-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .dashboard-analytics-overview-grid {
     grid-template-columns: 1fr;
   }
 

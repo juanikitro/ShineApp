@@ -117,6 +117,39 @@ test('DashboardPanel exposes the next decision actions after the primary one', (
 	assert.deepEqual(onOpenSection.mock.calls, [['debts']])
 })
 
+test('DashboardPanel names an empty material ranking instead of leaving its card blank', () => {
+	render(
+		<DashboardPanel
+			birthdayAlerts={null}
+			canViewEconomy
+			dashboardView="summary"
+			dashboard={{
+				rankings: {
+					top_customers_by_billed: [
+						{
+							customer_id: 1,
+							customer_name: 'Cliente frecuente',
+							billed_total: 1200,
+							work_orders_count: 1,
+						},
+					],
+					top_materials_by_cost: [],
+				},
+			}}
+			demoReadiness={null}
+			tasks={[]}
+			loading={false}
+			onDismissOnboardingStep={vi.fn()}
+			onOpenPaymentForOrder={vi.fn()}
+			onOpenSection={vi.fn()}
+			onOpenSettingsSection={vi.fn()}
+		/>,
+	)
+
+	assert.ok(screen.getByRole('heading', { name: 'Rankings economicos' }))
+	assert.ok(screen.getByText('Sin materiales imputados en este período.'))
+})
+
 test('overdue reservations lead Now, preview three, and preserve After actions and important tasks', () => {
 	const onOpenOverdueReservations = vi.fn()
 	const onOpenPaymentForOrder = vi.fn()

@@ -1228,22 +1228,26 @@ export function DashboardPanel({
 												<span>Materiales por costo</span>
 											</div>
 											<div className="records dashboard-ranking-records">
-												{dashboardTopMaterialsByCost.map((item: AnyRecord) => (
-													<RecordCard
-														className="dashboard-ranking-record dashboard-sharerow"
-														key={item.material_id ?? item.material_name}
-													>
-														<div className="record-head">
-															<div>
-																<span>{item.material_name}</span>
-																<small>
-																	{quantity(item.quantity)} {item.unit}
-																</small>
+												{dashboardTopMaterialsByCost.length ? (
+													dashboardTopMaterialsByCost.map((item: AnyRecord) => (
+														<RecordCard
+															className="dashboard-ranking-record dashboard-sharerow"
+															key={item.material_id ?? item.material_name}
+														>
+															<div className="record-head">
+																<div>
+																	<span>{item.material_name}</span>
+																	<small>
+																		{quantity(item.quantity)} {item.unit}
+																	</small>
+																</div>
+																<strong>{money(item.estimated_total_cost)}</strong>{dashboardShareBar(item.estimated_total_cost, dashboardTopMaterialsMax)}
 															</div>
-															<strong>{money(item.estimated_total_cost)}</strong>{dashboardShareBar(item.estimated_total_cost, dashboardTopMaterialsMax)}
-														</div>
-													</RecordCard>
-												))}
+														</RecordCard>
+													))
+												) : (
+													<Empty text="Sin materiales imputados en este período." />
+												)}
 											</div>
 										</div>
 										{dashboardBySector.length ? (
