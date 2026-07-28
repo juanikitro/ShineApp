@@ -13,6 +13,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ## 2026-07-28
 - [Alta guiada sincronizada con Tareas](docs/registro/cambios/2026-07-28-tareas-alta-guiada.md)
 - [Servicios base por tipo principal de negocio](docs/registro/cambios/2026-07-28-servicios-base-por-tipo-negocio.md)
+- [Reservas vencidas en dashboard y Agenda](docs/registro/cambios/2026-07-28-reservas-vencidas-dashboard-agenda.md)
 - [Reservas se abren directamente en edición](docs/registro/cambios/2026-07-28-reservas-edicion-directa.md)
 - [Onboarding y trial: CTA comercial y contraste tematico](docs/registro/cambios/2026-07-28-onboarding-trial-cta-y-contraste.md)
 - [Dashboard: señales operativas accionables](docs/registro/cambios/2026-07-28-dashboard-senales-operativas-accionables.md)

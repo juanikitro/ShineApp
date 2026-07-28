@@ -44,7 +44,7 @@ import { type WorkingHoursEntry, DEFAULT_WORKING_HOURS } from '@/lib/scheduling-
 import { toastIconVariants, toastVariants } from '@/lib/motion-spec'
 
 type AnyRecord = Record<string, any>
-type ToastTone = 'success' | 'error'
+type ToastTone = 'success' | 'error' | 'attention'
 type ToastAction = {
 	label: string
 	title?: string
@@ -1685,7 +1685,12 @@ function NoticeToast({
 	toast: ToastNotice
 	onDismiss: (id: number) => void
 }) {
-	const Icon = toast.tone === 'success' ? CheckCircle2 : CircleAlert
+	const Icon =
+		toast.tone === 'success'
+			? CheckCircle2
+			: toast.tone === 'attention'
+				? CalendarClock
+				: CircleAlert
 	const role = toast.tone === 'error' ? 'alert' : 'status'
 	const [paused, setPaused] = useState(false)
 	const dismissRef = useRef(onDismiss)

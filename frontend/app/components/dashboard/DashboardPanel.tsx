@@ -52,6 +52,12 @@ import {
 	sectionMeta,
 } from '@/lib/page-support'
 import { serviceDisplayName } from '@/lib/service-display'
+import {
+	type OverdueReservation,
+	type OverdueReservationsLoadState,
+	overdueReservationCountText,
+	overdueReservationPreview,
+} from '@/lib/overdue-reservations'
 
 type DashboardPanelProps = {
 	birthdayAlerts: ReactNode
@@ -71,9 +77,12 @@ type DashboardPanelProps = {
 		stepId: DemoReadinessStepId,
 	) => Promise<unknown> | unknown
 	onOpenFirstPayment?: (workOrder: AnyRecord) => void
+	onOpenOverdueReservations?: () => void
 	onOpenPaymentForOrder: (workOrder: AnyRecord) => void
 	onOpenSection: (section: Section) => void
 	onOpenSettingsSection: (section: DemoReadinessSettingsSection) => void
+	overdueReservations?: OverdueReservation[]
+	overdueReservationsLoadState?: OverdueReservationsLoadState
 }
 
 type DashboardSuggestedAction = {
@@ -83,6 +92,7 @@ type DashboardSuggestedAction = {
 	onSelect: () => void
 	title: string
 	tone: 'attention' | 'neutral'
+	preview?: OverdueReservation[]
 }
 
 function dashboardCountText(count: number, singular: string, plural: string) {
@@ -150,10 +160,17 @@ export function DashboardPanel({
 	onCreateStarterServices,
 	onDismissOnboardingStep,
 	onOpenFirstPayment,
+	onOpenOverdueReservations,
 	onOpenPaymentForOrder,
 	onOpenSection,
 	onOpenSettingsSection,
+	overdueReservations = [],
+	overdueReservationsLoadState = 'idle',
 }: DashboardPanelProps) {
+	const dashboardOverdueReservations =
+		overdueReservationsLoadState === 'ready' ? overdueReservations : []
+	const dashboardOverdueReservationsCount =
+		dashboardOverdueReservations.length
 	const dashboardWorkStatusEntries = Object.entries(orderLabels)
 	const dashboardWorkStatusTotal = dashboardWorkStatusEntries.reduce(
 		(total, [key]) => total + numberValue(dashboard.work_orders_by_status?.[key]),
@@ -307,7 +324,8 @@ export function DashboardPanel({
 		dashboardCashflowIncomeTotal > 0 ||
 		dashboardCashflowExpenseTotal > 0 ||
 		dashboardOverdueDebtsTotal > 0 ||
-		dashboardEconomicAlerts.length > 0
+		dashboardEconomicAlerts.length > 0 ||
+		dashboardOverdueReservationsCount > 0
 	const dashboardEmptyPeriod =
 		String(dashboardDataQuality.state ?? '') === 'empty' &&
 		!dashboardHasBusinessActivity
@@ -322,6 +340,23 @@ export function DashboardPanel({
 		DashboardNextActionKey,
 		DashboardSuggestedAction
 	> = {
+		reviewOverdueReservations: {
+			title: 'Mantener la agenda al dia',
+			detail: overdueReservationCountText(
+				dashboardOverdueReservationsCount,
+			),
+			label: 'Ver todas',
+			icon: CalendarDays,
+			tone: 'attention',
+			preview: overdueReservationPreview(dashboardOverdueReservations),
+			onSelect: () => {
+				if (onOpenOverdueReservations) {
+					onOpenOverdueReservations()
+					return
+				}
+				onOpenSection('agenda')
+			},
+		},
 		collectOldestBalance: {
 			title: 'Cobrar saldo mas antiguo',
 			detail: 'Hay trabajos con saldo pendiente y accion directa de cobro.',
@@ -369,9 +404,12 @@ export function DashboardPanel({
 		selectDashboardNextActionKeys({
 			hasReceivable: dashboardFirstReceivableWorkOrder !== null,
 			overdueDebtsTotal: dashboardOverdueDebtsTotal,
+			overdueReservationsCount: dashboardOverdueReservationsCount,
 			workOrdersTotal: dashboardWorkOrdersTotal,
 		})
 	const dashboardNextAction = dashboardActionsByKey[dashboardNextActionKey]
+	const dashboardNextActionDisabled =
+		loading && dashboardNextActionKey === 'reviewOverdueReservations'
 	const dashboardFollowUpActions = dashboardFollowUpActionKeys
 		.slice(0, 2)
 		.map((key) => ({ key, ...dashboardActionsByKey[key] }))
@@ -526,12 +564,28 @@ export function DashboardPanel({
 										<div className="dashboard-next-action-copy">
 											<strong>{dashboardNextAction.title}</strong>
 											<span>{dashboardNextAction.detail}</span>
+											{dashboardNextAction.preview?.length ? (
+												<ul className="dashboard-overdue-preview">
+													{dashboardNextAction.preview.map((reservation) => (
+														<li key={reservation.id}>
+															<strong>
+																{reservation.customer_name || 'Cliente'}
+															</strong>
+															<span>
+																{reservation.vehicle_label || 'Vehiculo'} ·{' '}
+																{formatDateLabel(reservation.deadline)}
+															</span>
+														</li>
+													))}
+												</ul>
+											) : null}
 										</div>
 									</div>
 								</div>
 								<button
 									type="button"
 									className="ghost"
+									disabled={dashboardNextActionDisabled}
 									onClick={dashboardNextAction.onSelect}
 								>
 									{dashboardNextAction.label}
@@ -563,6 +617,19 @@ export function DashboardPanel({
 								onOpenTasks={() => onOpenSection('tasks')}
 							/>
 						</div>
+						{overdueReservationsLoadState === 'ready' &&
+						dashboardOverdueReservationsCount === 0 ? (
+							<button
+								type="button"
+								className="ghost dashboard-agenda-current"
+								aria-label="Agenda al dia. Abrir Agenda"
+								onClick={() => onOpenSection('agenda')}
+							>
+								<CalendarDays size={16} aria-hidden="true" />
+								<strong>Agenda al dia</strong>
+								<span>No hay reservas vencidas pendientes.</span>
+							</button>
+						) : null}
 					</Panel>
 					) : null}
 					{dashboardView === 'summary' ? (

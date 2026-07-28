@@ -14,6 +14,22 @@ test('selectDashboardNextActionKeys orders collection, overdue debt, and agenda 
 	)
 })
 
+test('overdue reservations replace the agenda action and lead the existing Now and After lane', () => {
+	assert.deepEqual(
+		selectDashboardNextActionKeys({
+			hasReceivable: true,
+			overdueDebtsTotal: 1200,
+			overdueReservationsCount: 4,
+			workOrdersTotal: 4,
+		}),
+		[
+			'reviewOverdueReservations',
+			'collectOldestBalance',
+			'reviewOverdueDebts',
+		],
+	)
+})
+
 test('selectDashboardNextActionKeys keeps overdue debt before creating activity', () => {
 	assert.deepEqual(
 		selectDashboardNextActionKeys({

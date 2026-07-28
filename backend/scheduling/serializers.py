@@ -1,5 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from core.models import BusinessProfile
@@ -7,6 +8,7 @@ from core.permissions import context_can_view_economy
 from core.serializers import BusinessScopedSerializerMixin
 from finance.services import maybe_auto_charge_on_delivery
 
+from .deadlines import reservation_operational_deadline
 from .models import (
     Reservation,
     ReservationItem,
@@ -48,6 +50,156 @@ class ReservationItemSerializer(BusinessScopedSerializerMixin, serializers.Model
         if value is not None and value < 0:
             raise serializers.ValidationError("El precio no puede ser negativo.")
         return value
+
+
+class OverdueReservationItemSerializer(serializers.ModelSerializer):
+    service_name = serializers.CharField(source="service.name", read_only=True)
+    service_icon = serializers.CharField(source="service.icon", read_only=True)
+
+    class Meta:
+        model = ReservationItem
+        fields = [
+            "id",
+            "service",
+            "service_name",
+            "service_icon",
+            "description",
+        ]
+
+
+class OverduePaymentWorkOrderSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    customer = serializers.IntegerField()
+    customer_name = serializers.CharField()
+    vehicle = serializers.IntegerField()
+    vehicle_label = serializers.CharField()
+    service = serializers.IntegerField()
+    service_name = serializers.CharField()
+    service_icon = serializers.CharField(allow_blank=True)
+    total_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    paid_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    balance_due = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class OverdueReservationSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source="customer.name", read_only=True)
+    vehicle_label = serializers.SerializerMethodField()
+    service_name = serializers.SerializerMethodField()
+    service_icon = serializers.CharField(source="service.icon", read_only=True)
+    items = serializers.SerializerMethodField()
+    deadline = serializers.SerializerMethodField()
+    days_overdue = serializers.SerializerMethodField()
+    delivery_pending = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Reservation
+        fields = [
+            "id",
+            "customer",
+            "customer_name",
+            "vehicle",
+            "vehicle_label",
+            "service",
+            "service_name",
+            "service_icon",
+            "items",
+            "day",
+            "exit_day",
+            "start_time",
+            "exit_time",
+            "estimated_duration_minutes",
+            "status",
+            "notes",
+            "deadline",
+            "days_overdue",
+            "delivery_pending",
+        ]
+
+    @extend_schema_field(serializers.CharField())
+    def get_vehicle_label(self, obj):
+        return str(obj.vehicle)
+
+    @extend_schema_field(serializers.CharField())
+    def get_service_name(self, obj):
+        return obj.service_names_display
+
+    @extend_schema_field(OverdueReservationItemSerializer(many=True))
+    def get_items(self, obj):
+        return OverdueReservationItemSerializer(obj.service_items, many=True).data
+
+    @extend_schema_field(serializers.DateField())
+    def get_deadline(self, obj):
+        return reservation_operational_deadline(obj).isoformat()
+
+    @extend_schema_field(serializers.IntegerField(min_value=0))
+    def get_days_overdue(self, obj):
+        return max(
+            (self.context["today"] - reservation_operational_deadline(obj)).days,
+            0,
+        )
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_delivery_pending(self, obj):
+        return obj.status != Reservation.Status.DELIVERED
+
+
+class OverdueReservationEconomySerializer(OverdueReservationSerializer):
+    payment_pending = serializers.SerializerMethodField()
+    balance_due = serializers.SerializerMethodField()
+    payment_work_order = serializers.SerializerMethodField()
+
+    class Meta(OverdueReservationSerializer.Meta):
+        fields = [
+            *OverdueReservationSerializer.Meta.fields,
+            "payment_pending",
+            "balance_due",
+            "payment_work_order",
+        ]
+
+    def _payment_context(self, instance):
+        try:
+            order = instance.work_order
+        except (AttributeError, ObjectDoesNotExist):
+            order = None
+        metrics = (
+            self.context.get("work_order_financial_metrics_map", {}).get(order.id)
+            if order is not None
+            else None
+        )
+        paid_amount = metrics["paid_amount"] if metrics else 0
+        balance_due = metrics["balance_due"] if metrics else 0
+        return order, paid_amount, balance_due
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_payment_pending(self, obj):
+        _, _, balance_due = self._payment_context(obj)
+        return balance_due > 0
+
+    @extend_schema_field(
+        serializers.DecimalField(max_digits=12, decimal_places=2)
+    )
+    def get_balance_due(self, obj):
+        _, _, balance_due = self._payment_context(obj)
+        return str(balance_due)
+
+    @extend_schema_field(OverduePaymentWorkOrderSerializer(allow_null=True))
+    def get_payment_work_order(self, obj):
+        order, paid_amount, balance_due = self._payment_context(obj)
+        if order is None:
+            return None
+        return {
+            "id": order.id,
+            "customer": order.customer_id,
+            "customer_name": order.customer.name,
+            "vehicle": order.vehicle_id,
+            "vehicle_label": str(order.vehicle),
+            "service": order.service_id,
+            "service_name": order.service.name,
+            "service_icon": order.service.icon,
+            "total_amount": str(order.total_amount),
+            "paid_amount": str(paid_amount),
+            "balance_due": str(balance_due),
+        }
 
 
 class ReservationMaterialOverrideSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer):

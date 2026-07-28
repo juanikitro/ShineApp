@@ -4781,6 +4781,172 @@
   border-color: var(--status-pending-border);
 }
 
+.dashboard-overdue-preview {
+  display: grid;
+  gap: var(--space-1);
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+}
+
+.dashboard-overdue-preview li {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.dashboard-overdue-preview li strong {
+  font-size: var(--text-sm);
+}
+
+.dashboard-overdue-preview li span {
+  font-size: var(--text-xs);
+}
+
+.dashboard-agenda-current {
+  align-items: center;
+  color: var(--color-ready);
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  width: 100%;
+}
+
+.dashboard-agenda-current span {
+  color: var(--shop-ink-soft);
+  font-size: var(--text-sm);
+}
+
+.overdue-reservations-modal {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.overdue-reservations-intro {
+  color: var(--shop-ink-soft);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.overdue-reservations-list {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: var(--space-1);
+}
+
+.overdue-reservation-card {
+  align-items: stretch;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0;
+  position: relative;
+}
+
+.overdue-reservation-row-target {
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-md);
+  inset: 0;
+  padding: 0;
+  position: absolute;
+  width: 100%;
+  z-index: 1;
+}
+
+.overdue-reservation-row-target:hover,
+.overdue-reservation-row-target:focus-visible {
+  background: var(--color-primary-light);
+}
+
+.overdue-reservation-main {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  pointer-events: none;
+  position: relative;
+}
+
+.overdue-reservation-icon {
+  align-items: center;
+  background: var(--status-pending-bg);
+  border: 1px solid var(--status-pending-border);
+  border-radius: var(--radius-sm);
+  color: var(--status-pending-text);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: var(--space-8);
+  justify-content: center;
+  width: var(--space-8);
+}
+
+.overdue-reservation-copy {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.overdue-reservation-copy > strong {
+  color: var(--shop-ink);
+}
+
+.overdue-reservation-copy > span,
+.overdue-reservation-copy > small {
+  color: var(--shop-ink-soft);
+}
+
+.overdue-reservation-copy > small {
+  font-size: var(--text-xs);
+}
+
+.overdue-reservation-side {
+  align-content: center;
+  display: grid;
+  gap: var(--space-2);
+  justify-items: end;
+  padding: var(--space-3);
+  pointer-events: none;
+  position: relative;
+}
+
+.overdue-reservation-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}
+
+.overdue-signal {
+  border: 1px solid var(--status-pending-border);
+  border-radius: var(--radius-full);
+  color: var(--status-pending-text);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: var(--space-1) var(--space-2);
+}
+
+.overdue-signal--payment {
+  background: var(--status-pending-bg);
+}
+
+.overdue-reservation-payment {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.overdue-reservation-payment > strong {
+  color: var(--shop-danger);
+  font-size: var(--text-sm);
+}
+
+.overdue-reservation-payment button {
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
+}
+
 .metric--attention {
   background: var(--status-pending-bg);
   border-color: rgba(234, 88, 12, 0.28);
@@ -7046,6 +7212,10 @@
   background: var(--shop-danger);
 }
 
+.toast-notice--attention .toast-icon {
+  background: var(--color-warning);
+}
+
 .toast-content {
   display: grid;
   gap: var(--space-1);
@@ -7586,6 +7756,19 @@
   .whatsapp-setup-panel button,
   .customer-guidance button {
     width: 100%;
+  }
+
+  .overdue-reservation-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .overdue-reservation-side {
+    justify-items: start;
+    padding-top: 0;
+  }
+
+  .overdue-reservation-signals {
+    justify-content: flex-start;
   }
 
   .demo-readiness-step {
