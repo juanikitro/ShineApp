@@ -127,7 +127,11 @@ test('returns a ready checklist when every commercial surface is configured', ()
 
 test('uses linked onboarding task states instead of recalculating the dashboard checklist', () => {
 	const readiness = buildDemoReadiness({
-		businessProfile: { name: 'Negocio', contact_phone: '+54 11 5555' },
+		businessProfile: {
+			name: 'Negocio',
+			contact_phone: '+54 11 5555',
+			business_type: 'lavadero',
+		},
 		businessSlug: 'negocio',
 		onboardingTasks: [
 			{ onboarding_step_id: 'business', status: 'done' },
@@ -141,6 +145,23 @@ test('uses linked onboarding task states instead of recalculating the dashboard 
 
 	assert.equal(readiness.completedCount, 5)
 	assert.equal(readiness.firstPendingStep?.id, 'services')
+})
+
+test('does not let completed onboarding tasks bypass business type or starter pack', () => {
+	const readiness = buildDemoReadiness({
+		businessProfile: {
+			name: 'Negocio',
+			contact_phone: '+54 11 5555',
+		},
+		businessSlug: 'negocio',
+		onboardingTasks: [
+			{ onboarding_step_id: 'business', status: 'done' },
+			{ onboarding_step_id: 'services', status: 'done' },
+		],
+	})
+
+	assert.equal(readiness.steps.find((step) => step.id === 'business')?.done, false)
+	assert.equal(readiness.steps.find((step) => step.id === 'services')?.done, false)
 })
 
 test('keeps business setup pending until its main type is selected', () => {

@@ -59,6 +59,7 @@ def test_onboarding_states_follow_real_business_facts(default_business):
     profile = BusinessProfile.get_solo(default_business)
     profile.name = "Taller real"
     profile.contact_phone = "+54 11 5555 5555"
+    profile.business_type = BusinessProfile.BusinessType.LAVADERO
     profile.public_landing_enabled = True
     profile.allow_public_booking_requests = True
     profile.save()
@@ -66,14 +67,14 @@ def test_onboarding_states_follow_real_business_facts(default_business):
         sector.key: sector
         for sector in default_business.sectors.filter(is_active=True)
     }
-    for key, name in {
-        "lavadero": "Lavado real",
-        "detailing": "Detailing real",
-        "lubricentro": "Cambio de aceite real",
-    }.items():
+    for name in (
+        "Lavado exterior express",
+        "Lavado completo",
+        "Lavado premium",
+    ):
         Service.objects.create(
             business=default_business,
-            sector=sectors[key],
+            sector=sectors["lavadero"],
             name=name,
             base_price=Decimal("1000"),
         )
@@ -104,6 +105,34 @@ def test_onboarding_states_follow_real_business_facts(default_business):
     states = onboarding_states(default_business)
 
     assert all(states.values())
+
+
+def test_onboarding_states_require_the_selected_starter_pack(default_business):
+    profile = BusinessProfile.get_solo(default_business)
+    profile.name = "Taller real"
+    profile.contact_phone = "+54 11 5555 5555"
+    profile.business_type = BusinessProfile.BusinessType.LAVADERO
+    profile.save()
+    sectors = {
+        sector.key: sector
+        for sector in default_business.sectors.filter(is_active=True)
+    }
+    for name in (
+        "Lavado exterior express",
+        "Lavado completo",
+        "Lavado premium",
+    ):
+        Service.objects.create(
+            business=default_business,
+            sector=sectors["detailing"],
+            name=name,
+            base_price=Decimal("1000"),
+        )
+
+    states = onboarding_states(default_business)
+
+    assert states["business"] is True
+    assert states["services"] is False
 
 
 def test_dismissed_onboarding_step_soft_deletes_its_task(default_business):
