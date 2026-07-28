@@ -1,8 +1,12 @@
 'use client'
 
+import { useId, useState } from 'react'
+
 import {
 	CalendarDays,
 	CheckCircle2,
+	ChevronDown,
+	ChevronUp,
 	Circle,
 	CreditCard,
 	Globe2,
@@ -66,6 +70,8 @@ export function DemoReadinessPanel({
 	onOpenSettingsSection,
 }: DemoReadinessPanelProps) {
 	const { requestConfirm, ConfirmDialog } = useConfirmDialog()
+	const [expanded, setExpanded] = useState(true)
+	const contentId = useId()
 
 	async function dismissStep(step: DemoReadinessStep) {
 		const confirmed = await requestConfirm({
@@ -147,9 +153,6 @@ export function DemoReadinessPanel({
 		firstOperationActive &&
 			((agendaStep && !agendaStep.done) || (cashStep && !cashStep.done)),
 	)
-	const showCashOperationAction = Boolean(
-		cashStep && (cashStep.done || agendaStep?.done || !agendaStep),
-	)
 	const starterServicesAvailable = Boolean(
 		servicesStep &&
 			!servicesStep.done &&
@@ -204,7 +207,42 @@ export function DemoReadinessPanel({
 			title={title}
 			subtitle={subtitle}
 			actions={
-				primaryStep && !showFirstOperationGuide ? (
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					className="demo-readiness-collapse"
+					aria-controls={contentId}
+					aria-expanded={expanded}
+					leadingIcon={expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+					onClick={() => setExpanded((value) => !value)}
+				>
+					{expanded ? 'Contraer alta guiada' : 'Expandir alta guiada'}
+				</Button>
+			}
+		>
+			<div id={contentId} hidden={!expanded}>
+				<div className="demo-readiness-summary">
+					<div className="demo-readiness-meter">
+						<div className="demo-readiness-meter-copy">
+							<span>{meterLabel}</span>
+							<strong>{stepProgressText(readiness)}</strong>
+						</div>
+						<div
+							className="demo-readiness-progress"
+							role="progressbar"
+							aria-label="Preparacion de demo comercial"
+							aria-valuemin={0}
+							aria-valuemax={100}
+							aria-valuenow={readiness.percent}
+						>
+							<span style={{ width: `${readiness.percent}%` }} />
+						</div>
+					</div>
+					<div className="demo-readiness-next">
+						<div className="demo-readiness-next-head">
+							<span>Siguiente paso</span>
+							{primaryStep ? (
 					<Button
 						type="button"
 						variant="primary"
@@ -215,28 +253,8 @@ export function DemoReadinessPanel({
 					>
 						{primaryLabel}
 					</Button>
-				) : null
-			}
-		>
-			<div className="demo-readiness-summary">
-				<div className="demo-readiness-meter">
-					<div className="demo-readiness-meter-copy">
-						<span>{meterLabel}</span>
-						<strong>{stepProgressText(readiness)}</strong>
-					</div>
-					<div
-						className="demo-readiness-progress"
-						role="progressbar"
-						aria-label="Preparacion de demo comercial"
-						aria-valuemin={0}
-						aria-valuemax={100}
-						aria-valuenow={readiness.percent}
-					>
-						<span style={{ width: `${readiness.percent}%` }} />
-					</div>
-				</div>
-				<div className="demo-readiness-next">
-					<span>Siguiente paso</span>
+							) : null}
+						</div>
 					<strong>{readiness.nextStepHint}</strong>
 					<p>{readiness.channelHint}</p>
 				</div>
@@ -250,12 +268,14 @@ export function DemoReadinessPanel({
 						<div>
 							<strong>Servicios base sugeridos</strong>
 							<p>
-								Crea una base inicial para lavadero, detailing y lubricentro.
-								Despues podes editar precios, duracion y detalle.
+								{starterServicesPlan.requiresBusinessType
+									? 'Elegí primero el tipo principal en Configuración > Negocio para habilitar su pack.'
+									: 'Crea los tres servicios del tipo principal. Despues podes editar precios, duracion y detalle.'}
 							</p>
 						</div>
 					</div>
-					<div className="demo-readiness-starter-services">
+					{starterServicesPlan.templates.length ? (
+						<div className="demo-readiness-starter-services">
 						{starterServicesPlan.templates.map((template) => {
 							const existing = starterServicesPlan.existingTemplates.some(
 								(item) => item.id === template.id,
@@ -280,8 +300,10 @@ export function DemoReadinessPanel({
 								</span>
 							)
 						})}
-					</div>
-					<Button
+						</div>
+					) : null}
+					{!starterServicesPlan.requiresBusinessType ? (
+						<Button
 						type="button"
 						variant={starterServicesPlan.drafts.length ? 'primary' : 'ghost'}
 						size="sm"
@@ -296,7 +318,8 @@ export function DemoReadinessPanel({
 						{starterServicesPlan.drafts.length
 							? `Crear ${starterServicesPlan.drafts.length} servicios base`
 							: 'Revisar servicios'}
-					</Button>
+						</Button>
+					) : null}
 				</div>
 			) : null}
 			{showFirstOperationGuide ? (
@@ -312,30 +335,6 @@ export function DemoReadinessPanel({
 								y Dashboard queden conectados desde el primer uso.
 							</p>
 						</div>
-					</div>
-					<div className="demo-readiness-operation-actions">
-						{agendaStep ? (
-							<Button
-								type="button"
-								variant={agendaStep.done ? 'ghost' : 'primary'}
-								size="sm"
-								leadingIcon={<CalendarDays size={16} />}
-								onClick={() => runStepAction(agendaStep)}
-							>
-								{agendaStep.done ? 'Ver agenda' : actionLabelForStep(agendaStep)}
-							</Button>
-						) : null}
-						{showCashOperationAction && cashStep ? (
-							<Button
-								type="button"
-								variant={cashStep.done ? 'ghost' : 'primary'}
-								size="sm"
-								leadingIcon={<CreditCard size={16} />}
-								onClick={() => runStepAction(cashStep)}
-							>
-								{cashStep.done ? 'Ver caja' : actionLabelForStep(cashStep)}
-							</Button>
-						) : null}
 					</div>
 				</div>
 			) : null}
@@ -357,14 +356,6 @@ export function DemoReadinessPanel({
 								<strong>{step.title}</strong>
 								<span>{step.description}</span>
 							</div>
-							<span className="demo-readiness-step-status">
-								{step.done ? (
-									<CheckCircle2 size={15} aria-hidden="true" />
-								) : (
-									<Circle size={15} aria-hidden="true" />
-								)}
-								{step.done ? 'Listo' : 'Pendiente'}
-							</span>
 							<Button
 								type="button"
 								variant={step.done ? 'ghost' : 'primary'}
@@ -374,6 +365,14 @@ export function DemoReadinessPanel({
 							>
 								{stepListActionLabel(step)}
 							</Button>
+							<span className="demo-readiness-step-status">
+								{step.done ? (
+									<CheckCircle2 size={15} aria-hidden="true" />
+								) : (
+									<Circle size={15} aria-hidden="true" />
+								)}
+								{step.done ? 'Listo' : 'Pendiente'}
+							</span>
 							<Button
 								type="button"
 								variant="ghost"
@@ -387,6 +386,7 @@ export function DemoReadinessPanel({
 						</div>
 					)
 				})}
+			</div>
 			</div>
 			<ConfirmDialog />
 		</Panel>

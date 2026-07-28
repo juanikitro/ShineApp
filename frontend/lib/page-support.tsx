@@ -222,6 +222,7 @@ function blankBusinessForm() {
 		name: '',
 		cuit: '',
 		vat_condition: '',
+		business_type: '',
 		contact_phone: '',
 		contact_email: '',
 		address: '',

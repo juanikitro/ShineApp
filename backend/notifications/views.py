@@ -12,6 +12,7 @@ from core.models import BusinessAccount, BusinessHours, BusinessProfile
 from core.permissions import EmployerOnly, business_from_request, file_url
 from core.request_ip import get_client_ip
 from scheduling.models import Reservation
+from tasks.onboarding import schedule_onboarding_sync
 
 from .models import PublicRequest
 from .serializers import (
@@ -264,6 +265,7 @@ class PublicLandingRequestCreateView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         public_request = serializer.save()
+        schedule_onboarding_sync(business)
         send_new_public_request_notification(public_request)
         send_business_push_notification(public_request)
         return response.Response(

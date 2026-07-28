@@ -13,6 +13,7 @@ function baseForm(overrides: Record<string, unknown> = {}) {
 		name: 'King Shine',
 		cuit: '',
 		vat_condition: '',
+		business_type: '',
 		contact_phone: '',
 		contact_email: '',
 		address: '',
@@ -67,4 +68,17 @@ test('BusinessSettingsPanel propaga el cambio del enlace de Google Maps', async 
 	renderPanel({ onPatchBusinessForm: patch })
 	await user.type(screen.getByLabelText('Enlace de Google Maps'), 'h')
 	assert.deepEqual(patch.mock.calls[0][0], { maps_url: 'h' })
+})
+
+test('BusinessSettingsPanel propaga el tipo principal elegido', async () => {
+	const user = userEvent.setup()
+	const patch = vi.fn()
+	renderPanel({ onPatchBusinessForm: patch })
+
+	await user.selectOptions(
+		screen.getByLabelText('Tipo principal del negocio'),
+		'lubricentro',
+	)
+
+	assert.deepEqual(patch.mock.calls[0][0], { business_type: 'lubricentro' })
 })

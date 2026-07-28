@@ -581,6 +581,9 @@ class BusinessProfileView(APIView):
                     )
 
         realignment = realign_reservations_to_profile(business, profile, previous_flags)
+        from tasks.onboarding import schedule_onboarding_sync
+
+        schedule_onboarding_sync(business)
         record_audit_event(
             request=request,
             action="update",
