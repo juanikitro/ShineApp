@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from catalog.models import Service
 from catalog.sector_defaults import ensure_default_sectors
+from core.models import BusinessAccount
 from customers.models import Customer, Vehicle
 from finance.models import Payment
 from quotes.models import Quote, QuoteVehicleLine
@@ -230,6 +231,147 @@ def test_dashboard_summary_exposes_truthful_analytics_from_existing_records(
 
 
 @pytest.mark.django_db
+def test_dashboard_capacity_occupancy_uses_configured_capacity_period_and_business_scope(
+    api_client, default_business
+):
+    sectors = ensure_default_sectors(default_business)
+    sectors["lavadero"].default_capacity = 2
+    sectors["lavadero"].save(update_fields=["default_capacity", "updated_at"])
+    sectors["detailing"].default_capacity = 4
+    sectors["detailing"].save(update_fields=["default_capacity", "updated_at"])
+    sectors["lubricentro"].default_capacity = 0
+    sectors["lubricentro"].save(update_fields=["default_capacity", "updated_at"])
+    wash_service = Service.objects.create(
+        business=default_business,
+        name="Lavado",
+        sector=sectors["lavadero"],
+        base_price=Decimal("100.00"),
+    )
+    detailing_service = Service.objects.create(
+        business=default_business,
+        name="Detailing",
+        sector=sectors["detailing"],
+        base_price=Decimal("200.00"),
+    )
+    zero_capacity_service = Service.objects.create(
+        business=default_business,
+        name="Lubricentro sin cupo",
+        sector=sectors["lubricentro"],
+        base_price=Decimal("150.00"),
+    )
+    customer = Customer.objects.create(business=default_business, name="Cliente propio")
+    vehicle = Vehicle.objects.create(
+        business=default_business,
+        customer=customer,
+        license_plate="FF666FF",
+        brand="Ford",
+        model="Ka",
+    )
+    for status in (
+        Reservation.Status.PENDING,
+        Reservation.Status.DELIVERED,
+        Reservation.Status.CANCELED,
+    ):
+        Reservation.objects.create(
+            business=default_business,
+            customer=customer,
+            vehicle=vehicle,
+            service=wash_service,
+            sector=wash_service.sector,
+            day=date(2026, 7, 3),
+            status=status,
+        )
+    Reservation.objects.create(
+        business=default_business,
+        customer=customer,
+        vehicle=vehicle,
+        service=detailing_service,
+        sector=detailing_service.sector,
+        day=date(2026, 7, 4),
+        status=Reservation.Status.CONFIRMED,
+    )
+    Reservation.objects.create(
+        business=default_business,
+        customer=customer,
+        vehicle=vehicle,
+        service=zero_capacity_service,
+        sector=zero_capacity_service.sector,
+        day=date(2026, 7, 5),
+        status=Reservation.Status.CONFIRMED,
+    )
+    Reservation.objects.create(
+        business=default_business,
+        customer=customer,
+        vehicle=vehicle,
+        service=wash_service,
+        sector=wash_service.sector,
+        day=date(2026, 6, 30),
+        status=Reservation.Status.CONFIRMED,
+    )
+
+    other_business = BusinessAccount.objects.create(name="Otro negocio", slug="otro-dashboard")
+    other_sectors = ensure_default_sectors(other_business)
+    other_service = Service.objects.create(
+        business=other_business,
+        name="Servicio ajeno",
+        sector=other_sectors["lavadero"],
+        base_price=Decimal("300.00"),
+    )
+    other_customer = Customer.objects.create(business=other_business, name="Cliente ajeno")
+    other_vehicle = Vehicle.objects.create(
+        business=other_business,
+        customer=other_customer,
+        license_plate="GG777GG",
+        brand="Fiat",
+        model="Cronos",
+    )
+    Reservation.objects.create(
+        business=other_business,
+        customer=other_customer,
+        vehicle=other_vehicle,
+        service=other_service,
+        sector=other_service.sector,
+        day=date(2026, 7, 3),
+        status=Reservation.Status.CONFIRMED,
+    )
+
+    response = api_client.get(
+        reverse("dashboard-summary"),
+        {"from": "2026-07-01", "to": "2026-07-07"},
+    )
+
+    assert response.status_code == 200
+    occupancy = response.data["analytics"]["capacity_occupancy"]
+    assert occupancy["unit"] == "reservation"
+    assert occupancy["from"] == "2026-07-01"
+    assert occupancy["to"] == "2026-07-07"
+    assert occupancy["sectors_count"] == 3
+    assert occupancy["active_statuses"] == list(Reservation.active_statuses())
+    rows = {(row["date"], row["sector_name"]): row for row in occupancy["sector_days"]}
+    assert set(rows) == {
+        ("2026-07-03", "Lavadero"),
+        ("2026-07-04", "Detailing"),
+        ("2026-07-05", "Lubricentro"),
+    }
+    assert rows[("2026-07-03", "Lavadero")] == {
+        "date": "2026-07-03",
+        "sector_id": sectors["lavadero"].id,
+        "sector_name": "Lavadero",
+        "used_slots": 2,
+        "capacity": 2,
+        "available_slots": 0,
+        "occupancy_rate": Decimal("100.00"),
+    }
+    assert rows[("2026-07-04", "Detailing")]["used_slots"] == 1
+    assert rows[("2026-07-04", "Detailing")]["capacity"] == 4
+    assert rows[("2026-07-04", "Detailing")]["available_slots"] == 3
+    assert rows[("2026-07-04", "Detailing")]["occupancy_rate"] == Decimal("25.00")
+    assert rows[("2026-07-05", "Lubricentro")]["capacity"] == 0
+    assert rows[("2026-07-05", "Lubricentro")]["available_slots"] == 0
+    assert rows[("2026-07-05", "Lubricentro")]["occupancy_rate"] is None
+
+
+@pytest.mark.django_db
 def test_dashboard_analytics_preserves_empty_periods_and_partial_group_quotes(
     api_client, default_business
 ):
@@ -310,6 +452,14 @@ def test_dashboard_analytics_preserves_empty_periods_and_partial_group_quotes(
         "new_customers_count": 0,
         "repeat_rate": Decimal("0.00"),
     }
+    assert empty_analytics["capacity_occupancy"] == {
+        "unit": "reservation",
+        "from": "2026-08-01",
+        "to": "2026-08-31",
+        "sectors_count": 3,
+        "active_statuses": list(Reservation.active_statuses()),
+        "sector_days": [],
+    }
     assert all(
         row["entered_count"] == 0
         for row in empty_analytics["weekly_workload"]["weeks"]
@@ -317,3 +467,33 @@ def test_dashboard_analytics_preserves_empty_periods_and_partial_group_quotes(
     previous_only_service = empty_analytics["service_comparison"][0]
     assert previous_only_service["current"]["margin_rate"] is None
     assert previous_only_service["margin_rate_delta_pp"] is None
+
+
+@pytest.mark.django_db
+def test_dashboard_capacity_occupancy_reports_missing_sectors_honestly(
+    api_client, default_business
+):
+    default_business.sectors.update(is_active=False)
+
+    response = api_client.get(
+        reverse("dashboard-summary"),
+        {"from": "2026-07-01", "to": "2026-07-07"},
+    )
+
+    assert response.status_code == 200
+    assert response.data["analytics"]["capacity_occupancy"] == {
+        "unit": "reservation",
+        "from": "2026-07-01",
+        "to": "2026-07-07",
+        "sectors_count": 0,
+        "active_statuses": list(Reservation.active_statuses()),
+        "sector_days": [],
+    }
+
+
+@pytest.mark.django_db
+def test_dashboard_analytics_remains_hidden_without_economy_permission(employee_client):
+    response = employee_client.get(reverse("dashboard-summary"))
+
+    assert response.status_code == 200
+    assert "analytics" not in response.data

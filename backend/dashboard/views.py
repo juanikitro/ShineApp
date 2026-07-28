@@ -9,6 +9,7 @@ from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from catalog.models import Sector
 from core.permissions import business_from_request, can_view_economy
 from customers.birthdays import upcoming_birthday_customers
 from customers.models import Customer
@@ -19,6 +20,7 @@ from finance.models import CashMovement, Payment
 from fixed_expenses.models import FixedExpenseOccurrence
 from inventory.models import MaterialConsumption, MaterialPurchase, StockMovement, StockMovementLine
 from quotes.models import Quote
+from scheduling.models import Reservation
 from workorders.metrics import build_work_order_financial_metrics
 from workorders.models import WorkOrder
 
@@ -888,6 +890,70 @@ def customer_recurrence_for_period(business, date_from, date_to):
     }
 
 
+def capacity_occupancy_for_period(business, date_from, date_to):
+    """Return occupied sector-days using the same capacity rules as scheduling."""
+    sectors = list(
+        Sector.objects.filter(business=business, is_active=True).order_by("order", "name")
+    )
+    active_statuses = list(Reservation.active_statuses())
+    result = {
+        "unit": "reservation",
+        "from": date_from.isoformat(),
+        "to": date_to.isoformat(),
+        "sectors_count": len(sectors),
+        "active_statuses": active_statuses,
+        "sector_days": [],
+    }
+    if not sectors:
+        return result
+
+    sectors_by_id = {sector.id: sector for sector in sectors}
+    occupied_sector_days = (
+        Reservation.objects.filter(
+            business=business,
+            day__gte=date_from,
+            day__lte=date_to,
+            sector_id__in=sectors_by_id,
+            status__in=active_statuses,
+        )
+        .values("day", "sector_id")
+        .annotate(used_slots=Count("id"))
+        .order_by("day", "sector_id")
+    )
+    for row in occupied_sector_days:
+        sector = sectors_by_id[row["sector_id"]]
+        capacity = max(
+            int(
+                Reservation.capacity_for_day(
+                    row["day"],
+                    business=business,
+                    sector=sector,
+                )
+                or 0
+            ),
+            0,
+        )
+        used_slots = row["used_slots"]
+        result["sector_days"].append(
+            {
+                "date": row["day"].isoformat(),
+                "sector_id": sector.id,
+                "sector_name": sector.name,
+                "used_slots": used_slots,
+                "capacity": capacity,
+                "available_slots": max(capacity - used_slots, 0),
+                "occupancy_rate": (
+                    (Decimal(used_slots) * Decimal("100") / Decimal(capacity)).quantize(
+                        Decimal("0.01")
+                    )
+                    if capacity
+                    else None
+                ),
+            }
+        )
+    return result
+
+
 def weekly_workload_for_period(business, date_from, date_to):
     """Bucket entered work orders by week and show each order's current status."""
     total_days = (date_to - date_from).days + 1
@@ -1241,6 +1307,7 @@ class DashboardSummaryView(APIView):
             ),
             "commercial_funnel": commercial_funnel_for_period(business, date_from, date_to),
             "customer_recurrence": customer_recurrence_for_period(business, date_from, date_to),
+            "capacity_occupancy": capacity_occupancy_for_period(business, date_from, date_to),
             "weekly_workload": weekly_workload_for_period(business, date_from, date_to),
         }
         debt_summary = debt_timing_summary(business, today)
