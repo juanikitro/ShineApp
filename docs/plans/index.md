@@ -32,6 +32,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Descarte definitivo de pasos de alta guiada](2026-07-21-onboarding-step-dismissal-design.md)
 - [Dashboard: cabina analitica del periodo](2026-07-27-dashboard-analytic-canvas-design.md)
 - [Dashboard: cabina de dos velocidades](2026-07-28-dashboard-cabina-dos-velocidades-design.md)
+- [Dashboard: densidad equilibrada sin vacíos](2026-07-28-dashboard-density-balance-design.md)
 - [Reservas vencidas en dashboard y Agenda](2026-07-28-reservas-vencidas-dashboard-agenda-design.md)
 - [Reservas: apertura directa en edición](2026-07-28-reservation-direct-edit-design.md)
 - [SearchSelect: foco de busqueda en desktop](2026-07-28-search-select-desktop-focus-design.md)
