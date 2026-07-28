@@ -23,3 +23,11 @@ QUE hace la app cuando pasa un evento. Vive en `WhatsAppAutomationRule.dispatch`
 ## Reserva hija
 
 Reserva individual creada desde una linea de auto de una cotizacion grupal. Conserva su propio cupo, solapamiento, trabajo, deuda y cobro; no existe cobro grupal en este modelo.
+
+## Fecha limite operativa de una reserva
+
+Ultimo dia acordado para que el vehiculo permanezca en el negocio. Coincide con la fecha de egreso cuando fue informada; en una reserva de un solo dia, coincide con la fecha reservada.
+
+## Reserva vencida
+
+Reserva cuya fecha limite operativa ya paso y que todavia no fue entregada o no esta totalmente cobrada. Deja de estar vencida solo cuando ambas condiciones se cumplen; las reservas canceladas no participan.

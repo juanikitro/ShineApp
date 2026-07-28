@@ -2,9 +2,65 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
 import {
+	beginDataSetLoading,
+	beginDataLoad,
+	cancelDataLoads,
 	dataSetKeysForSection,
+	finishDataSetLoading,
 	loadDataSections,
 } from './data-loading'
+
+test('isolated hydration does not abort or replace the active section load', () => {
+	const activeController = new AbortController()
+	const controllers = new Set([activeController])
+	const isolatedController = beginDataLoad(controllers, true)
+
+	assert.equal(activeController.signal.aborted, false)
+	assert.notEqual(isolatedController, activeController)
+	assert.deepEqual(controllers, new Set([activeController, isolatedController]))
+})
+
+test('regular section loads abort and replace every previous load', () => {
+	const previousController = new AbortController()
+	const isolatedController = new AbortController()
+	const controllers = new Set([previousController, isolatedController])
+	const nextController = beginDataLoad(controllers)
+
+	assert.equal(previousController.signal.aborted, true)
+	assert.equal(isolatedController.signal.aborted, true)
+	assert.deepEqual(controllers, new Set([nextController]))
+})
+
+test('session invalidation aborts and forgets every in-flight load', () => {
+	const firstController = new AbortController()
+	const secondController = new AbortController()
+	const controllers = new Set([firstController, secondController])
+
+	cancelDataLoads(controllers)
+
+	assert.equal(firstController.signal.aborted, true)
+	assert.equal(secondController.signal.aborted, true)
+	assert.equal(controllers.size, 0)
+})
+
+test('finishing an older load keeps shared datasets loading for the newer load', () => {
+	const loadCounts = new Map()
+	const olderKeys = ['services', 'reservations']
+	const newerKeys = ['services', 'customers']
+
+	beginDataSetLoading(loadCounts, olderKeys)
+	beginDataSetLoading(loadCounts, newerKeys)
+	const afterOlderFinishes = finishDataSetLoading(loadCounts, olderKeys)
+
+	assert.deepEqual(
+		afterOlderFinishes,
+		new Set(['services', 'customers']),
+	)
+	assert.deepEqual(
+		finishDataSetLoading(loadCounts, newerKeys),
+		new Set(),
+	)
+})
 
 test('dashboard loads summary, cash and shell datasets for employers', () => {
 	assert.deepEqual(

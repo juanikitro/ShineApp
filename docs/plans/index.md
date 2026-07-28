@@ -31,5 +31,6 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Tarjeta de tareas importantes en el dashboard](2026-07-21-dashboard-tareas-importantes-design.md)
 - [Descarte definitivo de pasos de alta guiada](2026-07-21-onboarding-step-dismissal-design.md)
 - [Dashboard: cabina analitica del periodo](2026-07-27-dashboard-analytic-canvas-design.md)
+- [Reservas vencidas en dashboard y Agenda](2026-07-28-reservas-vencidas-dashboard-agenda-design.md)
 - [Reservas: apertura directa en edición](2026-07-28-reservation-direct-edit-design.md)
 - [SearchSelect: foco de busqueda en desktop](2026-07-28-search-select-desktop-focus-design.md)

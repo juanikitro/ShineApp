@@ -57,6 +57,51 @@ export type DataLoadingScope = {
 	canViewEconomy: boolean
 }
 
+export function beginDataLoad(
+	activeControllers: Set<AbortController>,
+	preserveActiveLoads = false,
+) {
+	if (!preserveActiveLoads) {
+		cancelDataLoads(activeControllers)
+	}
+
+	const controller = new AbortController()
+	activeControllers.add(controller)
+	return controller
+}
+
+export function cancelDataLoads(activeControllers: Set<AbortController>) {
+	for (const controller of activeControllers) {
+		controller.abort()
+	}
+	activeControllers.clear()
+}
+
+export function beginDataSetLoading(
+	loadCounts: Map<DataSetKey, number>,
+	keys: readonly DataSetKey[],
+): ReadonlySet<DataSetKey> {
+	for (const key of keys) {
+		loadCounts.set(key, (loadCounts.get(key) ?? 0) + 1)
+	}
+	return new Set(loadCounts.keys())
+}
+
+export function finishDataSetLoading(
+	loadCounts: Map<DataSetKey, number>,
+	keys: readonly DataSetKey[],
+): ReadonlySet<DataSetKey> {
+	for (const key of keys) {
+		const nextCount = (loadCounts.get(key) ?? 0) - 1
+		if (nextCount > 0) {
+			loadCounts.set(key, nextCount)
+		} else {
+			loadCounts.delete(key)
+		}
+	}
+	return new Set(loadCounts.keys())
+}
+
 const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 	dashboard: [
 		'dashboard',

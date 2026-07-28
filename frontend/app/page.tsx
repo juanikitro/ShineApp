@@ -103,6 +103,7 @@ import { AgendaSchedulePanel } from '@/app/components/agenda/AgendaSchedulePanel
 import { AgendaViewControls } from '@/app/components/agenda/AgendaViewControls'
 import { createAgendaWorkDebtRenderer } from '@/app/components/agenda/AgendaWorkDebt'
 import { AgendaWeekBoard } from '@/app/components/agenda/AgendaWeekBoard'
+import { OverdueReservationsModal } from '@/app/components/agenda/OverdueReservationsModal'
 import {
 	renderWorkOrderConsumptionModal,
 	renderWorkOrderPaymentModal,
@@ -194,7 +195,11 @@ import {
 	loadAppDataSets,
 } from '@/lib/app-data'
 import {
+	beginDataSetLoading,
+	beginDataLoad,
+	cancelDataLoads,
 	dataSetKeysForSection,
+	finishDataSetLoading,
 	type DataSetKey,
 } from '@/lib/data-loading'
 import {
@@ -204,6 +209,14 @@ import {
 	type DemoReadinessStepId,
 } from '@/lib/demo-readiness'
 import { buildStarterServicesPlan } from '@/lib/onboarding-services'
+import {
+	type OverdueReservation,
+	overdueAgendaToast,
+	overdueLoadErrorToast,
+	refreshOverdueReservationsForSection,
+	sectionUsesOverdueReservations,
+	useOverdueReservationsFlow,
+} from '@/lib/overdue-reservations'
 import {
 	buildWhatsAppAutomationRuleUpdates,
 	buildWhatsAppDemoBootstrapPlan,
@@ -664,14 +677,26 @@ export default function Home() {
 	const [loadingDataSets, setLoadingDataSets] = useState<ReadonlySet<DataSetKey>>(
 		() => new Set(),
 	)
-	const loadDataAbortRef = useRef<AbortController | null>(null)
+	const loadingDataSetCountsRef = useRef<Map<DataSetKey, number>>(new Map())
+	const loadDataAbortControllersRef = useRef<Set<AbortController>>(new Set())
 	const [agendaLoadError, setAgendaLoadError] =
 		useState<ApiErrorNotice | null>(null)
 	const [loadErrorNotice, setLoadErrorNotice] =
 		useState<ApiErrorNotice | null>(null)
 	const { toasts, showToast, dismissToast } = useNoticeToasts()
+	const overdueReservationsFlow = useOverdueReservationsFlow()
+	const loadOverdueReservations = useCallback(
+		() =>
+			apiList<OverdueReservation>('/reservations/overdue/', {
+				bypassDedupe: true,
+			}),
+		[],
+	)
 	const pendingActions = usePendingActions()
 	const runActionCounterRef = useRef(0)
+	const overdueAgendaToastShownRef = useRef(false)
+	const overdueLoadErrorToastVersionRef = useRef(0)
+	const overdueSessionIdentityRef = useRef<string | null>(null)
 	const { requestConfirm, ConfirmDialog } = useConfirmDialog()
 	const isDataSetLoading = (key: DataSetKey) => loadingDataSets.has(key)
 	const loading = bootLoading || loadingDataSets.size > 0
@@ -1035,7 +1060,7 @@ export default function Home() {
 		close: () => setFormModal(null),
 	}
 	const detailExit = {
-		close: () => setDetailModal(null),
+		close: () => closeDetailModal(),
 	}
 	const profileExit = {
 		close: () => closeProfileModal(),
@@ -1044,10 +1069,7 @@ export default function Home() {
 		close: () => setConsumeForOrder(null),
 	}
 	const paymentExit = {
-		close: () => {
-			setPaymentForOrder(null)
-			setAgendaPaymentForm(blankAgendaPaymentForm(''))
-		},
+		close: () => closePaymentModal(),
 	}
 	const quoteReservationExit = {
 		close: () => setReservationForQuote(null),
@@ -1266,6 +1288,10 @@ export default function Home() {
 		try {
 			await pending.execute()
 			await loadData({ force: true })
+			await refreshOverdueReservationsForSection(
+				displayedActive,
+				() => overdueReservationsFlow.refresh(loadOverdueReservations),
+			)
 			const successTitle = pending.successTitle
 			const successDescription = pending.successDescription
 			clearPendingUndo()
@@ -2059,6 +2085,7 @@ export default function Home() {
 
 	type LoadDataOptions = {
 		force?: boolean
+		preserveActiveLoad?: boolean
 		section?: Section
 		settingsSection?: SettingsSection
 		period?: { from: string; to: string }
@@ -2097,7 +2124,7 @@ export default function Home() {
 		whatsappMessages: setWhatsappMessages,
 	}
 
-	async function loadData(options: LoadDataOptions = {}) {
+	async function loadData(options: LoadDataOptions = {}): Promise<boolean> {
 		const dataScope = { period: options.period ?? period, selectedDay, cashViewMode }
 		const keys = dataSetKeysForSection({
 			section: options.section ?? displayedActive,
@@ -2116,17 +2143,16 @@ export default function Home() {
 						),
 				)
 
-		if (!keysToLoad.length) return
+		if (!keysToLoad.length) return true
 
-		loadDataAbortRef.current?.abort()
-		const controller = new AbortController()
-		loadDataAbortRef.current = controller
+		const controller = beginDataLoad(
+			loadDataAbortControllersRef.current,
+			options.preserveActiveLoad,
+		)
 
-		setLoadingDataSets((prev) => {
-			const next = new Set(prev)
-			for (const key of keysToLoad) next.add(key)
-			return next
-		})
+		setLoadingDataSets(
+			beginDataSetLoading(loadingDataSetCountsRef.current, keysToLoad),
+		)
 		setError(null)
 		setAgendaLoadError(null)
 		setLoadErrorNotice(null)
@@ -2145,13 +2171,14 @@ export default function Home() {
 						bypassDedupe: Boolean(options.force),
 					}),
 			})
-			if (controller.signal.aborted) return
+			if (controller.signal.aborted) return false
 			for (const [key, data] of entries) {
 				applyAppDataEntry(key, data, appDataAppliers)
 				loadedDataCacheRef.current.add(dataSetCacheKey(key, dataScope))
 			}
+			return true
 		} catch (err: any) {
-			if (err?.name === 'AbortError') return
+			if (err?.name === 'AbortError') return false
 			const notice = formatApiError(err, {
 				fallbackTitle: 'No se pudieron cargar los datos',
 				fallbackDescription:
@@ -2160,18 +2187,15 @@ export default function Home() {
 			setAgendaLoadError(notice)
 			setLoadErrorNotice(notice)
 			setError(notice)
+			return false
 		} finally {
-			if (loadDataAbortRef.current === controller) {
-				loadDataAbortRef.current = null
-			}
-			setLoadingDataSets((prev) => {
-				let changed = false
-				const next = new Set(prev)
-				for (const key of keysToLoad) {
-					if (next.delete(key)) changed = true
-				}
-				return changed ? next : prev
-			})
+			loadDataAbortControllersRef.current.delete(controller)
+			setLoadingDataSets(
+				finishDataSetLoading(
+					loadingDataSetCountsRef.current,
+					keysToLoad,
+				),
+			)
 		}
 	}
 
@@ -2180,6 +2204,11 @@ export default function Home() {
 		if (stored) {
 			setToken(stored)
 		}
+	}, [])
+
+	useEffect(() => {
+		const controllers = loadDataAbortControllersRef.current
+		return () => cancelDataLoads(controllers)
 	}, [])
 
 	useEffect(() => {
@@ -2222,6 +2251,28 @@ export default function Home() {
 	}, [currentUser, token])
 
 	useEffect(() => {
+		const nextIdentity =
+			token && currentUser
+				? `${String(currentUser.id)}:${String(
+						currentUser.business?.id ?? currentUser.business ?? '',
+					)}`
+				: null
+		if (overdueSessionIdentityRef.current === nextIdentity) return
+
+		overdueSessionIdentityRef.current = nextIdentity
+		cancelDataLoads(loadDataAbortControllersRef.current)
+		overdueAgendaToastShownRef.current = false
+		overdueLoadErrorToastVersionRef.current = 0
+		overdueReservationsFlow.reset()
+	}, [
+		currentUser,
+		currentUser?.business,
+		currentUser?.id,
+		overdueReservationsFlow.reset,
+		token,
+	])
+
+	useEffect(() => {
 		if (token && currentUser) {
 			if (prevSelectedDayRef.current !== selectedDay || prevCashViewModeRef.current !== cashViewMode) {
 				for (const key of [...loadedDataCacheRef.current]) {
@@ -2233,6 +2284,108 @@ export default function Home() {
 			loadData()
 		}
 	}, [currentUser, displayedActive, selectedDay, cashViewMode, settingsSection, token])
+
+	useEffect(() => {
+		if (
+			!token ||
+			!currentUser ||
+			!sectionUsesOverdueReservations(displayedActive)
+		) {
+			return
+		}
+		void refreshOverdueReservationsForSection(
+			displayedActive,
+			() => overdueReservationsFlow.refresh(loadOverdueReservations),
+		)
+	}, [
+		currentUser,
+		displayedActive,
+		loadOverdueReservations,
+		overdueReservationsFlow.refresh,
+		token,
+	])
+
+	useEffect(() => {
+		const toast = overdueLoadErrorToast({
+			section: displayedActive,
+			loadState: overdueReservationsFlow.loadState,
+			listOpen: overdueReservationsFlow.listOpen,
+		})
+		if (
+			!toast ||
+			overdueReservationsFlow.loadErrorVersion <= 0 ||
+			overdueLoadErrorToastVersionRef.current ===
+				overdueReservationsFlow.loadErrorVersion
+		) {
+			return
+		}
+
+		overdueLoadErrorToastVersionRef.current =
+			overdueReservationsFlow.loadErrorVersion
+		let toastId = 0
+		toastId = showToast({
+			tone: 'error',
+			...toast,
+			visibleMs: 8000,
+			action: {
+				label: 'Reintentar',
+				title: 'Reintentar la carga de reservas vencidas',
+				onClick: () => {
+					dismissToast(toastId)
+					void refreshOverdueReservationsForSection(
+						displayedActive,
+						() =>
+							overdueReservationsFlow.refresh(
+								loadOverdueReservations,
+							),
+					)
+				},
+			},
+		})
+	}, [
+		dismissToast,
+		displayedActive,
+		loadOverdueReservations,
+		overdueReservationsFlow.listOpen,
+		overdueReservationsFlow.loadErrorVersion,
+		overdueReservationsFlow.loadState,
+		overdueReservationsFlow.refresh,
+		showToast,
+	])
+
+	useEffect(() => {
+		const toast = overdueAgendaToast({
+			isAgendaActive: displayedActive === 'agenda',
+			loadState: overdueReservationsFlow.loadState,
+			count: overdueReservationsFlow.rows.length,
+			alreadyShown:
+				overdueReservationsFlow.toastShown ||
+				overdueAgendaToastShownRef.current,
+		})
+		if (!toast) return
+
+		overdueAgendaToastShownRef.current = true
+		overdueReservationsFlow.markToastShown()
+		showToast({
+			tone: 'attention',
+			...toast,
+			visibleMs: 8000,
+			action: {
+				label: 'Ver',
+				title: 'Ver reservas vencidas',
+				icon: <Eye size={15} />,
+				onClick: overdueReservationsFlow.openList,
+			},
+		})
+	}, [
+		displayedActive,
+		overdueReservationsFlow.loadState,
+		overdueReservationsFlow.markToastShown,
+		overdueReservationsFlow.openList,
+		overdueReservationsFlow.rows.length,
+		overdueReservationsFlow.toastShown,
+		showToast,
+	])
 
 	const prefetchedSectionsRef = useRef<Set<Section>>(new Set())
 	function prefetchSection(section: Section) {
@@ -6308,6 +6461,70 @@ export default function Home() {
 		)
 	}
 
+	async function returnFromOverdueReservationChild() {
+		const result = await overdueReservationsFlow.returnFromChild(
+			loadOverdueReservations,
+		)
+		if (result.status === 'complete') {
+			showToast({
+				tone: 'success',
+				title: 'Agenda al dia',
+				description: 'No quedan reservas vencidas pendientes de resolver.',
+			})
+		}
+	}
+
+	function closeDetailModal() {
+		setDetailModal(null)
+		void returnFromOverdueReservationChild()
+	}
+
+	function closePaymentModal() {
+		setPaymentForOrder(null)
+		setAgendaPaymentForm(blankAgendaPaymentForm(''))
+		void returnFromOverdueReservationChild()
+	}
+
+	async function openOverdueReservationEditor(
+		reservation: OverdueReservation,
+	) {
+		const result = await overdueReservationsFlow.openReservation(reservation, {
+			hydrateAgenda: () =>
+				loadData({ section: 'agenda', preserveActiveLoad: true }),
+			loadReservation: (id) =>
+				apiFetch<AnyRecord>(`/reservations/${id}/`, {
+					bypassDedupe: true,
+				}),
+		})
+		if (result.ok) {
+			openDetailModal('Reserva', result.reservation)
+			return
+		}
+		if (result.error) {
+			setError(
+				formatApiError(result.error, {
+					fallbackTitle: 'No se pudo abrir la reserva',
+					fallbackDescription:
+						'Reintenta desde el listado de reservas vencidas.',
+				}),
+			)
+		}
+	}
+
+	function openOverdueReservationPayment(order: AnyRecord) {
+		if (!canViewEconomy) return
+		overdueReservationsFlow.openPayment()
+		openPaymentForOrder(order)
+	}
+
+	function refreshCurrentWorkspace() {
+		void loadData({ force: true })
+		void refreshOverdueReservationsForSection(
+			displayedActive,
+			() => overdueReservationsFlow.refresh(loadOverdueReservations),
+		)
+	}
+
 	function openReservationFromQuote(quote: AnyRecord) {
 		setReservationForQuote(quote)
 		setQuoteReservationForm({
@@ -8411,6 +8628,23 @@ export default function Home() {
 							},
 						})
 					: null}
+				{overdueReservationsFlow.listOpen ? (
+					<OverdueReservationsModal
+						canViewEconomy={canViewEconomy}
+						loadState={overdueReservationsFlow.loadState}
+						reservations={overdueReservationsFlow.rows}
+						onClose={overdueReservationsFlow.closeList}
+						onOpenPayment={openOverdueReservationPayment}
+						onOpenReservation={(reservation) => {
+							void openOverdueReservationEditor(reservation)
+						}}
+						onRetry={() => {
+							void overdueReservationsFlow.refresh(
+								loadOverdueReservations,
+							)
+						}}
+					/>
+				) : null}
 				{renderWorkOrderConsumptionModal({
 					canViewEconomy,
 					order: consumeForOrder,
@@ -8572,7 +8806,7 @@ export default function Home() {
 						mobileOpen={sidebarMobileOpen}
 						onToggleMobileMenu={toggleSidebarMobileMenu}
 						onCreateReservation={() => openQuickReservation(selectedDay)}
-						onRefresh={() => loadData({ force: true })}
+						onRefresh={refreshCurrentWorkspace}
 						loading={loading}
 					/>
 				{displayedActive === 'dashboard' ? (
@@ -8599,12 +8833,19 @@ export default function Home() {
 						onCreateStarterServices={createStarterServices}
 						onDismissOnboardingStep={dismissOnboardingStep}
 						onOpenFirstPayment={openPaymentForOrder}
+						onOpenOverdueReservations={
+							overdueReservationsFlow.openList
+						}
 						onOpenPaymentForOrder={openPaymentForOrder}
 						onOpenSection={handleSectionChange}
 						onOpenSettingsSection={(section: DemoReadinessSettingsSection) => {
 							setSettingsSection(section as SettingsSection)
 							handleSectionChange('settings')
 						}}
+						overdueReservations={overdueReservationsFlow.rows}
+						overdueReservationsLoadState={
+							overdueReservationsFlow.loadState
+						}
 					/>
 				) : null}
 
