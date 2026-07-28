@@ -85,11 +85,13 @@ export function AgendaDayHeader({
 						<span className="agenda-day-count">
 							{count === 1 ? '1 movimiento' : `${count} movimientos`}
 						</span>
-						<span className="agenda-day-balance agenda-day-balance--collected">
-							Cobrado {money(moneySummary.collected)}
-						</span>
-						<span className="agenda-day-balance agenda-day-balance--receivable">
-							Por cobrar {money(moneySummary.receivable)}
+						<span className="agenda-day-balances">
+							<span className="agenda-day-balance agenda-day-balance--collected">
+								Cobrado {money(moneySummary.collected)}
+							</span>
+							<span className="agenda-day-balance agenda-day-balance--receivable">
+								Por cobrar {money(moneySummary.receivable)}
+							</span>
 						</span>
 					</span>
 				</span>
