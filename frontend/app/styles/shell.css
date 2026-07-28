@@ -935,6 +935,20 @@
   align-items: flex-end;
 }
 
+/* En desktop, el periodo y Actualizar comparten una sola fila: impedir que
+   una flecha de mes quede aislada al comprimirse el area de acciones. */
+@media (min-width: 1280px) {
+  .topbar:has(.dashboard-period-toolbar) .page-intro {
+    flex: 0 0 auto;
+  }
+
+  .page-actions:has(.dashboard-period-toolbar),
+  .dashboard-period-toolbar {
+    flex-wrap: nowrap;
+    min-width: max-content;
+  }
+}
+
 .subsection-title {
   margin: 18px 0 12px;
 }
