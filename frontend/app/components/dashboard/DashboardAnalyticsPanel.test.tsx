@@ -178,6 +178,17 @@ test('DashboardAnalyticsPanel keeps commercial and operational units explicit', 
 	assert.ok(screen.getByText(/No se muestran rentabilidad final/))
 })
 
+test('DashboardAnalyticsPanel provides a section map without hiding the analytical reading', () => {
+	render(<DashboardAnalyticsPanel dashboard={analyticsDashboard} />)
+
+	const navigation = screen.getByRole('navigation', { name: 'Recorrido de análisis' })
+	assert.equal(screen.getByRole('link', { name: 'Pulso' }).getAttribute('href'), '#dashboard-analysis-pulse')
+	assert.equal(screen.getByRole('link', { name: 'Comercial' }).getAttribute('href'), '#dashboard-analysis-commercial')
+	assert.ok(navigation)
+	assert.ok(screen.getByRole('heading', { name: 'Margen por servicio' }))
+	assert.ok(screen.getByRole('heading', { name: 'Lecturas derivadas' }))
+})
+
 test('DashboardAnalyticsPanel does not render an empty workload graph as activity', () => {
 	render(
 		<DashboardAnalyticsPanel
