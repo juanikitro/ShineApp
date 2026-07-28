@@ -10,6 +10,11 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-07-28
+- [Servicios base por tipo principal de negocio](docs/registro/cambios/2026-07-28-servicios-base-por-tipo-negocio.md)
+- [Onboarding y trial: CTA comercial y contraste tematico](docs/registro/cambios/2026-07-28-onboarding-trial-cta-y-contraste.md)
+- [Alta guiada sincronizada con Tareas](docs/registro/cambios/2026-07-28-tareas-alta-guiada.md)
+
 ## 2026-07-27
 - [Dashboard: analitica operativa y comercial](docs/registro/cambios/2026-07-27-dashboard-analitica-operativa.md)
 

@@ -200,6 +200,26 @@ export function BusinessSettingsPanel({
 					/>
 				</Field>
 				<div className="form-row">
+					<Field label="Tipo principal del negocio">
+						<select
+							value={businessForm.business_type}
+							name="business_type"
+							aria-label="Tipo principal del negocio"
+							onChange={(event) =>
+								onPatchBusinessForm({
+									business_type: event.target.value,
+								})
+							}
+						>
+							<option value="">Elegir tipo principal</option>
+							<option value="lavadero">Lavadero</option>
+							<option value="detailing">Detailing</option>
+							<option value="lubricentro">Lubricentro</option>
+						</select>
+						<p className="field-hint">
+							Define el pack de tres servicios base; los otros sectores se conservan.
+						</p>
+					</Field>
 					<Field label="CUIT">
 						<input
 							name="business_cuit"

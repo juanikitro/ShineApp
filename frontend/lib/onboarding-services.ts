@@ -1,9 +1,11 @@
 import { type AnyRecord } from '@/lib/page-support'
 
+export type StarterBusinessType = 'lavadero' | 'detailing' | 'lubricentro'
+
 export type StarterServiceTemplate = {
 	id: string
 	name: string
-	sectorKey: 'lavadero' | 'detailing' | 'lubricentro'
+	sectorKey: StarterBusinessType
 	icon: string
 	base_price: string
 	estimated_duration_minutes: string
@@ -17,6 +19,8 @@ export type StarterServiceDraft = Omit<StarterServiceTemplate, 'id' | 'sectorKey
 }
 
 export type StarterServicesPlan = {
+	businessType: StarterBusinessType | null
+	requiresBusinessType: boolean
 	templates: StarterServiceTemplate[]
 	existingTemplates: StarterServiceTemplate[]
 	missingTemplates: StarterServiceTemplate[]
@@ -30,9 +34,27 @@ export const starterServiceTemplates: StarterServiceTemplate[] = [
 		name: 'Lavado exterior express',
 		sectorKey: 'lavadero',
 		icon: '🧽',
-		base_price: '12000.00',
+		base_price: '9500.00',
 		estimated_duration_minutes: '45',
-		notes: 'Servicio inicial para empezar a tomar turnos de lavadero.',
+		notes: 'Lavado exterior y secado con microfibra.',
+	},
+	{
+		id: 'lavado-completo',
+		name: 'Lavado completo',
+		sectorKey: 'lavadero',
+		icon: '🚿',
+		base_price: '0.00',
+		estimated_duration_minutes: '60',
+		notes: 'Defini el precio antes de publicarlo.',
+	},
+	{
+		id: 'lavado-premium',
+		name: 'Lavado premium',
+		sectorKey: 'lavadero',
+		icon: '✨',
+		base_price: '18000.00',
+		estimated_duration_minutes: '90',
+		notes: 'Exterior, interior, llantas y terminacion rapida.',
 	},
 	{
 		id: 'detailing-interior',
@@ -40,19 +62,71 @@ export const starterServiceTemplates: StarterServiceTemplate[] = [
 		sectorKey: 'detailing',
 		icon: '✨',
 		base_price: '52000.00',
-		estimated_duration_minutes: '180',
-		notes: 'Servicio inicial para vender limpieza interior y recuperacion.',
+		estimated_duration_minutes: '240',
+		notes: 'Limpieza profunda de tapizados, plasticos y baul.',
 	},
 	{
-		id: 'cambio-aceite',
+		id: 'pulido-one-step',
+		name: 'Pulido one step',
+		sectorKey: 'detailing',
+		icon: '🪞',
+		base_price: '85000.00',
+		estimated_duration_minutes: '360',
+		notes: 'Pulido de un paso para recuperar brillo.',
+	},
+	{
+		id: 'tratamiento-ceramico',
+		name: 'Tratamiento cerámico',
+		sectorKey: 'detailing',
+		icon: '🛡️',
+		base_price: '145000.00',
+		estimated_duration_minutes: '480',
+		notes: 'Descontaminado, correccion liviana y coating.',
+	},
+	{
+		id: 'cambio-aceite-filtro',
 		name: 'Cambio de aceite y filtro',
 		sectorKey: 'lubricentro',
 		icon: '🧰',
 		base_price: '42000.00',
 		estimated_duration_minutes: '75',
-		notes: 'Servicio inicial para operar lubricentro sin cargar inventario avanzado.',
+		notes: 'Servicio de lubricentro con control de fluidos basico.',
+	},
+	{
+		id: 'cambio-aceite-sintetico',
+		name: 'Cambio de aceite sintético',
+		sectorKey: 'lubricentro',
+		icon: '🛢️',
+		base_price: '0.00',
+		estimated_duration_minutes: '60',
+		notes: 'Defini el precio antes de publicarlo.',
+	},
+	{
+		id: 'revision-fluidos',
+		name: 'Revisión de fluidos',
+		sectorKey: 'lubricentro',
+		icon: '🔧',
+		base_price: '38000.00',
+		estimated_duration_minutes: '60',
+		notes: 'Chequeo de fluidos, luces, cubiertas y puntos visibles.',
 	},
 ]
+
+export function isStarterBusinessType(
+	value: unknown,
+): value is StarterBusinessType {
+	return value === 'lavadero' || value === 'detailing' || value === 'lubricentro'
+}
+
+export function starterServicesForBusinessType(
+	businessType: StarterBusinessType | null | undefined,
+) {
+	return businessType
+		? starterServiceTemplates.filter(
+				(template) => template.sectorKey === businessType,
+			)
+		: []
+}
 
 function normalizedName(value: unknown) {
 	return String(value ?? '')
@@ -74,16 +148,21 @@ function activeSectorIdByKey(sectors: AnyRecord[]) {
 }
 
 export function buildStarterServicesPlan(input: {
+	businessType?: unknown
 	services?: AnyRecord[] | null
 	sectors?: AnyRecord[] | null
 }): StarterServicesPlan {
+	const businessType = isStarterBusinessType(input.businessType)
+		? input.businessType
+		: null
+	const templates = starterServicesForBusinessType(businessType)
 	const services = input.services ?? []
 	const sectorIds = activeSectorIdByKey(input.sectors ?? [])
 	const existingNames = new Set(services.map((service) => normalizedName(service.name)))
-	const existingTemplates = starterServiceTemplates.filter((template) =>
+	const existingTemplates = templates.filter((template) =>
 		existingNames.has(normalizedName(template.name)),
 	)
-	const missingTemplates = starterServiceTemplates.filter(
+	const missingTemplates = templates.filter(
 		(template) => !existingNames.has(normalizedName(template.name)),
 	)
 	const blockedTemplates = missingTemplates.filter(
@@ -103,7 +182,9 @@ export function buildStarterServicesPlan(input: {
 		}))
 
 	return {
-		templates: starterServiceTemplates,
+		businessType,
+		requiresBusinessType: businessType === null,
+		templates,
 		existingTemplates,
 		missingTemplates,
 		blockedTemplates,

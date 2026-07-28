@@ -3,7 +3,7 @@ import { test } from 'vitest'
 
 import {
 	buildStarterServicesPlan,
-	starterServiceTemplates,
+	starterServicesForBusinessType,
 } from './onboarding-services'
 
 const coreSectors = [
@@ -12,58 +12,74 @@ const coreSectors = [
 	{ id: 3, key: 'lubricentro', name: 'Lubricentro', is_active: true },
 ]
 
-test('builds starter service drafts for the three vehicle sectors', () => {
-	const plan = buildStarterServicesPlan({ services: [], sectors: coreSectors })
-
-	assert.equal(plan.templates.length, starterServiceTemplates.length)
-	assert.equal(plan.missingTemplates.length, 3)
-	assert.equal(plan.existingTemplates.length, 0)
-	assert.equal(plan.blockedTemplates.length, 0)
-	assert.deepEqual(
-		plan.drafts.map((draft) => draft.name),
+test.each([
+	[
+		'lavadero',
+		['Lavado exterior express', 'Lavado completo', 'Lavado premium'],
+		['1', '1', '1'],
+	],
+	[
+		'detailing',
+		['Detailing interior', 'Pulido one step', 'Tratamiento cerámico'],
+		['2', '2', '2'],
+	],
+	[
+		'lubricentro',
 		[
-			'Lavado exterior express',
-			'Detailing interior',
 			'Cambio de aceite y filtro',
+			'Cambio de aceite sintético',
+			'Revisión de fluidos',
 		],
-	)
-	assert.deepEqual(
-		plan.drafts.map((draft) => draft.sector),
-		['1', '2', '3'],
-	)
+		['3', '3', '3'],
+	],
+])('builds only the three %s drafts in its selected sector', (businessType, names, sectors) => {
+	const plan = buildStarterServicesPlan({
+		businessType,
+		services: [],
+		sectors: coreSectors,
+	})
+
+	assert.equal(plan.requiresBusinessType, false)
+	assert.equal(plan.templates.length, 3)
+	assert.deepEqual(plan.drafts.map((draft) => draft.name), names)
+	assert.deepEqual(plan.drafts.map((draft) => draft.sector), sectors)
 })
 
-test('skips existing starter services by normalized name', () => {
+test('does not offer starter drafts without a selected business type', () => {
+	const plan = buildStarterServicesPlan({ services: [], sectors: coreSectors })
+
+	assert.equal(plan.requiresBusinessType, true)
+	assert.deepEqual(plan.templates, [])
+	assert.deepEqual(plan.drafts, [])
+})
+
+test('skips existing starter services by normalized name within the selected pack', () => {
 	const plan = buildStarterServicesPlan({
+		businessType: 'detailing',
 		sectors: coreSectors,
-		services: [
-			{ id: 10, name: ' lavado   exterior express ' },
-			{ id: 11, name: 'DETAILING INTERIOR' },
-		],
+		services: [{ id: 10, name: ' pulido   one step ' }],
 	})
 
 	assert.deepEqual(
 		plan.existingTemplates.map((template) => template.id),
-		['lavado-exterior', 'detailing-interior'],
+		['pulido-one-step'],
 	)
 	assert.deepEqual(
 		plan.drafts.map((draft) => draft.templateId),
-		['cambio-aceite'],
+		['detailing-interior', 'tratamiento-ceramico'],
 	)
 })
 
-test('blocks drafts when the required sector is not available', () => {
+test('blocks the selected pack when its sector is not available', () => {
 	const plan = buildStarterServicesPlan({
+		businessType: 'lubricentro',
 		services: [],
 		sectors: coreSectors.filter((sector) => sector.key !== 'lubricentro'),
 	})
 
 	assert.deepEqual(
 		plan.blockedTemplates.map((template) => template.id),
-		['cambio-aceite'],
+		starterServicesForBusinessType('lubricentro').map((template) => template.id),
 	)
-	assert.deepEqual(
-		plan.drafts.map((draft) => draft.templateId),
-		['lavado-exterior', 'detailing-interior'],
-	)
+	assert.deepEqual(plan.drafts, [])
 })

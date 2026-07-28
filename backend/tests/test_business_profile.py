@@ -26,6 +26,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         assert initial.data["enforce_capacity_limit"] is True
         assert initial.data["address"] == ""
         assert initial.data["maps_url"] == ""
+        assert initial.data["business_type"] is None
         assert initial.data["default_quote_validity_days"] == 7
         assert initial.data["default_quote_tax_rate"] == "0.00"
         assert initial.data["default_quote_discount_rate"] == "0.00"
@@ -56,6 +57,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
                 "name": "Brillo Total",
                 "cuit": "20-30405060-7",
                 "vat_condition": BusinessProfile.VatCondition.MONOTRIBUTO,
+                "business_type": BusinessProfile.BusinessType.DETAILING,
                 "contact_phone": "11 5555-2222",
                 "contact_email": "contacto@brillototal.com",
                 "use_reservation_times": False,
@@ -83,6 +85,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
             == BusinessProfile.VatCondition.MONOTRIBUTO
         )
         assert response.data["vat_condition_label"] == "Monotributo"
+        assert response.data["business_type"] == BusinessProfile.BusinessType.DETAILING
         assert response.data["contact_phone"] == "11 5555-2222"
         assert response.data["contact_email"] == "contacto@brillototal.com"
         assert response.data["use_reservation_times"] is False
@@ -102,6 +105,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         profile = BusinessProfile.get_solo()
         assert profile.name == "Brillo Total"
         assert profile.cuit == "20304050607"
+        assert profile.business_type == BusinessProfile.BusinessType.DETAILING
         assert profile.use_reservation_times is False
         assert profile.show_stay_days_in_agenda is False
         assert profile.reservation_auto_charge_on_delivery is True

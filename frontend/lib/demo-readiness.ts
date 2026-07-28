@@ -3,6 +3,10 @@ import {
 	type Section,
 	numberValue,
 } from '@/lib/page-support'
+import {
+	isStarterBusinessType,
+	starterServicesForBusinessType,
+} from '@/lib/onboarding-services'
 
 export type DemoReadinessSettingsSection =
 	| 'business'
@@ -59,10 +63,20 @@ export type DemoReadinessInput = {
 	whatsappConfig?: AnyRecord | null
 	whatsappTemplates?: AnyRecord[]
 	workOrders?: AnyRecord[]
+	onboardingTasks?: AnyRecord[]
 }
 
 function hasText(value: unknown) {
 	return typeof value === 'string' ? value.trim().length > 0 : Boolean(value)
+}
+
+function normalizedName(value: unknown) {
+	return String(value ?? '')
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.trim()
+		.toLowerCase()
+		.replace(/\s+/g, ' ')
 }
 
 function isActiveRecord(record: AnyRecord) {
@@ -121,16 +135,30 @@ export function buildDemoReadiness(input: DemoReadinessInput): DemoReadiness {
 			input.dashboard?.cashflow_income_total ??
 			input.dashboard?.today_income,
 	)
-	const sectorKeys = new Set(activeSectors.map((sector) => String(sector.key ?? '')))
-	const hasCoreVehicleSectors =
-		sectorKeys.has('lavadero') &&
-		sectorKeys.has('detailing') &&
-		sectorKeys.has('lubricentro')
+	const sectorIdByKey = activeSectors.reduce<Record<string, string>>(
+		(acc, sector) => {
+			if (sector.key && sector.id != null) acc[String(sector.key)] = String(sector.id)
+			return acc
+		},
+		{},
+	)
+	const businessType = isStarterBusinessType(profile.business_type)
+		? profile.business_type
+		: null
+	const starterTemplates = starterServicesForBusinessType(businessType)
 	const businessDone =
 		hasText(profile.name) &&
 		hasText(input.businessSlug) &&
+		businessType !== null &&
 		(hasText(profile.contact_phone) || hasText(profile.contact_email))
-	const servicesDone = activeServices.length >= 3 && hasCoreVehicleSectors
+	const servicesDone = starterTemplates.length === 3 && starterTemplates.every(
+		(template) =>
+			activeServices.some(
+				(service) =>
+					normalizedName(service.name) === normalizedName(template.name) &&
+					String(service.sector ?? '') === sectorIdByKey[template.sectorKey],
+			),
+	)
 	const turneraDone =
 		truthyFlag(profile.public_landing_enabled) &&
 		hasText(input.businessSlug) &&
@@ -153,7 +181,8 @@ export function buildDemoReadiness(input: DemoReadinessInput): DemoReadiness {
 		{
 			id: 'business',
 			title: 'Negocio listo',
-			description: 'Nombre, contacto publico y slug para vender desde el link.',
+			description:
+				'Nombre, contacto publico, tipo principal y slug para vender desde el link.',
 			actionLabel: 'Configurar negocio',
 			done: businessDone,
 			target: { kind: 'settings', section: 'business' },
@@ -161,7 +190,9 @@ export function buildDemoReadiness(input: DemoReadinessInput): DemoReadiness {
 		{
 			id: 'services',
 			title: 'Servicios vehiculares',
-			description: 'Lavadero, detailing y lubricentro con servicios activos.',
+			description: businessType
+				? `Los tres servicios activos del pack de ${businessType}.`
+				: 'Elegí el tipo principal del negocio antes de cargar servicios base.',
 			actionLabel: 'Cargar servicios',
 			done: servicesDone,
 			target: { kind: 'section', section: 'services' },
@@ -204,7 +235,19 @@ export function buildDemoReadiness(input: DemoReadinessInput): DemoReadiness {
 			? profile.onboarding_dismissed_step_ids.map((stepId) => String(stepId))
 			: [],
 	)
-	const steps = allSteps.filter((step) => !dismissedStepIds.has(step.id))
+	const onboardingTaskStatusByStep = new Map(
+		(input.onboardingTasks ?? [])
+			.filter((task) => task?.onboarding_step_id && !task?.deleted_at)
+			.map((task) => [String(task.onboarding_step_id), String(task.status)]),
+	)
+	const steps = allSteps
+		.filter((step) => !dismissedStepIds.has(step.id))
+		.map((step) => ({
+			...step,
+			done: onboardingTaskStatusByStep.has(step.id)
+				? onboardingTaskStatusByStep.get(step.id) === 'done'
+				: step.done,
+		}))
 	const completedCount = steps.filter((step) => step.done).length
 	const totalCount = steps.length
 	const remainingCount = totalCount - completedCount

@@ -269,6 +269,11 @@ class BusinessProfile(models.Model):
         EXENTO = "exento", "Exento"
         CONSUMIDOR_FINAL = "consumidor_final", "Consumidor final"
 
+    class BusinessType(models.TextChoices):
+        LAVADERO = "lavadero", "Lavadero"
+        DETAILING = "detailing", "Detailing"
+        LUBRICENTRO = "lubricentro", "Lubricentro"
+
     business = models.OneToOneField(
         BusinessAccount,
         related_name="profile",
@@ -292,6 +297,12 @@ class BusinessProfile(models.Model):
         default=SubscriptionType.TRIAL,
     )
     industry = models.CharField(max_length=120, blank=True)
+    business_type = models.CharField(
+        max_length=16,
+        choices=BusinessType.choices,
+        null=True,
+        blank=True,
+    )
     contact_phone = models.CharField(max_length=60, blank=True)
     contact_email = models.EmailField(blank=True)
     city = models.CharField(max_length=120, blank=True)
