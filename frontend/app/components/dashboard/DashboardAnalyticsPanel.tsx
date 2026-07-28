@@ -840,6 +840,7 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 		>
 			<Panel
 				className="dashboard-analytics-hero"
+				id="dashboard-analysis-pulse"
 				title="Análisis operativo"
 				subtitle={`Compará el período ${currentPeriodLabel(dashboard)} sin perder la lectura de caja y ejecución.`}
 			>
@@ -892,34 +893,46 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 				</div>
 			</Panel>
 
-			<Panel
-				title="Capacidad de agenda"
-				subtitle="Reservas activas por sector y día frente a la capacidad configurada; se priorizan jornadas sin cupos o con un único lugar."
-			>
-				<CapacityOccupancy occupancy={capacityOccupancy} />
-			</Panel>
+			<nav aria-label="Recorrido de análisis" className="dashboard-analytics-nav">
+				<span>Recorrido</span>
+				<a href="#dashboard-analysis-pulse">Pulso</a>
+				<a href="#dashboard-analysis-capacity">Capacidad</a>
+				<a href="#dashboard-analysis-performance">Rendimiento</a>
+				<a href="#dashboard-analysis-commercial">Comercial</a>
+				<a href="#dashboard-analysis-execution">Ejecución</a>
+				<a href="#dashboard-analysis-insights">Lecturas</a>
+			</nav>
 
-			<Panel
-				title="Pulso comparativo"
-				subtitle="Evolución equivalente del período actual frente al anterior."
-			>
-				<div className="dashboard-analytics-trend-grid">
-					<PeriodTrend
-						current={currentSeries}
-						label="Facturación"
-						previous={previousSeries}
-						valueKey="billed_total"
-					/>
-					<PeriodTrend
-						current={currentSeries}
-						label="Caja real"
-						previous={previousSeries}
-						valueKey="cashflow_balance"
-					/>
-				</div>
-			</Panel>
+			<div className="dashboard-analytics-overview-grid" id="dashboard-analysis-capacity">
+				<Panel
+					title="Capacidad de agenda"
+					subtitle="Reservas activas por sector y día frente a la capacidad configurada; se priorizan jornadas sin cupos o con un único lugar."
+				>
+					<CapacityOccupancy occupancy={capacityOccupancy} />
+				</Panel>
 
-			<div className="dashboard-analytics-financial-grid">
+				<Panel
+					title="Pulso comparativo"
+					subtitle="Evolución equivalente del período actual frente al anterior."
+				>
+					<div className="dashboard-analytics-trend-grid">
+						<PeriodTrend
+							current={currentSeries}
+							label="Facturación"
+							previous={previousSeries}
+							valueKey="billed_total"
+						/>
+						<PeriodTrend
+							current={currentSeries}
+							label="Caja real"
+							previous={previousSeries}
+							valueKey="cashflow_balance"
+						/>
+					</div>
+				</Panel>
+			</div>
+
+			<div className="dashboard-analytics-financial-grid" id="dashboard-analysis-performance">
 				<Panel
 					title="Facturado vs. período anterior"
 					subtitle="Comparación por tramo equivalente; las barras no mezclan acumulados con flujo diario."
@@ -944,7 +957,7 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 				</Panel>
 			</div>
 
-			<div className="dashboard-analytics-split-grid">
+			<div className="dashboard-analytics-split-grid" id="dashboard-analysis-commercial">
 				<Panel
 					title="Embudo comercial"
 					subtitle="Cada etapa cuenta una cotización, incluso si es grupal. Base: cotizaciones con fecha en el período."
@@ -1085,6 +1098,7 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 			</div>
 
 			<Panel
+				id="dashboard-analysis-services"
 				title="Margen por servicio"
 				subtitle="Margen estimado luego de materiales imputados; no reemplaza utilidad contable."
 			>
@@ -1120,7 +1134,7 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 				)}
 			</Panel>
 
-			<div className="dashboard-analytics-split-grid">
+			<div className="dashboard-analytics-split-grid" id="dashboard-analysis-execution">
 				<Panel
 					title="Evolución de trabajos"
 					subtitle="Órdenes ingresadas por semana y su estado actual, no cohortes históricas de entrega."
@@ -1221,6 +1235,7 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 
 			<Panel
 				className="dashboard-analytics-insights-panel"
+				id="dashboard-analysis-insights"
 				title="Lecturas derivadas"
 				subtitle="Conclusiones descriptivas a partir de los datos disponibles, sin completar relaciones inexistentes."
 			>
