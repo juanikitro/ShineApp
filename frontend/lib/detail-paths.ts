@@ -75,3 +75,7 @@ export function isEditableDetailKind(kind: string) {
 		'debt-payment',
 	].includes(kind)
 }
+
+export function shouldStartDetailEditing(kind: string, requested?: boolean) {
+	return kind === 'reservation' || requested === true
+}
