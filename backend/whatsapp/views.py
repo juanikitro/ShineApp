@@ -9,6 +9,7 @@ from rest_framework import decorators, permissions, response, status, viewsets
 from rest_framework.views import APIView
 
 from core.permissions import EmployerOnly, business_from_request
+from tasks.onboarding import schedule_onboarding_sync
 
 from .models import (
     WhatsAppAutomationRule,
@@ -94,7 +95,8 @@ class WhatsAppConfigView(APIView):
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        config = serializer.save()
+        schedule_onboarding_sync(config.business)
         return response.Response(serializer.data)
 
 

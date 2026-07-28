@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from core.audit import AuditedModelViewSetMixin
 from core.permissions import CanViewEconomy, EmployerRequiredForUnsafe, business_from_request
+from tasks.onboarding import schedule_onboarding_sync
 from quotes.models import Quote, QuoteItem
 from scheduling.models import Reservation, ReservationItem
 from workorders.models import WorkOrder
@@ -32,6 +33,14 @@ class SectorViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=True)
         return queryset
 
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        schedule_onboarding_sync(serializer.instance.business)
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        schedule_onboarding_sync(serializer.instance.business)
+
     def perform_destroy(self, instance):
         business = self.get_business() or instance.business
         remaining = (
@@ -42,6 +51,7 @@ class SectorViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         if remaining == 0:
             raise ValidationError("No se puede eliminar el unico sector activo del negocio.")
         instance.delete()
+        schedule_onboarding_sync(business)
 
 
 def service_history_bucket(**extra):
@@ -167,8 +177,17 @@ class ServiceViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             queryset = queryset.filter(Q(name__icontains=search) | Q(sector__name__icontains=search))
         return queryset
 
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        schedule_onboarding_sync(serializer.instance.business)
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        schedule_onboarding_sync(serializer.instance.business)
+
     def perform_destroy(self, instance):
         instance.delete()
+        schedule_onboarding_sync(instance.business)
 
     @decorators.action(detail=True, methods=["get"], permission_classes=[CanViewEconomy])
     def history(self, request, pk=None):

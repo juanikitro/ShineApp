@@ -1,24 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react'
 
-import { AlertTriangle, CheckCircle2, Copy, ExternalLink } from 'lucide-react'
-
-import { Button } from '@/app/components/ui/Button'
 import { Panel } from '@/app/components/ui/Panel'
 import { cx } from '@/app/components/utils'
 import {
 	buildTrialContinuationMessage,
 	buildTrialLifecycleState,
-	trialUpgradeUrl,
 	type TrialLifecycleTone,
 } from '@/lib/trial-lifecycle'
 import { type AnyRecord } from '@/lib/page-support'
 
 type TrialLifecycleBannerProps = {
 	currentUser?: AnyRecord | null
-	onOpenUpgrade?: (url: string) => void
 }
+
+const TRIAL_CONTINUITY_WHATSAPP_URL = 'https://wa.me/2345455007'
 
 const toneIcons = {
 	active: CheckCircle2,
@@ -26,31 +23,13 @@ const toneIcons = {
 	expired: AlertTriangle,
 } satisfies Record<TrialLifecycleTone, typeof CheckCircle2>
 
-export function TrialLifecycleBanner({ currentUser, onOpenUpgrade }: TrialLifecycleBannerProps) {
+export function TrialLifecycleBanner({ currentUser }: TrialLifecycleBannerProps) {
 	const state = buildTrialLifecycleState(currentUser)
-	const [copied, setCopied] = useState(false)
 	if (!state) return null
 
-	const upgradeUrl = trialUpgradeUrl()
 	const ToneIcon = toneIcons[state.tone]
-	const copyMessage = buildTrialContinuationMessage(currentUser, state)
-
-	async function copyContinuationMessage() {
-		if (navigator.clipboard?.writeText) {
-			await navigator.clipboard.writeText(copyMessage)
-		}
-		setCopied(true)
-		window.setTimeout(() => setCopied(false), 2200)
-	}
-
-	function openUpgrade() {
-		if (!upgradeUrl) return
-		if (onOpenUpgrade) {
-			onOpenUpgrade(upgradeUrl)
-			return
-		}
-		window.open(upgradeUrl, '_blank', 'noopener,noreferrer')
-	}
+	const continuationMessage = buildTrialContinuationMessage(currentUser, state)
+	const continuationUrl = `${TRIAL_CONTINUITY_WHATSAPP_URL}?text=${encodeURIComponent(continuationMessage)}`
 
 	return (
 		<Panel
@@ -82,26 +61,15 @@ export function TrialLifecycleBanner({ currentUser, onOpenUpgrade }: TrialLifecy
 					</div>
 				) : null}
 				<div className="trial-lifecycle-actions">
-					{upgradeUrl ? (
-						<Button
-							type="button"
-							variant={state.tone === 'active' ? 'ghost' : 'primary'}
-							size="sm"
-							leadingIcon={<ExternalLink size={16} />}
-							onClick={openUpgrade}
-						>
-							Coordinar continuidad
-						</Button>
-					) : null}
-					<Button
-						type="button"
-						variant={upgradeUrl ? 'ghost' : 'primary'}
-						size="sm"
-						leadingIcon={<Copy size={16} />}
-						onClickAsync={copyContinuationMessage}
+					<a
+						className="trial-lifecycle-upgrade"
+						href={continuationUrl}
+						target="_blank"
+						rel="noopener noreferrer"
 					>
-						{copied ? 'Mensaje copiado' : 'Copiar pedido'}
-					</Button>
+						<ExternalLink size={16} aria-hidden="true" />
+						Contratar ShineApp
+					</a>
 				</div>
 			</div>
 		</Panel>

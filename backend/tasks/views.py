@@ -2,7 +2,7 @@ from django.db.models import Case, F, IntegerField, Value, When
 from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
@@ -10,6 +10,7 @@ from core.permissions import can_view_economy
 from notifications.service import send_task_assignment_email
 
 from .models import Task, TaskPriority, TaskStatus
+from .onboarding import onboarding_states, sync_onboarding_tasks
 from .serializers import TaskSerializer
 
 PRIORITY_ORDER = Case(
@@ -85,6 +86,10 @@ class TaskViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         self._notify_assignee_if_changed(instance, previous_assignee_id=None)
 
     def _ensure_can_modify(self, instance):
+        if instance.onboarding_step_id:
+            raise ValidationError(
+                "Las tareas de alta guiada se modifican al completar el requisito real."
+            )
         if self._is_employer():
             return
         if instance.created_by_id != self.request.user.id:
@@ -118,6 +123,19 @@ class TaskViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="complete")
     def complete(self, request, pk=None):
         task = self.get_object()
+        if task.onboarding_step_id:
+            if not onboarding_states(task.business)[task.onboarding_step_id]:
+                raise ValidationError(
+                    {
+                        "detail": (
+                            f"{task.title}: esta tarea se completa al registrar el requisito real del negocio. "
+                            "Usa la accion de alta guiada correspondiente."
+                        )
+                    }
+                )
+            sync_onboarding_tasks(task.business)
+            task.refresh_from_db()
+            return Response(self.get_serializer(task).data)
         if task.status == TaskStatus.DONE:
             return Response(self.get_serializer(task).data)
         before = audit_snapshot(task)
@@ -145,6 +163,18 @@ class TaskViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="reopen")
     def reopen(self, request, pk=None):
         task = self.get_object()
+        if task.onboarding_step_id:
+            if onboarding_states(task.business)[task.onboarding_step_id]:
+                raise ValidationError(
+                    {
+                        "detail": (
+                            "Esta tarea sigue completada porque el requisito real del negocio existe."
+                        )
+                    }
+                )
+            sync_onboarding_tasks(task.business)
+            task.refresh_from_db()
+            return Response(self.get_serializer(task).data)
         if task.status == TaskStatus.PENDING:
             return Response(self.get_serializer(task).data)
         before = audit_snapshot(task)

@@ -35,3 +35,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [WhatsApp: modo del canal vs politica de despacho (dos ejes ortogonales)](2026-07-14-whatsapp-modo-canal-vs-politica-despacho.md)
 - [Adopcion selectiva de Radix para overlays accesibles](2026-07-21-adopcion-selectiva-radix.md)
 - [Dashboard analitico: unidades de embudo y operacion](2026-07-27-dashboard-analytics-unidades.md)
+- [Alta guiada: tareas vinculadas como proyeccion de hechos reales](2026-07-28-onboarding-tareas-fuente-verdad.md)

@@ -19,11 +19,8 @@ hace falta crear endpoints ni migraciones.
   primer turno y caja.
 - Trial por vencer: cambia a tono de advertencia cuando quedan 3 dias o menos.
 - Trial vencido: informa vencimiento sin bloquear el negocio por UI.
-- CTA manual: siempre permite copiar un mensaje listo para seguimiento
+- CTA comercial: abre WhatsApp con un mensaje listo para continuidad
   comercial.
-- CTA externo opcional: si `NEXT_PUBLIC_TRIAL_UPGRADE_URL` esta configurada,
-  abre el canal comercial definido por el operador (por ejemplo WhatsApp,
-  agenda o landing).
 
 ## Fuera de alcance
 

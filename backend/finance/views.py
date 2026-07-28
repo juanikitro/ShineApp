@@ -14,6 +14,7 @@ from core.models import (
     normalize_income_category_tree,
 )
 from core.permissions import CanViewEconomy, business_for_user, business_from_request
+from tasks.onboarding import schedule_onboarding_sync
 from debts.models import DebtPayment
 
 from .cash import cash_day, decimal_total, ensure_cash_day_open, signed_amount_for, totals_payload
@@ -220,10 +221,15 @@ class PaymentViewSet(
     serializer_class = PaymentSerializer
     permission_classes = [CanViewEconomy]
 
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        schedule_onboarding_sync(serializer.instance.business)
+
     @transaction.atomic
     def perform_destroy(self, instance):
         ensure_cash_day_open(cash_day(instance.paid_at), field="paid_at", business=instance.business)
         instance.delete()
+        schedule_onboarding_sync(instance.business)
 
 
 class CashMovementViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
@@ -239,6 +245,14 @@ class CashMovementViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             queryset = queryset.filter(occurred_at__date=date_param)
         return queryset
 
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        schedule_onboarding_sync(serializer.instance.business)
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        schedule_onboarding_sync(serializer.instance.business)
+
     def perform_destroy(self, instance):
         ensure_cash_day_open(
             cash_day(instance.occurred_at),
@@ -246,6 +260,7 @@ class CashMovementViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             business=instance.business,
         )
         super().perform_destroy(instance)
+        schedule_onboarding_sync(instance.business)
 
 
 class CashDailyView(APIView):

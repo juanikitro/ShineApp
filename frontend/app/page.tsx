@@ -1378,6 +1378,7 @@ export default function Home() {
 					name: String(profile.name ?? ''),
 					cuit: String(profile.cuit ?? ''),
 					vat_condition: String(profile.vat_condition ?? ''),
+					business_type: String(profile.business_type ?? ''),
 					contact_phone: String(profile.contact_phone ?? ''),
 					contact_email: String(profile.contact_email ?? ''),
 					address: String(profile.address ?? ''),
@@ -3806,6 +3807,7 @@ export default function Home() {
 				whatsappConfig,
 				whatsappTemplates,
 				workOrders,
+				onboardingTasks: tasks,
 			})
 		},
 		[
@@ -3822,6 +3824,7 @@ export default function Home() {
 			whatsappConfig,
 			whatsappTemplates,
 			workOrders,
+			tasks,
 		],
 	)
 	const firstChargeableWorkOrder = useMemo(
@@ -3829,8 +3832,13 @@ export default function Home() {
 		[workOrders],
 	)
 	const starterServicesPlan = useMemo(
-		() => buildStarterServicesPlan({ services, sectors }),
-		[services, sectors],
+		() =>
+			buildStarterServicesPlan({
+				businessType: businessProfile?.business_type,
+				services,
+				sectors,
+			}),
+		[businessProfile?.business_type, services, sectors],
 	)
 
 	if (!token) {
@@ -4912,7 +4920,11 @@ export default function Home() {
 
 	async function createStarterServices() {
 		if (!canViewEconomy) return
-		const plan = buildStarterServicesPlan({ services, sectors })
+		const plan = buildStarterServicesPlan({
+			businessType: businessProfile?.business_type,
+			services,
+			sectors,
+		})
 		if (!plan.drafts.length) {
 			handleSectionChange('services')
 			return

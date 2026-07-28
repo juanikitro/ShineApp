@@ -1,13 +1,11 @@
 import assert from 'node:assert/strict'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { afterEach, test, vi } from 'vitest'
+import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, test } from 'vitest'
 
 import { TrialLifecycleBanner } from './TrialLifecycleBanner'
 
 afterEach(() => {
 	cleanup()
-	vi.unstubAllEnvs()
 })
 
 function trialUser(overrides = {}) {
@@ -22,37 +20,19 @@ function trialUser(overrides = {}) {
 	}
 }
 
-test('TrialLifecycleBanner shows ending-soon state and opens configured upgrade URL', async () => {
-	const user = userEvent.setup()
-	const onOpenUpgrade = vi.fn()
-	vi.stubEnv('NEXT_PUBLIC_TRIAL_UPGRADE_URL', 'https://wa.me/5491111111111')
-
-	render(<TrialLifecycleBanner currentUser={trialUser()} onOpenUpgrade={onOpenUpgrade} />)
+test('TrialLifecycleBanner links to WhatsApp with the encoded continuation message', () => {
+	render(<TrialLifecycleBanner currentUser={trialUser()} />)
 
 	assert.ok(screen.getByText('Por vencer'))
 	assert.ok(screen.getByText('La prueba vence en 2 dias'))
+	const link = screen.getByRole('link', { name: 'Contratar ShineApp' })
+	const href = link.getAttribute('href')
 
-	await user.click(screen.getByRole('button', { name: /Coordinar continuidad/ }))
-	assert.deepEqual(onOpenUpgrade.mock.calls[0], ['https://wa.me/5491111111111'])
-})
-
-test('TrialLifecycleBanner copies a manual continuation message without upgrade URL', async () => {
-	const user = userEvent.setup()
-	const writeText = vi.fn().mockResolvedValue(undefined)
-	Object.defineProperty(navigator, 'clipboard', {
-		value: { writeText },
-		configurable: true,
-	})
-
-	render(<TrialLifecycleBanner currentUser={trialUser()} />)
-
-	await user.click(screen.getByRole('button', { name: /Copiar pedido/ }))
-
-	await waitFor(() => {
-		assert.equal(writeText.mock.calls.length, 1)
-	})
-	assert.ok(writeText.mock.calls[0][0].includes('QA Detailing'))
-	assert.ok(screen.getByText('Mensaje copiado'))
+	assert.ok(href?.startsWith('https://wa.me/2345455007?text='))
+	assert.ok(href?.includes(encodeURIComponent('QA Detailing')))
+	assert.equal(link.getAttribute('target'), '_blank')
+	assert.equal(link.getAttribute('rel'), 'noopener noreferrer')
+	assert.equal(screen.queryByRole('button', { name: /Copiar pedido|Coordinar continuidad/ }), null)
 })
 
 test('TrialLifecycleBanner does not render for premium users', () => {

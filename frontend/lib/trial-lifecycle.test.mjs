@@ -1,15 +1,10 @@
 import assert from 'node:assert/strict'
-import { afterEach, test, vi } from 'vitest'
+import { test } from 'vitest'
 
 import {
 	buildTrialContinuationMessage,
 	buildTrialLifecycleState,
-	trialUpgradeUrl,
 } from './trial-lifecycle'
-
-afterEach(() => {
-	vi.unstubAllEnvs()
-})
 
 test('buildTrialLifecycleState hides premium accounts', () => {
 	assert.equal(buildTrialLifecycleState({ subscription_type: 'premium' }), null)
@@ -27,6 +22,10 @@ test('buildTrialLifecycleState returns active copy with remaining days', () => {
 	assert.equal(state?.daysRemaining, 12)
 	assert.equal(state?.remainingPercent, 86)
 	assert.ok(state?.title.includes('12 dias'))
+	assert.equal(
+		state?.detail,
+		'Usa este periodo para completar el alta guiada, cargar el primer turno y validar caja con datos reales del negocio.',
+	)
 })
 
 test('buildTrialLifecycleState warns when the trial is ending soon', () => {
@@ -64,14 +63,6 @@ test('buildTrialLifecycleState can compute remaining days from trial_ends_at', (
 
 	assert.equal(state?.daysRemaining, 3)
 	assert.equal(state?.tone, 'warning')
-})
-
-test('trialUpgradeUrl only exposes safe http links', () => {
-	vi.stubEnv('NEXT_PUBLIC_TRIAL_UPGRADE_URL', 'https://wa.me/5491111111111')
-	assert.equal(trialUpgradeUrl(), 'https://wa.me/5491111111111')
-
-	vi.stubEnv('NEXT_PUBLIC_TRIAL_UPGRADE_URL', 'javascript:alert(1)')
-	assert.equal(trialUpgradeUrl(), null)
 })
 
 test('buildTrialContinuationMessage includes business and non-sensitive contact data', () => {

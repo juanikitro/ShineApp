@@ -5,11 +5,8 @@
 - El Dashboard muestra una franja de estado para negocios en prueba.
 - La franja diferencia trial activo, por vencer y vencido usando los campos de
   `GET /api/auth/me/`.
-- El usuario puede copiar un mensaje manual para coordinar continuidad
-  comercial.
-- Si `NEXT_PUBLIC_TRIAL_UPGRADE_URL` esta configurada, el Dashboard muestra un
-  CTA para abrir ese canal comercial.
-- El CTA externo se sanea y solo acepta URLs `http(s)`.
+- El Dashboard muestra un CTA de WhatsApp con el mensaje de continuidad
+  precompletado.
 
 ## Impacto
 
