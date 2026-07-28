@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-07-28
+- [Agenda: saldos diarios en una fila propia](docs/registro/cambios/2026-07-28-agenda-saldos-en-fila.md)
+
 ## 2026-07-27
 - [Dashboard: analitica operativa y comercial](docs/registro/cambios/2026-07-27-dashboard-analitica-operativa.md)
 
