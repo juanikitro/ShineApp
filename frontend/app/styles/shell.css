@@ -3417,12 +3417,77 @@
   opacity: 0.7;
 }
 
+.dashboard-analytics-capacity-list,
 .dashboard-analytics-funnel,
 .dashboard-analytics-workload,
 .dashboard-analytics-aging,
 .dashboard-analytics-insights {
   display: grid;
   gap: var(--space-2);
+}
+
+.dashboard-analytics-capacity-summary {
+  align-items: center;
+  border-bottom: 1px solid var(--shop-border);
+  color: var(--shop-ink-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+.dashboard-analytics-capacity-summary strong {
+  color: var(--shop-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-analytics-capacity-summary--risk,
+.dashboard-analytics-capacity-summary--risk strong {
+  color: var(--color-danger);
+}
+
+.dashboard-analytics-capacity-row {
+  align-items: center;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1.2fr) minmax(96px, 0.7fr) minmax(180px, 1fr);
+  min-height: 62px;
+}
+
+.dashboard-analytics-capacity-row--warning {
+  border-left: 3px solid var(--color-warning);
+}
+
+.dashboard-analytics-capacity-row--risk {
+  border-left: 3px solid var(--color-danger);
+}
+
+.dashboard-analytics-capacity-place,
+.dashboard-analytics-capacity-count,
+.dashboard-analytics-capacity-status {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dashboard-analytics-capacity-place strong {
+  color: var(--shop-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-analytics-capacity-count strong,
+.dashboard-analytics-capacity-status strong {
+  color: var(--shop-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-analytics-capacity-row small {
+  color: var(--shop-ink-muted);
+  font-size: var(--text-xs);
 }
 
 .dashboard-analytics-funnel-stage {
@@ -3458,6 +3523,44 @@
   height: 4px;
 }
 
+.dashboard-analytics-conversion-grid {
+  border-top: 1px solid var(--shop-border);
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+}
+
+.dashboard-analytics-conversion-grid > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dashboard-analytics-conversion-grid span,
+.dashboard-analytics-conversion-grid small {
+  color: var(--shop-ink-muted);
+  font-size: var(--text-xs);
+}
+
+.dashboard-analytics-conversion-grid strong {
+  color: var(--shop-ink);
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-analytics-funnel-drop {
+  border-left: 3px solid var(--color-warning);
+  display: grid;
+  gap: 3px;
+  margin-top: var(--space-3);
+}
+
+.dashboard-analytics-funnel-drop small {
+  color: var(--shop-ink-muted);
+}
+
 .dashboard-analytics-funnel-footnote {
   border-top: 1px solid var(--shop-border);
   color: var(--shop-ink-muted);
@@ -3476,7 +3579,7 @@
 .dashboard-analytics-recurrence {
   display: grid;
   gap: 1px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .dashboard-analytics-recurrence > div {
@@ -3512,18 +3615,34 @@
 }
 
 .dashboard-analytics-top-customers > div {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.dashboard-analytics-top-customers > div > div {
   align-items: baseline;
   display: flex;
   gap: var(--space-3);
   justify-content: space-between;
+  min-width: 0;
 }
 
-.dashboard-analytics-top-customers > div span {
+.dashboard-analytics-top-customers > div > div span {
   color: var(--shop-ink-soft);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dashboard-analytics-top-customers > div > small {
+  color: var(--shop-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-analytics-top-customers .dashboard-sharebar {
+  grid-column: 1 / -1;
 }
 
 .dashboard-analytics-service-table {
@@ -3690,6 +3809,46 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.dashboard-analytics-cash-metrics {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-analytics-cash-metrics .metric {
+  min-width: 0;
+}
+
+.dashboard-analytics-pressure {
+  border-left: 3px solid var(--color-info);
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.dashboard-analytics-pressure--risk {
+  border-left-color: var(--color-danger);
+}
+
+.dashboard-analytics-pressure > span {
+  color: var(--shop-ink);
+  font-size: var(--text-xs);
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.dashboard-analytics-pressure p,
+.dashboard-analytics-basis-note {
+  color: var(--shop-ink-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.dashboard-analytics-basis-note {
+  font-size: var(--text-xs);
+  margin-top: var(--space-2);
+}
+
 .dashboard-analytics-cash-summary > div {
   border-left: 2px solid var(--color-info);
   display: grid;
@@ -3711,6 +3870,18 @@
   display: grid;
   gap: var(--space-2);
   grid-template-columns: minmax(52px, 0.7fr) minmax(0, 1fr) auto;
+}
+
+.dashboard-analytics-aging > .dashboard-analytics-aging-overview {
+  border-bottom: 1px solid var(--shop-border);
+  grid-template-columns: 1fr;
+  margin-bottom: var(--space-1);
+  padding-bottom: var(--space-3);
+}
+
+.dashboard-analytics-aging-overview > span {
+  font-size: var(--text-xs);
+  font-weight: 700;
 }
 
 .dashboard-analytics-aging > div span {
@@ -7283,6 +7454,7 @@
   .dashboard-analytics-summary-grid,
   .dashboard-analytics-recurrence,
   .dashboard-analytics-cash-summary,
+  .dashboard-analytics-cash-metrics,
   .dashboard-analytics-financial-grid {
     grid-template-columns: 1fr;
   }
@@ -7303,6 +7475,18 @@
 
   .dashboard-analytics-ribbon-stages {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-analytics-conversion-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-analytics-capacity-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .dashboard-analytics-capacity-status {
+    grid-column: 1 / -1;
   }
 
   .dashboard-analytics-ribbon-stage:nth-child(4) {
@@ -7360,6 +7544,10 @@
 
   .dashboard-analytics-aging > div {
     grid-template-columns: minmax(46px, 0.65fr) minmax(0, 1fr) auto;
+  }
+
+  .dashboard-analytics-aging > .dashboard-analytics-aging-overview {
+    grid-template-columns: 1fr;
   }
 
   .dashboard-next-action-grid {
