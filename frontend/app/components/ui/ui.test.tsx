@@ -324,6 +324,82 @@ test('SearchSelect filters, creates and clears selections from the current surfa
 	assert.deepEqual(created, ['Nuevo'])
 })
 
+test('SearchSelect focuses its search input when opened on a fine-pointer device', async () => {
+	const user = userEvent.setup()
+	const originalMatchMedia = window.matchMedia
+	Object.defineProperty(window, 'matchMedia', {
+		configurable: true,
+		value: (query: string) =>
+			({
+				matches: query === '(pointer: fine)',
+				media: query,
+				addEventListener: () => undefined,
+				removeEventListener: () => undefined,
+				dispatchEvent: () => false,
+			}) as MediaQueryList,
+	})
+
+	try {
+		render(
+			<SearchSelect
+				label="Cliente"
+				value=""
+				options={[{ value: '1', label: 'Ana Lopez' }]}
+				onChange={vi.fn()}
+			/>,
+		)
+
+		await user.click(screen.getByRole('combobox', { name: 'Cliente' }))
+		await waitFor(() =>
+			assert.equal(
+				document.activeElement,
+				screen.getByRole('textbox', { name: 'Buscar Cliente' }),
+			),
+		)
+	} finally {
+		Object.defineProperty(window, 'matchMedia', {
+			configurable: true,
+			value: originalMatchMedia,
+		})
+	}
+})
+
+test('SearchSelect keeps the trigger focused when opened on a touch device', async () => {
+	const user = userEvent.setup()
+	const originalMatchMedia = window.matchMedia
+	Object.defineProperty(window, 'matchMedia', {
+		configurable: true,
+		value: (query: string) =>
+			({
+				matches: false,
+				media: query,
+				addEventListener: () => undefined,
+				removeEventListener: () => undefined,
+				dispatchEvent: () => false,
+			}) as MediaQueryList,
+	})
+
+	try {
+		render(
+			<SearchSelect
+				label="Cliente"
+				value=""
+				options={[{ value: '1', label: 'Ana Lopez' }]}
+				onChange={vi.fn()}
+			/>,
+		)
+
+		const trigger = screen.getByRole('combobox', { name: 'Cliente' })
+		await user.click(trigger)
+		assert.equal(document.activeElement, trigger)
+	} finally {
+		Object.defineProperty(window, 'matchMedia', {
+			configurable: true,
+			value: originalMatchMedia,
+		})
+	}
+})
+
 test('SearchSelect allows pointer selection from inside a Radix modal', async () => {
 	const user = userEvent.setup()
 	const onChange = vi.fn()

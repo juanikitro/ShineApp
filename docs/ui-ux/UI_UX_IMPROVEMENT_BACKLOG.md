@@ -17,7 +17,7 @@ No quedan items no UI-009 en "Ahora". UI-009 queda listado solo como deuda estru
 | UI-025 | Landing publica | Iconos de servicios mapeados a Lucide y fallback inicial seguro; sin claves crudas visibles. |
 | UI-021 | Dark mode / configuracion | Estados dark de `.mode-toggle` con texto, hover/focus y selected legibles. |
 | UI-003 | Agenda mobile | Tablero ancho queda como scroll horizontal contenido, con snap y affordance visible. |
-| UI-008 | Formularios | `SearchSelect` sin `autoFocus`, con combobox/listbox ids activos y estado live en vacio. |
+| UI-008 | Formularios | `SearchSelect` sin `autoFocus` incondicional, con combobox/listbox ids activos y estado live en vacio; el click en desktop enfoca el buscador y tactil conserva el teclado cerrado. |
 | UI-012 | Login | Modo normal sin credenciales prellenadas; demo solo por env flag y sin password. |
 | UI-016 | Caja | Jerarquia visual de metricas, filtros y listado reforzada por CSS sin tocar negocio. |
 | UI-009 | Caja + Deudas + Dashboard + Settings completo + Inventario + Herramientas + Cotizaciones + Servicios / arquitectura frontend | Cerrado al 100% para verticales principales: renders extraidos a `CashPanel.tsx`, `DebtPanel.tsx`, `DashboardPanel.tsx`, `BusinessSettingsPanel.tsx`, `SettingsWorkspace.tsx`, `InventoryPanel.tsx`, `ToolsPanel.tsx`, `QuotesPanel.tsx` y `ServicesPanel.tsx`; estado, callbacks, payloads y reglas siguen en `page.tsx`. |
