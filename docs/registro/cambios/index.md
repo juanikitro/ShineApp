@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Reservas se abren directamente en edición](2026-07-28-reservas-edicion-directa.md)
 - [Agenda: saldos diarios en una fila propia](2026-07-28-agenda-saldos-en-fila.md)
 - [Dashboard: analitica operativa y comercial](2026-07-27-dashboard-analitica-operativa.md)
 - [Paginacion estable en los listados de la app](2026-07-24-paginacion-estable-listados.md)

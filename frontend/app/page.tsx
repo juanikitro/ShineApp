@@ -378,6 +378,7 @@ import {
 	detailEndpoint,
 	detailKindFromTitle,
 	isEditableDetailKind,
+	shouldStartDetailEditing,
 } from '@/lib/detail-paths'
 import {
 	buildFreeVariables,
@@ -5664,7 +5665,9 @@ export default function Home() {
 			kind,
 			data,
 			editData: { ...data },
-			editing: options.startEditing === true && editableDetailKind(kind),
+			editing:
+				shouldStartDetailEditing(kind, options.startEditing) &&
+				editableDetailKind(kind),
 		})
 	}
 

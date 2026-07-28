@@ -11,6 +11,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-07-28
+- [Reservas se abren directamente en edición](docs/registro/cambios/2026-07-28-reservas-edicion-directa.md)
 - [Agenda: saldos diarios en una fila propia](docs/registro/cambios/2026-07-28-agenda-saldos-en-fila.md)
 
 ## 2026-07-27
