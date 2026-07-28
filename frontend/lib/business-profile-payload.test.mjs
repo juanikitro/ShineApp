@@ -16,6 +16,7 @@ test('businessProfilePayload preserves settings serialization and normalizations
 			name: '  Shine  ',
 			cuit: 20123456789,
 			vat_condition: 'RI',
+			business_type: 'detailing',
 			contact_phone: '3624',
 			contact_email: 'info@example.com',
 			address: 'Mitre 1',
@@ -57,6 +58,7 @@ test('businessProfilePayload preserves settings serialization and normalizations
 		name: 'Shine',
 		cuit: '20123456789',
 		vat_condition: 'RI',
+		business_type: 'detailing',
 		contact_phone: '3624',
 		contact_email: 'info@example.com',
 		address: 'Mitre 1',
@@ -106,6 +108,7 @@ test('businessProfilePayload preserves defaults and skips unavailable logo files
 	)
 
 	assert.equal(payload.get('name'), '')
+	assert.equal(payload.get('business_type'), '')
 	assert.equal(payload.get('default_quote_validity_days'), '7')
 	assert.equal(payload.get('default_quote_tax_rate'), '0')
 	assert.equal(payload.get('default_capacity_wash'), '8')

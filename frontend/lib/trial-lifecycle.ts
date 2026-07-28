@@ -1,4 +1,3 @@
-import { safeHttpUrl } from '@/lib/contact-links'
 import { type AnyRecord, formatDateLabel, numberValue } from '@/lib/page-support'
 
 export type TrialLifecycleTone = 'active' | 'warning' | 'expired'
@@ -43,10 +42,6 @@ function remainingPercent(daysRemaining: number | null) {
 	if (daysRemaining === null) return null
 	const bounded = Math.max(0, Math.min(DEFAULT_TRIAL_DAYS, daysRemaining))
 	return Math.round((bounded / DEFAULT_TRIAL_DAYS) * 100)
-}
-
-export function trialUpgradeUrl() {
-	return safeHttpUrl(process.env.NEXT_PUBLIC_TRIAL_UPGRADE_URL)
 }
 
 export function buildTrialLifecycleState(
@@ -105,7 +100,7 @@ export function buildTrialLifecycleState(
 				? 'Prueba activa'
 				: `Quedan ${daysRemaining} ${daysRemaining === 1 ? 'dia' : 'dias'} de prueba`,
 		detail:
-			'Usa este periodo para completar alta guiada, cargar el primer turno y validar caja con datos reales del negocio.',
+			'Usa este periodo para completar el alta guiada, cargar el primer turno y validar caja con datos reales del negocio.',
 		endsAtLabel,
 		daysRemaining,
 		remainingPercent: pct,

@@ -10,6 +10,7 @@ from catalog.models import Sector
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
 from core.models import BusinessHours, BusinessProfile
 from core.permissions import EmployerOnly, EmployerRequiredForUnsafe, business_from_request
+from tasks.onboarding import schedule_onboarding_sync
 from finance.cash import cash_day, ensure_cash_day_open
 from finance.services import maybe_auto_charge_on_delivery
 from notifications.service import send_public_request_push, send_reservation_confirmation
@@ -86,6 +87,14 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             queryset = queryset.filter(status=status_filter)
         return queryset
 
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        schedule_onboarding_sync(serializer.instance.business)
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        schedule_onboarding_sync(serializer.instance.business)
+
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
@@ -135,7 +144,9 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
                     field="paid_at",
                     business=payment.business,
                 )
-        return super().destroy(request, *args, **kwargs)
+        result = super().destroy(request, *args, **kwargs)
+        schedule_onboarding_sync(reservation.business)
+        return result
 
     @decorators.action(detail=True, methods=["post"])
     def confirm(self, request, pk=None):
@@ -194,6 +205,7 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         if not profile.reservation_use_canceled:
             reservation_id = reservation.pk
             reservation.delete()
+            schedule_onboarding_sync(reservation.business)
             record_audit_event(
                 request=request,
                 action="delete",
@@ -208,6 +220,7 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             return response.Response(status=status.HTTP_204_NO_CONTENT)
         reservation.status = Reservation.Status.CANCELED
         reservation.save(update_fields=["status", "updated_at"])
+        schedule_onboarding_sync(reservation.business)
         record_audit_event(
             request=request,
             action="cancel",
@@ -228,6 +241,7 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             reservation.save(update_fields=["status", "updated_at"])
             order = ensure_reservation_work_order(reservation)
             auto_payment = maybe_auto_charge_on_delivery(order, previous_status, request=request)
+            schedule_onboarding_sync(reservation.business)
         record_audit_event(
             request=request,
             action="complete",

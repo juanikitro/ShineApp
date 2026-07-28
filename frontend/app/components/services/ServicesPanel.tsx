@@ -660,6 +660,21 @@ export function ServicesPanel({
 						</Button>
 					</div>
 				) : null}
+				{starterServicesPlan?.requiresBusinessType ? (
+					<div className="services-starter-banner">
+						<div className="services-starter-copy">
+							<span className="services-starter-icon" aria-hidden="true">
+								<Sparkles size={16} />
+							</span>
+							<div>
+								<strong>Elegí el tipo principal primero</strong>
+								<p>
+									Configurá el negocio como lavadero, detailing o lubricentro para habilitar su pack de servicios base.
+								</p>
+							</div>
+						</div>
+					</div>
+				) : null}
 				<div className="records">
 					{services.length ? (
 						<>

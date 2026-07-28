@@ -218,6 +218,9 @@ class TrialSignupSerializer(serializers.Serializer):
                 business=business,
                 phone_number=validated_data["phone"],
             )
+            from tasks.onboarding import schedule_onboarding_sync
+
+            schedule_onboarding_sync(business)
         return user
 
 
@@ -320,6 +323,12 @@ class BusinessHoursSerializer(serializers.ModelSerializer):
 
 class BusinessProfileSerializer(serializers.ModelSerializer):
     cuit = serializers.CharField(required=False, allow_blank=True, max_length=32)
+    business_type = serializers.ChoiceField(
+        choices=BusinessProfile.BusinessType.choices,
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+    )
     income_category_tree = serializers.JSONField(required=False)
     expense_category_tree = serializers.JSONField(required=False)
     logo = serializers.FileField(required=False, allow_null=True, write_only=True)
@@ -348,6 +357,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "subscription_type",
             "subscription_type_label",
             "industry",
+            "business_type",
             "contact_phone",
             "contact_email",
             "city",
@@ -410,6 +420,9 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
 
     def validate_industry(self, value):
         return value.strip()
+
+    def validate_business_type(self, value):
+        return value or None
 
     def validate_city(self, value):
         return value.strip()

@@ -53,6 +53,7 @@ export type Task = {
 	vehicle_label?: string | null
 	recurrence?: TaskRecurrence
 	recurrence_label?: string | null
+	onboarding_step_id?: string | null
 }
 
 type EmployeeOption = {
@@ -373,6 +374,8 @@ export function TasksPanel({
 		() => visibleTasks.filter((task) => task.status === 'done'),
 		[visibleTasks],
 	)
+	const onboardingDoneTasks = doneTasks.filter((task) => task.onboarding_step_id)
+	const completedTasksToRender = showDone ? doneTasks : onboardingDoneTasks
 
 	const buckets = useMemo(() => {
 		const grouped: Record<DateBucket, EnrichedTask[]> = {
@@ -392,6 +395,7 @@ export function TasksPanel({
 		employeeView === 'pending' ? pendingTasks : doneTasks
 
 	function canModify(task: Task) {
+		if (task.onboarding_step_id) return false
 		if (canViewEconomy) return true
 		return currentUserId != null && Number(task.created_by) === currentUserId
 	}
@@ -458,6 +462,7 @@ export function TasksPanel({
 		const allowedToModify = canModify(task)
 		const busy = busyTaskId === task.id
 		const recurrence = task.recurrence && task.recurrence !== 'none' ? task.recurrence : null
+		const onboardingTask = Boolean(task.onboarding_step_id)
 		const recurrenceLabel =
 			task.recurrence_label ?? (recurrence ? RECURRENCE_LABEL[recurrence] : null)
 		return (
@@ -470,7 +475,12 @@ export function TasksPanel({
 					className={`task-check${done ? ' task-check--done' : ''}`}
 					onClick={() => void handleToggleStatus(task)}
 					aria-label={done ? 'Reabrir tarea' : 'Marcar como completada'}
-					disabled={busy}
+					disabled={busy || onboardingTask}
+					title={
+						onboardingTask
+							? 'Se actualiza al completar el requisito real del negocio'
+							: undefined
+					}
 				>
 					{done ? <RotateCcw size={16} /> : <CheckCircle2 size={16} />}
 				</button>
@@ -902,19 +912,19 @@ export function TasksPanel({
 									type="button"
 									variant="ghost"
 									onClick={() => setShowDone((prev) => !prev)}
-									aria-expanded={showDone}
+									aria-expanded={completedTasksToRender.length > 0}
 								>
 									<ListTodo size={14} />
-									{showDone ? 'Ocultar completadas' : 'Mostrar completadas'} (
+							{showDone
+								? 'Ocultar completadas'
+								: onboardingDoneTasks.length
+									? 'Mostrar todas las completadas'
+									: 'Mostrar completadas'} (
 									{doneTasks.length})
 								</Button>
 							</div>
-							{showDone ? (
-								doneTasks.length ? (
-									<ul className="tasks-list">{doneTasks.map(renderTaskRow)}</ul>
-								) : (
-									<Empty text="Sin tareas completadas en esta vista." />
-								)
+							{completedTasksToRender.length ? (
+								<ul className="tasks-list">{completedTasksToRender.map(renderTaskRow)}</ul>
 							) : null}
 						</>
 					) : employeeView === 'pending' ? (

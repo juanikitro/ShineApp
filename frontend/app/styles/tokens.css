@@ -51,6 +51,7 @@
   --color-danger-hover: #B91C1C;
   --color-ready: #0369A1;
   --color-ready-bg: #eff6ff;
+	--color-ready-border: #bfdbfe;
   --color-success-border: rgba(22, 163, 74, 0.2);
   --color-info: #0369A1;
   --color-info-bg: #EFF6FF;
@@ -226,6 +227,7 @@
   --color-danger-bg: rgba(225, 106, 90, 0.16);
   --color-ready: #86aeda;
   --color-ready-bg: rgba(134, 174, 218, 0.18);
+	--color-ready-border: rgba(134, 174, 218, 0.28);
   --color-info: #38BDF8;
   --color-info-bg: rgba(56, 189, 248, 0.22);
   --color-violet: #A78BFA;

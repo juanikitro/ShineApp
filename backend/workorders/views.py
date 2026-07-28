@@ -10,6 +10,7 @@ from finance.services import maybe_auto_charge_on_delivery
 from notifications.service import send_work_order_ready
 from scheduling.models import Reservation
 from scheduling.services import ensure_reservation_work_order
+from tasks.onboarding import schedule_onboarding_sync
 from whatsapp.models import WhatsAppMessage
 from whatsapp.serializers import WhatsAppMessageSerializer
 from whatsapp.services import enqueue_automated_message, send_work_order_whatsapp
@@ -68,6 +69,14 @@ class WorkOrderViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         if status_filter:
             queryset = queryset.filter(reservation__status=status_filter)
         return queryset
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        schedule_onboarding_sync(serializer.instance.business)
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        schedule_onboarding_sync(serializer.instance.business)
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -163,6 +172,7 @@ class WorkOrderViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         )
         already_existed = WorkOrder.objects.filter(reservation=reservation).exists()
         order = ensure_reservation_work_order(reservation)
+        schedule_onboarding_sync(order.business)
         response_status = status.HTTP_200_OK if already_existed else status.HTTP_201_CREATED
         if not already_existed:
             record_audit_event(

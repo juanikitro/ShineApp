@@ -68,6 +68,7 @@ class TaskSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer)
             "recurrence_label",
             "status",
             "status_label",
+            "onboarding_step_id",
             "completed_at",
             "completed_by",
             "completed_by_username",
@@ -88,6 +89,7 @@ class TaskSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer)
             "recurrence_label",
             "status",
             "status_label",
+            "onboarding_step_id",
             "completed_at",
             "completed_by",
             "completed_by_username",
@@ -151,6 +153,10 @@ class TaskSerializer(BusinessScopedSerializerMixin, serializers.ModelSerializer)
         return value
 
     def validate(self, attrs):
+        if self.instance is not None and self.instance.onboarding_step_id:
+            raise serializers.ValidationError(
+                "Las tareas de alta guiada se actualizan desde el requisito real del negocio."
+            )
         request = self.context.get("request") if self.context else None
         user = getattr(request, "user", None) if request else None
         is_employer = can_view_economy(user) if user is not None else False

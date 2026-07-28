@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 from core.soft_delete import SoftDeleteMixin
@@ -23,6 +24,15 @@ class TaskRecurrence(models.TextChoices):
     DAILY = "daily", "Diaria"
     WEEKLY = "weekly", "Semanal"
     MONTHLY = "monthly", "Mensual"
+
+
+class TaskOnboardingStep(models.TextChoices):
+    BUSINESS = "business", "Negocio listo"
+    SERVICES = "services", "Servicios vehiculares"
+    TURNERA = "turnera", "Turnera publica"
+    WHATSAPP = "whatsapp", "WhatsApp operativo"
+    AGENDA = "agenda", "Primer turno o trabajo"
+    CASH_DASHBOARD = "cash-dashboard", "Primer cobro"
 
 
 def _advance_due_date(current, recurrence):
@@ -99,6 +109,13 @@ class Task(SoftDeleteMixin):
         choices=TaskStatus.choices,
         default=TaskStatus.PENDING,
     )
+    onboarding_step_id = models.CharField(
+        max_length=32,
+        choices=TaskOnboardingStep.choices,
+        null=True,
+        blank=True,
+        editable=False,
+    )
     completed_at = models.DateTimeField(null=True, blank=True)
     completed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -117,6 +134,16 @@ class Task(SoftDeleteMixin):
         indexes = [
             models.Index(fields=["business", "status"], name="task_biz_status_idx"),
             models.Index(fields=["business", "assignee"], name="task_biz_assignee_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["business", "onboarding_step_id"],
+                condition=Q(
+                    onboarding_step_id__isnull=False,
+                    deleted_at__isnull=True,
+                ),
+                name="uniq_active_onboarding_task_step",
+            ),
         ]
 
     def __str__(self):

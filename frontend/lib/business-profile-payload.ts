@@ -21,6 +21,10 @@ export function businessProfilePayload(
 		String(currentBusinessForm.vat_condition ?? ''),
 	)
 	payload.append(
+		'business_type',
+		String(currentBusinessForm.business_type ?? ''),
+	)
+	payload.append(
 		'contact_phone',
 		String(currentBusinessForm.contact_phone ?? ''),
 	)
