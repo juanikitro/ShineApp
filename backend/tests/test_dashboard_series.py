@@ -209,16 +209,23 @@ def test_dashboard_cash_by_category_sums_match_cashflow_totals():
 
     income = {row["category"]: row["total"] for row in breakdown["income_by_category"]}
     expense = {row["category"]: row["total"] for row in breakdown["expense_by_category"]}
+    expense_by_subcategory = {
+        row["subcategory"]: row["total"]
+        for row in breakdown["expense_by_subcategory"]
+    }
 
     # Cada categoria suma sus movimientos; rubros repetidos se agrupan.
     assert income["Lavado"] == Decimal("50000.00")
     assert income["Detailing"] == Decimal("30000.00")
     assert expense["Insumos"] == Decimal("20000.00")
     assert expense["Pago de deudas"] == Decimal("15000.00")
+    assert expense_by_subcategory["Productos"] == Decimal("20000.00")
+    assert expense_by_subcategory["Pago de deudas"] == Decimal("15000.00")
 
     # Invariante: el desglose por categoria suma exactamente los totales de caja.
     assert sum((row["total"] for row in breakdown["income_by_category"]), Decimal("0.00")) == cashflow["cashflow_income_total"]
     assert sum((row["total"] for row in breakdown["expense_by_category"]), Decimal("0.00")) == cashflow["cashflow_expense_total"]
+    assert sum((row["total"] for row in breakdown["expense_by_subcategory"]), Decimal("0.00")) == cashflow["cashflow_expense_total"]
 
     # Ordenado de mayor a menor.
     expense_totals = [row["total"] for row in breakdown["expense_by_category"]]

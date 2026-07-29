@@ -18,6 +18,21 @@ Se reutilizan `Panel`, `MetricCard`, `RecordCard`, `RiskMeter` y las barras
 proporcionales existentes. No se agregan modelos, campos, migraciones, dependencias ni
 endpoints.
 
+## Ajustes de lectura del resumen
+
+El resumen concentra los indicadores principales bajo `Indicadores del periodo`, sin
+mini-graficos dentro de `Caja real` ni `Por cobrar`, para que las cuatro tarjetas
+conserven la misma altura. Los accesos `Ver todas` se presentan como botones con borde
+y foco visible, alineados al titulo de su tarjeta. El filtro `Ver periodo` mantiene
+icono y texto en una unica linea.
+
+`cash_by_category` mantiene `expense_by_category` para consumidores existentes y
+agrega `expense_by_subcategory`, agrupado por `CashMovement.subcategory`. Los
+movimientos historicos sin subcategoria usan su categoria como fallback, y los pagos de
+deuda se informan como `Pago de deudas`; asi el desglose sigue sumando el total de
+egresos. La tarjeta de caja consume el nuevo campo y lo titula `Egresos por
+subcategoria`.
+
 ## Contrato API
 
 `GET /api/dashboard/summary/` mantiene su contrato y agrega

@@ -369,6 +369,10 @@ def cash_by_category_for_period(business, date_from, date_to):
     income = defaultdict(lambda: ZERO)
     income_by_service = defaultdict(lambda: ZERO)
     expense = defaultdict(lambda: ZERO)
+    # The dashboard still exposes expense_by_category for older consumers, while the
+    # summary card uses subcategories to make each outgoing movement more actionable.
+    # Empty historical subcategories fall back to their category instead of being lost.
+    expense_by_subcategory = defaultdict(lambda: ZERO)
     for movement in movements:
         if not cash_movement_cashflow_effect(movement):
             continue
@@ -383,6 +387,8 @@ def cash_by_category_for_period(business, date_from, date_to):
             income_by_service[service_name] += movement.amount
         elif movement.movement_type == CashMovement.MovementType.EXPENSE:
             expense[category] += movement.amount
+            subcategory = str(movement.subcategory or "").strip() or category
+            expense_by_subcategory[subcategory] += movement.amount
 
     debt_payments_total = decimal_sum(
         DebtPayment.objects.filter(
@@ -394,6 +400,7 @@ def cash_by_category_for_period(business, date_from, date_to):
     )
     if debt_payments_total > ZERO:
         expense["Pago de deudas"] += debt_payments_total
+        expense_by_subcategory["Pago de deudas"] += debt_payments_total
 
     def to_rows(bucket):
         return [
@@ -415,10 +422,21 @@ def cash_by_category_for_period(business, date_from, date_to):
             )
         ]
 
+    def to_subcategory_rows(bucket):
+        return [
+            {"subcategory": subcategory, "total": total}
+            for subcategory, total in sorted(
+                bucket.items(),
+                key=lambda item: item[1],
+                reverse=True,
+            )
+        ]
+
     return {
         "income_by_category": to_rows(income),
         "income_by_service": to_service_rows(income_by_service),
         "expense_by_category": to_rows(expense),
+        "expense_by_subcategory": to_subcategory_rows(expense_by_subcategory),
     }
 
 
