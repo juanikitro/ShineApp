@@ -13,6 +13,8 @@
   dónde elegirlo.
 - El paso Servicios se completa solo cuando están activos los tres servicios
   del pack elegido en su sector; no exige servicios en los demás sectores.
+- La proyección de tareas de alta guiada usa el mismo criterio, por lo que una
+  tarea previa no puede marcar listo un negocio sin tipo ni un pack incompleto.
 
 ## Compatibilidad
 

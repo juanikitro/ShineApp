@@ -245,7 +245,9 @@ export function buildDemoReadiness(input: DemoReadinessInput): DemoReadiness {
 		.map((step) => ({
 			...step,
 			done: onboardingTaskStatusByStep.has(step.id)
-				? onboardingTaskStatusByStep.get(step.id) === 'done'
+				? step.id === 'business' || step.id === 'services'
+					? step.done && onboardingTaskStatusByStep.get(step.id) === 'done'
+					: onboardingTaskStatusByStep.get(step.id) === 'done'
 				: step.done,
 		}))
 	const completedCount = steps.filter((step) => step.done).length

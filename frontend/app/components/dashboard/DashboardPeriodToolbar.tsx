@@ -78,6 +78,7 @@ export function DashboardPeriodToolbar({
 			<Button
 				type="submit"
 				variant="primary"
+				className="dashboard-period-submit"
 				loading={loading}
 				leadingIcon={<Search size={16} />}
 			>

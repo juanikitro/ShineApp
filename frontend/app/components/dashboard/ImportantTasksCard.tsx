@@ -29,7 +29,7 @@ export function ImportantTasksCard({ tasks, onOpenTasks }: ImportantTasksCardPro
 				<h3>Tareas importantes</h3>
 				<button
 					type="button"
-					className="ghost dashboard-important-tasks-link"
+					className="ghost dashboard-action-link dashboard-important-tasks-link"
 					aria-label="Ver todas las tareas"
 					onClick={onOpenTasks}
 				>

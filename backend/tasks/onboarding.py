@@ -6,6 +6,7 @@ frontend rendering consume the projection but never create or change tasks.
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
+from django.utils.text import slugify
 
 from .models import Task, TaskOnboardingStep, TaskStatus
 
@@ -37,14 +38,51 @@ ONBOARDING_TASKS = {
     },
 }
 
+STARTER_SERVICE_PACKS = {
+    "lavadero": (
+        "Lavado exterior express",
+        "Lavado completo",
+        "Lavado premium",
+    ),
+    "detailing": (
+        "Detailing interior",
+        "Pulido one step",
+        "Tratamiento cerámico",
+    ),
+    "lubricentro": (
+        "Cambio de aceite y filtro",
+        "Cambio de aceite sintético",
+        "Revisión de fluidos",
+    ),
+}
+
 
 def _has_text(value):
     return bool(str(value or "").strip())
 
 
+def _normalized_service_name(value):
+    return slugify(str(value or "")).replace("-", " ")
+
+
+def _has_active_starter_pack(active_services, business_type):
+    required_names = {
+        _normalized_service_name(name)
+        for name in STARTER_SERVICE_PACKS.get(business_type, ())
+    }
+    if len(required_names) != 3:
+        return False
+    active_names = {
+        _normalized_service_name(service.name)
+        for service in active_services
+        if service.sector.key == business_type
+    }
+    return required_names.issubset(active_names)
+
+
 def onboarding_states(business):
     """Return the six completion states from persisted business facts only."""
-    from catalog.models import Sector, Service
+    from catalog.models import Service
     from core.models import BusinessProfile
     from finance.models import CashMovement, Payment
     from notifications.models import PublicRequest
@@ -53,18 +91,11 @@ def onboarding_states(business):
     from workorders.models import WorkOrder
 
     profile = BusinessProfile.get_solo(business=business)
-    active_services = Service.objects.filter(
+    active_services = list(Service.objects.select_related("sector").filter(
         business=business,
         is_active=True,
         deleted_at__isnull=True,
-    )
-    sector_keys = set(
-        Sector.objects.filter(
-            business=business,
-            is_active=True,
-            deleted_at__isnull=True,
-        ).values_list("key", flat=True)
-    )
+    ))
     whatsapp = WhatsAppConfig.objects.filter(business=business).first()
     whatsapp_ready = bool(
         whatsapp
@@ -77,16 +108,17 @@ def onboarding_states(business):
         TaskOnboardingStep.BUSINESS: bool(
             _has_text(profile.name)
             and _has_text(business.slug)
+            and profile.business_type in STARTER_SERVICE_PACKS
             and (_has_text(profile.contact_phone) or _has_text(profile.contact_email))
         ),
-        TaskOnboardingStep.SERVICES: (
-            active_services.count() >= 3
-            and {"lavadero", "detailing", "lubricentro"}.issubset(sector_keys)
+        TaskOnboardingStep.SERVICES: _has_active_starter_pack(
+            active_services,
+            profile.business_type,
         ),
         TaskOnboardingStep.TURNERA: bool(
             profile.public_landing_enabled
             and _has_text(business.slug)
-            and active_services.exists()
+            and bool(active_services)
             and (
                 profile.allow_public_booking_requests
                 or profile.allow_public_quote_requests
