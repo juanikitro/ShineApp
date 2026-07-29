@@ -4,6 +4,7 @@ import { Empty } from '@/app/components/ui/Empty'
 import { MetricCard } from '@/app/components/ui/MetricCard'
 import { Panel } from '@/app/components/ui/Panel'
 import { RecordCard } from '@/app/components/ui/RecordCard'
+import { RiskMeter } from '@/app/components/ui/RiskMeter'
 import {
 	type AnyRecord,
 	formatDateLabel,
@@ -45,6 +46,8 @@ const AGING_TONES: Record<string, string> = {
 	'31_plus': 'var(--color-danger)',
 }
 
+const MIN_FUNNEL_BASE = 5
+
 function records(value: unknown): AnyRecord[] {
 	return Array.isArray(value) ? value : []
 }
@@ -62,6 +65,66 @@ function proportionalShare(value: unknown, total: unknown) {
 	const denominator = Math.max(numberValue(total), 0)
 	if (!denominator) return 0
 	return Math.min(100, (numerator / denominator) * 100)
+}
+
+function ratioPercent(numerator: unknown, denominator: unknown) {
+	const base = numberValue(denominator)
+	if (base <= 0) return null
+	return (numberValue(numerator) / base) * 100
+}
+
+function capacityPriority(row: AnyRecord) {
+	const capacity = numberValue(row.capacity)
+	const available = numberValue(row.available_slots)
+	if (capacity <= 0 || available <= 0) return 300
+	if (available === 1) return 200
+	return ratioPercent(row.used_slots, capacity) ?? 0
+}
+
+function capacityAvailability(row: AnyRecord) {
+	const capacity = numberValue(row.capacity)
+	const available = numberValue(row.available_slots)
+	if (capacity <= 0) return 'Sin capacidad configurada'
+	if (available <= 0) return 'Sin cupos'
+	if (available === 1) return '1 cupo disponible'
+	return `${available} cupos disponibles`
+}
+
+function cashPressureText({
+	balanceDue,
+	cashBalance,
+	visibleCommitments,
+}: {
+	balanceDue: number
+	cashBalance: number
+	visibleCommitments: number
+}) {
+	if (cashBalance < 0) {
+		return `El flujo neto del período es negativo en ${money(
+			Math.abs(cashBalance),
+		)} y hay ${money(visibleCommitments)} de compromisos visibles. ${money(
+			balanceDue,
+		)} por cobrar en trabajos del período no se toma como caja disponible.`
+	}
+	const gap = Math.max(visibleCommitments - cashBalance, 0)
+	if (gap > 0) {
+		return `El flujo neto del período queda ${money(
+			gap,
+		)} por debajo de los compromisos visibles. Hay ${money(
+			balanceDue,
+		)} por cobrar en trabajos del período, sin asumir cuándo ingresará.`
+	}
+	if (visibleCommitments > 0) {
+		return `El flujo neto del período supera los compromisos visibles por ${money(
+			cashBalance - visibleCommitments,
+		)}. Aun quedan ${money(balanceDue)} por cobrar en trabajos del período.`
+	}
+	if (balanceDue > 0) {
+		return `No hay compromisos próximos identificados, pero quedan ${money(
+			balanceDue,
+		)} por cobrar en trabajos del período.`
+	}
+	return 'No hay saldos ni compromisos próximos registrados para cruzar en este período.'
 }
 
 function moneyDelta(current: unknown, previous: unknown) {
@@ -492,6 +555,119 @@ function funnelStage(label: string, value: unknown, total: number, tone: string)
 	)
 }
 
+function CapacityOccupancy({ occupancy }: { occupancy: AnyRecord }) {
+	const sectorDays = records(occupancy.sector_days)
+	const sectorsCount = numberValue(occupancy.sectors_count)
+	if (!sectorDays.length) {
+		return (
+			<Empty
+				text={
+					sectorsCount > 0
+						? 'Hay sectores configurados, pero no reservas operativas en este período.'
+						: 'No hay sectores activos con capacidad configurada.'
+				}
+				hint="La ocupación solo muestra jornadas con reservas activas y usa la capacidad vigente de cada sector."
+			/>
+		)
+	}
+
+	const orderedRows = [...sectorDays].sort(
+		(left, right) =>
+			capacityPriority(right) - capacityPriority(left) ||
+			String(left.date ?? '').localeCompare(String(right.date ?? '')) ||
+			String(left.sector_name ?? '').localeCompare(String(right.sector_name ?? '')),
+	)
+	const saturatedCount = sectorDays.filter(
+		(row) => numberValue(row.capacity) > 0 && numberValue(row.available_slots) <= 0,
+	).length
+	const nearCapacityCount = sectorDays.filter(
+		(row) => numberValue(row.capacity) > 0 && numberValue(row.available_slots) === 1,
+	).length
+	const missingCapacityCount = sectorDays.filter((row) => numberValue(row.capacity) <= 0).length
+
+	return (
+		<>
+			<div className="dashboard-analytics-capacity-summary">
+				<span>
+					<strong>{sectorDays.length}</strong> jornadas con reservas
+				</span>
+				<span>
+					<strong>{saturatedCount}</strong> sin cupos
+				</span>
+				<span>
+					<strong>{nearCapacityCount}</strong> con último cupo
+				</span>
+				{missingCapacityCount ? (
+					<span className="dashboard-analytics-capacity-summary--risk">
+						<strong>{missingCapacityCount}</strong> sin capacidad configurada
+					</span>
+				) : null}
+			</div>
+			<div className="dashboard-analytics-capacity-list">
+				{orderedRows.map((row) => {
+					const capacity = numberValue(row.capacity)
+					const usedSlots = numberValue(row.used_slots)
+					const availableSlots = numberValue(row.available_slots)
+					const occupancyRate =
+						row.occupancy_rate === null || row.occupancy_rate === undefined
+							? null
+							: numberValue(row.occupancy_rate)
+					const isRisk = capacity <= 0 || availableSlots <= 0
+					const isWarning = !isRisk && availableSlots === 1
+					const availability = capacityAvailability(row)
+					const rateLabel = occupancyRate === null ? 'Sin base' : percent(occupancyRate)
+
+					return (
+						<RecordCard
+							aria-label={`${String(row.sector_name ?? 'Sector')} ${formatDateLabel(
+								row.date,
+							)}: ${usedSlots} de ${capacity} reservas, ${rateLabel} de ocupación, ${availability.toLowerCase()}`}
+							className={`dashboard-analytics-capacity-row${
+								isRisk
+									? ' dashboard-analytics-capacity-row--risk'
+									: isWarning
+										? ' dashboard-analytics-capacity-row--warning'
+										: ''
+							}`}
+							key={`${row.date}-${row.sector_id ?? row.sector_name}`}
+							role="group"
+						>
+							<div className="dashboard-analytics-capacity-place">
+								<strong>{String(row.sector_name ?? 'Sector')}</strong>
+								<small>{formatDateLabel(row.date)}</small>
+							</div>
+							<div className="dashboard-analytics-capacity-count">
+								<strong>
+									{usedSlots} / {capacity}
+								</strong>
+								<small>reservas / cupos</small>
+							</div>
+							<div className="dashboard-analytics-capacity-status">
+								<strong>{rateLabel}</strong>
+								<small>{availability}</small>
+								<span
+									aria-hidden="true"
+									className="dashboard-sharebar"
+									style={
+										{
+											['--share']: `${occupancyRate === null ? 0 : Math.min(Math.max(occupancyRate, 0), 100)}%`,
+											['--bar-fill']: isRisk
+												? 'var(--color-danger)'
+												: isWarning
+													? 'var(--color-warning)'
+													: 'var(--color-info)',
+										} as CSSProperties
+									}
+								/>
+							</div>
+						</RecordCard>
+					)
+				})}
+			</div>
+		</>
+	)
+}
+
 function currentPeriodLabel(dashboard: AnyRecord) {
 	return `${formatDateLabel(dashboard.from)} a ${formatDateLabel(dashboard.to)}`
 }
@@ -525,6 +701,10 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 		analytics.customer_recurrence && typeof analytics.customer_recurrence === 'object'
 			? analytics.customer_recurrence
 			: {}
+	const capacityOccupancy =
+		analytics.capacity_occupancy && typeof analytics.capacity_occupancy === 'object'
+			? analytics.capacity_occupancy
+			: {}
 	const workload =
 		analytics.weekly_workload && typeof analytics.weekly_workload === 'object'
 			? analytics.weekly_workload
@@ -533,9 +713,23 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 	const aging = records(dashboard.receivables_aging)
 	const topCustomers = records(dashboard.rankings?.top_customers_by_billed)
 	const billedTotal = numberValue(dashboard.billed_total ?? dashboard.sales_total)
+	const collectedTotal = numberValue(dashboard.collected_total ?? dashboard.sales_total)
 	const marginTotal = numberValue(dashboard.estimated_margin_total)
 	const cashBalance = numberValue(dashboard.cashflow_balance ?? dashboard.today_balance)
 	const balanceDue = numberValue(dashboard.balance_due_total)
+	const fixedExpensesPending = numberValue(dashboard.fixed_expenses_pending_total)
+	const fixedExpensesPendingCount = numberValue(dashboard.fixed_expenses_pending_count)
+	const debtTiming =
+		dashboard.debt_timing && typeof dashboard.debt_timing === 'object' ? dashboard.debt_timing : {}
+	const overdueDebts =
+		debtTiming.overdue && typeof debtTiming.overdue === 'object' ? debtTiming.overdue : {}
+	const dueSoonDebts =
+		debtTiming.due_soon && typeof debtTiming.due_soon === 'object' ? debtTiming.due_soon : {}
+	const overdueAmount = numberValue(overdueDebts.amount)
+	const dueSoonAmount = numberValue(dueSoonDebts.amount)
+	const dueSoonDays = numberValue(debtTiming.due_soon_days) || 7
+	const debtAsOf = debtTiming.as_of ? formatDateLabel(debtTiming.as_of) : 'hoy'
+	const visibleCommitments = overdueAmount + dueSoonAmount + fixedExpensesPending
 	const agingMax = Math.max(...aging.map((bucket) => numberValue(bucket.amount)), 0)
 	const previous = dashboard.previous_period ?? {}
 	const totalQuotes = numberValue(funnel.total_quotes)
@@ -543,8 +737,65 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 	const bookedQuotes = numberValue(funnel.booked_quotes)
 	const deliveredQuotes = numberValue(funnel.delivered_quotes)
 	const collectedQuotes = numberValue(funnel.collected_quotes)
-	const bookingRate = totalQuotes > 0 ? (numberValue(funnel.booked_quotes) / totalQuotes) * 100 : 0
-	const collectionRate = deliveredQuotes > 0 ? (collectedQuotes / deliveredQuotes) * 100 : 0
+	const acceptanceRate = ratioPercent(acceptedQuotes, totalQuotes)
+	const bookingRate = ratioPercent(bookedQuotes, acceptedQuotes)
+	const funnelCollectionRate = ratioPercent(collectedQuotes, deliveredQuotes)
+	const collectionToBilledRate = ratioPercent(collectedTotal, billedTotal)
+	const funnelConversions = [
+		{
+			label: 'Aceptación',
+			from: 'Cotizaciones',
+			to: 'Aceptadas',
+			numerator: acceptedQuotes,
+			denominator: totalQuotes,
+		},
+		{
+			label: 'Reserva',
+			from: 'Aceptadas',
+			to: 'Con reserva',
+			numerator: bookedQuotes,
+			denominator: acceptedQuotes,
+		},
+		{
+			label: 'Entrega',
+			from: 'Con reserva',
+			to: 'Entregadas',
+			numerator: deliveredQuotes,
+			denominator: bookedQuotes,
+		},
+		{
+			label: 'Cobro sin saldo',
+			from: 'Entregadas',
+			to: 'Cobradas',
+			numerator: collectedQuotes,
+			denominator: deliveredQuotes,
+		},
+	].map((stage) => ({
+		...stage,
+		rate: ratioPercent(stage.numerator, stage.denominator),
+		lostCount: Math.max(stage.denominator - stage.numerator, 0),
+		lossRate:
+			stage.denominator > 0
+				? (Math.max(stage.denominator - stage.numerator, 0) / stage.denominator) * 100
+				: 0,
+	}))
+	const largestFunnelDrop =
+		totalQuotes >= MIN_FUNNEL_BASE
+			? ([...funnelConversions]
+					.filter((stage) => stage.denominator > 0 && stage.lostCount > 0)
+					.sort((left, right) => right.lossRate - left.lossRate)[0] ?? null)
+			: null
+	const topCustomerRows = topCustomers.slice(0, 3)
+	const topCustomersBilled = topCustomerRows.reduce(
+		(total, customer) => total + numberValue(customer.billed_total),
+		0,
+	)
+	const topCustomersShare = ratioPercent(topCustomersBilled, billedTotal)
+	const pressureText = cashPressureText({
+		balanceDue,
+		cashBalance,
+		visibleCommitments,
+	})
 	const topService = serviceRows[0] ?? null
 	const negativeMarginService = serviceRows.find(
 		(service) => numberValue(service.margin_rate_delta_pp) < 0,
@@ -589,6 +840,7 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 		>
 			<Panel
 				className="dashboard-analytics-hero"
+				id="dashboard-analysis-pulse"
 				title="Análisis operativo"
 				subtitle={`Compará el período ${currentPeriodLabel(dashboard)} sin perder la lectura de caja y ejecución.`}
 			>
@@ -613,9 +865,11 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 					/>
 					<MetricCard
 						animateValue={false}
-						hint={`${acceptedQuotes} aceptadas · ${percent(bookingRate)} con reserva`}
+						hint={`${acceptedQuotes} aceptadas · ${
+							bookingRate === null ? 'sin base de reserva' : `${percent(bookingRate)} con reserva`
+						}`}
 						label="Embudo comercial"
-						value={totalQuotes ? percent((acceptedQuotes / totalQuotes) * 100) : 'Sin cotizaciones'}
+						value={acceptanceRate === null ? 'Sin cotizaciones' : percent(acceptanceRate)}
 					/>
 				</div>
 				<div className="dashboard-analytics-ribbon" aria-label="Cinta de operación">
@@ -639,27 +893,46 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 				</div>
 			</Panel>
 
-			<Panel
-				title="Pulso comparativo"
-				subtitle="Evolución equivalente del período actual frente al anterior."
-			>
-				<div className="dashboard-analytics-trend-grid">
-					<PeriodTrend
-						current={currentSeries}
-						label="Facturación"
-						previous={previousSeries}
-						valueKey="billed_total"
-					/>
-					<PeriodTrend
-						current={currentSeries}
-						label="Caja real"
-						previous={previousSeries}
-						valueKey="cashflow_balance"
-					/>
-				</div>
-			</Panel>
+			<nav aria-label="Recorrido de análisis" className="dashboard-analytics-nav">
+				<span>Recorrido</span>
+				<a href="#dashboard-analysis-pulse">Pulso</a>
+				<a href="#dashboard-analysis-capacity">Capacidad</a>
+				<a href="#dashboard-analysis-performance">Rendimiento</a>
+				<a href="#dashboard-analysis-commercial">Comercial</a>
+				<a href="#dashboard-analysis-execution">Ejecución</a>
+				<a href="#dashboard-analysis-insights">Lecturas</a>
+			</nav>
 
-			<div className="dashboard-analytics-financial-grid">
+			<div className="dashboard-analytics-overview-grid" id="dashboard-analysis-capacity">
+				<Panel
+					title="Capacidad de agenda"
+					subtitle="Reservas activas por sector y día frente a la capacidad configurada; se priorizan jornadas sin cupos o con un único lugar."
+				>
+					<CapacityOccupancy occupancy={capacityOccupancy} />
+				</Panel>
+
+				<Panel
+					title="Pulso comparativo"
+					subtitle="Evolución equivalente del período actual frente al anterior."
+				>
+					<div className="dashboard-analytics-trend-grid">
+						<PeriodTrend
+							current={currentSeries}
+							label="Facturación"
+							previous={previousSeries}
+							valueKey="billed_total"
+						/>
+						<PeriodTrend
+							current={currentSeries}
+							label="Caja real"
+							previous={previousSeries}
+							valueKey="cashflow_balance"
+						/>
+					</div>
+				</Panel>
+			</div>
+
+			<div className="dashboard-analytics-financial-grid" id="dashboard-analysis-performance">
 				<Panel
 					title="Facturado vs. período anterior"
 					subtitle="Comparación por tramo equivalente; las barras no mezclan acumulados con flujo diario."
@@ -684,10 +957,10 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 				</Panel>
 			</div>
 
-			<div className="dashboard-analytics-split-grid">
+			<div className="dashboard-analytics-split-grid" id="dashboard-analysis-commercial">
 				<Panel
 					title="Embudo comercial"
-					subtitle="Cada etapa cuenta una cotización, incluso si es grupal."
+					subtitle="Cada etapa cuenta una cotización, incluso si es grupal. Base: cotizaciones con fecha en el período."
 				>
 					{totalQuotes ? (
 						<>
@@ -718,11 +991,42 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 									'var(--color-success)',
 								)}
 							</div>
+							<div className="dashboard-analytics-conversion-grid">
+								{funnelConversions.map((stage) => (
+									<div key={stage.label}>
+										<span>{stage.label}</span>
+										<strong>{stage.rate === null ? 'Sin base' : percent(stage.rate)}</strong>
+										<small>
+											{stage.numerator} de {stage.denominator} · {stage.from.toLowerCase()}
+										</small>
+									</div>
+								))}
+							</div>
+							{largestFunnelDrop ? (
+								<RecordCard className="dashboard-analytics-funnel-drop">
+									<strong>
+										Mayor caída: {largestFunnelDrop.from} → {largestFunnelDrop.to}
+									</strong>
+									<small>
+										{percent(largestFunnelDrop.lossRate)} · {largestFunnelDrop.lostCount}{' '}
+										{largestFunnelDrop.lostCount === 1 ? 'cotización' : 'cotizaciones'} no avanzaron
+										a la etapa siguiente. Base: {totalQuotes} cotizaciones del período.
+									</small>
+								</RecordCard>
+							) : totalQuotes < MIN_FUNNEL_BASE ? (
+								<p className="dashboard-analytics-muted">
+									Base insuficiente para destacar una caída entre etapas (mínimo 5 cotizaciones).
+								</p>
+							) : null}
 							<div className="dashboard-analytics-funnel-footnote">
 								<span>{numberValue(funnel.sent_quotes)} enviadas</span>
 								<span>{numberValue(funnel.draft_quotes)} borradores</span>
 								<span>{numberValue(funnel.rejected_quotes)} rechazadas</span>
-								<strong>{percent(collectionRate)} cobradas tras entrega</strong>
+								<strong>
+									{funnelCollectionRate === null
+										? 'Sin entregas para medir cobro'
+										: `${percent(funnelCollectionRate)} cobradas tras entrega`}
+								</strong>
 							</div>
 						</>
 					) : (
@@ -747,25 +1051,54 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 							<strong>{numberValue(recurrence.recurring_customers_count)}</strong>
 						</div>
 						<div>
+							<span>Nuevos</span>
+							<strong>{numberValue(recurrence.new_customers_count)}</strong>
+						</div>
+						<div>
 							<span>Tasa de repetición</span>
 							<strong>{percent(numberValue(recurrence.repeat_rate))}</strong>
 						</div>
 					</div>
-					{topCustomers.length ? (
-						<div className="dashboard-analytics-top-customers">
-							<span>Mayor facturación por cliente</span>
-							{topCustomers.slice(0, 3).map((customer) => (
-								<div key={customer.customer_id ?? customer.customer_name}>
-									<span>{customer.customer_name}</span>
-									<strong>{money(customer.billed_total)}</strong>
-								</div>
-							))}
-						</div>
-					) : null}
+					<div className="dashboard-analytics-top-customers">
+						<span>
+							Concentración facturada en principales clientes
+							{topCustomersShare === null ? '' : ` · Top 3: ${percent(topCustomersShare)}`}
+						</span>
+						{topCustomerRows.length && billedTotal > 0 ? (
+							topCustomerRows.map((customer) => {
+								const share = ratioPercent(customer.billed_total, billedTotal) ?? 0
+								return (
+									<div
+										className="dashboard-sharerow"
+										key={customer.customer_id ?? customer.customer_name}
+									>
+										<div>
+											<span>{customer.customer_name}</span>
+											<strong>{money(customer.billed_total)}</strong>
+										</div>
+										<small>{percent(share)}</small>
+										<span
+											aria-label={`Concentración facturada de ${String(
+												customer.customer_name ?? 'Cliente',
+											)}: ${percent(share)}`}
+											className="dashboard-sharebar"
+											role="img"
+											style={
+												{ ['--share']: `${Math.min(Math.max(share, 0), 100)}%` } as CSSProperties
+											}
+										/>
+									</div>
+								)
+							})
+						) : (
+							<Empty text="Sin facturación por cliente para medir concentración." />
+						)}
+					</div>
 				</Panel>
 			</div>
 
 			<Panel
+				id="dashboard-analysis-services"
 				title="Margen por servicio"
 				subtitle="Margen estimado luego de materiales imputados; no reemplaza utilidad contable."
 			>
@@ -801,7 +1134,7 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 				)}
 			</Panel>
 
-			<div className="dashboard-analytics-split-grid">
+			<div className="dashboard-analytics-split-grid" id="dashboard-analysis-execution">
 				<Panel
 					title="Evolución de trabajos"
 					subtitle="Órdenes ingresadas por semana y su estado actual, no cohortes históricas de entrega."
@@ -810,21 +1143,68 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 				</Panel>
 
 				<Panel
-					title="Caja y cuentas a cobrar"
-					subtitle="Exposición actual por antigüedad de los saldos facturados."
+					title="Cobranza y presión de caja"
+					subtitle="Cruce descriptivo del flujo del período, saldos por cobrar y compromisos próximos."
 				>
-					<div className="dashboard-analytics-cash-summary">
-						<div>
-							<span>Facturado sin cobrar</span>
-							<strong>{money(balanceDue)}</strong>
-						</div>
-						<div>
-							<span>Cobrado en el período</span>
-							<strong>{money(dashboard.collected_total)}</strong>
-						</div>
+					<div className="dashboard-analytics-cash-metrics">
+						<MetricCard
+							animateValue={false}
+							hint={`${money(collectedTotal)} cobrado · ${money(billedTotal)} facturado`}
+							label="Relación cobrado / facturado"
+							value={
+								collectionToBilledRate === null
+									? 'Sin base comparable'
+									: percent(collectionToBilledRate)
+							}
+						/>
+						<MetricCard
+							animateValue={false}
+							hint={`${numberValue(dashboard.work_orders_with_balance_due_count)} trabajos del período con saldo`}
+							label="Por cobrar del período"
+							value={money(balanceDue)}
+						/>
+						<MetricCard
+							animateValue={false}
+							className={overdueAmount > 0 ? 'metric--attention' : ''}
+							hint={`${numberValue(overdueDebts.count)} pendientes · al ${debtAsOf}`}
+							label="Deudas vencidas"
+							value={money(overdueAmount)}
+						/>
+						<MetricCard
+							animateValue={false}
+							className={dueSoonAmount > 0 ? 'metric--attention' : ''}
+							hint={`${numberValue(dueSoonDebts.count)} pendientes · al ${debtAsOf}`}
+							label={`Por vencer en ${dueSoonDays} días`}
+							value={money(dueSoonAmount)}
+						/>
+						<MetricCard
+							animateValue={false}
+							className={fixedExpensesPending > 0 ? 'metric--attention' : ''}
+							hint={`${fixedExpensesPendingCount} pendientes en el período`}
+							label="Gastos fijos pendientes"
+							value={money(fixedExpensesPending)}
+						/>
 					</div>
+					<RecordCard
+						className={`dashboard-analytics-pressure${
+							cashBalance < 0 || visibleCommitments > Math.max(cashBalance, 0)
+								? ' dashboard-analytics-pressure--risk'
+								: ''
+						}`}
+					>
+						<span>Presión visible</span>
+						<p>{pressureText}</p>
+					</RecordCard>
+					<p className="dashboard-analytics-basis-note">
+						La relación es descriptiva: las fechas de facturación y cobro pueden ser distintas y no
+						atribuye cada pago a una factura del mismo período.
+					</p>
 					{aging.length ? (
 						<div className="dashboard-analytics-aging">
+							<div className="dashboard-analytics-aging-overview">
+								<span>Antigüedad del saldo en trabajos facturados del período</span>
+								<RiskMeter buckets={aging} />
+							</div>
 							{aging.map((bucket) => {
 								const amount = numberValue(bucket.amount)
 								return (
@@ -855,6 +1235,7 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 
 			<Panel
 				className="dashboard-analytics-insights-panel"
+				id="dashboard-analysis-insights"
 				title="Lecturas derivadas"
 				subtitle="Conclusiones descriptivas a partir de los datos disponibles, sin completar relaciones inexistentes."
 			>
@@ -868,8 +1249,9 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 					<Empty text="Todavía no hay suficiente actividad para una lectura derivada." />
 				)}
 				<p className="dashboard-analytics-limitations">
-					No se muestran rentabilidad por técnico, metas configuradas ni cohortes históricas de
-					entrega porque esos datos todavía no existen en el modelo.
+					No se muestran rentabilidad final, productividad por técnico, no-show, tiempos reales de
+					ciclo, canal comercial, forecast ni cohortes históricas porque esos datos o ese historial
+					todavía no existen en el modelo.
 				</p>
 			</Panel>
 		</div>

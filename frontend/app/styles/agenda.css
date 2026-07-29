@@ -576,13 +576,19 @@
 }
 
 .agenda-day-summary {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
+  align-items: flex-start;
+  display: grid;
+  gap: 4px;
   line-height: 1.25;
   max-width: 100%;
   padding-inline: 12px;
+}
+
+.agenda-day-balances {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  max-width: 100%;
 }
 
 .agenda-day-balance {

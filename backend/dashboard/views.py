@@ -9,6 +9,7 @@ from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from catalog.models import Sector
 from core.permissions import business_from_request, can_view_economy
 from customers.birthdays import upcoming_birthday_customers
 from customers.models import Customer
@@ -19,6 +20,7 @@ from finance.models import CashMovement, Payment
 from fixed_expenses.models import FixedExpenseOccurrence
 from inventory.models import MaterialConsumption, MaterialPurchase, StockMovement, StockMovementLine
 from quotes.models import Quote
+from scheduling.models import Reservation
 from workorders.metrics import build_work_order_financial_metrics
 from workorders.models import WorkOrder
 
@@ -367,6 +369,10 @@ def cash_by_category_for_period(business, date_from, date_to):
     income = defaultdict(lambda: ZERO)
     income_by_service = defaultdict(lambda: ZERO)
     expense = defaultdict(lambda: ZERO)
+    # The dashboard still exposes expense_by_category for older consumers, while the
+    # summary card uses subcategories to make each outgoing movement more actionable.
+    # Empty historical subcategories fall back to their category instead of being lost.
+    expense_by_subcategory = defaultdict(lambda: ZERO)
     for movement in movements:
         if not cash_movement_cashflow_effect(movement):
             continue
@@ -381,6 +387,8 @@ def cash_by_category_for_period(business, date_from, date_to):
             income_by_service[service_name] += movement.amount
         elif movement.movement_type == CashMovement.MovementType.EXPENSE:
             expense[category] += movement.amount
+            subcategory = str(movement.subcategory or "").strip() or category
+            expense_by_subcategory[subcategory] += movement.amount
 
     debt_payments_total = decimal_sum(
         DebtPayment.objects.filter(
@@ -392,6 +400,7 @@ def cash_by_category_for_period(business, date_from, date_to):
     )
     if debt_payments_total > ZERO:
         expense["Pago de deudas"] += debt_payments_total
+        expense_by_subcategory["Pago de deudas"] += debt_payments_total
 
     def to_rows(bucket):
         return [
@@ -413,10 +422,21 @@ def cash_by_category_for_period(business, date_from, date_to):
             )
         ]
 
+    def to_subcategory_rows(bucket):
+        return [
+            {"subcategory": subcategory, "total": total}
+            for subcategory, total in sorted(
+                bucket.items(),
+                key=lambda item: item[1],
+                reverse=True,
+            )
+        ]
+
     return {
         "income_by_category": to_rows(income),
         "income_by_service": to_service_rows(income_by_service),
         "expense_by_category": to_rows(expense),
+        "expense_by_subcategory": to_subcategory_rows(expense_by_subcategory),
     }
 
 
@@ -888,6 +908,70 @@ def customer_recurrence_for_period(business, date_from, date_to):
     }
 
 
+def capacity_occupancy_for_period(business, date_from, date_to):
+    """Return occupied sector-days using the same capacity rules as scheduling."""
+    sectors = list(
+        Sector.objects.filter(business=business, is_active=True).order_by("order", "name")
+    )
+    active_statuses = list(Reservation.active_statuses())
+    result = {
+        "unit": "reservation",
+        "from": date_from.isoformat(),
+        "to": date_to.isoformat(),
+        "sectors_count": len(sectors),
+        "active_statuses": active_statuses,
+        "sector_days": [],
+    }
+    if not sectors:
+        return result
+
+    sectors_by_id = {sector.id: sector for sector in sectors}
+    occupied_sector_days = (
+        Reservation.objects.filter(
+            business=business,
+            day__gte=date_from,
+            day__lte=date_to,
+            sector_id__in=sectors_by_id,
+            status__in=active_statuses,
+        )
+        .values("day", "sector_id")
+        .annotate(used_slots=Count("id"))
+        .order_by("day", "sector_id")
+    )
+    for row in occupied_sector_days:
+        sector = sectors_by_id[row["sector_id"]]
+        capacity = max(
+            int(
+                Reservation.capacity_for_day(
+                    row["day"],
+                    business=business,
+                    sector=sector,
+                )
+                or 0
+            ),
+            0,
+        )
+        used_slots = row["used_slots"]
+        result["sector_days"].append(
+            {
+                "date": row["day"].isoformat(),
+                "sector_id": sector.id,
+                "sector_name": sector.name,
+                "used_slots": used_slots,
+                "capacity": capacity,
+                "available_slots": max(capacity - used_slots, 0),
+                "occupancy_rate": (
+                    (Decimal(used_slots) * Decimal("100") / Decimal(capacity)).quantize(
+                        Decimal("0.01")
+                    )
+                    if capacity
+                    else None
+                ),
+            }
+        )
+    return result
+
+
 def weekly_workload_for_period(business, date_from, date_to):
     """Bucket entered work orders by week and show each order's current status."""
     total_days = (date_to - date_from).days + 1
@@ -1241,6 +1325,7 @@ class DashboardSummaryView(APIView):
             ),
             "commercial_funnel": commercial_funnel_for_period(business, date_from, date_to),
             "customer_recurrence": customer_recurrence_for_period(business, date_from, date_to),
+            "capacity_occupancy": capacity_occupancy_for_period(business, date_from, date_to),
             "weekly_workload": weekly_workload_for_period(business, date_from, date_to),
         }
         debt_summary = debt_timing_summary(business, today)

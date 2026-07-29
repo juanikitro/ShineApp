@@ -49,6 +49,7 @@ test('DashboardPeriodToolbar preserves period controls, callbacks and submit beh
 	} = renderToolbar()
 
 	assert.equal(container.querySelector('form')?.className, 'toolbar dashboard-period-toolbar')
+	assert.ok(screen.getByRole('button', { name: 'Ver periodo' }).classList.contains('dashboard-period-submit'))
 	fireEvent.click(screen.getByRole('button', { name: 'Mes anterior' }))
 	fireEvent.click(screen.getByRole('button', { name: 'Mes siguiente' }))
 	fireEvent.change(screen.getByLabelText('Desde'), {

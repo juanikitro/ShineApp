@@ -172,10 +172,7 @@ export function DashboardCrossReadings({ dashboard }: { dashboard: AnyRecord }) 
 	]
 
 	return (
-		<Panel
-			title="Lecturas cruzadas"
-			subtitle="Ratios que cruzan dos datos y dicen algo que un total solo no dice."
-		>
+		<Panel title="Lecturas cruzadas">
 			<div className="dashboard-cross-grid">
 				{cards.map((card) => (
 					<MetricCard

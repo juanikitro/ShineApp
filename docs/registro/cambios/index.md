@@ -9,9 +9,12 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
-- [Servicios base por tipo principal de negocio](2026-07-28-servicios-base-por-tipo-negocio.md)
-- [Onboarding y trial: CTA comercial y contraste tematico](2026-07-28-onboarding-trial-cta-y-contraste.md)
 - [Alta guiada sincronizada con Tareas](2026-07-28-tareas-alta-guiada.md)
+- [Servicios base por tipo principal de negocio](2026-07-28-servicios-base-por-tipo-negocio.md)
+- [Reservas se abren directamente en edición](2026-07-28-reservas-edicion-directa.md)
+- [Onboarding y trial: CTA comercial y contraste tematico](2026-07-28-onboarding-trial-cta-y-contraste.md)
+- [Dashboard: señales operativas accionables](2026-07-28-dashboard-senales-operativas-accionables.md)
+- [Agenda: saldos diarios en una fila propia](2026-07-28-agenda-saldos-en-fila.md)
 - [Dashboard: analitica operativa y comercial](2026-07-27-dashboard-analitica-operativa.md)
 - [Paginacion estable en los listados de la app](2026-07-24-paginacion-estable-listados.md)
 - [Creacion rapida en cotizaciones y reservas grupales](2026-07-24-creacion-rapida-en-cotizaciones-reservas-grupales.md)

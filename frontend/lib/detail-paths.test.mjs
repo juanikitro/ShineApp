@@ -6,6 +6,7 @@ import {
 	detailEndpoint,
 	detailKindFromTitle,
 	isEditableDetailKind,
+	shouldStartDetailEditing,
 } from './detail-paths'
 
 test('detailKindFromTitle preserves the Spanish detail title map', () => {
@@ -40,4 +41,11 @@ test('isEditableDetailKind preserves the editable detail type catalog', () => {
 	assert.equal(isEditableDetailKind('debt-payment'), true)
 	assert.equal(isEditableDetailKind('fixed-expense'), false)
 	assert.equal(isEditableDetailKind('unknown'), false)
+})
+
+test('shouldStartDetailEditing opens every reservation directly in its editor', () => {
+	assert.equal(shouldStartDetailEditing('reservation', false), true)
+	assert.equal(shouldStartDetailEditing('reservation', undefined), true)
+	assert.equal(shouldStartDetailEditing('customer', true), true)
+	assert.equal(shouldStartDetailEditing('customer', false), false)
 })

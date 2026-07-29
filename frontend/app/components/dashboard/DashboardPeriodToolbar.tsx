@@ -37,6 +37,20 @@ export function DashboardPeriodToolbar({
 			className="toolbar dashboard-period-toolbar"
 			onSubmit={onSubmit}
 		>
+			<div className="dashboard-period-view-field">
+				<Field label="Vista">
+					<SegmentedControl
+						ariaLabel="Vista del dashboard"
+						className="dashboard-view-toggle"
+						options={[
+							{ value: 'summary', label: 'Resumen' },
+							{ value: 'analysis', label: 'Análisis' },
+						]}
+						value={dashboardView}
+						onChange={onDashboardViewChange}
+					/>
+				</Field>
+			</div>
 			<Button
 				type="button"
 				variant="ghost"
@@ -61,20 +75,15 @@ export function DashboardPeriodToolbar({
 					onChange={(event) => onToChange(event.target.value)}
 				/>
 			</Field>
-			<div className="dashboard-period-view-field">
-				<Field label="Vista">
-					<SegmentedControl
-						ariaLabel="Vista del dashboard"
-						className="dashboard-view-toggle"
-						options={[
-							{ value: 'summary', label: 'Resumen' },
-							{ value: 'analysis', label: 'Análisis' },
-						]}
-						value={dashboardView}
-						onChange={onDashboardViewChange}
-					/>
-				</Field>
-			</div>
+			<Button
+				type="submit"
+				variant="primary"
+				className="dashboard-period-submit"
+				loading={loading}
+				leadingIcon={<Search size={16} />}
+			>
+				Ver periodo
+			</Button>
 			<Button
 				type="button"
 				variant="ghost"
@@ -84,14 +93,6 @@ export function DashboardPeriodToolbar({
 				title="Mes siguiente"
 			>
 				<ChevronRight size={16} />
-			</Button>
-			<Button
-				type="submit"
-				variant="primary"
-				loading={loading}
-				leadingIcon={<Search size={16} />}
-			>
-				Ver periodo
 			</Button>
 			{loading ? (
 				<span className="panel-stale-badge" role="status" aria-live="polite">

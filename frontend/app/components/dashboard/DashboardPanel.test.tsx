@@ -81,7 +81,9 @@ test('DashboardPanel keeps task navigation available with guided onboarding', ()
 
 	assert.ok(screen.getByRole('heading', { name: 'Alta guiada' }))
 	assert.ok(screen.getByText('Confirmar entrega'))
-	screen.getByRole('button', { name: 'Ver todas las tareas' }).click()
+	const openTasksButton = screen.getByRole('button', { name: 'Ver todas las tareas' })
+	assert.ok(openTasksButton.classList.contains('dashboard-action-link'))
+	openTasksButton.click()
 	assert.deepEqual(onOpenSection.mock.calls, [['tasks']])
 })
 

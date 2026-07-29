@@ -44,6 +44,18 @@ test('AgendaDayHeader preserves the current selected closed-day presentation', (
 	assert.ok(screen.getByText('Hoy'))
 	assert.ok(screen.getByText('Cerrado'))
 	assert.ok(screen.getByText('1 movimiento'))
+	const collectedBalance = screen.getByText(/Cobrado\s+\$\s*1\.500/)
+	const receivableBalance = screen.getByText(/Por cobrar\s+\$\s*500/)
+	assert.ok(collectedBalance)
+	assert.ok(receivableBalance)
+	assert.equal(
+		collectedBalance.parentElement?.className,
+		'agenda-day-balances',
+	)
+	assert.equal(
+		receivableBalance.parentElement?.className,
+		'agenda-day-balances',
+	)
 })
 
 test('AgendaDayHeader only opens an interactive day with the quick prefill flag', () => {

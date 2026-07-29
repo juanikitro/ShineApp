@@ -17,9 +17,7 @@ import {
 
 import { Stagger, StaggerItem } from '@/app/components/motion/Stagger'
 import { Empty } from '@/app/components/ui/Empty'
-import { CajaSparkline } from '@/app/components/ui/CajaSparkline'
 import { MetricCard } from '@/app/components/ui/MetricCard'
-import { RiskMeter } from '@/app/components/ui/RiskMeter'
 import { DemoReadinessPanel } from './DemoReadinessPanel'
 import { DashboardAnalyticsPanel } from './DashboardAnalyticsPanel'
 import { ImportantTasksCard } from './ImportantTasksCard'
@@ -281,11 +279,6 @@ export function DashboardPanel({
 		dashboardTopMaterialsByCost[0]?.estimated_total_cost,
 	)
 	const dashboardBySectorMax = numberValue(dashboardBySector[0]?.billed_total)
-	const dashboardSeriesPoints = Array.isArray(dashboard.series?.points)
-		? dashboard.series.points
-		: []
-	const dashboardSeriesValues = (key: string) =>
-		dashboardSeriesPoints.map((point: AnyRecord) => numberValue(point?.[key]))
 	const dashboardPreviousHasActivity =
 		dashboardPreviousPeriod.has_activity === true ||
 		(dashboardPreviousPeriod.has_activity !== false &&
@@ -507,7 +500,6 @@ export function DashboardPanel({
 					<Panel
 						className="dashboard-next-action-panel"
 						title="Siguiente accion"
-						subtitle="Prioridad operativa sugerida para este periodo."
 					>
 						<div className="dashboard-next-action-grid">
 							<RecordCard
@@ -523,19 +515,23 @@ export function DashboardPanel({
 										<span className="dashboard-next-action-icon" aria-hidden="true">
 											<DashboardNextActionIcon size={16} />
 										</span>
-										<div className="dashboard-next-action-copy">
-											<strong>{dashboardNextAction.title}</strong>
-											<span>{dashboardNextAction.detail}</span>
+										<div className="dashboard-next-action-content">
+											<div className="dashboard-next-action-head">
+												<div className="dashboard-next-action-copy">
+													<strong>{dashboardNextAction.title}</strong>
+													<span>{dashboardNextAction.detail}</span>
+												</div>
+												<button
+													type="button"
+													className="ghost dashboard-action-link"
+													onClick={dashboardNextAction.onSelect}
+												>
+													{dashboardNextAction.label}
+												</button>
+											</div>
 										</div>
 									</div>
 								</div>
-								<button
-									type="button"
-									className="ghost"
-									onClick={dashboardNextAction.onSelect}
-								>
-									{dashboardNextAction.label}
-								</button>
 								{dashboardFollowUpActions.length > 0 ? (
 									<div className="dashboard-next-action-follow-ups">
 										<span className="dashboard-next-action-kicker">Después</span>
@@ -615,7 +611,9 @@ export function DashboardPanel({
 					{(!loading || dashboardHasBusinessActivity) &&
 					!dashboardEmptyPeriod ? (
 						<>
-							<Stagger className="dashboard-executive-grid">
+							<section className="dashboard-executive-section" aria-labelledby="dashboard-executive-title">
+								<h2 id="dashboard-executive-title">Indicadores del periodo</h2>
+								<Stagger className="dashboard-executive-grid">
 								<StaggerItem>
 									<MetricCard
 										className="dashboard-executive-metric dashboard-executive-metric--billing"
@@ -651,11 +649,6 @@ export function DashboardPanel({
 										className="dashboard-executive-metric dashboard-executive-metric--cash"
 										label="Caja real"
 										icon={<Banknote size={20} />}
-										footer={
-											<CajaSparkline
-												values={dashboardSeriesValues('cashflow_balance')}
-											/>
-										}
 										value={money(dashboardCashflowBalance)}
 										numericValue={dashboardCashflowBalance}
 										format={money}
@@ -675,7 +668,6 @@ export function DashboardPanel({
 										)}
 										label="Por cobrar"
 										icon={<CreditCard size={20} />}
-										footer={<RiskMeter buckets={dashboardReceivablesAging} />}
 										value={money(dashboardBalanceDueTotal)}
 										numericValue={dashboardBalanceDueTotal}
 										format={money}
@@ -686,13 +678,13 @@ export function DashboardPanel({
 										)}
 									/>
 								</StaggerItem>
-							</Stagger>
+								</Stagger>
+							</section>
 							<DashboardCrossReadings dashboard={dashboard} />
 								<DashboardCashByCategory dashboard={dashboard} />
 								<div className="dashboard-insight-grid">
 								<Panel
 									title="Composicion economica"
-									subtitle="Separacion entre facturado, cobrado, costos y obligaciones."
 								>
 									<Stagger className="dashboard-composition-grid">
 										<StaggerItem>
@@ -830,7 +822,7 @@ export function DashboardPanel({
 										title="Alertas economicas"
 										subtitle={
 											dashboardEconomicAlerts.length
-												? 'Prioridades para cobrar, pagar o corregir.'
+												? undefined
 												: 'Sin alertas economicas activas para el periodo.'
 										}
 									>
@@ -1074,7 +1066,6 @@ export function DashboardPanel({
 							dashboardBySector.length ? (
 								<Panel
 									title="Rankings economicos"
-									subtitle="Donde se concentra facturacion, margen y costo de materiales."
 								>
 									<div className="dashboard-ranking-grid">
 										<div className="dashboard-ranking-column">
