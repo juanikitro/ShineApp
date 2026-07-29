@@ -2,6 +2,7 @@ import {
 	type AnyRecord,
 	formatDateLabel,
 } from '@/lib/page-support'
+import { joinDisplayParts } from '@/lib/display-text'
 
 export function customerDaysText(value: any, emptyText = 'Sin dato') {
 	const days = Number(value)
@@ -44,4 +45,38 @@ export function customerScheduleLabel(
 
 export function customerListInsights(customer: AnyRecord) {
 	return customer?.list_insights ?? {}
+}
+
+export function customerVehicleSearchTermsByCustomerId(vehicles: AnyRecord[]) {
+	const grouped = new Map<string, string[]>()
+	vehicles.forEach((vehicle) => {
+		const customerId = String(vehicle.customer ?? '')
+		if (!customerId) return
+		const values = grouped.get(customerId) ?? []
+		values.push(
+			String(vehicle.license_plate ?? ''),
+			String(vehicle.brand ?? ''),
+			String(vehicle.model ?? ''),
+		)
+		grouped.set(customerId, values)
+	})
+	return grouped
+}
+
+export function customerVehicleCountByCustomerId(vehicles: AnyRecord[]) {
+	const grouped = new Map<string, number>()
+	vehicles.forEach((vehicle) => {
+		const customerId = String(vehicle.customer ?? '')
+		if (!customerId) return
+		grouped.set(customerId, (grouped.get(customerId) ?? 0) + 1)
+	})
+	return grouped
+}
+
+export function customerSelectOptions(customers: AnyRecord[]) {
+	return customers.map((item) => ({
+		value: String(item.id),
+		label: item.name,
+		meta: joinDisplayParts([item.phone, item.email]),
+	}))
 }

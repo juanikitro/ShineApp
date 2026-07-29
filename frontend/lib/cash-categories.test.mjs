@@ -14,7 +14,52 @@ import {
 	upsertIncomeCategoryPair,
 	normalizeExpenseCategoryTree,
 	expenseCategoryPairs,
+	validCashSubcategoryForCategory,
+	validExpenseSubcategoryForCategory,
 } from './page-support'
+
+test('validExpenseSubcategoryForCategory keeps only subcategories in the selected tree branch', () => {
+	const tree = { Servicios: ['Luz'], Marketing: [] }
+	assert.equal(validExpenseSubcategoryForCategory(tree, 'Servicios', 'Luz'), 'Luz')
+	assert.equal(validExpenseSubcategoryForCategory(tree, 'Servicios', 'Ads'), '')
+	assert.equal(validExpenseSubcategoryForCategory(tree, '', 'Luz'), '')
+	assert.equal(validExpenseSubcategoryForCategory(tree, 'Servicios', null), '')
+})
+
+test('validCashSubcategoryForCategory selects the tree for the movement type', () => {
+	const incomeTree = { Cobros: ['Transferencia'] }
+	const expenseTree = { Servicios: ['Luz'] }
+	assert.equal(
+		validCashSubcategoryForCategory(
+			incomeTree,
+			expenseTree,
+			'income',
+			'Cobros',
+			'Transferencia',
+		),
+		'Transferencia',
+	)
+	assert.equal(
+		validCashSubcategoryForCategory(
+			incomeTree,
+			expenseTree,
+			'expense',
+			'Servicios',
+			'Luz',
+		),
+		'Luz',
+	)
+	assert.equal(
+		validCashSubcategoryForCategory(
+			incomeTree,
+			expenseTree,
+			'income',
+			'Cobros',
+			'Luz',
+		),
+		'',
+	)
+})
 
 test('normalizeExpenseCategoryTree conserva categorias sin subcategorias', () => {
 	const tree = normalizeExpenseCategoryTree({

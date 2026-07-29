@@ -44,6 +44,7 @@ import {
 	SegmentedControl,
 	type SegmentedOption,
 } from '@/app/components/ui/SegmentedControl'
+import { type SettingsSection } from '@/app/components/settings/settings-section-options'
 import {
 	DataList,
 	formatDateTimeLabel,
@@ -54,18 +55,6 @@ import { FREE_EVENT_VARIABLES } from '@/lib/whatsapp-free'
 import {
 	type AuditLogFilters,
 } from '@/lib/audit-log'
-
-export type SettingsSection =
-	| 'business'
-	| 'turnera'
-	| 'quotes'
-	| 'cash'
-	| 'agenda'
-	| 'users'
-	| 'history'
-	| 'trash'
-	| 'whatsapp'
-	| 'novedades'
 
 type CashClassificationPair = AnyRecord & {
 	movement_type: string
@@ -103,6 +92,7 @@ type SettingsWorkspaceProps = {
 	reservationUseInProgress: boolean
 	reservationUseReady: boolean
 	reservationUseCanceled: boolean
+	reservationAutoChargeOnDelivery: boolean
 	employees: AnyRecord[]
 	selectedEmployee: AnyRecord | null
 	employeeAuditLogs: AnyRecord[]
@@ -192,6 +182,7 @@ export function SettingsWorkspace({
 	reservationUseInProgress,
 	reservationUseReady,
 	reservationUseCanceled,
+	reservationAutoChargeOnDelivery,
 	employees,
 	selectedEmployee,
 	employeeAuditLogs,
@@ -323,6 +314,9 @@ export function SettingsWorkspace({
 							reservationUseInProgress={reservationUseInProgress}
 							reservationUseReady={reservationUseReady}
 							reservationUseCanceled={reservationUseCanceled}
+							reservationAutoChargeOnDelivery={
+								reservationAutoChargeOnDelivery
+							}
 							showStayDaysInAgenda={showStayDaysInAgenda}
 							useReservationTimes={useReservationTimes}
 							onPatchBusinessForm={onPatchBusinessForm}
@@ -509,8 +503,18 @@ const whatsappModeOptions: SegmentedOption<string>[] = [
 	{ value: 'paid', label: 'Paga (API)' },
 ]
 
-// Modulos que el modo gratis expone en Envios/Botones (sin work_delivered).
-const freeModuleEventKeys = ['reservation_confirmed', 'work_ready', 'quote_sent']
+const freeModuleEventKeys = [
+	'reservation_confirmed',
+	'work_ready',
+	'work_delivered',
+	'quote_sent',
+]
+
+const whatsappDispatchEventKeys = [
+	'reservation_confirmed',
+	'work_ready',
+	'work_delivered',
+]
 
 function whatsappVariableHint(eventKey: string) {
 	const vars = FREE_EVENT_VARIABLES[eventKey] ?? []
@@ -982,19 +986,9 @@ export function WhatsappSettingsPanel({
 			<section className="panel">
 				<div className="panel-head">
 					<div>
-						<span className="panel-kicker">
-							{isFreeMode ? 'Modulos gratis' : 'Automatizacion'}
-						</span>
-						<h2>
-							{isFreeMode
-								? 'Modulos con boton de WhatsApp'
-								: 'Envios automaticos'}
-						</h2>
-						<p>
-							{isFreeMode
-								? 'Activa los modulos que muestran el boton de WhatsApp y asigna el mensaje de cada uno.'
-								: 'Activa los eventos que deben generar mensajes de WhatsApp.'}
-						</p>
+						<span className="panel-kicker">Politica de despacho</span>
+						<h2>Eventos de WhatsApp</h2>
+						<p>Elegí cómo se despacha cada evento y asigná su template activo.</p>
 					</div>
 				</div>
 				{(() => {
@@ -1005,47 +999,56 @@ export function WhatsappSettingsPanel({
 						: automationRules
 					return visibleRules.length ? (
 						<div className="records">
-							{visibleRules.map((rule) => (
-								<RecordCard key={rule.id}>
-									<RecordCardHeader
-										title={rule.event_label ?? rule.event}
-										subtitle={`${
-											rule.enabled ? 'Activo' : 'Inactivo'
-										}${
-											isFreeMode
-												? ` - variables: ${whatsappVariableHint(String(rule.event))}`
-												: ` - ${rule.template_label ?? 'Sin template'}`
-										}`}
-									/>
-									<div className="record-actions">
-										<Toggle
-											checked={Boolean(rule.enabled)}
-											onChange={(checked) =>
-												void onUpdateAutomationRule(rule.id, {
-													enabled: checked,
-												})
-											}
-										>
-											{isFreeMode ? 'Mostrar boton' : 'Enviar automatico'}
-										</Toggle>
-										<select
-											value={rule.template ?? ''}
-											onChange={(event) =>
-												void onUpdateAutomationRule(rule.id, {
-													template: event.target.value || null,
-												})
-											}
-										>
-											<option value="">Sin template</option>
-											{templates.map((template) => (
-												<option key={template.id} value={template.id}>
-													{template.provider_template_name || template.key}
-												</option>
-											))}
-										</select>
-									</div>
-								</RecordCard>
-							))}
+							{visibleRules.map((rule) => {
+								const canChooseDispatch = whatsappDispatchEventKeys.includes(
+									String(rule.event),
+								)
+								return (
+									<RecordCard key={rule.id}>
+										<RecordCardHeader
+											title={rule.event_label ?? rule.event}
+											subtitle={`${
+												canChooseDispatch ? rule.dispatch ?? 'manual' : 'Manual'
+											} - ${rule.template_label ?? 'Sin template'}${
+												isFreeMode
+													? ` - variables: ${whatsappVariableHint(String(rule.event))}`
+													: ''
+											}`}
+										/>
+										<div className="record-actions">
+											{canChooseDispatch ? (
+												<select
+													value={String(rule.dispatch ?? 'manual')}
+													onChange={(event) =>
+														void onUpdateAutomationRule(rule.id, {
+															dispatch: event.target.value,
+														})
+													}
+												>
+													<option value="manual">Manual</option>
+													<option value="notify">Notificar</option>
+													<option value="automatic">Automatico</option>
+												</select>
+											) : null}
+											<select
+												value={rule.template ?? ''}
+												onChange={(event) =>
+													void onUpdateAutomationRule(rule.id, {
+														template: event.target.value || null,
+													})
+												}
+											>
+												<option value="">Sin template</option>
+												{templates.map((template) => (
+													<option key={template.id} value={template.id}>
+														{template.provider_template_name || template.key}
+													</option>
+												))}
+											</select>
+										</div>
+									</RecordCard>
+								)
+							})}
 						</div>
 					) : (
 						<Empty text="Sin reglas" />
@@ -1426,11 +1429,12 @@ function CashSettingsPanel({
 	)
 }
 
-function AgendaSettingsPanel({
+export function AgendaSettingsPanel({
 	reservationUsePending,
 	reservationUseInProgress,
 	reservationUseReady,
 	reservationUseCanceled,
+	reservationAutoChargeOnDelivery,
 	showStayDaysInAgenda,
 	useReservationTimes,
 	onPatchBusinessForm,
@@ -1440,6 +1444,7 @@ function AgendaSettingsPanel({
 	reservationUseInProgress: boolean
 	reservationUseReady: boolean
 	reservationUseCanceled: boolean
+	reservationAutoChargeOnDelivery: boolean
 	showStayDaysInAgenda: boolean
 	useReservationTimes: boolean
 	onPatchBusinessForm: (patch: AnyRecord) => void
@@ -1528,6 +1533,31 @@ function AgendaSettingsPanel({
 					</RecordCard>
 					<RecordCard>
 						<RecordCardHeader
+							title="Cobro al entregar"
+							subtitle="Si esta activo, al marcar una reserva como Entregada se registra automaticamente el saldo pendiente completo."
+							actions={
+								<SegmentedControl
+									ariaLabel="Cobro al entregar"
+									className="settings-mode-toggle"
+									options={[
+										{ value: 'manual', label: 'Manual' },
+										{ value: 'auto', label: 'Automatico' },
+									]}
+									value={
+										reservationAutoChargeOnDelivery ? 'auto' : 'manual'
+									}
+									onChange={(nextValue) =>
+										onPatchBusinessForm({
+											reservation_auto_charge_on_delivery:
+												nextValue === 'auto',
+										})
+									}
+								/>
+							}
+						/>
+					</RecordCard>
+					<RecordCard>
+						<RecordCardHeader
 							title="Estado Pendiente"
 							subtitle="Si lo ocultas, las reservas nuevas se crean directamente como Confirmada."
 							actions={
@@ -1551,7 +1581,7 @@ function AgendaSettingsPanel({
 					<RecordCard>
 						<RecordCardHeader
 							title="Estado En proceso"
-							subtitle="Si lo ocultas, una reserva Confirmada salta directamente al siguiente paso activo."
+							subtitle="Si lo ocultas, una reserva Confirmada salta el boton Iniciar y avanza al siguiente paso activo."
 							actions={
 								<SegmentedControl
 									ariaLabel="Estado En proceso"

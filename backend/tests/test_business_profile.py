@@ -22,9 +22,11 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         assert initial.data["use_reservation_times"] is True
         assert initial.data["show_stay_days_in_agenda"] is True
         assert initial.data["allow_overlapping_reservations"] is False
+        assert initial.data["reservation_auto_charge_on_delivery"] is False
         assert initial.data["enforce_capacity_limit"] is True
         assert initial.data["address"] == ""
         assert initial.data["maps_url"] == ""
+        assert initial.data["business_type"] is None
         assert initial.data["default_quote_validity_days"] == 7
         assert initial.data["default_quote_tax_rate"] == "0.00"
         assert initial.data["default_quote_discount_rate"] == "0.00"
@@ -55,10 +57,12 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
                 "name": "Brillo Total",
                 "cuit": "20-30405060-7",
                 "vat_condition": BusinessProfile.VatCondition.MONOTRIBUTO,
+                "business_type": BusinessProfile.BusinessType.DETAILING,
                 "contact_phone": "11 5555-2222",
                 "contact_email": "contacto@brillototal.com",
                 "use_reservation_times": False,
                 "show_stay_days_in_agenda": False,
+                "reservation_auto_charge_on_delivery": True,
                 "address": "Parana 158",
                 "maps_url": "https://maps.app.goo.gl/demo",
                 "default_quote_validity_days": 10,
@@ -81,10 +85,12 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
             == BusinessProfile.VatCondition.MONOTRIBUTO
         )
         assert response.data["vat_condition_label"] == "Monotributo"
+        assert response.data["business_type"] == BusinessProfile.BusinessType.DETAILING
         assert response.data["contact_phone"] == "11 5555-2222"
         assert response.data["contact_email"] == "contacto@brillototal.com"
         assert response.data["use_reservation_times"] is False
         assert response.data["show_stay_days_in_agenda"] is False
+        assert response.data["reservation_auto_charge_on_delivery"] is True
         assert response.data["address"] == "Parana 158"
         assert response.data["maps_url"] == "https://maps.app.goo.gl/demo"
         assert response.data["default_quote_validity_days"] == 10
@@ -99,8 +105,10 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         profile = BusinessProfile.get_solo()
         assert profile.name == "Brillo Total"
         assert profile.cuit == "20304050607"
+        assert profile.business_type == BusinessProfile.BusinessType.DETAILING
         assert profile.use_reservation_times is False
         assert profile.show_stay_days_in_agenda is False
+        assert profile.reservation_auto_charge_on_delivery is True
         assert profile.address == "Parana 158"
         assert profile.maps_url == "https://maps.app.goo.gl/demo"
         assert profile.default_quote_validity_days == 10
@@ -159,6 +167,34 @@ def test_business_profile_persists_enforce_capacity_limit(api_client):
 
     profile = BusinessProfile.get_solo()
     assert profile.enforce_capacity_limit is False
+
+
+@pytest.mark.django_db
+def test_business_profile_persists_dismissed_onboarding_steps(api_client):
+    response = api_client.patch(
+        reverse("business-profile"),
+        {"onboarding_dismissed_step_ids": ["whatsapp", "agenda", "whatsapp"]},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    assert response.data["onboarding_dismissed_step_ids"] == ["whatsapp", "agenda"]
+
+    profile = BusinessProfile.get_solo()
+    assert profile.onboarding_dismissed_step_ids == ["whatsapp", "agenda"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("value", [["unknown-step"], None])
+def test_business_profile_rejects_invalid_dismissed_onboarding_steps(api_client, value):
+    response = api_client.patch(
+        reverse("business-profile"),
+        {"onboarding_dismissed_step_ids": value},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "onboarding_dismissed_step_ids" in response.data
 
 
 @pytest.mark.django_db

@@ -1,16 +1,41 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
+import { money } from './page-support'
+
 import {
+	agendaRangeModes,
 	filterFreeQuotesBySector,
+	createWorkReservationRow,
 	groupReservationsByEntryDate,
 	groupReservationsByWorkOrderStatus,
 	groupReservationsByWorkOrderStatusColumns,
 	reservationCanMoveWorkStatus,
 	workOrderForReservation,
+	workOrderSelectOptions,
+	workReservationRow,
 	workStatusColumnForStatus,
+	workStatusColumnKeyForValue,
+	workStatusDropStatusForColumn,
+	workStatusDropTargetForOver,
+	workStatusDropValue,
 	workStatusForReservation,
+	updateReservationWorkOrder,
+	upsertWorkOrderRecord,
+	workViewModes,
 } from './work-orders'
+
+test('keeps the work and agenda view options shown in the agenda controls', () => {
+	assert.deepEqual(workViewModes, [
+		{ value: 'agenda', label: 'Agenda' },
+		{ value: 'status', label: 'Estado' },
+		{ value: 'entry-date', label: 'Fecha de ingreso' },
+	])
+	assert.deepEqual(agendaRangeModes, [
+		{ value: 'week', label: 'Semana' },
+		{ value: 'month', label: 'Mes' },
+	])
+})
 
 test('groups reservations by associated work order status in operational order', () => {
 	const reservations = [
@@ -227,6 +252,155 @@ test('resolves the work order for a reservation from embedded data or lookup', (
 		workOrderForReservation({ id: 11 }, [{ id: 2, reservation: 11 }]).id,
 		2,
 	)
+})
+
+test('createWorkReservationRow preserves the reservation-to-work-order lookup', () => {
+	const workOrder = { id: 14, reservation: 7, status: 'ready' }
+	const getReservationRow = createWorkReservationRow({ 7: workOrder })
+
+	assert.deepEqual(getReservationRow({ id: 7, day: '2026-07-23' }), {
+		key: 'reservation:7',
+		day: '2026-07-23',
+		displayDay: '2026-07-23',
+		phase: 'entry',
+		kind: 'reservation-work-order',
+		reservation: { id: 7, day: '2026-07-23' },
+		workOrder,
+	})
+	assert.equal(
+		createWorkReservationRow([])({ id: 8, day: '2026-07-24' }).kind,
+		'reservation-only',
+	)
+})
+
+test('workOrderSelectOptions preserves economy-sensitive work order labels', () => {
+	const orders = [
+		{
+			id: 0,
+			customer_name: 'Ana',
+			vehicle_label: 'Fiesta',
+			service_name: 'Lavado',
+			balance_due: 50,
+		},
+	]
+
+	assert.deepEqual(workOrderSelectOptions(orders, false), [
+		{ value: '0', label: 'Ana - Fiesta', meta: 'Lavado' },
+	])
+	assert.deepEqual(workOrderSelectOptions(orders, true), [
+		{
+			value: '0',
+			label: 'Ana - Fiesta',
+			meta: `Lavado - deuda ${money(50)}`,
+		},
+	])
+})
+
+test('normalizes direct and prefixed work-status drop values', () => {
+	assert.equal(workStatusDropValue('work-status:ready'), 'ready')
+	assert.equal(workStatusDropValue('in_progress'), 'in_progress')
+	assert.equal(workStatusDropValue(null), null)
+	assert.equal(workStatusDropValue(undefined), null)
+})
+
+test('resolves work status columns from keys, statuses and known labels', () => {
+	const columns = [
+		{ key: 'not_started', label: 'Sin ingresar', statuses: ['pending', 'confirmed'] },
+		{ key: 'finished', label: 'Finalizados', statuses: ['ready', 'delivered'] },
+	]
+	const labels = { ready: 'Listo', canceled: 'Cancelada' }
+
+	assert.equal(
+		workStatusColumnKeyForValue('work-status:finished', columns, labels),
+		'finished',
+	)
+	assert.equal(workStatusColumnKeyForValue('ready', columns, labels), 'finished')
+	assert.equal(workStatusColumnKeyForValue('canceled', columns, labels), 'canceled')
+	assert.equal(workStatusColumnKeyForValue('unknown', columns, labels), null)
+})
+
+test('resolves DnD status targets and their drop statuses', () => {
+	const columns = [
+		{
+			key: 'finished',
+			label: 'Finalizados',
+			statuses: ['ready', 'delivered'],
+			dropStatus: 'ready',
+		},
+	]
+	const labels = { canceled: 'Cancelada' }
+
+	assert.equal(
+		workStatusDropTargetForOver(
+			{ data: { current: { statusGroup: 'work-status:finished' } } },
+			columns,
+			labels,
+		),
+		'finished',
+	)
+	assert.equal(workStatusDropStatusForColumn('finished', columns, labels), 'ready')
+	assert.equal(workStatusDropStatusForColumn('canceled', columns, labels), 'canceled')
+	assert.equal(workStatusDropStatusForColumn(null, columns, labels), null)
+})
+
+test('updateReservationWorkOrder preserves the optimistic reservation status contract', () => {
+	assert.deepEqual(
+		updateReservationWorkOrder(
+			{ id: 1, status: 'confirmed' },
+			{ id: 9, status: 'ready' },
+			{ ready: 'Listo' },
+		),
+		{
+			id: 1,
+			status: 'ready',
+			status_label: 'Listo',
+			work_order: { id: 9, status: 'ready' },
+		},
+	)
+	assert.deepEqual(
+		updateReservationWorkOrder(
+			{ id: 1, status: 'confirmed', status_label: 'Confirmada' },
+			{ id: 9, status: '' },
+			{},
+		),
+		{
+			id: 1,
+			status: 'confirmed',
+			status_label: 'Confirmada',
+			work_order: { id: 9, status: '' },
+		},
+	)
+})
+
+test('builds entry agenda rows without altering reservation or work-order records', () => {
+	const reservation = { id: 10, day: '2026-07-22' }
+	const workOrder = { id: 8, status: 'confirmed' }
+
+	assert.deepEqual(workReservationRow(reservation, null), {
+		key: 'reservation:10',
+		day: '2026-07-22',
+		displayDay: '2026-07-22',
+		phase: 'entry',
+		kind: 'reservation-only',
+		reservation,
+		workOrder: null,
+	})
+	assert.equal(
+		workReservationRow(reservation, workOrder).kind,
+		'reservation-work-order',
+	)
+	assert.equal(workReservationRow(reservation, workOrder).workOrder, workOrder)
+})
+
+test('upsertWorkOrderRecord prepends new orders and replaces matching identifiers', () => {
+	const current = [{ id: 1, status: 'confirmed' }]
+	const inserted = { id: 0, status: 'ready' }
+	assert.deepEqual(upsertWorkOrderRecord(current, inserted), [inserted, ...current])
+	assert.deepEqual(
+		upsertWorkOrderRecord(current, { id: 1, status: 'ready' }),
+		[{ id: 1, status: 'ready' }],
+	)
+	assert.equal(upsertWorkOrderRecord(current, {}), current)
 })
 
 test('groups only reservations with real active work orders by work status', () => {

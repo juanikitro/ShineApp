@@ -10,8 +10,46 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-07-28
+- [Alta guiada sincronizada con Tareas](docs/registro/cambios/2026-07-28-tareas-alta-guiada.md)
+- [Servicios base por tipo principal de negocio](docs/registro/cambios/2026-07-28-servicios-base-por-tipo-negocio.md)
+- [Reservas se abren directamente en edición](docs/registro/cambios/2026-07-28-reservas-edicion-directa.md)
+- [Onboarding y trial: CTA comercial y contraste tematico](docs/registro/cambios/2026-07-28-onboarding-trial-cta-y-contraste.md)
+- [Dashboard: señales operativas accionables](docs/registro/cambios/2026-07-28-dashboard-senales-operativas-accionables.md)
+- [Agenda: saldos diarios en una fila propia](docs/registro/cambios/2026-07-28-agenda-saldos-en-fila.md)
+
+## 2026-07-27
+- [Dashboard: analitica operativa y comercial](docs/registro/cambios/2026-07-27-dashboard-analitica-operativa.md)
+
+## 2026-07-24
+- [Paginacion estable en los listados de la app](docs/registro/cambios/2026-07-24-paginacion-estable-listados.md)
+- [Creacion rapida en cotizaciones y reservas grupales](docs/registro/cambios/2026-07-24-creacion-rapida-en-cotizaciones-reservas-grupales.md)
+- [Actualizacion de seguridad de PostCSS en frontend](docs/registro/cambios/2026-07-24-actualizacion-seguridad-postcss.md)
+
+## 2026-07-23
+- [SearchSelect compatible con ModalFrame de Radix](docs/registro/cambios/2026-07-23-searchselect-radix-dialog.md)
+
+## 2026-07-22
+- [Frontend: override seguro de sharp](docs/registro/cambios/2026-07-22-frontend-sharp-security-override.md)
+
+## 2026-07-21
+- [QuickActionsMenu: menu accesible con Radix DropdownMenu](docs/registro/cambios/2026-07-21-quickactionsmenu-radix-dropdown.md)
+- [ModalFrame: Dialog accesible con guard de cambios](docs/registro/cambios/2026-07-21-modalframe-radix-dialog.md)
+- [Tarjeta de tareas importantes en el dashboard](docs/registro/cambios/2026-07-21-dashboard-tareas-importantes.md)
+- [Siguiente accion con tareas importantes](docs/registro/cambios/2026-07-21-dashboard-siguiente-accion-tareas.md)
+- [Siguiente accion: ahora y despues](docs/registro/cambios/2026-07-21-dashboard-siguiente-accion-prioridades.md)
+- [Alta guiada: pasos descartables por negocio](docs/registro/cambios/2026-07-21-alta-guiada-pasos-descartables.md)
+- [Alta guiada: ocultar pasos durante la carga inicial](docs/registro/cambios/2026-07-21-alta-guiada-carga-inicial.md)
+
+## 2026-07-10
+- [Cotizaciones: nombre opcional](docs/registro/cambios/2026-07-10-cotizaciones-nombre-vacio.md)
+- [Agenda: selector semana/mes junto al switch de vista](docs/registro/cambios/2026-07-10-agenda-selector-rango.md)
+- [Agenda: saldos diarios en el encabezado semanal](docs/registro/cambios/2026-07-10-agenda-saldos-header.md)
+
 ## 2026-07-08
 - [WhatsApp: modo gratis (wa.me) como alternativa a la API paga](docs/registro/cambios/2026-07-08-whatsapp-modo-gratis-wame.md)
+- [Cotizaciones y reservas grupales por auto](docs/registro/cambios/2026-07-08-cotizaciones-reservas-grupales.md)
+- [Cobro automatico de reserva al entregar](docs/registro/cambios/2026-07-08-cobro-automatico-reserva-entrega.md)
 
 ## 2026-07-07
 - [WhatsApp: Meta directo, webhook de status y numero unico](docs/registro/cambios/2026-07-07-whatsapp-meta-directo-numero-unico.md)

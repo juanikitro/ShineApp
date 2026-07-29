@@ -13,6 +13,38 @@ export type AuditLogEntry = {
 	changes?: Record<string, { before: unknown; after: unknown }>
 }
 
+export const auditActionLabels: Record<string, string> = {
+	create: 'Creacion',
+	update: 'Edicion',
+	delete: 'Baja',
+	confirm: 'Confirmacion',
+	cancel: 'Cancelacion',
+	complete: 'Completado',
+	create_quote: 'Cotizacion creada',
+	create_reservation: 'Reserva creada',
+	mark_sent: 'Cotizacion enviada',
+	status: 'Cambio de estado',
+	close: 'Cierre',
+	consume: 'Consumo',
+	finish: 'Finalizacion',
+	update_profile: 'Perfil actualizado',
+}
+
+export const auditModuleLabels: Record<string, string> = {
+	auth: 'Usuarios',
+	catalog: 'Servicios',
+	core: 'Configuracion',
+	customers: 'Clientes',
+	debts: 'Deudas',
+	finance: 'Caja',
+	inventory: 'Inventario',
+	notifications: 'Notificaciones',
+	quotes: 'Cotizaciones',
+	scheduling: 'Agenda',
+	settings: 'Configuracion',
+	workorders: 'Ordenes',
+}
+
 export function auditActorLabel(entry: AuditLogEntry, currentUserId?: number | string | null) {
 	const username = String(entry.actor_username ?? '').trim()
 	const base = username || 'Sistema'

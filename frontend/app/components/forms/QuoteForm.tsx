@@ -4,6 +4,7 @@ import { type FormEvent, type KeyboardEvent } from 'react'
 
 import { FileText, Plus } from 'lucide-react'
 
+import { QuoteGroupVehicleLinesEditor } from '@/app/components/forms/QuoteGroupVehicleLinesEditor'
 import { Button } from '@/app/components/ui/Button'
 import { Field } from '@/app/components/ui/Field'
 import { NumericInput } from '@/app/components/ui/NumericInput'
@@ -11,7 +12,14 @@ import {
 	SearchSelect,
 	type SelectOption,
 } from '@/app/components/ui/SearchSelect'
+import { SegmentedControl } from '@/app/components/ui/SegmentedControl'
 import { type AnyRecord, money } from '@/lib/page-support'
+import {
+	blankGroupVehicleItem,
+	blankGroupVehicleLine,
+	ensureGroupVehicleLines,
+	groupVehicleLinesSubtotal,
+} from '@/lib/quote-groups'
 
 type QuoteTotals = {
 	total: number
@@ -28,6 +36,8 @@ type QuoteFormProps = {
 	customerOptions: SelectOption[]
 	quoteVehicleSearchOptions: SelectOption[]
 	serviceOptions: SelectOption[]
+	vehicles: AnyRecord[]
+	services: AnyRecord[]
 	canViewEconomy: boolean
 	useReservationTimes: boolean
 	quoteTotals: QuoteTotals
@@ -58,6 +68,8 @@ export function QuoteForm({
 	customerOptions,
 	quoteVehicleSearchOptions,
 	serviceOptions,
+	vehicles,
+	services,
 	canViewEconomy,
 	useReservationTimes,
 	quoteTotals,
@@ -76,6 +88,36 @@ export function QuoteForm({
 	submitting = false,
 	fieldErrors,
 }: QuoteFormProps) {
+	const isGroup = Boolean(quoteForm.is_group)
+	const groupLines = ensureGroupVehicleLines(quoteForm)
+
+	function setMode(nextMode: 'individual' | 'group') {
+		if (nextMode === 'group') {
+			const seededLines =
+				Array.isArray(quoteForm.vehicle_lines) && quoteForm.vehicle_lines.length
+					? quoteForm.vehicle_lines
+					: [
+							blankGroupVehicleLine({
+								vehicle: quoteForm.vehicle ?? '',
+								reservation_day: quoteForm.reservation_day ?? '',
+								reservation_start_time:
+									quoteForm.reservation_start_time ?? '',
+								items: quoteForm.items ?? [blankGroupVehicleItem()],
+							}),
+						]
+			setQuoteForm({
+				...quoteForm,
+				is_group: true,
+				vehicle_lines: seededLines,
+			})
+			return
+		}
+		setQuoteForm({
+			...quoteForm,
+			is_group: false,
+		})
+	}
+
 	return (
 		<form className="form-grid" onSubmit={onSubmit}>
 			<SearchSelect
@@ -87,139 +129,181 @@ export function QuoteForm({
 				onAdd={() => openQuickCreate('customer', 'quote.customer')}
 				onChange={updateQuoteCustomer}
 			/>
-			<SearchSelect
-				label="Vehiculo"
-				value={quoteForm.vehicle}
-				options={quoteVehicleSearchOptions}
-				placeholder="Sin vehiculo"
-				focusKey="quote.vehicle"
-				className={flashClass(fieldFlashKey('quote.vehicle'))}
-				onAdd={() => openQuickCreate('vehicle', 'quote.vehicle')}
-				onChange={updateQuoteVehicle}
+			<SegmentedControl<'individual' | 'group'>
+				ariaLabel="Modo de cotizacion"
+				options={[
+					{ value: 'individual', label: 'Individual' },
+					{ value: 'group', label: 'Grupal' },
+				]}
+				value={isGroup ? 'group' : 'individual'}
+				onChange={setMode}
 			/>
-			<div className="form-row">
-				<Field label="Fecha tentativa" error={fieldErrors?.['reservation_day']}>
-					<input
-						type="date"
-						value={quoteForm.reservation_day ?? ''}
-						onChange={(event) =>
+			{isGroup ? (
+				<>
+					<QuoteGroupVehicleLinesEditor
+						lines={groupLines}
+						onChange={(vehicleLines) =>
 							setQuoteForm({
 								...quoteForm,
-								reservation_day: event.target.value,
+								vehicle_lines: vehicleLines,
 							})
 						}
+						vehicleOptions={quoteVehicleSearchOptions}
+						serviceOptions={serviceOptions}
+						vehicles={vehicles}
+						services={services}
+						canViewEconomy={canViewEconomy}
+						useReservationTimes={useReservationTimes}
+						fieldPrefix="quote"
+						openQuickCreate={openQuickCreate}
+						serviceNotesForLine={serviceNotesForLine}
+						focusNextOnEnter={focusNextOnEnter}
+						flashClass={flashClass}
+						fieldFlashKey={fieldFlashKey}
+						fieldErrors={fieldErrors}
 					/>
-				</Field>
-				{useReservationTimes ? (
-					<Field label="Hora tentativa" error={fieldErrors?.['reservation_start_time']}>
-						<input
-							type="time"
-							value={quoteForm.reservation_start_time ?? ''}
-							onChange={(event) =>
-								setQuoteForm({
-									...quoteForm,
-									reservation_start_time: event.target.value,
-								})
-							}
-						/>
-					</Field>
-				) : null}
-			</div>
-			<div className="quote-lines">
-				<div className="quote-lines-head">
-					<h3>Servicios</h3>
-					<button type="button" className="ghost" onClick={addQuoteItem}>
-						<Plus size={16} />
-						Agregar servicio
-					</button>
-				</div>
-				{(quoteForm.items ?? []).map((item: AnyRecord, index: number) => {
-					const lineTotal =
-						Number(item.quantity || 0) * Number(item.unit_price || 0)
-					const nextLine = (quoteForm.items ?? [])[index + 1]
-					return (
-						<div className="quote-line" key={index}>
-							<SearchSelect
-								label="Servicio"
-								value={item.service}
-								options={serviceOptions}
-								focusKey={`quote.service.${index}`}
-								className={flashClass(
-									fieldFlashKey(`quote.service.${index}`),
-								)}
-								onAdd={
-									canViewEconomy
-										? () =>
-												openQuickCreate(
-													'service',
-													`quote.service.${index}`,
-												)
-										: undefined
+					<div className="quote-total">
+						<span>Total cotizacion grupal</span>
+						<strong>{money(groupVehicleLinesSubtotal(groupLines))}</strong>
+					</div>
+				</>
+			) : (
+				<>
+					<SearchSelect
+						label="Vehiculo"
+						value={quoteForm.vehicle}
+						options={quoteVehicleSearchOptions}
+						placeholder="Sin vehiculo"
+						focusKey="quote.vehicle"
+						className={flashClass(fieldFlashKey('quote.vehicle'))}
+						onAdd={() => openQuickCreate('vehicle', 'quote.vehicle')}
+						onChange={updateQuoteVehicle}
+					/>
+					<div className="form-row">
+						<Field label="Fecha tentativa" error={fieldErrors?.['reservation_day']}>
+							<input
+								type="date"
+								value={quoteForm.reservation_day ?? ''}
+								onChange={(event) =>
+									setQuoteForm({
+										...quoteForm,
+										reservation_day: event.target.value,
+									})
 								}
-								onChange={(value) => selectQuoteService(index, value)}
 							/>
-							{serviceNotesForLine(item) ? (
-								<div className="service-notes">
-									{serviceNotesForLine(item)}
-								</div>
-							) : null}
-							<div className="quote-line-grid">
-								<Field label="Cantidad">
-									<input
-										data-focus-key={`quote.item.${index}.quantity`}
-										type="number"
-										min="1"
-										value={item.quantity}
-										onChange={(event) =>
-											updateQuoteItem(index, {
-												quantity: event.target.value,
-											})
-										}
-										onKeyDown={focusNextOnEnter(
-											`quote.item.${index}.price`,
-										)}
-									/>
-								</Field>
-								<Field label="Precio">
-									<NumericInput
-										data-focus-key={`quote.item.${index}.price`}
-										prefix="$"
-										value={item.unit_price}
-										onChange={(raw) =>
-											updateQuoteItem(index, {
-												unit_price: raw,
-											})
-										}
-										onKeyDown={focusNextOnEnter(
-											nextLine
-												? `quote.service.${index + 1}`
-												: 'quote.observations',
-											Boolean(nextLine),
-										)}
-									/>
-								</Field>
-								<div className="line-total">
-									<span>Total</span>
-									<strong>{money(lineTotal)}</strong>
-								</div>
-							</div>
-							{(quoteForm.items ?? []).length > 1 ? (
-								<button
-									type="button"
-									className="danger"
-									onClick={() => removeQuoteItem(index)}
-								>
-									Quitar
-								</button>
-							) : null}
+						</Field>
+						{useReservationTimes ? (
+							<Field label="Hora tentativa" error={fieldErrors?.['reservation_start_time']}>
+								<input
+									type="time"
+									value={quoteForm.reservation_start_time ?? ''}
+									onChange={(event) =>
+										setQuoteForm({
+											...quoteForm,
+											reservation_start_time: event.target.value,
+										})
+									}
+								/>
+							</Field>
+						) : null}
+					</div>
+					<div className="quote-lines">
+						<div className="quote-lines-head">
+							<h3>Servicios</h3>
+							<button type="button" className="ghost" onClick={addQuoteItem}>
+								<Plus size={16} />
+								Agregar servicio
+							</button>
 						</div>
-					)
-				})}
-				<div className="quote-total">
-					<span>Total cotizacion</span>
-					<strong>{money(quoteTotals.total)}</strong>
-				</div>
-			</div>
+						{(quoteForm.items ?? []).map((item: AnyRecord, index: number) => {
+							const lineTotal =
+								Number(item.quantity || 0) * Number(item.unit_price || 0)
+							const nextLine = (quoteForm.items ?? [])[index + 1]
+							return (
+								<div className="quote-line" key={index}>
+									<SearchSelect
+										label="Servicio"
+										value={item.service}
+										options={serviceOptions}
+										focusKey={`quote.service.${index}`}
+										className={flashClass(
+											fieldFlashKey(`quote.service.${index}`),
+										)}
+										onAdd={
+											canViewEconomy
+												? () =>
+														openQuickCreate(
+															'service',
+															`quote.service.${index}`,
+														)
+												: undefined
+										}
+										onChange={(value) => selectQuoteService(index, value)}
+									/>
+									{serviceNotesForLine(item) ? (
+										<div className="service-notes">
+											{serviceNotesForLine(item)}
+										</div>
+									) : null}
+									<div className="quote-line-grid">
+										<Field label="Cantidad">
+											<input
+												data-focus-key={`quote.item.${index}.quantity`}
+												type="number"
+												min="1"
+												value={item.quantity}
+												onChange={(event) =>
+													updateQuoteItem(index, {
+														quantity: event.target.value,
+													})
+												}
+												onKeyDown={focusNextOnEnter(
+													`quote.item.${index}.price`,
+												)}
+											/>
+										</Field>
+										<Field label="Precio">
+											<NumericInput
+												data-focus-key={`quote.item.${index}.price`}
+												prefix="$"
+												value={item.unit_price}
+												onChange={(raw) =>
+													updateQuoteItem(index, {
+														unit_price: raw,
+													})
+												}
+												onKeyDown={focusNextOnEnter(
+													nextLine
+														? `quote.service.${index + 1}`
+														: 'quote.observations',
+													Boolean(nextLine),
+												)}
+											/>
+										</Field>
+										<div className="line-total">
+											<span>Total</span>
+											<strong>{money(lineTotal)}</strong>
+										</div>
+									</div>
+									{(quoteForm.items ?? []).length > 1 ? (
+										<button
+											type="button"
+											className="danger"
+											onClick={() => removeQuoteItem(index)}
+										>
+											Quitar
+										</button>
+									) : null}
+								</div>
+							)
+						})}
+						<div className="quote-total">
+							<span>Total cotizacion</span>
+							<strong>{money(quoteTotals.total)}</strong>
+						</div>
+					</div>
+				</>
+			)}
 			<details className="quote-advanced">
 				<summary>Avanzado comercial</summary>
 				<div className="form-row">

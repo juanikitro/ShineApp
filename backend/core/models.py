@@ -243,6 +243,15 @@ class BusinessAccount(models.Model):
 
 
 class BusinessProfile(models.Model):
+    ONBOARDING_STEP_IDS = (
+        "business",
+        "services",
+        "turnera",
+        "whatsapp",
+        "agenda",
+        "cash-dashboard",
+    )
+
     class SubscriptionType(models.TextChoices):
         TRIAL = "trial", "Prueba"
         PREMIUM = "premium", "Premium"
@@ -259,6 +268,11 @@ class BusinessProfile(models.Model):
         MONOTRIBUTO = "monotributo", "Monotributo"
         EXENTO = "exento", "Exento"
         CONSUMIDOR_FINAL = "consumidor_final", "Consumidor final"
+
+    class BusinessType(models.TextChoices):
+        LAVADERO = "lavadero", "Lavadero"
+        DETAILING = "detailing", "Detailing"
+        LUBRICENTRO = "lubricentro", "Lubricentro"
 
     business = models.OneToOneField(
         BusinessAccount,
@@ -283,6 +297,12 @@ class BusinessProfile(models.Model):
         default=SubscriptionType.TRIAL,
     )
     industry = models.CharField(max_length=120, blank=True)
+    business_type = models.CharField(
+        max_length=16,
+        choices=BusinessType.choices,
+        null=True,
+        blank=True,
+    )
     contact_phone = models.CharField(max_length=60, blank=True)
     contact_email = models.EmailField(blank=True)
     city = models.CharField(max_length=120, blank=True)
@@ -325,11 +345,13 @@ class BusinessProfile(models.Model):
     reservation_use_in_progress = models.BooleanField(default=True)
     reservation_use_ready = models.BooleanField(default=True)
     reservation_use_canceled = models.BooleanField(default=True)
+    reservation_auto_charge_on_delivery = models.BooleanField(default=False)
     public_landing_enabled = models.BooleanField(default=True)
     public_landing_intro = models.CharField(max_length=240, blank=True)
     allow_public_booking_requests = models.BooleanField(default=True)
     allow_public_quote_requests = models.BooleanField(default=True)
     public_hidden_service_ids = models.JSONField(default=list, blank=True)
+    onboarding_dismissed_step_ids = models.JSONField(default=list, blank=True)
     public_show_service_description = models.BooleanField(default=True)
     public_show_service_price = models.BooleanField(default=False)
     income_category_tree = models.JSONField(

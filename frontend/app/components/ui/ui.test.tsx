@@ -140,34 +140,58 @@ test('structural UI components keep optional sections absent until needed', () =
 	assert.equal(screen.getByText('unknown').className, 'status unknown')
 })
 
-test('ModalFrame closes from backdrop, escape and traps tab focus', () => {
+test('ModalFrame delega cierre, foco y retorno de foco a Radix Dialog', async () => {
 	const onClose = vi.fn()
 	const before = document.createElement('button')
 	document.body.append(before)
 	before.focus()
-	const { container, unmount } = render(
+	const { unmount } = render(
 		<ModalFrame title="Editar" onClose={onClose}>
 			<button>Primero</button>
 			<button>Segundo</button>
 		</ModalFrame>,
 	)
-	screen.getAllByRole('button').forEach((button) => {
-		button.getClientRects = () => [{ width: 10, height: 10 }] as any
-	})
 
 	const dialog = screen.getByRole('dialog', { name: 'Editar' })
 	fireEvent.keyDown(dialog, { key: 'Escape' })
 	assert.equal(onClose.mock.calls.length, 1)
 
-	fireEvent.mouseDown(container.querySelector('.modal-backdrop') as HTMLElement)
-	assert.equal(onClose.mock.calls.length, 2)
-
-	screen.getByRole('button', { name: 'Segundo' }).focus()
-	fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: false })
-	assert.equal(document.activeElement, screen.getByRole('button', { name: 'Cerrar' }))
-
+	// El cierre por pointer afuera lo provee la DismissableLayer de Radix y no se
+	// dispara con fireEvent en jsdom; se omite (ver TESTING.md). Se valida el
+	// retorno de foco que administra el FocusScope de Radix al desmontar.
 	unmount()
-	assert.equal(document.activeElement, before)
+	await waitFor(() => assert.equal(document.activeElement, before))
+	before.remove()
+})
+
+test('ModalFrame conserva el guard de cambios al pedir cierre', async () => {
+	const user = userEvent.setup()
+	const onClose = vi.fn()
+	render(
+		<ModalFrame title="Editar" onClose={onClose}>
+			<label>
+				Nombre
+				<input />
+			</label>
+		</ModalFrame>,
+	)
+
+	await user.type(screen.getByRole('textbox', { name: 'Nombre' }), 'Ana')
+	await user.click(screen.getByRole('button', { name: 'Cerrar' }))
+	assert.ok(screen.getByRole('alertdialog', { name: 'Confirmar cierre' }))
+	assert.equal(onClose.mock.calls.length, 0)
+
+	// Escape al confirmar vuelve al formulario sin cerrar el modal.
+	fireEvent.keyDown(document, { key: 'Escape' })
+	assert.equal(screen.queryByRole('alertdialog'), null)
+
+	await user.click(screen.getByRole('button', { name: 'Cerrar' }))
+	await user.click(screen.getByRole('button', { name: 'Seguir editando' }))
+	assert.equal(screen.queryByRole('alertdialog'), null)
+
+	await user.click(screen.getByRole('button', { name: 'Cerrar' }))
+	await user.click(screen.getByRole('button', { name: 'Cerrar de todos modos' }))
+	assert.equal(onClose.mock.calls.length, 1)
 })
 
 test('BirthdayFields normalizes empty values and emits day/month changes', async () => {
@@ -298,6 +322,106 @@ test('SearchSelect filters, creates and clears selections from the current surfa
 	await user.type(screen.getByLabelText('Buscar Cliente'), 'Nuevo')
 	await user.click(screen.getByRole('button', { name: 'Crear "Nuevo"' }))
 	assert.deepEqual(created, ['Nuevo'])
+})
+
+test('SearchSelect focuses its search input when opened on a fine-pointer device', async () => {
+	const user = userEvent.setup()
+	const originalMatchMedia = window.matchMedia
+	Object.defineProperty(window, 'matchMedia', {
+		configurable: true,
+		value: (query: string) =>
+			({
+				matches: query === '(pointer: fine)',
+				media: query,
+				addEventListener: () => undefined,
+				removeEventListener: () => undefined,
+				dispatchEvent: () => false,
+			}) as MediaQueryList,
+	})
+
+	try {
+		render(
+			<SearchSelect
+				label="Cliente"
+				value=""
+				options={[{ value: '1', label: 'Ana Lopez' }]}
+				onChange={vi.fn()}
+			/>,
+		)
+
+		await user.click(screen.getByRole('combobox', { name: 'Cliente' }))
+		await waitFor(() =>
+			assert.equal(
+				document.activeElement,
+				screen.getByRole('textbox', { name: 'Buscar Cliente' }),
+			),
+		)
+	} finally {
+		Object.defineProperty(window, 'matchMedia', {
+			configurable: true,
+			value: originalMatchMedia,
+		})
+	}
+})
+
+test('SearchSelect keeps the trigger focused when opened on a touch device', async () => {
+	const user = userEvent.setup()
+	const originalMatchMedia = window.matchMedia
+	Object.defineProperty(window, 'matchMedia', {
+		configurable: true,
+		value: (query: string) =>
+			({
+				matches: false,
+				media: query,
+				addEventListener: () => undefined,
+				removeEventListener: () => undefined,
+				dispatchEvent: () => false,
+			}) as MediaQueryList,
+	})
+
+	try {
+		render(
+			<SearchSelect
+				label="Cliente"
+				value=""
+				options={[{ value: '1', label: 'Ana Lopez' }]}
+				onChange={vi.fn()}
+			/>,
+		)
+
+		const trigger = screen.getByRole('combobox', { name: 'Cliente' })
+		await user.click(trigger)
+		assert.equal(document.activeElement, trigger)
+	} finally {
+		Object.defineProperty(window, 'matchMedia', {
+			configurable: true,
+			value: originalMatchMedia,
+		})
+	}
+})
+
+test('SearchSelect allows pointer selection from inside a Radix modal', async () => {
+	const user = userEvent.setup()
+	const onChange = vi.fn()
+	const onClose = vi.fn()
+
+	render(
+		<ModalFrame title="Nueva reserva" onClose={onClose}>
+			<SearchSelect
+				label="Cliente"
+				value=""
+				options={[{ value: '1', label: 'Ana Lopez' }]}
+				onChange={onChange}
+			/>
+		</ModalFrame>,
+	)
+
+	await user.click(screen.getByRole('combobox', { name: 'Cliente' }))
+	await user.click(screen.getByRole('option', { name: 'Ana Lopez' }))
+
+	assert.deepEqual(onChange.mock.calls, [['1']])
+	assert.equal(onClose.mock.calls.length, 0)
+	assert.ok(screen.getByRole('dialog', { name: 'Nueva reserva' }))
 })
 
 test('SearchSelect supports selected labels, disabled hidden inputs and trigger toggling', async () => {
@@ -479,17 +603,19 @@ test('ServiceIconPicker normalizes selected and cleared emojis', async () => {
 		<ServiceIconPicker value="" onChange={(value) => changes.push(value)} focusKey="icon" />,
 	)
 
-	await user.click(screen.getByRole('button', { name: 'Abrir selector de emojis' }))
+	const trigger = screen.getByRole('button', { name: 'Abrir selector de emojis' })
+	await user.click(trigger)
 	assert.ok(screen.getByRole('dialog', { name: 'Selector de emojis' }))
 	await user.click(screen.getByTestId('emoji-picker'))
 	assert.deepEqual(changes, ['🧽'])
+	await waitFor(() => assert.equal(screen.queryByRole('dialog'), null))
 
 	rerender(<ServiceIconPicker value="✨" onChange={(value) => changes.push(value)} />)
 	await user.click(screen.getByRole('button', { name: 'Limpiar emoji' }))
 	assert.deepEqual(changes, ['🧽', ''])
 })
 
-test('ServiceIconPicker closes from escape and outside pointer events', async () => {
+test('ServiceIconPicker closes from Escape and returns focus to its trigger', async () => {
 	const user = userEvent.setup()
 	render(<ServiceIconPicker value="✨" onChange={vi.fn()} label="Icono" />)
 
@@ -498,16 +624,19 @@ test('ServiceIconPicker closes from escape and outside pointer events', async ()
 	})
 	assert.equal(trigger.textContent?.includes('Cambiar emoji'), true)
 	await user.click(trigger)
-	assert.ok(screen.getByRole('dialog', { name: 'Selector de emojis' }))
+	const dialog = screen.getByRole('dialog', { name: 'Selector de emojis' })
+	await waitFor(() => assert.equal(dialog.contains(document.activeElement), true))
 
-	fireEvent.keyDown(document, { key: 'Escape' })
+	await user.keyboard('{Escape}')
 	await waitFor(() => assert.equal(screen.queryByRole('dialog'), null))
-
-	await user.click(trigger)
-	assert.ok(screen.getByRole('dialog', { name: 'Selector de emojis' }))
-	fireEvent.pointerDown(document.body)
-	await waitFor(() => assert.equal(screen.queryByRole('dialog'), null))
+	await waitFor(() => assert.equal(document.activeElement, trigger))
 })
+
+// El cierre por click/pointer afuera lo provee Radix (DismissableLayer), no
+// nuestro codigo. No se cubre en jsdom: al mantener el popover abierto mientras
+// se espera el cierre, el autoUpdate de Floating UI corre bajo el rAF mockeado
+// (setTimeout(0)) y agota memoria. El resto de nuestra logica (abrir, cerrar al
+// elegir, cerrar con Escape + return-focus, limpiar) queda cubierta arriba.
 
 test('DetailModal formats readonly data and swaps to edit form when editing', () => {
 	const onClose = vi.fn()

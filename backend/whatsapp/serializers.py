@@ -99,7 +99,7 @@ class WhatsAppAutomationRuleSerializer(serializers.ModelSerializer):
             "event_label",
             "template",
             "template_label",
-            "enabled",
+            "dispatch",
             "send_delay_minutes",
             "created_at",
             "updated_at",
@@ -111,6 +111,20 @@ class WhatsAppAutomationRuleSerializer(serializers.ModelSerializer):
         if value and value.business_id != getattr(business, "id", None):
             raise serializers.ValidationError("El template pertenece a otro negocio.")
         return value
+
+    def validate(self, attrs):
+        event = attrs.get("event")
+        if event is None and self.instance is not None:
+            event = self.instance.event
+        dispatch = attrs.get(
+            "dispatch",
+            self.instance.dispatch if self.instance is not None else WhatsAppAutomationRule.Dispatch.MANUAL,
+        )
+        if event == WhatsAppAutomationRule.Event.QUOTE_SENT and dispatch != WhatsAppAutomationRule.Dispatch.MANUAL:
+            raise serializers.ValidationError(
+                {"dispatch": "Las cotizaciones enviadas por WhatsApp siempre son manuales."}
+            )
+        return attrs
 
 
 class WhatsAppMessageSerializer(serializers.ModelSerializer):

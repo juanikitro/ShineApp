@@ -76,9 +76,11 @@ export function DashboardCashByCategory({ dashboard }: { dashboard: AnyRecord })
 	const incomeRows = Array.isArray(cashByCategory.income_by_service)
 		? cashByCategory.income_by_service
 		: []
-	const expenseRows = Array.isArray(cashByCategory.expense_by_category)
-		? cashByCategory.expense_by_category
-		: []
+	const expenseRows = Array.isArray(cashByCategory.expense_by_subcategory)
+		? cashByCategory.expense_by_subcategory
+		: Array.isArray(cashByCategory.expense_by_category)
+			? cashByCategory.expense_by_category
+			: []
 	if (incomeRows.length === 0 && expenseRows.length === 0) {
 		return null
 	}
@@ -93,7 +95,6 @@ export function DashboardCashByCategory({ dashboard }: { dashboard: AnyRecord })
 	return (
 		<Panel
 			title="Caja por categoria"
-			subtitle="De donde entra y en que se va la plata del periodo."
 		>
 			<div className="dashboard-cat-grid">
 				<div className="dashboard-cat-col">
@@ -105,10 +106,15 @@ export function DashboardCashByCategory({ dashboard }: { dashboard: AnyRecord })
 				</div>
 				<div className="dashboard-cat-col">
 					<div className="dashboard-section-kicker">
-						<span>Egresos por categoria</span>
+						<span>Egresos por subcategoria</span>
 						<strong>{money(expenseTotal)}</strong>
 					</div>
-					<CategoryList rows={expenseRows} total={expenseTotal} tone="expense" />
+					<CategoryList
+						rows={expenseRows}
+						total={expenseTotal}
+						tone="expense"
+						labelKey="subcategory"
+					/>
 				</div>
 			</div>
 		</Panel>

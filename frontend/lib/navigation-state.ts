@@ -68,6 +68,23 @@ export function readNavigationStateFromUrl(
 	return { section, settingsSection }
 }
 
+export function initialNavigationStateFromBrowser(
+	config: NavigationConfig,
+): NavigationState {
+	if (typeof window === 'undefined') {
+		return {
+			section: config.defaultSection,
+			settingsSection: config.defaultSettingsSection,
+		}
+	}
+	return readNavigationStateFromUrl(window.location.href, config)
+}
+
+export function searchQueryFromBrowser() {
+	if (typeof window === 'undefined') return ''
+	return new URLSearchParams(window.location.search).get('q') ?? ''
+}
+
 export function navigationUrlForState(
 	href: string,
 	state: NavigationState,

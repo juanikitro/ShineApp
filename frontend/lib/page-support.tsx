@@ -16,18 +16,18 @@ import {
 	ReceiptText,
 	Search,
 	Settings,
-	Undo2,
 	Users,
 	Wrench,
 	X,
 } from 'lucide-react'
 import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
-import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AppBrand } from '@/app/components/layout/AppBrand'
 import { Field } from '@/app/components/ui/Field'
 import { apiFetch, publicApiFetch, setStoredToken } from '@/lib/api'
+import { blankGroupVehicleLine } from '@/lib/quote-groups'
 import {
 	currencyArsFormatter,
 	dateFormatter,
@@ -49,6 +49,7 @@ type ToastAction = {
 	label: string
 	title?: string
 	disabled?: boolean
+	icon?: ReactNode
 	onClick: () => void
 }
 type ToastNotice = {
@@ -58,6 +59,8 @@ type ToastNotice = {
 	description?: string
 	fields?: ApiErrorNotice['fields']
 	action?: ToastAction
+	actions?: ToastAction[]
+	persistent?: boolean
 	visibleMs?: number
 }
 type ToastDraft = Omit<ToastNotice, 'id'>
@@ -219,6 +222,7 @@ function blankBusinessForm() {
 		name: '',
 		cuit: '',
 		vat_condition: '',
+		business_type: '',
 		contact_phone: '',
 		contact_email: '',
 		address: '',
@@ -232,6 +236,7 @@ function blankBusinessForm() {
 		show_stay_days_in_agenda: true,
 		allow_overlapping_reservations: false,
 		enforce_capacity_limit: true,
+		reservation_auto_charge_on_delivery: false,
 		default_capacity_wash: '8',
 		default_capacity_detailing: '4',
 		public_landing_enabled: true,
@@ -258,6 +263,13 @@ function blankReservationForm(day = '', startTime = '') {
 		customer: '',
 		vehicle: '',
 		service: '',
+		is_group: false,
+		vehicle_lines: [
+			blankGroupVehicleLine({
+				reservation_day: day,
+				reservation_start_time: startTime,
+			}),
+		],
 		day,
 		exit_day: '',
 		start_time: startTime,
@@ -271,6 +283,12 @@ function blankQuoteForm(reservationDay = '') {
 	return {
 		customer: '',
 		vehicle: '',
+		is_group: false,
+		vehicle_lines: [
+			blankGroupVehicleLine({
+				reservation_day: reservationDay,
+			}),
+		],
 		reservation_day: reservationDay,
 		reservation_start_time: '',
 		valid_until: '',
@@ -452,6 +470,36 @@ function expenseSubcategoriesForCategory(value: any, category: any) {
 	const categoryName = String(category ?? '').trim()
 	if (!categoryName) return []
 	return normalizeExpenseCategoryTree(value)[categoryName] ?? []
+}
+
+function validExpenseSubcategoryForCategory(
+	value: any,
+	category: string,
+	subcategory: any,
+) {
+	const currentSubcategory = String(subcategory ?? '').trim()
+	if (!category || !currentSubcategory) return ''
+	return expenseSubcategoriesForCategory(value, category).includes(
+		currentSubcategory,
+	)
+		? currentSubcategory
+		: ''
+}
+
+function validCashSubcategoryForCategory(
+	incomeTree: any,
+	expenseTree: any,
+	movementType: string,
+	category: string,
+	subcategory: any,
+) {
+	const currentSubcategory = String(subcategory ?? '').trim()
+	if (!category || !currentSubcategory) return ''
+	const subcategories =
+		movementType === 'income'
+			? incomeSubcategoriesForCategory(incomeTree, category)
+			: expenseSubcategoriesForCategory(expenseTree, category)
+	return subcategories.includes(currentSubcategory) ? currentSubcategory : ''
 }
 
 function incomeSubcategoriesForCategory(value: any, category: any) {
@@ -1645,17 +1693,18 @@ function NoticeToast({
 	const visibleMs =
 		toast.visibleMs ??
 		(toast.tone === 'error' ? TOAST_ERROR_VISIBLE_MS : TOAST_VISIBLE_MS)
+	const actions = toast.actions ?? (toast.action ? [toast.action] : [])
 
 	// Auto-cierre que se pausa con hover o con foco dentro del toast: evita que
 	// desaparezca mientras se lee o se usa "Deshacer" (WCAG 2.2.1 / 2.4.3).
 	useEffect(() => {
-		if (paused) return
+		if (toast.persistent || paused) return
 		const timer = window.setTimeout(
 			() => dismissRef.current(toast.id),
 			visibleMs,
 		)
 		return () => window.clearTimeout(timer)
-	}, [paused, visibleMs, toast.id])
+	}, [paused, toast.persistent, visibleMs, toast.id])
 
 	return (
 		<m.div
@@ -1701,18 +1750,19 @@ function NoticeToast({
 					))}
 				</ul>
 			) : null}
-			{toast.action ? (
+			{actions.map((action, index) => (
 				<button
 					type="button"
 					className="toast-action"
-					onClick={toast.action.onClick}
-					disabled={toast.action.disabled}
-					title={toast.action.title}
+					onClick={action.onClick}
+					disabled={action.disabled}
+					title={action.title}
+					key={`${action.label}-${index}`}
 				>
-					<Undo2 size={15} />
-					<span>{toast.action.label}</span>
+					{action.icon}
+					<span>{action.label}</span>
 				</button>
-			) : null}
+			))}
 			<button
 				type="button"
 				className="toast-close"
@@ -2206,6 +2256,8 @@ export {
 	expenseCategoryTreeFromText,
 	expenseCategoryTreeToText,
 	expenseSubcategoriesForCategory,
+	validCashSubcategoryForCategory,
+	validExpenseSubcategoryForCategory,
 	incomeCategoryPairs,
 	incomeSubcategoriesForCategory,
 	formatDateLabel,

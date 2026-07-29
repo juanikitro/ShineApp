@@ -56,9 +56,12 @@ Secretos requeridos del entorno `demo-production`:
 
 - `DATABASE_URL`
 - `DJANGO_MIGRATION_SECRET_KEY`
+- `DJANGO_SUPERUSER_USERNAME`
+- `DJANGO_SUPERUSER_PASSWORD`
 
 Secret opcional del entorno `demo-production`:
 
+- `DJANGO_SUPERUSER_EMAIL`
 - `SMOKE_TEST_TOKEN`
 
 Los secretos de runtime backend quedan en el proyecto Vercel API. No duplicar `DJANGO_SECRET_KEY`, claves Supabase S3 ni secretos SMTP en GitHub salvo que un workflow futuro necesite explicitamente una credencial deploy-time mas acotada.
@@ -90,7 +93,9 @@ El workflow de deploy corre migraciones automaticamente antes de los deploys pro
 - el codigo debe tolerar schema viejo y nuevo durante la ventana breve de deploy;
 - migraciones destructivas, backfills grandes, renombres y agregados non-null sin defaults seguros requieren revision manual y un plan de rollout explicito.
 
-El workflow nunca corre `seed_demo` y nunca crea superusers.
+El workflow nunca corre `seed_demo`. Despues de aplicar migraciones ejecuta
+`ensure_superuser`: crea el admin de Django solo si no existe y no restablece
+su password si ya existe.
 
 ## Configuracion Del Repositorio
 

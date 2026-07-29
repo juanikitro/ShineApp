@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
-import { test } from 'vitest'
+import { afterEach, test, vi } from 'vitest'
 
-import { navigationUrlForState, readNavigationStateFromUrl } from './navigation-state'
+import {
+	initialNavigationStateFromBrowser,
+	navigationUrlForState,
+	readNavigationStateFromUrl,
+	searchQueryFromBrowser,
+} from './navigation-state'
 
 const navigationConfig = {
 	sections: ['dashboard', 'agenda', 'cash', 'debts', 'settings'],
@@ -9,6 +14,37 @@ const navigationConfig = {
 	defaultSection: 'dashboard',
 	defaultSettingsSection: 'business',
 }
+
+const initialBrowserUrl = window.location.href
+
+afterEach(() => {
+	vi.unstubAllGlobals()
+	window.history.replaceState({}, '', initialBrowserUrl)
+})
+
+test('reads initial navigation and search state from the browser URL', () => {
+	window.history.replaceState(
+		{},
+		'',
+		'/?section=settings&settings=history&q=lavado',
+	)
+
+	assert.deepEqual(initialNavigationStateFromBrowser(navigationConfig), {
+		section: 'settings',
+		settingsSection: 'history',
+	})
+	assert.equal(searchQueryFromBrowser(), 'lavado')
+})
+
+test('keeps server defaults when browser globals are unavailable', () => {
+	vi.stubGlobal('window', undefined)
+
+	assert.deepEqual(initialNavigationStateFromBrowser(navigationConfig), {
+		section: 'dashboard',
+		settingsSection: 'business',
+	})
+	assert.equal(searchQueryFromBrowser(), '')
+})
 
 test('reads main section and settings subsection from URL query params', () => {
 	assert.deepEqual(

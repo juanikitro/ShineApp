@@ -138,7 +138,10 @@ export function clearStoredToken() {
   window.sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
 }
 
-export type ApiRequestInit = RequestInit & { signal?: AbortSignal };
+export type ApiRequestInit = RequestInit & {
+  signal?: AbortSignal;
+  bypassDedupe?: boolean;
+};
 
 const inflightGets = new Map<string, Promise<unknown>>();
 
@@ -147,9 +150,11 @@ function inflightKey(path: string) {
 }
 
 async function performFetch<T>(path: string, options: ApiRequestInit): Promise<T> {
+  const fetchOptions = { ...options };
+  delete fetchOptions.bypassDedupe;
   const token = getStoredToken();
-  const headers = new Headers(options.headers);
-  if (!(options.body instanceof FormData) && !headers.has("Content-Type")) {
+  const headers = new Headers(fetchOptions.headers);
+  if (!(fetchOptions.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
   if (token) {
@@ -157,10 +162,10 @@ async function performFetch<T>(path: string, options: ApiRequestInit): Promise<T
   }
 
   const response = await fetch(apiRequestUrl(path), {
-    ...options,
+    ...fetchOptions,
     headers,
-    cache: options.cache ?? "no-store",
-    signal: options.signal,
+    cache: fetchOptions.cache ?? "no-store",
+    signal: fetchOptions.signal,
   });
 
   if (!response.ok) {
@@ -175,7 +180,7 @@ async function performFetch<T>(path: string, options: ApiRequestInit): Promise<T
 
 export async function apiFetch<T>(path: string, options: ApiRequestInit = {}): Promise<T> {
   const method = (options.method ?? "GET").toUpperCase();
-  if (method !== "GET" || options.body !== undefined) {
+  if (method !== "GET" || options.body !== undefined || options.bypassDedupe) {
     return performFetch<T>(path, options);
   }
   const key = inflightKey(path);

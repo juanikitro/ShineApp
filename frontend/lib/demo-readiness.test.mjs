@@ -10,9 +10,9 @@ const coreSectors = [
 ]
 
 const coreServices = [
-	{ id: 1, name: 'Lavado premium', is_active: true },
-	{ id: 2, name: 'Detailing interior', is_active: true },
-	{ id: 3, name: 'Cambio de aceite', is_active: true },
+	{ id: 1, name: 'Lavado exterior express', sector: 1, is_active: true },
+	{ id: 2, name: 'Lavado completo', sector: 1, is_active: true },
+	{ id: 3, name: 'Lavado premium', sector: 1, is_active: true },
 ]
 
 test('guides an empty real business from the first setup step', () => {
@@ -32,6 +32,7 @@ test('marks demo data as sellable but keeps WhatsApp pending when disabled', () 
 		businessProfile: {
 			name: 'Shine Car Detail Studio',
 			contact_phone: '+5493624000000',
+			business_type: 'lavadero',
 			public_landing_enabled: true,
 			allow_public_booking_requests: true,
 		},
@@ -50,11 +51,60 @@ test('marks demo data as sellable but keeps WhatsApp pending when disabled', () 
 	assert.equal(readiness.firstPendingStep?.id, 'whatsapp')
 })
 
+test('excludes dismissed onboarding steps from the progress count', () => {
+	const readiness = buildDemoReadiness({
+		businessProfile: {
+			name: 'Shine Car Detail Studio',
+			contact_phone: '+5493624000000',
+			business_type: 'lavadero',
+			public_landing_enabled: true,
+			allow_public_booking_requests: true,
+			onboarding_dismissed_step_ids: ['whatsapp'],
+		},
+		businessSlug: 'shine-car-detail-studio',
+		sectors: coreSectors,
+		services: coreServices,
+		reservations: [{ id: 1, is_active: true }],
+		whatsappConfig: { is_enabled: false },
+	})
+
+	assert.equal(readiness.completedCount, 4)
+	assert.equal(readiness.totalCount, 5)
+	assert.equal(readiness.remainingCount, 1)
+	assert.equal(readiness.percent, 80)
+	assert.equal(readiness.firstPendingStep?.id, 'cash-dashboard')
+	assert.equal(readiness.steps.some((step) => step.id === 'whatsapp'), false)
+})
+
+test('returns an empty checklist when every onboarding step is dismissed', () => {
+	const readiness = buildDemoReadiness({
+		businessProfile: {
+			onboarding_dismissed_step_ids: [
+				'business',
+				'services',
+				'turnera',
+				'whatsapp',
+				'agenda',
+				'cash-dashboard',
+			],
+		},
+	})
+
+	assert.equal(readiness.completedCount, 0)
+	assert.equal(readiness.totalCount, 0)
+	assert.equal(readiness.remainingCount, 0)
+	assert.equal(readiness.percent, 0)
+	assert.equal(readiness.ready, false)
+	assert.equal(readiness.firstPendingStep, null)
+	assert.deepEqual(readiness.steps, [])
+})
+
 test('returns a ready checklist when every commercial surface is configured', () => {
 	const readiness = buildDemoReadiness({
 		businessProfile: {
 			name: 'Shine Car Detail Studio',
 			contact_phone: '+5493624000000',
+			business_type: 'lavadero',
 			public_landing_enabled: true,
 			allow_public_booking_requests: true,
 		},
@@ -73,6 +123,79 @@ test('returns a ready checklist when every commercial surface is configured', ()
 	assert.equal(readiness.mode, 'sellable')
 	assert.equal(readiness.firstPendingStep, null)
 	assert.match(readiness.nextStepHint, /lista para vender/)
+})
+
+test('uses linked onboarding task states instead of recalculating the dashboard checklist', () => {
+	const readiness = buildDemoReadiness({
+		businessProfile: {
+			name: 'Negocio',
+			contact_phone: '+54 11 5555',
+			business_type: 'lavadero',
+		},
+		businessSlug: 'negocio',
+		onboardingTasks: [
+			{ onboarding_step_id: 'business', status: 'done' },
+			{ onboarding_step_id: 'services', status: 'pending' },
+			{ onboarding_step_id: 'turnera', status: 'done' },
+			{ onboarding_step_id: 'whatsapp', status: 'done' },
+			{ onboarding_step_id: 'agenda', status: 'done' },
+			{ onboarding_step_id: 'cash-dashboard', status: 'done' },
+		],
+	})
+
+	assert.equal(readiness.completedCount, 5)
+	assert.equal(readiness.firstPendingStep?.id, 'services')
+})
+
+test('does not let completed onboarding tasks bypass business type or starter pack', () => {
+	const readiness = buildDemoReadiness({
+		businessProfile: {
+			name: 'Negocio',
+			contact_phone: '+54 11 5555',
+		},
+		businessSlug: 'negocio',
+		onboardingTasks: [
+			{ onboarding_step_id: 'business', status: 'done' },
+			{ onboarding_step_id: 'services', status: 'done' },
+		],
+	})
+
+	assert.equal(readiness.steps.find((step) => step.id === 'business')?.done, false)
+	assert.equal(readiness.steps.find((step) => step.id === 'services')?.done, false)
+})
+
+test('keeps business setup pending until its main type is selected', () => {
+	const readiness = buildDemoReadiness({
+		businessProfile: {
+			name: 'Shine Car Detail Studio',
+			contact_phone: '+5493624000000',
+		},
+		businessSlug: 'shine-car-detail-studio',
+		sectors: coreSectors,
+		services: coreServices,
+	})
+
+	const businessStep = readiness.steps.find((step) => step.id === 'business')
+	assert.equal(businessStep?.done, false)
+	assert.deepEqual(businessStep?.target, { kind: 'settings', section: 'business' })
+})
+
+test('requires all active services from the selected pack in its sector', () => {
+	const readiness = buildDemoReadiness({
+		businessProfile: {
+			business_type: 'lavadero',
+		},
+		sectors: coreSectors,
+		services: [
+			...coreServices.slice(0, 2),
+			{ id: 3, name: 'Lavado premium', sector: 2, is_active: true },
+		],
+	})
+
+	assert.equal(
+		readiness.steps.find((step) => step.id === 'services')?.done,
+		false,
+	)
 })
 
 test('findFirstChargeableWorkOrder skips inactive paid or canceled work orders', () => {

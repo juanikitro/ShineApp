@@ -107,6 +107,11 @@ class WhatsAppAutomationRule(models.Model):
         WORK_DELIVERED = "work_delivered", "Trabajo entregado"
         QUOTE_SENT = "quote_sent", "Cotización enviada"
 
+    class Dispatch(models.TextChoices):
+        MANUAL = "manual", "Manual"
+        NOTIFY = "notify", "Notificar"
+        AUTOMATIC = "automatic", "Automatico"
+
     business = models.ForeignKey(
         "core.BusinessAccount",
         related_name="whatsapp_automation_rules",
@@ -120,7 +125,11 @@ class WhatsAppAutomationRule(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
     )
-    enabled = models.BooleanField(default=False)
+    dispatch = models.CharField(
+        max_length=12,
+        choices=Dispatch.choices,
+        default=Dispatch.MANUAL,
+    )
     send_delay_minutes = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

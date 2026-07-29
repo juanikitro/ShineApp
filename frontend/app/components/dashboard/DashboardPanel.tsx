@@ -4,14 +4,23 @@ import { type CSSProperties, type ReactNode } from 'react'
 
 import { AnimatePresence } from 'motion/react'
 import * as m from 'motion/react-m'
-import { Banknote, CalendarDays, CreditCard, Info, PieChart, TrendingUp } from 'lucide-react'
+import {
+	ArrowRight,
+	Banknote,
+	CalendarDays,
+	CreditCard,
+	Info,
+	PieChart,
+	TrendingUp,
+	type LucideIcon,
+} from 'lucide-react'
 
 import { Stagger, StaggerItem } from '@/app/components/motion/Stagger'
 import { Empty } from '@/app/components/ui/Empty'
-import { CajaSparkline } from '@/app/components/ui/CajaSparkline'
 import { MetricCard } from '@/app/components/ui/MetricCard'
-import { RiskMeter } from '@/app/components/ui/RiskMeter'
 import { DemoReadinessPanel } from './DemoReadinessPanel'
+import { DashboardAnalyticsPanel } from './DashboardAnalyticsPanel'
+import { ImportantTasksCard } from './ImportantTasksCard'
 import { TrialLifecycleBanner } from './TrialLifecycleBanner'
 import { DashboardCashByCategory } from './DashboardCashByCategory'
 import { DashboardCrossReadings } from './DashboardCrossReadings'
@@ -21,8 +30,13 @@ import { SkeletonLine } from '@/app/components/ui/Skeleton'
 import { cx } from '@/app/components/utils'
 import { deltaHintVariants } from '@/lib/motion-spec'
 import {
+	selectDashboardNextActionKeys,
+	type DashboardNextActionKey,
+} from '@/lib/dashboard-next-actions'
+import {
 	type DemoReadiness,
 	type DemoReadinessSettingsSection,
+	type DemoReadinessStepId,
 } from '@/lib/demo-readiness'
 import { type StarterServicesPlan } from '@/lib/onboarding-services'
 import {
@@ -42,17 +56,31 @@ type DashboardPanelProps = {
 	canViewEconomy: boolean
 	currentUser?: AnyRecord | null
 	dashboard: AnyRecord
-	demoReadiness: DemoReadiness
+	dashboardView: 'summary' | 'analysis'
+	demoReadiness: DemoReadiness | null
 	firstChargeableWorkOrder?: AnyRecord | null
+	tasks: readonly AnyRecord[]
 	starterServicesLoading?: boolean
 	starterServicesPlan?: StarterServicesPlan
 	loading: boolean
 	onCreateFirstReservation?: () => void
 	onCreateStarterServices?: () => Promise<unknown> | unknown
+	onDismissOnboardingStep: (
+		stepId: DemoReadinessStepId,
+	) => Promise<unknown> | unknown
 	onOpenFirstPayment?: (workOrder: AnyRecord) => void
 	onOpenPaymentForOrder: (workOrder: AnyRecord) => void
 	onOpenSection: (section: Section) => void
 	onOpenSettingsSection: (section: DemoReadinessSettingsSection) => void
+}
+
+type DashboardSuggestedAction = {
+	detail: string
+	icon: LucideIcon
+	label: string
+	onSelect: () => void
+	title: string
+	tone: 'attention' | 'neutral'
 }
 
 function dashboardCountText(count: number, singular: string, plural: string) {
@@ -109,13 +137,16 @@ export function DashboardPanel({
 	canViewEconomy,
 	currentUser,
 	dashboard,
+	dashboardView,
 	demoReadiness,
 	firstChargeableWorkOrder,
+	tasks,
 	starterServicesLoading,
 	starterServicesPlan,
 	loading,
 	onCreateFirstReservation,
 	onCreateStarterServices,
+	onDismissOnboardingStep,
 	onOpenFirstPayment,
 	onOpenPaymentForOrder,
 	onOpenSection,
@@ -248,11 +279,6 @@ export function DashboardPanel({
 		dashboardTopMaterialsByCost[0]?.estimated_total_cost,
 	)
 	const dashboardBySectorMax = numberValue(dashboardBySector[0]?.billed_total)
-	const dashboardSeriesPoints = Array.isArray(dashboard.series?.points)
-		? dashboard.series.points
-		: []
-	const dashboardSeriesValues = (key: string) =>
-		dashboardSeriesPoints.map((point: AnyRecord) => numberValue(point?.[key]))
 	const dashboardPreviousHasActivity =
 		dashboardPreviousPeriod.has_activity === true ||
 		(dashboardPreviousPeriod.has_activity !== false &&
@@ -285,48 +311,63 @@ export function DashboardPanel({
 				? item.work_orders[0] ?? null
 				: null
 		}, null)
-	const dashboardNextAction = dashboardFirstReceivableWorkOrder
-		? {
-				title: 'Cobrar saldo mas antiguo',
-				detail: 'Hay trabajos con saldo pendiente y accion directa de cobro.',
-				label: 'Cobrar ahora',
-				icon: CreditCard,
-				tone: 'attention',
-				onSelect: () =>
-					onOpenPaymentForOrder(dashboardFirstReceivableWorkOrder),
-			}
-		: dashboardOverdueDebtsTotal > 0
-			? {
-					title: 'Revisar deudas vencidas',
-					detail: `${dashboardOverdueDebtsCount} ${
-						dashboardOverdueDebtsCount === 1 ? 'deuda vencida' : 'deudas vencidas'
-					} en el periodo.`,
-					label: 'Ver deudas',
-					icon: CreditCard,
-					tone: 'attention',
-					onSelect: () => onOpenSection('debts'),
+	const dashboardActionsByKey: Record<
+		DashboardNextActionKey,
+		DashboardSuggestedAction
+	> = {
+		collectOldestBalance: {
+			title: 'Cobrar saldo mas antiguo',
+			detail: 'Hay trabajos con saldo pendiente y accion directa de cobro.',
+			label: 'Cobrar ahora',
+			icon: CreditCard,
+			tone: 'attention',
+			onSelect: () => {
+				if (dashboardFirstReceivableWorkOrder) {
+					onOpenPaymentForOrder(dashboardFirstReceivableWorkOrder)
 				}
-			: dashboardWorkOrdersTotal === 0
-				? {
-						title: 'Crear actividad del periodo',
-						detail: 'Agenda el proximo trabajo para activar indicadores operativos.',
-						label: 'Ir a Agenda',
-						icon: CalendarDays,
-						tone: 'neutral',
-						onSelect: () => onOpenSection('agenda'),
-					}
-				: {
-						title: 'Mantener la agenda al dia',
-						detail: `${dashboardCountText(
-							dashboardWorkOrdersTotal,
-							'trabajo registrado',
-							'trabajos registrados',
-						)} en el periodo seleccionado.`,
-						label: 'Ver Agenda',
-						icon: CalendarDays,
-						tone: 'neutral',
-						onSelect: () => onOpenSection('agenda'),
-					}
+			},
+		},
+		reviewOverdueDebts: {
+			title: 'Revisar deudas vencidas',
+			detail: `${dashboardOverdueDebtsCount} ${
+				dashboardOverdueDebtsCount === 1 ? 'deuda vencida' : 'deudas vencidas'
+			} en el periodo.`,
+			label: 'Ver deudas',
+			icon: CreditCard,
+			tone: 'attention',
+			onSelect: () => onOpenSection('debts'),
+		},
+		createPeriodActivity: {
+			title: 'Crear actividad del periodo',
+			detail: 'Agenda el proximo trabajo para activar indicadores operativos.',
+			label: 'Ir a Agenda',
+			icon: CalendarDays,
+			tone: 'neutral',
+			onSelect: () => onOpenSection('agenda'),
+		},
+		maintainAgenda: {
+			title: 'Mantener la agenda al dia',
+			detail: `${dashboardCountText(
+				dashboardWorkOrdersTotal,
+				'trabajo registrado',
+				'trabajos registrados',
+			)} en el periodo seleccionado.`,
+			label: 'Ver Agenda',
+			icon: CalendarDays,
+			tone: 'neutral',
+			onSelect: () => onOpenSection('agenda'),
+		},
+	}
+	const [dashboardNextActionKey, ...dashboardFollowUpActionKeys] =
+		selectDashboardNextActionKeys({
+			hasReceivable: dashboardFirstReceivableWorkOrder !== null,
+			overdueDebtsTotal: dashboardOverdueDebtsTotal,
+			workOrdersTotal: dashboardWorkOrdersTotal,
+		})
+	const dashboardNextAction = dashboardActionsByKey[dashboardNextActionKey]
+	const dashboardFollowUpActions = dashboardFollowUpActionKeys
+		.slice(0, 2)
+		.map((key) => ({ key, ...dashboardActionsByKey[key] }))
 	const DashboardNextActionIcon = dashboardNextAction.icon
 
 	function dashboardDeltaHint(
@@ -441,17 +482,87 @@ export function DashboardPanel({
 			{canViewEconomy ? (
 				<>
 					<TrialLifecycleBanner currentUser={currentUser} />
-					<DemoReadinessPanel
-						firstChargeableWorkOrder={firstChargeableWorkOrder}
-						readiness={demoReadiness}
-						starterServicesLoading={starterServicesLoading}
-						starterServicesPlan={starterServicesPlan}
-						onCreateFirstReservation={onCreateFirstReservation}
-						onCreateStarterServices={onCreateStarterServices}
-						onOpenFirstPayment={onOpenFirstPayment}
-						onOpenSection={onOpenSection}
-						onOpenSettingsSection={onOpenSettingsSection}
-					/>
+					{demoReadiness ? (
+						<DemoReadinessPanel
+							firstChargeableWorkOrder={firstChargeableWorkOrder}
+							readiness={demoReadiness}
+							starterServicesLoading={starterServicesLoading}
+							starterServicesPlan={starterServicesPlan}
+							onCreateFirstReservation={onCreateFirstReservation}
+							onCreateStarterServices={onCreateStarterServices}
+							onDismissStep={onDismissOnboardingStep}
+							onOpenFirstPayment={onOpenFirstPayment}
+							onOpenSection={onOpenSection}
+							onOpenSettingsSection={onOpenSettingsSection}
+						/>
+					) : null}
+					{dashboardView === 'summary' ? (
+					<Panel
+						className="dashboard-next-action-panel"
+						title="Siguiente accion"
+					>
+						<div className="dashboard-next-action-grid">
+							<RecordCard
+								className={cx(
+									'dashboard-next-action',
+									dashboardNextAction.tone === 'attention' &&
+										'dashboard-next-action--attention',
+								)}
+							>
+								<div className="dashboard-next-action-primary">
+									<span className="dashboard-next-action-kicker">Ahora</span>
+									<div className="dashboard-next-action-main">
+										<span className="dashboard-next-action-icon" aria-hidden="true">
+											<DashboardNextActionIcon size={16} />
+										</span>
+										<div className="dashboard-next-action-content">
+											<div className="dashboard-next-action-head">
+												<div className="dashboard-next-action-copy">
+													<strong>{dashboardNextAction.title}</strong>
+													<span>{dashboardNextAction.detail}</span>
+												</div>
+												<button
+													type="button"
+													className="ghost dashboard-action-link"
+													onClick={dashboardNextAction.onSelect}
+												>
+													{dashboardNextAction.label}
+												</button>
+											</div>
+										</div>
+									</div>
+								</div>
+								{dashboardFollowUpActions.length > 0 ? (
+									<div className="dashboard-next-action-follow-ups">
+										<span className="dashboard-next-action-kicker">Después</span>
+										<div className="dashboard-next-action-follow-up-list">
+											{dashboardFollowUpActions.map((action) => (
+												<button
+													className="dashboard-next-action-follow-up"
+													key={action.key}
+													onClick={action.onSelect}
+													type="button"
+												>
+													<span>
+														<strong>{action.title}</strong>
+														<small>{action.label}</small>
+													</span>
+													<ArrowRight aria-hidden="true" size={16} />
+												</button>
+											))}
+										</div>
+									</div>
+								) : null}
+							</RecordCard>
+							<ImportantTasksCard
+								tasks={tasks}
+								onOpenTasks={() => onOpenSection('tasks')}
+							/>
+						</div>
+					</Panel>
+					) : null}
+					{dashboardView === 'summary' ? (
+						<>
 					{loading && !dashboardHasBusinessActivity ? (
 						<div
 							className="dashboard-executive-grid"
@@ -500,7 +611,9 @@ export function DashboardPanel({
 					{(!loading || dashboardHasBusinessActivity) &&
 					!dashboardEmptyPeriod ? (
 						<>
-							<Stagger className="dashboard-executive-grid">
+							<section className="dashboard-executive-section" aria-labelledby="dashboard-executive-title">
+								<h2 id="dashboard-executive-title">Indicadores del periodo</h2>
+								<Stagger className="dashboard-executive-grid">
 								<StaggerItem>
 									<MetricCard
 										className="dashboard-executive-metric dashboard-executive-metric--billing"
@@ -536,11 +649,6 @@ export function DashboardPanel({
 										className="dashboard-executive-metric dashboard-executive-metric--cash"
 										label="Caja real"
 										icon={<Banknote size={20} />}
-										footer={
-											<CajaSparkline
-												values={dashboardSeriesValues('cashflow_balance')}
-											/>
-										}
 										value={money(dashboardCashflowBalance)}
 										numericValue={dashboardCashflowBalance}
 										format={money}
@@ -560,7 +668,6 @@ export function DashboardPanel({
 										)}
 										label="Por cobrar"
 										icon={<CreditCard size={20} />}
-										footer={<RiskMeter buckets={dashboardReceivablesAging} />}
 										value={money(dashboardBalanceDueTotal)}
 										numericValue={dashboardBalanceDueTotal}
 										format={money}
@@ -571,43 +678,13 @@ export function DashboardPanel({
 										)}
 									/>
 								</StaggerItem>
-							</Stagger>
-							<Panel
-								className="dashboard-next-action-panel"
-								title="Siguiente accion"
-								subtitle="Prioridad operativa sugerida para este periodo."
-							>
-								<RecordCard
-									className={cx(
-										'dashboard-next-action',
-										dashboardNextAction.tone === 'attention' &&
-											'dashboard-next-action--attention',
-									)}
-								>
-									<div className="dashboard-next-action-main">
-										<span className="dashboard-next-action-icon" aria-hidden="true">
-											<DashboardNextActionIcon size={16} />
-										</span>
-										<div className="dashboard-next-action-copy">
-											<strong>{dashboardNextAction.title}</strong>
-											<span>{dashboardNextAction.detail}</span>
-										</div>
-									</div>
-									<button
-										type="button"
-										className="ghost"
-										onClick={dashboardNextAction.onSelect}
-									>
-										{dashboardNextAction.label}
-									</button>
-								</RecordCard>
-							</Panel>
+								</Stagger>
+							</section>
 							<DashboardCrossReadings dashboard={dashboard} />
 								<DashboardCashByCategory dashboard={dashboard} />
 								<div className="dashboard-insight-grid">
 								<Panel
 									title="Composicion economica"
-									subtitle="Separacion entre facturado, cobrado, costos y obligaciones."
 								>
 									<Stagger className="dashboard-composition-grid">
 										<StaggerItem>
@@ -745,7 +822,7 @@ export function DashboardPanel({
 										title="Alertas economicas"
 										subtitle={
 											dashboardEconomicAlerts.length
-												? 'Prioridades para cobrar, pagar o corregir.'
+												? undefined
 												: 'Sin alertas economicas activas para el periodo.'
 										}
 									>
@@ -989,7 +1066,6 @@ export function DashboardPanel({
 							dashboardBySector.length ? (
 								<Panel
 									title="Rankings economicos"
-									subtitle="Donde se concentra facturacion, margen y costo de materiales."
 								>
 									<div className="dashboard-ranking-grid">
 										<div className="dashboard-ranking-column">
@@ -1172,6 +1248,10 @@ export function DashboardPanel({
 							</Panel>
 						</>
 					) : null}
+						</>
+					) : (
+						<DashboardAnalyticsPanel dashboard={dashboard} />
+					)}
 				</>
 			) : null}
 			{birthdayAlerts}

@@ -5,6 +5,7 @@ from rest_framework import serializers
 from core.models import BusinessProfile
 from core.permissions import context_can_view_economy
 from core.serializers import BusinessScopedSerializerMixin
+from finance.services import maybe_auto_charge_on_delivery
 
 from .models import (
     Reservation,
@@ -372,6 +373,7 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
 
     @transaction.atomic
     def update(self, instance, validated_data):
+        previous_status = instance.status
         items_data = validated_data.pop("items", None)
         legacy_service = validated_data.get("service") if items_data is None and "service" in validated_data else None
         if items_data is not None:
@@ -385,12 +387,18 @@ class ReservationSerializer(BusinessScopedSerializerMixin, serializers.ModelSeri
             self._replace_items(reservation, items_data)
         elif legacy_service:
             self._replace_items(reservation, [{"service": legacy_service}])
-        self._ensure_work_order(reservation)
+        order = self._ensure_work_order(reservation)
+        maybe_auto_charge_on_delivery(
+            order,
+            previous_status,
+            request=self.context.get("request"),
+        )
         return reservation
 
     def _ensure_work_order(self, reservation):
-        ensure_reservation_work_order(reservation)
+        order = ensure_reservation_work_order(reservation)
         reservation._state.fields_cache.pop("work_order", None)
+        return order
 
     def _replace_items(self, reservation, items_data):
         reservation.items.all().delete()

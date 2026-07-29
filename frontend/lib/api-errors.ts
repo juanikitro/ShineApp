@@ -119,6 +119,19 @@ export function createValidationNotice(
 	return { title, description, fields }
 }
 
+export function fieldErrorMapFromNotice(
+	notice: ApiErrorNotice,
+): Record<string, string> {
+	const map: Record<string, string> = {}
+	for (const field of notice.fields ?? []) {
+		const path = field?.path
+		if (path && !(String(path) in map)) {
+			map[String(path)] = String(field.message ?? '')
+		}
+	}
+	return map
+}
+
 export function normalizeApiErrorPayload(
 	payload: unknown,
 	options: NormalizeOptions = {},

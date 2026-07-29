@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, test, vi } from 'vitest'
 
@@ -15,14 +15,15 @@ const coreSectors = [
 ]
 
 const coreServices = [
-	{ id: 1, name: 'Lavado premium', is_active: true },
-	{ id: 2, name: 'Detailing interior', is_active: true },
-	{ id: 3, name: 'Cambio de aceite', is_active: true },
+	{ id: 1, name: 'Lavado exterior express', sector: 1, is_active: true },
+	{ id: 2, name: 'Lavado completo', sector: 1, is_active: true },
+	{ id: 3, name: 'Lavado premium', sector: 1, is_active: true },
 ]
 
 function renderPanel(overrides = {}) {
 	const props = {
 		readiness: buildDemoReadiness({}),
+		onDismissStep: vi.fn(),
 		onOpenSection: vi.fn(),
 		onOpenSettingsSection: vi.fn(),
 		...overrides,
@@ -41,6 +42,7 @@ test('DemoReadinessPanel opens the first reservation action from onboarding', as
 		businessProfile: {
 			name: 'Shine Car Detail Studio',
 			contact_phone: '+5493624000000',
+			business_type: 'lavadero',
 			public_landing_enabled: true,
 			allow_public_booking_requests: true,
 		},
@@ -51,10 +53,18 @@ test('DemoReadinessPanel opens the first reservation action from onboarding', as
 	})
 	renderPanel({ readiness, onCreateFirstReservation })
 
-	await user.click(screen.getAllByRole('button', { name: 'Crear primer turno' })[0])
+	const nextStep = screen.getByText('Siguiente paso').closest('.demo-readiness-next')
+	assert.ok(nextStep)
+	await user.click(within(nextStep).getByRole('button', { name: 'Crear primer turno' }))
 
 	assert.equal(onCreateFirstReservation.mock.calls.length, 1)
 	assert.ok(screen.getByText('Primer recorrido operativo'))
+	assert.equal(
+		within(screen.getByText('Primer recorrido operativo').closest('.demo-readiness-operation')!).queryByRole(
+			'button',
+		),
+		null,
+	)
 })
 
 test('DemoReadinessPanel charges the first pending work order when cash is next', async () => {
@@ -65,6 +75,7 @@ test('DemoReadinessPanel charges the first pending work order when cash is next'
 		businessProfile: {
 			name: 'Shine Car Detail Studio',
 			contact_phone: '+5493624000000',
+			business_type: 'lavadero',
 			public_landing_enabled: true,
 			allow_public_booking_requests: true,
 		},
@@ -81,8 +92,77 @@ test('DemoReadinessPanel charges the first pending work order when cash is next'
 		onOpenFirstPayment,
 	})
 
-	await user.click(screen.getAllByRole('button', { name: 'Cobrar primer trabajo' })[0])
+	const nextStep = screen.getByText('Siguiente paso').closest('.demo-readiness-next')
+	assert.ok(nextStep)
+	await user.click(
+		within(nextStep).getByRole('button', { name: 'Cobrar primer trabajo' }),
+	)
 
 	assert.equal(onOpenFirstPayment.mock.calls.length, 1)
 	assert.equal(onOpenFirstPayment.mock.calls[0][0], firstChargeableWorkOrder)
+})
+
+test('DemoReadinessPanel collapses without discarding onboarding progress', async () => {
+	const user = userEvent.setup()
+	renderPanel()
+
+	const toggle = screen.getByRole('button', { name: 'Contraer alta guiada' })
+	const contentId = toggle.getAttribute('aria-controls')
+	assert.equal(toggle.getAttribute('aria-expanded'), 'true')
+	assert.ok(contentId)
+
+	await user.click(toggle)
+	assert.equal(toggle.getAttribute('aria-expanded'), 'false')
+	assert.ok(document.getElementById(contentId!)?.hidden)
+
+	await user.click(screen.getByRole('button', { name: 'Expandir alta guiada' }))
+	assert.ok(screen.getByText('Negocio listo'))
+	assert.ok(screen.getByText('0/6 listo'))
+})
+
+test('DemoReadinessPanel renders each step action before its status badge', () => {
+	renderPanel()
+
+	const turneraStep = screen.getByText('Turnera publica').closest('.demo-readiness-step')
+	assert.ok(turneraStep)
+	const action = within(turneraStep).getByRole('button', { name: 'Abrir turnera' })
+	const status = within(turneraStep).getByText('Pendiente')
+	const children = Array.from(turneraStep.children)
+
+	assert.ok(children.indexOf(action) < children.indexOf(status))
+})
+
+test('DemoReadinessPanel exposes a dismiss action for each onboarding step', async () => {
+	const user = userEvent.setup()
+	const onDismissStep = vi.fn()
+	renderPanel({ onDismissStep })
+
+	await user.click(
+		screen.getByRole('button', {
+			name: 'Descartar Negocio listo de alta guiada',
+		}),
+	)
+	assert.deepEqual(onDismissStep.mock.calls, [])
+
+	await user.click(screen.getByRole('button', { name: 'Quitar paso' }))
+
+	assert.deepEqual(onDismissStep.mock.calls, [['business']])
+})
+
+test('DemoReadinessPanel hides when every onboarding step is dismissed', () => {
+	const readiness = buildDemoReadiness({
+		businessProfile: {
+			onboarding_dismissed_step_ids: [
+				'business',
+				'services',
+				'turnera',
+				'whatsapp',
+				'agenda',
+				'cash-dashboard',
+			],
+		},
+	})
+	renderPanel({ readiness })
+
+	assert.equal(screen.queryByRole('heading', { name: 'Alta guiada' }), null)
 })

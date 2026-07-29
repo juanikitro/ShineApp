@@ -2,12 +2,21 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
 import {
+	auditActionLabels,
 	auditActorLabel,
 	auditChangeRows,
 	auditLogListOrEmpty,
 	auditLogQueryString,
+	auditModuleLabels,
 	auditValueText,
 } from './audit-log'
+
+test('keeps audit action and module labels available to the history view', () => {
+	assert.equal(auditActionLabels.create_quote, 'Cotizacion creada')
+	assert.equal(auditActionLabels.update_profile, 'Perfil actualizado')
+	assert.equal(auditModuleLabels.scheduling, 'Agenda')
+	assert.equal(auditModuleLabels.workorders, 'Ordenes')
+})
 
 test('labels current user as Vos without hiding the username', () => {
 	assert.equal(

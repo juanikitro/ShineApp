@@ -1,7 +1,18 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
-import { debtMatchesFilters, hasDebtFilters } from './debt-filters'
+import { money } from './page-support'
+
+import {
+	DEBT_FILTER_DEFAULTS,
+	debtSelectOptions,
+	debtMatchesFilters,
+	hasDebtFilters,
+} from './debt-filters'
+
+test('keeps the empty debt filter state shared by the debt view', () => {
+	assert.deepEqual(DEBT_FILTER_DEFAULTS, { status: '', balance: '' })
+})
 
 const baseDebt = {
 	status: 'pending',
@@ -66,4 +77,26 @@ test('hasDebtFilters returns false when all values are empty', () => {
 test('hasDebtFilters returns true when any filter is set', () => {
 	assert.equal(hasDebtFilters({ status: 'pending' }), true)
 	assert.equal(hasDebtFilters({ balance: 'open' }), true)
+})
+
+test('debtSelectOptions preserves all rows and the existing open-balance selection', () => {
+	const debts = [
+		{ id: 1, concept: 'Proveedor', status: 'pending', balance_due: '50' },
+		{ id: 2, concept: 'Pagada', status: 'paid', balance_due: 0 },
+	]
+	const options = debtSelectOptions(debts)
+
+	assert.deepEqual(options.allDebtOptions, [
+		{
+			value: '1',
+			label: 'Proveedor',
+			meta: `Pendiente - saldo ${money(50)}`,
+		},
+		{
+			value: '2',
+			label: 'Pagada',
+			meta: `Pagada - saldo ${money(0)}`,
+		},
+	])
+	assert.deepEqual(options.debtOptions.map((item) => item.value), ['1'])
 })

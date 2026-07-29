@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.db.models import Q
 from rest_framework import decorators, permissions, response, status, viewsets
 from rest_framework.views import APIView
@@ -8,13 +9,16 @@ from rest_framework.views import APIView
 from catalog.models import Sector
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
 from core.models import BusinessHours, BusinessProfile
-from core.permissions import EmployerRequiredForUnsafe, business_from_request
+from core.permissions import EmployerOnly, EmployerRequiredForUnsafe, business_from_request
+from tasks.onboarding import schedule_onboarding_sync
 from finance.cash import cash_day, ensure_cash_day_open
+from finance.services import maybe_auto_charge_on_delivery
 from notifications.service import send_public_request_push, send_reservation_confirmation
 from quotes.models import Quote, QuoteItem
 from quotes.serializers import QuoteSerializer
 from whatsapp.models import WhatsAppMessage
-from whatsapp.services import enqueue_automated_message
+from whatsapp.serializers import WhatsAppMessageSerializer
+from whatsapp.services import enqueue_automated_message, send_reservation_whatsapp
 from workorders.metrics import build_work_order_financial_metrics
 
 from .models import Reservation, ReservationMaterialOverride
@@ -83,6 +87,14 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             queryset = queryset.filter(status=status_filter)
         return queryset
 
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        schedule_onboarding_sync(serializer.instance.business)
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        schedule_onboarding_sync(serializer.instance.business)
+
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
@@ -132,20 +144,26 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
                     field="paid_at",
                     business=payment.business,
                 )
-        return super().destroy(request, *args, **kwargs)
+        result = super().destroy(request, *args, **kwargs)
+        schedule_onboarding_sync(reservation.business)
+        return result
 
     @decorators.action(detail=True, methods=["post"])
     def confirm(self, request, pk=None):
         reservation = self.get_object()
         before = audit_snapshot(reservation)
+        previous_status = reservation.status
         serializer = self.get_serializer(reservation, data={"status": Reservation.Status.CONFIRMED}, partial=True)
         serializer.is_valid(raise_exception=True)
         reservation = serializer.save()
         send_reservation_confirmation(reservation)
-        enqueue_automated_message(
-            event=WhatsAppMessage.Event.RESERVATION_CONFIRMED,
-            source=reservation,
-        )
+        # Solo al transicionar realmente a confirmado: reconfirmar un turno ya
+        # confirmado no debe re-disparar el envio automatico de WhatsApp.
+        if previous_status != Reservation.Status.CONFIRMED:
+            enqueue_automated_message(
+                event=WhatsAppMessage.Event.RESERVATION_CONFIRMED,
+                source=reservation,
+            )
         try:
             send_public_request_push(reservation.public_request)
         except ObjectDoesNotExist:
@@ -159,6 +177,26 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         )
         return response.Response(self.get_serializer(reservation).data)
 
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="send-whatsapp",
+        permission_classes=[EmployerOnly],
+    )
+    def send_whatsapp(self, request, pk=None):
+        reservation = self.get_object()
+        try:
+            message = send_reservation_whatsapp(reservation, user=request.user)
+        except Exception as exc:  # noqa: BLE001
+            return response.Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return response.Response(
+            {"message": WhatsAppMessageSerializer(message).data},
+            status=status.HTTP_201_CREATED,
+        )
+
     @decorators.action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
         reservation = self.get_object()
@@ -167,6 +205,7 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
         if not profile.reservation_use_canceled:
             reservation_id = reservation.pk
             reservation.delete()
+            schedule_onboarding_sync(reservation.business)
             record_audit_event(
                 request=request,
                 action="delete",
@@ -181,6 +220,7 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             return response.Response(status=status.HTTP_204_NO_CONTENT)
         reservation.status = Reservation.Status.CANCELED
         reservation.save(update_fields=["status", "updated_at"])
+        schedule_onboarding_sync(reservation.business)
         record_audit_event(
             request=request,
             action="cancel",
@@ -194,22 +234,37 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
     def complete(self, request, pk=None):
         reservation = self.get_object()
         before = audit_snapshot(reservation)
-        reservation.status = Reservation.Status.DELIVERED
-        reservation.save(update_fields=["status", "updated_at"])
-        ensure_reservation_work_order(reservation)
+        previous_status = reservation.status
+        auto_payment = None
+        with transaction.atomic():
+            reservation.status = Reservation.Status.DELIVERED
+            reservation.save(update_fields=["status", "updated_at"])
+            order = ensure_reservation_work_order(reservation)
+            auto_payment = maybe_auto_charge_on_delivery(order, previous_status, request=request)
+            schedule_onboarding_sync(reservation.business)
         record_audit_event(
             request=request,
             action="complete",
             instance=reservation,
             before=before,
             after=audit_snapshot(reservation),
-            metadata={"side_effects": ["ensure_reservation_work_order"]},
+            metadata={
+                "side_effects": ["ensure_reservation_work_order"],
+                "auto_charge_payment": getattr(auto_payment, "id", None),
+            },
         )
         return response.Response(self.get_serializer(reservation).data)
 
     @decorators.action(detail=True, methods=["post"])
     def quote(self, request, pk=None):
         reservation = self.get_object()
+        group_quote = (
+            Quote.objects.filter(vehicle_lines__reservation=reservation)
+            .prefetch_related("vehicle_lines", "vehicle_lines__items", "vehicle_lines__items__service")
+            .first()
+        )
+        if group_quote:
+            return response.Response(QuoteSerializer(group_quote, context=self.get_serializer_context()).data)
         quote = Quote.objects.filter(reservation=reservation).prefetch_related("items", "items__service").first()
         if quote:
             return response.Response(QuoteSerializer(quote, context=self.get_serializer_context()).data)

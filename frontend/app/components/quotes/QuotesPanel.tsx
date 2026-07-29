@@ -37,8 +37,15 @@ type QuoteCardContentProps = {
 	onDownloadQuotePdf: (item: AnyRecord) => void
 	onDownloadQuotePdfAndMarkSent: (item: AnyRecord) => void
 	onSendQuoteWhatsapp: (item: AnyRecord) => void
+	whatsappButtonVisible: (item: AnyRecord) => boolean
+	whatsappButtonLabel: (item: AnyRecord) => string
 	onOpenQuoteReservationInAgenda: (item: AnyRecord) => void
 }
+
+type QuoteCardContentRendererProps = Omit<
+	QuoteCardContentProps,
+	'item' | 'overlay'
+>
 
 export function QuoteCardContent({
 	item,
@@ -51,11 +58,17 @@ export function QuoteCardContent({
 	onDownloadQuotePdf,
 	onDownloadQuotePdfAndMarkSent,
 	onSendQuoteWhatsapp,
+	whatsappButtonVisible,
+	whatsappButtonLabel,
 	onOpenQuoteReservationInAgenda,
 }: QuoteCardContentProps) {
 	const code = quoteCode(item)
 	const hasReservation = quoteHasReservation(item)
 	const isDraft = quoteLaneStatus(item) === 'draft'
+	const groupLines = Array.isArray(item.vehicle_lines) ? item.vehicle_lines : []
+	const serviceItems = item.is_group
+		? groupLines.flatMap((line: AnyRecord) => line.items ?? [])
+		: item.items ?? []
 
 	return (
 		<div className="record-head quote-card-head">
@@ -64,20 +77,25 @@ export function QuoteCardContent({
 					Cotizacion {code} - {item.customer_name}
 				</div>
 				<div className="record-sub">
-					{item.vehicle_label || 'Sin vehiculo'} - {money(item.total)}
+					{item.is_group
+						? `${groupLines.length} autos`
+						: item.vehicle_label || 'Sin vehiculo'}{' '}
+					- {money(item.total)}
 				</div>
-				{item.reservation_day ? (
+				{item.is_group && groupLines.some((line: AnyRecord) => line.reservation_day) ? (
+					<div className="record-sub">Agenda por auto</div>
+				) : item.reservation_day ? (
 					<div className="record-sub">
 						Reserva tentativa: {item.reservation_day}
 						{quoteTentativeTimeLabel(item.reservation_start_time)}
 					</div>
 				) : null}
-				{item.items?.length ? (
+				{serviceItems.length ? (
 					<div className="quote-card-services" aria-label="Servicios">
-						{item.items.map((quoteItem: AnyRecord) => (
+						{serviceItems.slice(0, 6).map((quoteItem: AnyRecord, index: number) => (
 							<span
 								className="quote-card-service-name"
-								key={quoteItem.id ?? `${item.id}-${quoteItem.service}`}
+								key={quoteItem.id ?? `${item.id}-${quoteItem.service}-${index}`}
 							>
 								{serviceDisplayName({
 									service_icon: quoteItem.service_icon,
@@ -86,6 +104,11 @@ export function QuoteCardContent({
 								})}
 							</span>
 						))}
+						{serviceItems.length > 6 ? (
+							<span className="quote-card-service-name">
+								+{serviceItems.length - 6}
+							</span>
+						) : null}
 					</div>
 				) : null}
 			</div>
@@ -121,15 +144,17 @@ export function QuoteCardContent({
 						<FileText size={16} />
 						PDF
 					</button>
-					<button
-						type="button"
-						className="ghost quote-action-button quote-action-button--outline"
-						aria-label="Enviar cotizacion por WhatsApp"
-						onClick={() => onSendQuoteWhatsapp(item)}
-					>
-						<MessageCircle size={16} />
-						WhatsApp
-					</button>
+					{whatsappButtonVisible(item) ? (
+						<button
+							type="button"
+							className="ghost quote-action-button quote-action-button--outline"
+							aria-label={`${whatsappButtonLabel(item)} cotizacion`}
+							onClick={() => onSendQuoteWhatsapp(item)}
+						>
+							<MessageCircle size={16} />
+							{whatsappButtonLabel(item)}
+						</button>
+					) : null}
 					{isDraft ? (
 						<button
 							type="button"
@@ -145,6 +170,12 @@ export function QuoteCardContent({
 			)}
 		</div>
 	)
+}
+
+export function createQuoteCardContentRenderer(
+	props: QuoteCardContentRendererProps,
+) {
+	return (item: AnyRecord) => <QuoteCardContent item={item} {...props} />
 }
 
 type QuotesPanelProps = {
@@ -171,6 +202,8 @@ type QuotesPanelProps = {
 	onDownloadQuotePdf: (item: AnyRecord) => void
 	onDownloadQuotePdfAndMarkSent: (item: AnyRecord) => void
 	onSendQuoteWhatsapp: (item: AnyRecord) => void
+	whatsappButtonVisible: (item: AnyRecord) => boolean
+	whatsappButtonLabel: (item: AnyRecord) => string
 	onOpenQuoteReservationInAgenda: (item: AnyRecord) => void
 	onQuoteDragCancel: () => void
 	onQuoteDragEnd: (event: DragEndEvent) => void
@@ -198,6 +231,8 @@ export function QuotesPanel({
 	onDownloadQuotePdf,
 	onDownloadQuotePdfAndMarkSent,
 	onSendQuoteWhatsapp,
+	whatsappButtonVisible,
+	whatsappButtonLabel,
 	onOpenQuoteReservationInAgenda,
 	onQuoteDragCancel,
 	onQuoteDragEnd,
@@ -213,6 +248,8 @@ export function QuotesPanel({
 		onDownloadQuotePdf,
 		onDownloadQuotePdfAndMarkSent,
 		onSendQuoteWhatsapp,
+		whatsappButtonVisible,
+		whatsappButtonLabel,
 		onOpenQuoteReservationInAgenda,
 	}
 

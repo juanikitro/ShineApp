@@ -595,6 +595,59 @@ def services_table(quote, items, styles):
     return table
 
 
+def group_services_table(quote, styles):
+    rows = [
+        [
+            paragraph("VEHICULO", styles["table_header"]),
+            paragraph("SERVICIO", styles["table_header"]),
+            paragraph("CANT.", styles["table_header"]),
+            paragraph("PRECIO", styles["table_header"]),
+            paragraph("TOTAL", styles["table_header"]),
+        ]
+    ]
+    for line in quote.vehicle_lines.select_related("vehicle").prefetch_related("items", "items__service").all():
+        vehicle_label = line.vehicle_snapshot_label or str(line.vehicle)
+        line_items = list(line.items.all())
+        if not line_items:
+            rows.append(
+                [
+                    paragraph(vehicle_label, styles["body"]),
+                    paragraph("Sin servicios", styles["small"]),
+                    paragraph("", styles["right"]),
+                    paragraph("", styles["right"]),
+                    paragraph("", styles["right_bold"]),
+                ]
+            )
+            continue
+        for index, item in enumerate(line_items):
+            rows.append(
+                [
+                    paragraph(vehicle_label if index == 0 else "", styles["body"]),
+                    service_cell(item, styles),
+                    paragraph(str(item.quantity).replace(".", ","), styles["right"]),
+                    paragraph(money(item.unit_price), styles["right"]),
+                    paragraph(money(item.line_total), styles["right_bold"]),
+                ]
+            )
+
+    table = Table(rows, colWidths=[42 * mm, 58 * mm, 20 * mm, 30 * mm, 30 * mm], repeatRows=1)
+    style = [
+        ("BACKGROUND", (0, 0), (-1, 0), PRIMARY),
+        ("BOX", (0, 0), (-1, -1), 0.8, LINE),
+        ("GRID", (0, 1), (-1, -1), 0.45, LINE),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 7),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]
+    for row_index in range(1, len(rows)):
+        if row_index % 2 == 0:
+            style.append(("BACKGROUND", (0, row_index), (-1, row_index), SURFACE))
+    table.setStyle(TableStyle(style))
+    return table
+
+
 def totals_table(quote, styles):
     has_discount = has_amount(quote.discount_rate) or has_amount(quote.discount_amount)
     has_tax = has_amount(quote.tax_rate) or has_amount(quote.tax_amount)
@@ -711,6 +764,7 @@ def build_quote_pdf(quote):
     )
     styles = style_sheet()
     quote_items = list(quote.items.select_related("service").all())
+    vehicle_lines = list(quote.vehicle_lines.select_related("vehicle").all()) if quote.is_group else []
     business_name = quote.business_name or "ShineApp"
 
     story = []
@@ -783,9 +837,12 @@ def build_quote_pdf(quote):
         styles,
     )
     quote_card = info_card(
-        "Vehiculo y validez",
+        "Vehiculos y validez" if quote.is_group else "Vehiculo y validez",
         [
-            ("Vehiculo", quote.vehicle_snapshot_label),
+            (
+                "Vehiculos",
+                f"{len(vehicle_lines)} autos" if quote.is_group else quote.vehicle_snapshot_label,
+            ),
             ("Valida hasta", date_label(quote.valid_until) if quote.valid_until else ""),
             ("Reserva vinculada", "Si" if quote.has_reservation else ""),
             ("Fecha tentativa", date_label(quote.reservation_day) if quote.reservation_day else ""),
@@ -799,7 +856,7 @@ def build_quote_pdf(quote):
 
     story.append(paragraph("SERVICIOS COTIZADOS", styles["section"]))
     story.append(Spacer(1, 5))
-    story.append(services_table(quote, quote_items, styles))
+    story.append(group_services_table(quote, styles) if quote.is_group else services_table(quote, quote_items, styles))
     story.append(Spacer(1, 10))
 
     observations = note_box("Observaciones", quote.observations, styles) or Spacer(84 * mm, 1)

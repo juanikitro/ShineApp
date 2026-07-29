@@ -386,7 +386,9 @@ Resultado esperado:
 - El usuario puede empezar desde el dashboard.
 - La app no lo manda a Caja si todavia no hay trabajo cobrable.
 - Agenda, Caja y Dashboard quedan conectados por datos reales.
-- No se crean cobros automaticos sin confirmacion del usuario.
+- No se crean cobros automaticos sin confirmacion del usuario salvo que el
+  negocio haya activado explicitamente `Cobro al entregar` en Configuracion >
+  Agenda.
 
 Evidencia sugerida:
 
@@ -520,10 +522,10 @@ Usar un negocio trial descartable creado desde el signup publico.
    - badge `Prueba activa`;
    - texto con dias restantes;
    - barra de progreso visible;
-   - boton `Copiar pedido`.
-4. Hacer click en `Copiar pedido`.
-5. Confirmar que el texto cambia a `Mensaje copiado`.
-6. Pegar el mensaje en un bloc de notas temporal y confirmar que incluye:
+   - enlace `Contratar ShineApp`.
+4. Abrir `Contratar ShineApp`.
+5. Confirmar que abre WhatsApp en una nueva pestaña con el mensaje
+   precompletado, que incluye:
    - nombre del negocio;
    - estado del trial;
    - fecha de vencimiento si esta disponible;
@@ -533,11 +535,8 @@ Usar un negocio trial descartable creado desde el signup publico.
 9. Preparar un trial vencido descartable.
 10. Volver al Dashboard y confirmar badge `Prueba vencida`.
 11. Confirmar que el negocio no queda bloqueado solo por ver el banner.
-12. Si `NEXT_PUBLIC_TRIAL_UPGRADE_URL` esta configurada en el frontend, confirmar
-    que aparece `Coordinar continuidad` y abre el canal comercial definido.
-13. Si `NEXT_PUBLIC_TRIAL_UPGRADE_URL` esta vacia, confirmar que no aparece un
-    link externo inventado y que `Copiar pedido` sigue disponible.
-14. Confirmar que un negocio `premium` no muestra la franja de trial.
+12. Confirmar que el CTA abre `https://wa.me/2345455007` en una nueva pestaña.
+13. Confirmar que un negocio `premium` no muestra la franja de trial.
 
 Resultado esperado:
 

@@ -1,17 +1,14 @@
 'use client'
 
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
-	type CSSProperties,
-	type KeyboardEvent,
 	type ReactNode,
 	type RefObject,
 	useEffect,
-	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
 } from 'react'
-import { createPortal } from 'react-dom'
 
 import { cx } from '../utils'
 
@@ -27,6 +24,12 @@ export type QuickAction = {
 	tone?: 'default' | 'primary' | 'danger'
 }
 
+export type QuickActionsMenuState = {
+	title: string
+	actions: QuickAction[]
+	anchorPoint: { x: number; y: number }
+}
+
 type QuickActionsMenuProps = {
 	actions: ReadonlyArray<QuickAction>
 	anchorPoint: { x: number; y: number } | null
@@ -36,6 +39,14 @@ type QuickActionsMenuProps = {
 	className?: string
 	returnFocusRef?: RefObject<HTMLElement | null>
 	pendingActionId?: string | null
+}
+
+function isThenable(value: unknown): value is PromiseLike<unknown> {
+	return (
+		value !== null &&
+		(typeof value === 'object' || typeof value === 'function') &&
+		typeof (value as PromiseLike<unknown>).then === 'function'
+	)
 }
 
 export function QuickActionsMenu({
@@ -51,12 +62,14 @@ export function QuickActionsMenu({
 	const menuRef = useRef<HTMLDivElement>(null)
 	const [confirmingId, setConfirmingId] = useState<string | null>(null)
 	const [localRunningId, setLocalRunningId] = useState<string | null>(null)
-	const [position, setPosition] = useState(anchorPoint)
 	const mountedRef = useRef(true)
 	const visibleActions = useMemo(
 		() => actions.filter((action) => !action.hidden),
 		[actions],
 	)
+	const hasRunningAction =
+		localRunningId !== null ||
+		(pendingActionId !== null && pendingActionId !== undefined)
 
 	useEffect(() => {
 		mountedRef.current = true
@@ -65,53 +78,11 @@ export function QuickActionsMenu({
 		}
 	}, [])
 
-	function closeMenu() {
-		onClose()
-		returnFocusRef?.current?.focus()
-	}
-
 	useEffect(() => {
 		if (!open) return
 		setConfirmingId(null)
 		setLocalRunningId(null)
-		firstEnabledItem()?.focus()
 	}, [open, visibleActions])
-
-	useLayoutEffect(() => {
-		if (!open || !anchorPoint || !menuRef.current) return
-		const viewportGap = 8
-		const rect = menuRef.current.getBoundingClientRect()
-		setPosition({
-			x: Math.max(
-				viewportGap,
-				Math.min(anchorPoint.x, window.innerWidth - rect.width - viewportGap),
-			),
-			y: Math.max(
-				viewportGap,
-				Math.min(anchorPoint.y, window.innerHeight - rect.height - viewportGap),
-			),
-		})
-	}, [open, anchorPoint, visibleActions, confirmingId])
-
-	useEffect(() => {
-		if (!open) return
-
-		function handleDocumentMouseDown(event: MouseEvent) {
-			if (localRunningId) return
-			const target = event.target
-			if (
-				target instanceof Node &&
-				menuRef.current &&
-				!menuRef.current.contains(target)
-			) {
-				closeMenu()
-			}
-		}
-
-		document.addEventListener('mousedown', handleDocumentMouseDown)
-		return () =>
-			document.removeEventListener('mousedown', handleDocumentMouseDown)
-	}, [open, onClose, returnFocusRef, localRunningId])
 
 	if (
 		!open ||
@@ -121,163 +92,153 @@ export function QuickActionsMenu({
 	) {
 		return null
 	}
-	const portalContainer = document.body
-
-	function enabledItems() {
-		return Array.from(
-			menuRef.current?.querySelectorAll<HTMLButtonElement>(
-				'button[role="menuitem"]:not(:disabled)',
-			) ?? [],
-		)
-	}
-
-	function firstEnabledItem() {
-		return enabledItems()[0] ?? null
-	}
-
-	function focusItemAt(index: number) {
-		const items = enabledItems()
-		if (!items.length) return
-		const nextIndex = (index + items.length) % items.length
-		items[nextIndex]?.focus()
-	}
-
-	function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-		if (event.key === 'Escape') {
-			if (localRunningId) return
-			event.preventDefault()
-			closeMenu()
-			return
-		}
-
-		// Tab cierra el menú (patrón APG) y devuelve el foco al disparador.
-		if (event.key === 'Tab') {
-			if (localRunningId) return
-			event.preventDefault()
-			closeMenu()
-			return
-		}
-
-		if (
-			event.key !== 'ArrowDown' &&
-			event.key !== 'ArrowUp' &&
-			event.key !== 'Home' &&
-			event.key !== 'End'
-		) {
-			return
-		}
-
-		const items = enabledItems()
-		if (!items.length) return
-
-		event.preventDefault()
-		if (event.key === 'Home') {
-			focusItemAt(0)
-			return
-		}
-		if (event.key === 'End') {
-			focusItemAt(items.length - 1)
-			return
-		}
-
-		const currentIndex = items.findIndex((item) => item === event.target)
-		const offset = event.key === 'ArrowUp' ? -1 : 1
-		focusItemAt(currentIndex + offset)
-	}
 
 	function runningIdFor(action: QuickAction) {
-		if (localRunningId === action.id) return true
-		if (pendingActionId && pendingActionId === action.id) return true
-		return false
+		return localRunningId === action.id || pendingActionId === action.id
 	}
 
-	async function selectAction(action: QuickAction) {
-		if (action.disabled || runningIdFor(action) || localRunningId) return
+	async function selectAction(action: QuickAction, event: Event) {
+		if (action.disabled || runningIdFor(action) || localRunningId) {
+			event.preventDefault()
+			return
+		}
 		if (action.requiresConfirm && confirmingId !== action.id) {
+			event.preventDefault()
 			setConfirmingId(action.id)
 			return
 		}
+
 		let result: unknown
 		try {
 			result = action.onSelect()
-		} catch (err) {
-			closeMenu()
-			throw err
+		} catch (error) {
+			event.preventDefault()
+			onClose()
+			throw error
 		}
-		if (
-			result &&
-			typeof result === 'object' &&
-			typeof (result as { then?: unknown }).then === 'function'
-		) {
-			setLocalRunningId(action.id)
-			try {
-				await (result as Promise<unknown>)
-			} catch {
-				// El error ya quedó en manos del onSelect; aca solo liberamos el lock.
-			} finally {
-				if (mountedRef.current) setLocalRunningId(null)
-			}
+
+		if (!isThenable(result)) return
+
+		event.preventDefault()
+		setLocalRunningId(action.id)
+		try {
+			await result
+		} catch {
+			// El error ya quedó en manos del onSelect; aca solo liberamos el lock.
+		} finally {
+			if (mountedRef.current) setLocalRunningId(null)
 		}
-		closeMenu()
+		onClose()
 	}
 
-	return createPortal(
-		<div
-			ref={menuRef}
-			role="menu"
-			aria-label={title}
-			className={cx('quick-actions-menu', className)}
-			onKeyDown={handleKeyDown}
-			style={
-				{
-					left: position?.x ?? anchorPoint.x,
-					top: position?.y ?? anchorPoint.y,
-				} as CSSProperties
-			}
+	return (
+		<DropdownMenu.Root
+			modal={false}
+			open={open}
+			onOpenChange={(nextOpen) => {
+				if (!nextOpen && !hasRunningAction) onClose()
+			}}
 		>
-			{title ? <div className="quick-actions-menu-title">{title}</div> : null}
-			{visibleActions.map((action) => {
-				const confirming = confirmingId === action.id
-				const running = runningIdFor(action)
-				const label = confirming
-					? `Confirmar ${action.label}`
-					: action.label
-				return (
-					<button
-						key={action.id}
-						type="button"
-						role="menuitem"
-						disabled={action.disabled || running}
-						aria-busy={running || undefined}
-						className={cx(
-							'quick-actions-menu-item',
-							action.tone === 'primary' && 'primary',
-							action.tone === 'danger' && 'danger',
-							confirming && 'confirming',
-							running && 'is-loading',
-						)}
-						onClick={() => {
-							void selectAction(action)
-						}}
-					>
-						{running ? (
-							<span
-								className="quick-actions-menu-icon button-spinner"
-								aria-hidden="true"
-							/>
-						) : action.icon ? (
-							<span className="quick-actions-menu-icon" aria-hidden="true">
-								{action.icon}
-							</span>
-						) : null}
-						<span className="quick-actions-menu-copy">
-							<span>{label}</span>
-							{action.description ? <small>{action.description}</small> : null}
-						</span>
-					</button>
-				)
-			})}
-		</div>,
-		portalContainer,
+			<DropdownMenu.Trigger
+				aria-hidden="true"
+				tabIndex={-1}
+				style={{
+					border: 0,
+					height: 0,
+					left: anchorPoint.x,
+					minHeight: 0,
+					minWidth: 0,
+					padding: 0,
+					pointerEvents: 'none',
+					position: 'fixed',
+					top: anchorPoint.y,
+					width: 0,
+				}}
+			/>
+			<DropdownMenu.Portal>
+				<DropdownMenu.Content
+					ref={menuRef}
+					align="start"
+					aria-label={title}
+					aria-labelledby={undefined}
+					className={cx('quick-actions-menu', className)}
+					collisionPadding={8}
+					loop
+					onCloseAutoFocus={(event) => {
+						event.preventDefault()
+						returnFocusRef?.current?.focus()
+					}}
+					onEscapeKeyDown={(event) => {
+						if (hasRunningAction) event.preventDefault()
+					}}
+					onInteractOutside={(event) => {
+						if (hasRunningAction) event.preventDefault()
+					}}
+					onKeyDown={(event) => {
+						if (event.key !== 'Tab') return
+						event.preventDefault()
+						if (!hasRunningAction) onClose()
+					}}
+					onPointerDownOutside={(event) => {
+						if (hasRunningAction) event.preventDefault()
+					}}
+					side="bottom"
+					sideOffset={0}
+				>
+					{title ? (
+						<DropdownMenu.Label className="quick-actions-menu-title">
+							{title}
+						</DropdownMenu.Label>
+					) : null}
+					{visibleActions.map((action) => {
+						const confirming = confirmingId === action.id
+						const running = runningIdFor(action)
+						const disabled = action.disabled || running
+						const label = confirming
+							? `Confirmar ${action.label}`
+							: action.label
+						return (
+							<DropdownMenu.Item
+								key={action.id}
+								asChild
+								disabled={disabled}
+								onSelect={(event) => {
+									void selectAction(action, event)
+								}}
+							>
+								<button
+									type="button"
+									role="menuitem"
+									disabled={disabled}
+									aria-busy={running || undefined}
+									className={cx(
+										'quick-actions-menu-item',
+										action.tone === 'primary' && 'primary',
+										action.tone === 'danger' && 'danger',
+										confirming && 'confirming',
+										running && 'is-loading',
+									)}
+								>
+									{running ? (
+										<span
+											className="quick-actions-menu-icon button-spinner"
+											aria-hidden="true"
+										/>
+									) : action.icon ? (
+										<span className="quick-actions-menu-icon" aria-hidden="true">
+											{action.icon}
+										</span>
+									) : null}
+									<span className="quick-actions-menu-copy">
+										<span>{label}</span>
+										{action.description ? <small>{action.description}</small> : null}
+									</span>
+								</button>
+							</DropdownMenu.Item>
+						)
+					})}
+				</DropdownMenu.Content>
+			</DropdownMenu.Portal>
+		</DropdownMenu.Root>
 	)
 }

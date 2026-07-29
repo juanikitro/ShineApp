@@ -66,7 +66,9 @@ export function SearchSelect({
 	} | null>(null)
 	const triggerRef = useRef<HTMLButtonElement>(null)
 	const menuRef = useRef<HTMLDivElement>(null)
+	const searchInputRef = useRef<HTMLInputElement>(null)
 	const pendingOptionFocusRef = useRef<'first' | 'last' | null>(null)
+	const focusSearchOnOpenRef = useRef(false)
 	const fieldId = useId()
 	const optionsId = `${fieldId}-options`
 	const placeholderOptionId = `${fieldId}-option-placeholder`
@@ -124,7 +126,10 @@ export function SearchSelect({
 	}
 
 	function getPortalContainer() {
-		return document.body
+		return (
+			triggerRef.current?.closest<HTMLElement>('[role="dialog"]') ??
+			document.body
+		)
 	}
 
 	function measurePosition() {
@@ -154,11 +159,12 @@ export function SearchSelect({
 		setCoords({ top, left, width })
 	}
 
-	function openMenu() {
+	function openMenu({ focusSearch = false }: { focusSearch?: boolean } = {}) {
 		const rect = triggerRef.current?.getBoundingClientRect()
 		if (rect) {
 			setCoords({ top: rect.bottom + 6, left: rect.left, width: rect.width })
 		}
+		focusSearchOnOpenRef.current = focusSearch
 		setOpen(true)
 	}
 
@@ -174,6 +180,7 @@ export function SearchSelect({
 
 	function closeMenu() {
 		pendingOptionFocusRef.current = null
+		focusSearchOnOpenRef.current = false
 		setOpen(false)
 		setQuery('')
 	}
@@ -200,6 +207,19 @@ export function SearchSelect({
 		pendingOptionFocusRef.current = null
 		window.requestAnimationFrame(() => focusEdgeOption(edge))
 	}, [open, visibleOptions.length])
+
+	useEffect(() => {
+		if (!open || !focusSearchOnOpenRef.current) return
+		focusSearchOnOpenRef.current = false
+		if (
+			typeof window.matchMedia !== 'function' ||
+			!window.matchMedia('(pointer: fine)').matches
+		) {
+			return
+		}
+		const frame = window.requestAnimationFrame(() => searchInputRef.current?.focus())
+		return () => window.cancelAnimationFrame(frame)
+	}, [open])
 
 	useLayoutEffect(() => {
 		if (!open) return
@@ -342,7 +362,7 @@ export function SearchSelect({
 					if (open) {
 						closeMenu()
 					} else {
-						openMenu()
+						openMenu({ focusSearch: true })
 					}
 				}}
 				onKeyDown={handleTriggerKeyDown}
@@ -378,6 +398,7 @@ export function SearchSelect({
 					>
 						<input
 							className="combo-search-input"
+							ref={searchInputRef}
 							placeholder="Buscar..."
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}

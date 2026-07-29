@@ -3,13 +3,17 @@ import { test } from 'vitest'
 
 import {
 	FREE_EVENT_VARIABLES,
+	FREE_EVENT_KEYS,
 	buildFreeVariables,
 	buildFreeWhatsappHref,
+	dispatchForEvent,
 	freeTemplateBody,
 	freeVariablesForEvent,
-	isFreeEventEnabled,
 	isFreeWhatsappMode,
+	hasActiveWhatsappTemplate,
 	renderFreeTemplate,
+	whatsappEventButtonVisible,
+	whatsappAlreadySent,
 } from './whatsapp-free'
 
 test('FREE_EVENT_VARIABLES declara los modulos esperados', () => {
@@ -17,6 +21,7 @@ test('FREE_EVENT_VARIABLES declara los modulos esperados', () => {
 		'manual',
 		'quote_sent',
 		'reservation_confirmed',
+		'work_delivered',
 		'work_ready',
 	])
 	assert.deepEqual(
@@ -24,6 +29,7 @@ test('FREE_EVENT_VARIABLES declara los modulos esperados', () => {
 		['cliente', 'vehiculo', 'codigo', 'total', 'validez', 'negocio'],
 	)
 	assert.deepEqual(freeVariablesForEvent('desconocido'), [])
+	assert.equal(FREE_EVENT_KEYS.includes('work_delivered'), true)
 })
 
 test('buildFreeVariables solo incluye las variables del evento', () => {
@@ -83,6 +89,42 @@ test('freeTemplateBody devuelve el body del template activo del evento', () => {
 	assert.equal(freeTemplateBody(null, 'manual'), '')
 })
 
+test('hasActiveWhatsappTemplate y whatsappEventButtonVisible aplican el contrato del canal', () => {
+	const templates = [
+		{ key: 'reservation_confirmed', is_active: true },
+		{ key: 'work_ready', is_active: false },
+	]
+	assert.equal(hasActiveWhatsappTemplate(templates, 'reservation_confirmed'), true)
+	assert.equal(hasActiveWhatsappTemplate(templates, 'work_ready'), false)
+	assert.equal(
+		whatsappEventButtonVisible({
+			config: { mode: 'free', is_enabled: false },
+			templates,
+			event: 'reservation_confirmed',
+			phone: '11 2233-4455',
+		}),
+		true,
+	)
+	assert.equal(
+		whatsappEventButtonVisible({
+			config: { mode: 'paid', is_enabled: true },
+			templates,
+			event: 'reservation_confirmed',
+			phone: '   ',
+		}),
+		false,
+	)
+	assert.equal(
+		whatsappEventButtonVisible({
+			config: { mode: 'paid', is_enabled: false },
+			templates,
+			event: 'reservation_confirmed',
+			phone: '11 2233-4455',
+		}),
+		false,
+	)
+})
+
 test('buildFreeWhatsappHref arma el link o null', () => {
 	assert.equal(
 		buildFreeWhatsappHref('11 2233-4455', 'Hola Juan'),
@@ -100,13 +142,24 @@ test('isFreeWhatsappMode detecta el modo gratis', () => {
 	assert.equal(isFreeWhatsappMode({}), false)
 })
 
-test('isFreeEventEnabled respeta la regla del evento', () => {
+test('dispatchForEvent solo habilita politicas proactivas validas', () => {
 	const rules = [
-		{ event: 'reservation_confirmed', enabled: true },
-		{ event: 'work_ready', enabled: false },
+		{ event: 'reservation_confirmed', dispatch: 'automatic' },
+		{ event: 'work_ready', dispatch: 'notify' },
+		{ event: 'quote_sent', dispatch: 'automatic' },
 	]
-	assert.equal(isFreeEventEnabled(rules, 'reservation_confirmed'), true)
-	assert.equal(isFreeEventEnabled(rules, 'work_ready'), false)
-	assert.equal(isFreeEventEnabled(rules, 'quote_sent'), false)
-	assert.equal(isFreeEventEnabled(null, 'reservation_confirmed'), false)
+	assert.equal(dispatchForEvent(rules, 'reservation_confirmed'), 'automatic')
+	assert.equal(dispatchForEvent(rules, 'work_ready'), 'notify')
+	assert.equal(dispatchForEvent(rules, 'work_delivered'), 'manual')
+	assert.equal(dispatchForEvent(rules, 'quote_sent'), 'manual')
+})
+
+test('whatsappAlreadySent exige el evento, fuente y un estado entregable', () => {
+	const messages = [
+		{ event: 'work_ready', work_order: 12, status: 'sent' },
+		{ event: 'quote_sent', quote: 8, status: 'queued' },
+	]
+	assert.equal(whatsappAlreadySent(messages, 'work_ready', 'workOrder', 12), true)
+	assert.equal(whatsappAlreadySent(messages, 'work_ready', 'workOrder', 13), false)
+	assert.equal(whatsappAlreadySent(messages, 'quote_sent', 'quote', 8), false)
 })

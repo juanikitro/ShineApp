@@ -9,6 +9,7 @@ from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from catalog.models import Sector
 from core.permissions import business_from_request, can_view_economy
 from customers.birthdays import upcoming_birthday_customers
 from customers.models import Customer
@@ -18,6 +19,8 @@ from finance.cash import cash_movement_cashflow_effect
 from finance.models import CashMovement, Payment
 from fixed_expenses.models import FixedExpenseOccurrence
 from inventory.models import MaterialConsumption, MaterialPurchase, StockMovement, StockMovementLine
+from quotes.models import Quote
+from scheduling.models import Reservation
 from workorders.metrics import build_work_order_financial_metrics
 from workorders.models import WorkOrder
 
@@ -199,6 +202,15 @@ def work_order_rankings(work_orders, metrics):
             }
         )
 
+    service_performance = [
+        ranking_entry_for_group(group)
+        for group in sorted(
+            services.values(),
+            key=lambda item: item["billed_total"],
+            reverse=True,
+        )
+    ]
+
     return {
         "top_customers_by_billed": [
             ranking_entry_for_group(group)
@@ -208,14 +220,8 @@ def work_order_rankings(work_orders, metrics):
                 reverse=True,
             )[:5]
         ],
-        "top_services_by_billed": [
-            ranking_entry_for_group(group)
-            for group in sorted(
-                services.values(),
-                key=lambda item: item["billed_total"],
-                reverse=True,
-            )[:5]
-        ],
+        "top_services_by_billed": service_performance[:5],
+        "service_performance": service_performance,
         "top_work_orders_by_margin": sorted(
             order_margins,
             key=lambda item: item["estimated_margin"],
@@ -286,6 +292,8 @@ def work_order_financials(queryset, today=None):
         hidden_count = max(len(customer_summary["work_orders"]) - 5, 0)
         customer_summary["hidden_work_orders_count"] = hidden_count
         customer_summary["work_orders"] = customer_summary["work_orders"][:5]
+    rankings = work_order_rankings(work_orders, metrics)
+    service_performance = rankings.pop("service_performance")
     return {
         "billed_total": billed_total,
         "work_orders_count": len(work_orders),
@@ -293,7 +301,8 @@ def work_order_financials(queryset, today=None):
         "work_orders_with_balance_due_count": work_orders_with_balance_due_count,
         "top_receivables": top_receivables,
         "receivables_aging": receivables_aging,
-        "rankings": work_order_rankings(work_orders, metrics),
+        "service_performance": service_performance,
+        "rankings": rankings,
     }
 
 
@@ -360,6 +369,10 @@ def cash_by_category_for_period(business, date_from, date_to):
     income = defaultdict(lambda: ZERO)
     income_by_service = defaultdict(lambda: ZERO)
     expense = defaultdict(lambda: ZERO)
+    # The dashboard still exposes expense_by_category for older consumers, while the
+    # summary card uses subcategories to make each outgoing movement more actionable.
+    # Empty historical subcategories fall back to their category instead of being lost.
+    expense_by_subcategory = defaultdict(lambda: ZERO)
     for movement in movements:
         if not cash_movement_cashflow_effect(movement):
             continue
@@ -374,6 +387,8 @@ def cash_by_category_for_period(business, date_from, date_to):
             income_by_service[service_name] += movement.amount
         elif movement.movement_type == CashMovement.MovementType.EXPENSE:
             expense[category] += movement.amount
+            subcategory = str(movement.subcategory or "").strip() or category
+            expense_by_subcategory[subcategory] += movement.amount
 
     debt_payments_total = decimal_sum(
         DebtPayment.objects.filter(
@@ -385,6 +400,7 @@ def cash_by_category_for_period(business, date_from, date_to):
     )
     if debt_payments_total > ZERO:
         expense["Pago de deudas"] += debt_payments_total
+        expense_by_subcategory["Pago de deudas"] += debt_payments_total
 
     def to_rows(bucket):
         return [
@@ -406,10 +422,21 @@ def cash_by_category_for_period(business, date_from, date_to):
             )
         ]
 
+    def to_subcategory_rows(bucket):
+        return [
+            {"subcategory": subcategory, "total": total}
+            for subcategory, total in sorted(
+                bucket.items(),
+                key=lambda item: item[1],
+                reverse=True,
+            )
+        ]
+
     return {
         "income_by_category": to_rows(income),
         "income_by_service": to_service_rows(income_by_service),
         "expense_by_category": to_rows(expense),
+        "expense_by_subcategory": to_subcategory_rows(expense_by_subcategory),
     }
 
 
@@ -705,6 +732,284 @@ def dashboard_period_series(business, date_from, date_to):
         "from": date_from.isoformat(),
         "to": date_to.isoformat(),
         "points": [series_point(weekly[idx]["date"], weekly[idx]) for idx in weekly_order],
+    }
+
+
+def service_margin_rate(row):
+    billed_total = row["billed_total"]
+    if billed_total <= ZERO:
+        return None
+    return (row["estimated_margin_total"] * Decimal("100") / billed_total).quantize(
+        Decimal("0.01")
+    )
+
+
+def service_comparison_for(current_services, previous_services):
+    """Compare service performance while retaining zero-activity periods honestly."""
+    services = {}
+    for service in current_services:
+        services[service["service_id"]] = {
+            "service_id": service["service_id"],
+            "service_name": service["service_name"],
+            "service_icon": service["service_icon"],
+            "current": service,
+            "previous": None,
+        }
+    for service in previous_services:
+        row = services.setdefault(
+            service["service_id"],
+            {
+                "service_id": service["service_id"],
+                "service_name": service["service_name"],
+                "service_icon": service["service_icon"],
+                "current": None,
+                "previous": None,
+            },
+        )
+        row["previous"] = service
+
+    empty_period = {
+        "billed_total": ZERO,
+        "collected_total": ZERO,
+        "balance_due_total": ZERO,
+        "estimated_margin_total": ZERO,
+        "work_orders_count": 0,
+    }
+    comparison = []
+    for service in services.values():
+        current = service["current"] or empty_period
+        previous = service["previous"] or empty_period
+        current_margin_rate = service_margin_rate(current)
+        previous_margin_rate = service_margin_rate(previous)
+        comparison.append(
+            {
+                "service_id": service["service_id"],
+                "service_name": service["service_name"],
+                "service_icon": service["service_icon"],
+                "current": {
+                    **current,
+                    "margin_rate": current_margin_rate,
+                },
+                "previous": {
+                    **previous,
+                    "margin_rate": previous_margin_rate,
+                },
+                "margin_rate_delta_pp": (
+                    current_margin_rate - previous_margin_rate
+                    if current_margin_rate is not None and previous_margin_rate is not None
+                    else None
+                ),
+            }
+        )
+    return sorted(
+        comparison,
+        key=lambda item: (item["current"]["billed_total"], item["previous"]["billed_total"]),
+        reverse=True,
+    )
+
+
+def commercial_funnel_for_period(business, date_from, date_to):
+    """Return a quote-based funnel, including grouped quotes only once per quote."""
+    quotes = list(
+        Quote.objects.filter(
+            business=business,
+            quote_date__gte=date_from,
+            quote_date__lte=date_to,
+        )
+        .select_related("reservation", "reservation__work_order")
+        .prefetch_related("vehicle_lines__reservation__work_order")
+    )
+    status_counts = defaultdict(int)
+    quote_rows = []
+    work_orders_by_id = {}
+
+    for quote in quotes:
+        status_counts[quote.status] += 1
+        if quote.is_group:
+            lines = list(quote.vehicle_lines.all())
+            is_booked = bool(lines) and all(line.reservation_id for line in lines)
+            reservations = [line.reservation for line in lines if line.reservation_id]
+        else:
+            is_booked = bool(quote.reservation_id)
+            reservations = [quote.reservation] if quote.reservation_id else []
+        work_orders = []
+        for reservation in reservations:
+            work_order = getattr(reservation, "work_order", None)
+            if work_order is not None:
+                work_orders.append(work_order)
+                work_orders_by_id[work_order.id] = work_order
+        quote_rows.append((is_booked, reservations, work_orders))
+
+    metrics = build_work_order_financial_metrics(work_orders_by_id.values())
+    booked_quotes = sum(1 for is_booked, _reservations, _orders in quote_rows if is_booked)
+    delivered_quotes = 0
+    collected_quotes = 0
+    for is_booked, reservations, work_orders in quote_rows:
+        is_delivered = is_booked and bool(reservations) and all(
+            reservation.status == WorkOrder.Status.DELIVERED for reservation in reservations
+        )
+        if not is_delivered:
+            continue
+        delivered_quotes += 1
+        has_work_orders = len(work_orders) == len(reservations)
+        if has_work_orders and all(metrics[order.id]["balance_due"] == ZERO for order in work_orders):
+            collected_quotes += 1
+
+    return {
+        "unit": "quote",
+        "total_quotes": len(quotes),
+        "draft_quotes": status_counts[Quote.Status.DRAFT],
+        "sent_quotes": status_counts[Quote.Status.SENT],
+        "accepted_quotes": status_counts[Quote.Status.ACCEPTED],
+        "rejected_quotes": status_counts[Quote.Status.REJECTED],
+        "booked_quotes": booked_quotes,
+        "delivered_quotes": delivered_quotes,
+        "collected_quotes": collected_quotes,
+    }
+
+
+def customer_recurrence_for_period(business, date_from, date_to):
+    current_customer_ids = set(
+        WorkOrder.objects.filter(
+            business=business,
+            created_at__date__gte=date_from,
+            created_at__date__lte=date_to,
+            reservation__status__in=WorkOrder.operational_statuses(),
+        )
+        .values_list("customer_id", flat=True)
+        .distinct()
+    )
+    recurring_customer_ids = set()
+    if current_customer_ids:
+        recurring_customer_ids = set(
+            WorkOrder.objects.filter(
+                business=business,
+                customer_id__in=current_customer_ids,
+                created_at__date__lt=date_from,
+                reservation__status__in=WorkOrder.operational_statuses(),
+            )
+            .values_list("customer_id", flat=True)
+            .distinct()
+        )
+    customers_count = len(current_customer_ids)
+    recurring_customers_count = len(recurring_customer_ids)
+    return {
+        "unit": "customer_with_operational_work_order",
+        "customers_count": customers_count,
+        "recurring_customers_count": recurring_customers_count,
+        "new_customers_count": customers_count - recurring_customers_count,
+        "repeat_rate": (
+            (Decimal(recurring_customers_count) * Decimal("100") / customers_count).quantize(
+                Decimal("0.01")
+            )
+            if customers_count
+            else ZERO
+        ),
+    }
+
+
+def capacity_occupancy_for_period(business, date_from, date_to):
+    """Return occupied sector-days using the same capacity rules as scheduling."""
+    sectors = list(
+        Sector.objects.filter(business=business, is_active=True).order_by("order", "name")
+    )
+    active_statuses = list(Reservation.active_statuses())
+    result = {
+        "unit": "reservation",
+        "from": date_from.isoformat(),
+        "to": date_to.isoformat(),
+        "sectors_count": len(sectors),
+        "active_statuses": active_statuses,
+        "sector_days": [],
+    }
+    if not sectors:
+        return result
+
+    sectors_by_id = {sector.id: sector for sector in sectors}
+    occupied_sector_days = (
+        Reservation.objects.filter(
+            business=business,
+            day__gte=date_from,
+            day__lte=date_to,
+            sector_id__in=sectors_by_id,
+            status__in=active_statuses,
+        )
+        .values("day", "sector_id")
+        .annotate(used_slots=Count("id"))
+        .order_by("day", "sector_id")
+    )
+    for row in occupied_sector_days:
+        sector = sectors_by_id[row["sector_id"]]
+        capacity = max(
+            int(
+                Reservation.capacity_for_day(
+                    row["day"],
+                    business=business,
+                    sector=sector,
+                )
+                or 0
+            ),
+            0,
+        )
+        used_slots = row["used_slots"]
+        result["sector_days"].append(
+            {
+                "date": row["day"].isoformat(),
+                "sector_id": sector.id,
+                "sector_name": sector.name,
+                "used_slots": used_slots,
+                "capacity": capacity,
+                "available_slots": max(capacity - used_slots, 0),
+                "occupancy_rate": (
+                    (Decimal(used_slots) * Decimal("100") / Decimal(capacity)).quantize(
+                        Decimal("0.01")
+                    )
+                    if capacity
+                    else None
+                ),
+            }
+        )
+    return result
+
+
+def weekly_workload_for_period(business, date_from, date_to):
+    """Bucket entered work orders by week and show each order's current status."""
+    total_days = (date_to - date_from).days + 1
+    if total_days < 1:
+        return {"unit": "work_order", "weeks": []}
+
+    statuses = WorkOrder.operational_statuses()
+    weeks = []
+    for offset in range(0, total_days, 7):
+        week_from = date_from + timedelta(days=offset)
+        week_to = min(week_from + timedelta(days=6), date_to)
+        weeks.append(
+            {
+                "from": week_from.isoformat(),
+                "to": week_to.isoformat(),
+                "entered_count": 0,
+                "by_status": {status: 0 for status in statuses},
+            }
+        )
+
+    work_orders = WorkOrder.objects.filter(
+        business=business,
+        created_at__date__gte=date_from,
+        created_at__date__lte=date_to,
+        reservation__status__in=statuses,
+    ).select_related("reservation")
+    for order in work_orders:
+        created_on = local_date_for_datetime(order.created_at)
+        if not date_from <= created_on <= date_to:
+            continue
+        week = weeks[(created_on - date_from).days // 7]
+        week["entered_count"] += 1
+        week["by_status"][order.status] += 1
+
+    return {
+        "unit": "work_order",
+        "status_snapshot": "current",
+        "weeks": weeks,
     }
 
 
@@ -1012,6 +1317,17 @@ class DashboardSummaryView(APIView):
         previous_summary = dashboard_period_summary(
             business, previous_from, previous_to, with_rankings=False
         )
+        current_series = dashboard_period_series(business, date_from, date_to)
+        analytics = {
+            "previous_series": dashboard_period_series(business, previous_from, previous_to),
+            "service_comparison": service_comparison_for(
+                summary["service_performance"], previous_summary["service_performance"]
+            ),
+            "commercial_funnel": commercial_funnel_for_period(business, date_from, date_to),
+            "customer_recurrence": customer_recurrence_for_period(business, date_from, date_to),
+            "capacity_occupancy": capacity_occupancy_for_period(business, date_from, date_to),
+            "weekly_workload": weekly_workload_for_period(business, date_from, date_to),
+        }
         debt_summary = debt_timing_summary(business, today)
         current_has_activity = dashboard_summary_has_activity(summary)
         previous_has_activity = dashboard_summary_has_activity(previous_summary)
@@ -1023,6 +1339,12 @@ class DashboardSummaryView(APIView):
         )
         work_orders_count = summary["work_orders_count"]
         average_ticket = summary["billed_total"] / work_orders_count if work_orders_count else ZERO
+        previous_work_orders_count = previous_summary["work_orders_count"]
+        previous_average_ticket = (
+            previous_summary["billed_total"] / previous_work_orders_count
+            if previous_work_orders_count
+            else ZERO
+        )
         by_status = {
             row["reservation__status"]: row["count"]
             for row in work_orders.values("reservation__status").annotate(count=Count("id"))
@@ -1072,7 +1394,8 @@ class DashboardSummaryView(APIView):
                 "cost_breakdown": cost_breakdown_for(summary),
                 "comparison": comparison_for(summary, previous_summary, previous_has_activity),
                 "rankings": summary["rankings"],
-                "series": dashboard_period_series(business, date_from, date_to),
+                "series": current_series,
+                "analytics": analytics,
                 "cash_by_category": cash_by_category_for_period(business, date_from, date_to),
                 "data_quality": data_quality_for(current_has_activity, previous_has_activity),
                 **debt_summary,
@@ -1080,6 +1403,7 @@ class DashboardSummaryView(APIView):
                     "from": previous_from.isoformat(),
                     "to": previous_to.isoformat(),
                     "has_activity": previous_has_activity,
+                    "average_ticket": previous_average_ticket,
                     "billed_total": previous_summary["billed_total"],
                     "collected_total": previous_summary["collected_total"],
                     "balance_due_total": previous_summary["balance_due_total"],

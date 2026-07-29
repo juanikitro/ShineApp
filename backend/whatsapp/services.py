@@ -188,7 +188,7 @@ def flush_whatsapp_outbox(limit=100):
 def automation_rule_for(business, event):
     return (
         WhatsAppAutomationRule.objects.select_related("template")
-        .filter(business=business, event=event, enabled=True)
+        .filter(business=business, event=event)
         .first()
     )
 
@@ -202,7 +202,12 @@ def enqueue_automated_message(*, event, source):
     if not config.is_enabled:
         return None
     rule = automation_rule_for(business, event)
-    if not rule or not rule.template or not rule.template.is_active:
+    if (
+        not rule
+        or rule.dispatch != WhatsAppAutomationRule.Dispatch.AUTOMATIC
+        or not rule.template
+        or not rule.template.is_active
+    ):
         return None
     if event == WhatsAppMessage.Event.RESERVATION_CONFIRMED:
         variables = reservation_variables(source)
@@ -285,5 +290,95 @@ def send_quote_whatsapp(quote, *, user=None):
     message.refresh_from_db()
     if message.status == WhatsAppMessage.Status.SENT:
         quote.mark_sent()
+    return message
+
+
+def send_reservation_whatsapp(reservation, *, user=None):
+    config = WhatsAppConfig.get_solo(reservation.business)
+    if config.mode == WhatsAppConfig.Mode.FREE:
+        raise WhatsAppProviderError(
+            "En modo gratis el turno se envía desde el botón de WhatsApp (wa.me), no por el servidor."
+        )
+    if not config.is_enabled:
+        raise WhatsAppProviderError("WhatsApp no está habilitado para este negocio.")
+    template = (
+        WhatsAppTemplate.objects.filter(
+            business=reservation.business,
+            key=WhatsAppTemplate.Key.RESERVATION_CONFIRMED,
+            is_active=True,
+        )
+        .order_by("id")
+        .first()
+    )
+    if template is None:
+        raise WhatsAppProviderError("No hay template activo para enviar turnos por WhatsApp.")
+    recipient_phone = normalize_phone(
+        reservation.customer.phone,
+        default_country_code=config.default_country_code,
+    )
+    if not recipient_phone:
+        raise WhatsAppProviderError("El cliente no tiene teléfono para WhatsApp.")
+    message = create_message(
+        business=reservation.business,
+        event=WhatsAppMessage.Event.RESERVATION_CONFIRMED,
+        recipient_phone=recipient_phone,
+        recipient_name=reservation.customer.name,
+        template=template,
+        variables=reservation_variables(reservation),
+        customer=reservation.customer,
+        vehicle=reservation.vehicle,
+        reservation=reservation,
+        created_by=user,
+    )
+    send_message(message)
+    message.refresh_from_db()
+    return message
+
+
+def send_work_order_whatsapp(work_order, event, *, user=None):
+    if event not in [
+        WhatsAppMessage.Event.WORK_READY,
+        WhatsAppMessage.Event.WORK_DELIVERED,
+    ]:
+        raise WhatsAppProviderError("Evento de WhatsApp inválido.")
+    config = WhatsAppConfig.get_solo(work_order.business)
+    if config.mode == WhatsAppConfig.Mode.FREE:
+        raise WhatsAppProviderError(
+            "En modo gratis el trabajo se envía desde el botón de WhatsApp (wa.me), no por el servidor."
+        )
+    if not config.is_enabled:
+        raise WhatsAppProviderError("WhatsApp no está habilitado para este negocio.")
+    template = (
+        WhatsAppTemplate.objects.filter(
+            business=work_order.business,
+            key=event,
+            is_active=True,
+        )
+        .order_by("id")
+        .first()
+    )
+    if template is None:
+        raise WhatsAppProviderError("No hay template activo para enviar trabajos por WhatsApp.")
+    recipient_phone = normalize_phone(
+        work_order.customer.phone,
+        default_country_code=config.default_country_code,
+    )
+    if not recipient_phone:
+        raise WhatsAppProviderError("El cliente no tiene teléfono para WhatsApp.")
+    message = create_message(
+        business=work_order.business,
+        event=event,
+        recipient_phone=recipient_phone,
+        recipient_name=work_order.customer.name,
+        template=template,
+        variables=work_order_variables(work_order),
+        customer=work_order.customer,
+        vehicle=work_order.vehicle,
+        reservation=work_order.reservation,
+        work_order=work_order,
+        created_by=user,
+    )
+    send_message(message)
+    message.refresh_from_db()
     return message
 

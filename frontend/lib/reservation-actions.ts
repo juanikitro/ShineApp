@@ -11,6 +11,7 @@ export type AgendaReservationActionVariant =
 	| 'icon-danger'
 
 export type AgendaReservationActionPriority = 'high' | 'medium' | 'low'
+export type AgendaReservationActionTone = 'danger' | 'primary' | 'default'
 
 export type AgendaReservationActionIcon = 'trash'
 
@@ -145,7 +146,8 @@ function buildWorkOrderActions(
 	if (statusAction && canCharge) {
 		const prioritizeCharge =
 			statusAction.status === 'delivered' &&
-			balanceDue > 0
+			balanceDue > 0 &&
+			!config.autoChargeOnDelivery
 
 		if (prioritizeCharge) {
 			return [
@@ -234,6 +236,18 @@ export function reservationStatusActions(
 	}
 
 	return []
+}
+
+export function agendaActionTone(
+	action: AgendaReservationAction,
+): AgendaReservationActionTone {
+	if (
+		action.kind === 'reservation' &&
+		(action.action === 'cancel' || action.action === 'delete')
+	) {
+		return 'danger'
+	}
+	return action.variant === 'filled' ? 'primary' : 'default'
 }
 
 export function buildAgendaReservationActions(
