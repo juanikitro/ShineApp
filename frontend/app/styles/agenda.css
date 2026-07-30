@@ -586,9 +586,10 @@
 
 .agenda-day-balances {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px 10px;
   max-width: 100%;
+  white-space: nowrap;
 }
 
 .agenda-day-balance {
