@@ -29,13 +29,13 @@
   }
 
   .week-board {
-    --agenda-instance-card-height: 212px;
+    --agenda-instance-card-height: 176px;
     gap: 0 10px;
-    min-height: 460px;
+    min-height: 424px;
   }
 
   .day-row {
-    min-height: 460px;
+    min-height: 424px;
   }
 
   .agenda-day-head {
@@ -109,12 +109,12 @@
 
 @media (min-width: 981px) and (max-width: 1366px) and (max-height: 820px) {
   .week-board {
-    --agenda-instance-card-height: 196px;
-    min-height: 424px;
+    --agenda-instance-card-height: 168px;
+    min-height: 392px;
   }
 
   .day-row {
-    min-height: 424px;
+    min-height: 392px;
   }
 
   .agenda-service-name {
@@ -403,12 +403,12 @@
 
 .week-board {
   --agenda-board-days: 5;
-  --agenda-instance-card-height: 232px;
+  --agenda-instance-card-height: 184px;
   display: grid;
   align-items: start;
   gap: 0 var(--space-3);
   grid-template-columns: repeat(var(--agenda-board-days), minmax(0, 1fr));
-  min-height: 520px;
+  min-height: 424px;
   overflow: visible;
   padding-bottom: 2px;
 }
@@ -418,7 +418,7 @@
   border: 0;
   border-radius: var(--radius-md);
   box-shadow: none;
-  min-height: 520px;
+  min-height: 424px;
   min-width: 0;
   overflow: hidden;
   padding: 0;
@@ -711,7 +711,7 @@
 }
 
 .agenda-board-card-shell {
-  height: calc(var(--agenda-instance-card-height, 268px) + 12px);
+  height: calc(var(--agenda-instance-card-height, 184px) + 8px);
   min-width: 0;
   overflow: hidden;
   padding: var(--space-3) var(--space-1) 0;
@@ -744,9 +744,9 @@
  * contenido: fijarla cortaba el ultimo renglon a la mitad (modelo / servicio).
  */
 .workspace .record.agenda-operational-card--spanning {
-  height: var(--agenda-instance-card-height, 268px);
-  max-height: var(--agenda-instance-card-height, 268px);
-  min-height: var(--agenda-instance-card-height, 268px);
+  height: var(--agenda-instance-card-height, 184px);
+  max-height: var(--agenda-instance-card-height, 184px);
+  min-height: var(--agenda-instance-card-height, 184px);
   width: 100%;
   z-index: 4;
 }
@@ -806,14 +806,14 @@
   box-shadow: none;
   cursor: pointer;
   display: grid;
-  gap: 8px;
+  gap: 6px;
   grid-template-columns: auto 1fr;
   grid-template-rows: minmax(0, 1fr) auto;
   height: 100%;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
-  padding: 8px;
+  padding: 7px;
 }
 
 .agenda-entry-card--reservation {
@@ -827,7 +827,7 @@
 .agenda-entry-head {
   align-items: flex-start;
   display: flex;
-  gap: 10px;
+  gap: 6px;
   grid-column: 1 / -1;
   justify-content: space-between;
   min-height: 0;
@@ -846,7 +846,7 @@
 
 .agenda-entry-copy {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
@@ -856,7 +856,7 @@
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
 .agenda-entry-eyebrow {
@@ -877,10 +877,10 @@
 }
 
 .agenda-service-stack {
-  border-left: 3px solid var(--shop-action);
+  border-left: 2px solid var(--shop-action);
   display: grid;
-  gap: var(--space-1);
-  padding-left: var(--space-2);
+  gap: 2px;
+  padding-left: 6px;
 }
 
 .agenda-service-name {
