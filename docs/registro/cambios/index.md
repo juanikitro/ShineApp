@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Compactar tarjetas de reservas en Agenda](2026-07-30-agenda-reservas-compactas.md)
 - [Alta guiada sincronizada con Tareas](2026-07-28-tareas-alta-guiada.md)
 - [Servicios base por tipo principal de negocio](2026-07-28-servicios-base-por-tipo-negocio.md)
 - [Reservas vencidas en dashboard y Agenda](2026-07-28-reservas-vencidas-dashboard-agenda.md)
