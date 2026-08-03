@@ -19,9 +19,12 @@ reservas/ordenes/solicitudes publicas y pagos o ingresos de caja. Las mutaciones
 de esas superficies programan la sincronizacion despues del commit; las lecturas
 no escriben tareas.
 
-Completar, reabrir, editar o eliminar manualmente una tarea vinculada queda
-rechazado. La API responde un error accionable que indica completar el requisito
-real. Si un paso se descarta desde la alta guiada, su tarea se soft-deletea.
+Editar o eliminar manualmente una tarea vinculada queda rechazado. Las acciones
+de completar y reabrir no cambian el estado por si mismas: recalculan la
+proyeccion desde el requisito real. Si la accion solicitada contradice esos
+hechos, la API responde un error accionable; si ya coincide, responde la tarea
+con su estado proyectado actual. Si un paso se descarta desde la alta guiada, su
+tarea se soft-deletea.
 
 ## Contrato API y migracion
 

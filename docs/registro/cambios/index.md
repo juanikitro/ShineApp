@@ -9,6 +9,8 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [SearchSelect: foco de busqueda al abrir en desktop](2026-08-03-searchselect-foco-desktop.md)
+- [Dashboard: recorrido persistente en Analisis](2026-08-03-dashboard-analisis-navegacion.md)
 - [Compactar tarjetas de reservas en Agenda](2026-07-30-agenda-reservas-compactas.md)
 - [Alta guiada sincronizada con Tareas](2026-07-28-tareas-alta-guiada.md)
 - [Servicios base por tipo principal de negocio](2026-07-28-servicios-base-por-tipo-negocio.md)
