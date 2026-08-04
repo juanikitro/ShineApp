@@ -41,7 +41,7 @@ export function MetricCard({
 		.join(' ') || undefined
 	return (
 		<div
-			className={cx('metric', tooltip && 'metric--with-tooltip', className)}
+			className={cx('metric', tooltip ? 'metric--with-tooltip' : undefined, className)}
 			tabIndex={tooltip ? (tabIndex ?? 0) : tabIndex}
 			aria-describedby={describedBy}
 			{...props}
