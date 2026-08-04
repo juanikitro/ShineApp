@@ -54,6 +54,36 @@ test('DashboardPanel keeps guided onboarding visible while other data refreshes'
 	assert.ok(screen.getByRole('heading', { name: 'Alta guiada' }))
 })
 
+test('DashboardPanel exposes evidence-based tooltips for every summary metric', () => {
+	renderDashboard({ demoReadiness: null })
+
+	const tooltips = [
+		'Importe de los trabajos operativos ingresados en el rango seleccionado. Suma el total de cada orden creada en ese período. Solo incluye reservas En proceso, Listas o Entregadas.',
+		'Resultado estimado del período. Resta al total facturado el costo estimado de los consumos de materiales registrados en el mismo rango. No descuenta compras de reposición, gastos fijos ni otros movimientos de caja.',
+		'Saldo de los movimientos de caja del rango seleccionado. Resta los egresos de los ingresos y también descuenta los pagos de deudas registrados en ese período. Excluye el movimiento original que generó una deuda para no contarlo dos veces.',
+		'Saldo pendiente de los trabajos operativos creados en el rango seleccionado. Para cada orden, resta todos los pagos vinculados a su total facturado. Solo incluye reservas En proceso, Listas o Entregadas.',
+		'Pagos registrados con fecha de pago dentro del rango seleccionado. Suma los importes de todos los pagos del negocio en ese período. No usa la fecha ni el estado de la orden de trabajo.',
+		'Costo estimado de los materiales consumidos en el rango seleccionado. Suma los consumos registrados y los movimientos de stock de tipo Consumo. No incluye compras ni stock inicial.',
+		'Valor de las compras de materiales del rango seleccionado. Suma compras registradas y movimientos de stock de tipo Compra. No incluye consumos, ventas ni stock inicial.',
+		'Saldo actual de deudas vencidas. Para cada deuda con vencimiento anterior a hoy, resta los pagos al importe original. No depende del rango seleccionado e ignora las deudas ya saldadas.',
+		'Importe pendiente de las ocurrencias de gastos fijos del rango seleccionado. Suma las ocurrencias con estado Pendiente según su fecha de período. Excluye las pagadas y las de otros períodos.',
+	]
+
+	for (const tooltip of tooltips) {
+		assert.ok(screen.getByRole('tooltip', { name: tooltip, hidden: true }))
+	}
+
+	const billedMetric = screen
+		.getAllByText('Facturado')
+		.find((element) => element.closest('.dashboard-executive-metric'))
+		?.closest<HTMLElement>('.metric')
+	assert.ok(billedMetric)
+	assert.equal(billedMetric.getAttribute('tabindex'), '0')
+	assert.ok(billedMetric.getAttribute('aria-describedby'))
+	billedMetric.focus()
+	assert.equal(document.activeElement, billedMetric)
+})
+
 test('DashboardPanel keeps task navigation available with guided onboarding', () => {
 	const onOpenSection = vi.fn()
 	render(
