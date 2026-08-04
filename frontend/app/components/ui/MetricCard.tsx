@@ -13,7 +13,8 @@ type MetricCardProps = ComponentPropsWithoutRef<'div'> & {
 	numericValue?: number
 	format?: (value: number) => string
 	animateValue?: boolean
-	tooltip?: ReactNode
+	tooltip?: string
+	labelTransform?: 'capitalize'
 }
 
 export function MetricCard({
@@ -26,6 +27,7 @@ export function MetricCard({
 	format,
 	animateValue = true,
 	tooltip,
+	labelTransform,
 	className,
 	tabIndex,
 	'aria-describedby': ariaDescribedBy,
@@ -41,9 +43,17 @@ export function MetricCard({
 		.join(' ') || undefined
 	return (
 		<div
-			className={cx('metric', tooltip ? 'metric--with-tooltip' : undefined, className)}
+			className={cx(
+				'metric',
+				tooltip ? 'metric--with-tooltip' : undefined,
+				labelTransform === 'capitalize'
+					? 'metric--label-capitalize'
+					: undefined,
+				className,
+			)}
 			tabIndex={tooltip ? (tabIndex ?? 0) : tabIndex}
 			aria-describedby={describedBy}
+			data-hover-tooltip={tooltip}
 			{...props}
 		>
 			{icon ? <span className="metric-icon" aria-hidden="true">{icon}</span> : null}
@@ -52,7 +62,7 @@ export function MetricCard({
 			{hint ? <small>{hint}</small> : null}
 			{footer ?? null}
 			{tooltip ? (
-				<span id={tooltipId} role="tooltip" className="metric-tooltip">
+				<span id={tooltipId} className="sr-only">
 					{tooltip}
 				</span>
 			) : null}

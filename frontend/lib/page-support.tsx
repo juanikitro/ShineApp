@@ -1224,6 +1224,7 @@ function mergeStringValues(...groups: Array<unknown[] | undefined>) {
 
 const BUTTON_HOVER_TITLE_ATTR = 'data-hover-title'
 const BUTTON_HOVER_TITLE_MANAGED_ATTR = 'data-hover-title-managed'
+const HOVER_TOOLTIP_ATTR = 'data-hover-tooltip'
 const BUTTON_HOVER_TITLE_DELAY_MS = 1000
 const BUTTON_HOVER_TITLE_MAX_LENGTH = 72
 const BUTTON_LOW_INFORMATION_TITLES = new Set([
@@ -1380,35 +1381,37 @@ function createButtonHoverTooltip() {
 	return tooltip
 }
 
-function buttonFromEventTarget(target: EventTarget | null) {
-	return target instanceof Element ? target.closest('button') : null
+function hoverTooltipTargetFromEventTarget(target: EventTarget | null) {
+	return target instanceof Element
+		? target.closest<HTMLElement>(`button, [${HOVER_TOOLTIP_ATTR}]`)
+		: null
 }
 
 function positionButtonHoverTooltip(
 	tooltip: HTMLDivElement,
-	button: HTMLButtonElement,
+	target: HTMLElement,
 ) {
 	const viewportGap = 12
 	const arrowOffset = 8
-	const buttonRect = button.getBoundingClientRect()
+	const targetRect = target.getBoundingClientRect()
 	const tooltipRect = tooltip.getBoundingClientRect()
 	const placement =
-		buttonRect.top >= tooltipRect.height + arrowOffset + viewportGap
+		targetRect.top >= tooltipRect.height + arrowOffset + viewportGap
 			? 'top'
 			: 'bottom'
 	const preferredLeft =
-		buttonRect.left + buttonRect.width / 2 - tooltipRect.width / 2
+		targetRect.left + targetRect.width / 2 - tooltipRect.width / 2
 	const left = Math.min(
 		window.innerWidth - tooltipRect.width - viewportGap,
 		Math.max(viewportGap, preferredLeft),
 	)
 	const top =
 		placement === 'top'
-			? buttonRect.top - tooltipRect.height - arrowOffset
-			: buttonRect.bottom + arrowOffset
+			? targetRect.top - tooltipRect.height - arrowOffset
+			: targetRect.bottom + arrowOffset
 	const arrowLeft = Math.min(
 		tooltipRect.width - 18,
-		Math.max(18, buttonRect.left + buttonRect.width / 2 - left),
+		Math.max(18, targetRect.left + targetRect.width / 2 - left),
 	)
 
 	tooltip.dataset.placement = placement
@@ -1421,8 +1424,8 @@ function useButtonHoverTitles() {
 	useEffect(() => {
 		let frameId = 0
 		let showTimeoutId = 0
-		let activeButton: HTMLButtonElement | null = null
-		let pendingButton: HTMLButtonElement | null = null
+		let activeTarget: HTMLElement | null = null
+		let pendingTarget: HTMLElement | null = null
 		const tooltip = createButtonHoverTooltip()
 		const tooltipTitle = tooltip.querySelector<HTMLSpanElement>(
 			'.button-hover-tooltip-title',
@@ -1432,77 +1435,83 @@ function useButtonHoverTitles() {
 			if (!showTimeoutId) return
 			window.clearTimeout(showTimeoutId)
 			showTimeoutId = 0
-			pendingButton = null
+			pendingTarget = null
 		}
 
 		function scheduleApply() {
 			window.cancelAnimationFrame(frameId)
 			frameId = window.requestAnimationFrame(() => {
 				applyButtonHoverTitles()
-				if (activeButton && document.body.contains(activeButton)) {
-					positionButtonHoverTooltip(tooltip, activeButton)
+				if (activeTarget && document.body.contains(activeTarget)) {
+					positionButtonHoverTooltip(tooltip, activeTarget)
 				}
 			})
 		}
 
 		function hideTooltip() {
 			clearShowDelay()
-			activeButton = null
+			activeTarget = null
 			tooltip.dataset.visible = 'false'
 			tooltip.setAttribute('aria-hidden', 'true')
 		}
 
-		function showTooltip(button: HTMLButtonElement) {
-			applyButtonHoverTitles(button.parentElement ?? document)
+		function showTooltip(target: HTMLElement) {
+			const isButton = target instanceof HTMLButtonElement
+			if (isButton) applyButtonHoverTitles(target.parentElement ?? document)
 			const title = normalizeButtonTitle(
-				button.getAttribute(BUTTON_HOVER_TITLE_ATTR),
+				target.getAttribute(
+					isButton ? BUTTON_HOVER_TITLE_ATTR : HOVER_TOOLTIP_ATTR,
+				),
 			)
-			if (!title || button.disabled) {
+			if (!title || (isButton && target.disabled)) {
 				hideTooltip()
 				return
 			}
 
-			activeButton = button
+			activeTarget = target
 			if (tooltipTitle) tooltipTitle.textContent = title
 			tooltip.dataset.visible = 'true'
 			tooltip.setAttribute('aria-hidden', 'false')
-			positionButtonHoverTooltip(tooltip, button)
+			positionButtonHoverTooltip(tooltip, target)
 		}
 
-		function scheduleTooltip(button: HTMLButtonElement) {
-			if (button.disabled || shouldSuppressButtonHoverTitle(button)) {
+		function scheduleTooltip(target: HTMLElement) {
+			if (
+				target instanceof HTMLButtonElement &&
+				(target.disabled || shouldSuppressButtonHoverTitle(target))
+			) {
 				hideTooltip()
 				return
 			}
-			if (button === activeButton || button === pendingButton) return
+			if (target === activeTarget || target === pendingTarget) return
 
 			hideTooltip()
-			pendingButton = button
+			pendingTarget = target
 			showTimeoutId = window.setTimeout(() => {
 				showTimeoutId = 0
-				if (pendingButton !== button || !document.body.contains(button)) {
+				if (pendingTarget !== target || !document.body.contains(target)) {
 					return
 				}
-				pendingButton = null
-				showTooltip(button)
+				pendingTarget = null
+				showTooltip(target)
 			}, BUTTON_HOVER_TITLE_DELAY_MS)
 		}
 
 		function handlePointerOver(event: PointerEvent) {
-			const button = buttonFromEventTarget(event.target)
-			if (!button || button === activeButton) return
-			scheduleTooltip(button)
+			const target = hoverTooltipTargetFromEventTarget(event.target)
+			if (!target || target === activeTarget) return
+			scheduleTooltip(target)
 		}
 
 		function handlePointerOut(event: PointerEvent) {
-			const button = buttonFromEventTarget(event.target)
-			if (!button || (button !== activeButton && button !== pendingButton)) {
+			const target = hoverTooltipTargetFromEventTarget(event.target)
+			if (!target || (target !== activeTarget && target !== pendingTarget)) {
 				return
 			}
 			const nextTarget = event.relatedTarget
 			if (
 				nextTarget instanceof Node &&
-				button.contains(nextTarget)
+				target.contains(nextTarget)
 			) {
 				return
 			}
@@ -1510,19 +1519,19 @@ function useButtonHoverTitles() {
 		}
 
 		function handleFocusIn(event: FocusEvent) {
-			const button = buttonFromEventTarget(event.target)
-			if (button) scheduleTooltip(button)
+			const target = hoverTooltipTargetFromEventTarget(event.target)
+			if (target) scheduleTooltip(target)
 		}
 
 		function handleFocusOut(event: FocusEvent) {
-			const button = buttonFromEventTarget(event.target)
-			if (!button || (button !== activeButton && button !== pendingButton)) {
+			const target = hoverTooltipTargetFromEventTarget(event.target)
+			if (!target || (target !== activeTarget && target !== pendingTarget)) {
 				return
 			}
 			const nextTarget = event.relatedTarget
 			if (
 				nextTarget instanceof Node &&
-				button.contains(nextTarget)
+				target.contains(nextTarget)
 			) {
 				return
 			}
@@ -1533,10 +1542,10 @@ function useButtonHoverTitles() {
 		const observer = new MutationObserver((mutations) => {
 			window.cancelAnimationFrame(frameId)
 			frameId = window.requestAnimationFrame(() => {
-				if (activeButton && document.body.contains(activeButton)) {
+				if (activeTarget && document.body.contains(activeTarget)) {
 					// Tooltip is visible — only reposition. showTooltip() applies titles
 					// lazily on hover, so no full sweep needed while a button is active.
-					positionButtonHoverTooltip(tooltip, activeButton)
+					positionButtonHoverTooltip(tooltip, activeTarget)
 					return
 				}
 				// Sweep only the subtrees that actually mutated, not the whole document.
