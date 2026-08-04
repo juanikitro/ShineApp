@@ -69,9 +69,16 @@ test('DashboardPanel exposes evidence-based tooltips for every summary metric', 
 		'Importe pendiente de las ocurrencias de gastos fijos del rango seleccionado. Suma las ocurrencias con estado Pendiente según su fecha de período. Excluye las pagadas y las de otros períodos.',
 	]
 
-	for (const tooltip of tooltips) {
-		assert.ok(screen.getByRole('tooltip', { name: tooltip, hidden: true }))
-	}
+	const metrics = document.querySelectorAll<HTMLElement>('.metric--with-tooltip')
+	assert.equal(metrics.length, tooltips.length)
+	assert.deepEqual(
+		Array.from(metrics, (metric) => metric.dataset.hoverTooltip),
+		tooltips,
+	)
+	assert.equal(
+		document.querySelectorAll('.metric--label-capitalize').length,
+		tooltips.length,
+	)
 
 	const billedMetric = screen
 		.getAllByText('Facturado')
@@ -79,7 +86,11 @@ test('DashboardPanel exposes evidence-based tooltips for every summary metric', 
 		?.closest<HTMLElement>('.metric')
 	assert.ok(billedMetric)
 	assert.equal(billedMetric.getAttribute('tabindex'), '0')
-	assert.ok(billedMetric.getAttribute('aria-describedby'))
+	const descriptionId = billedMetric.getAttribute('aria-describedby')
+	assert.ok(descriptionId)
+	const description = document.getElementById(descriptionId)
+	assert.equal(description?.className, 'sr-only')
+	assert.equal(description?.textContent, tooltips[0])
 	billedMetric.focus()
 	assert.equal(document.activeElement, billedMetric)
 })
