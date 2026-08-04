@@ -689,6 +689,7 @@ export function DashboardPanel({
 										value={money(dashboardBilledTotal)}
 										numericValue={dashboardBilledTotal}
 										format={money}
+										tooltip="Importe de los trabajos operativos ingresados en el rango seleccionado. Suma el total de cada orden creada en ese período. Solo incluye reservas En proceso, Listas o Entregadas."
 										hint={dashboardDeltaHint(
 											dashboardBilledTotal,
 											dashboardPreviousPeriod.billed_total,
@@ -704,6 +705,7 @@ export function DashboardPanel({
 										value={money(dashboardEstimatedMarginTotal)}
 										numericValue={dashboardEstimatedMarginTotal}
 										format={money}
+										tooltip="Resultado estimado del período. Resta al total facturado el costo estimado de los consumos de materiales registrados en el mismo rango. No descuenta compras de reposición, gastos fijos ni otros movimientos de caja."
 										hint={dashboardDeltaHint(
 											dashboardEstimatedMarginTotal,
 											dashboardPreviousPeriod.estimated_margin_total,
@@ -719,6 +721,7 @@ export function DashboardPanel({
 										value={money(dashboardCashflowBalance)}
 										numericValue={dashboardCashflowBalance}
 										format={money}
+										tooltip="Saldo de los movimientos de caja del rango seleccionado. Resta los egresos de los ingresos y también descuenta los pagos de deudas registrados en ese período. Excluye el movimiento original que generó una deuda para no contarlo dos veces."
 										hint={dashboardDeltaHint(
 											dashboardCashflowBalance,
 											dashboardPreviousPeriod.cashflow_balance,
@@ -738,6 +741,7 @@ export function DashboardPanel({
 										value={money(dashboardBalanceDueTotal)}
 										numericValue={dashboardBalanceDueTotal}
 										format={money}
+										tooltip="Saldo pendiente de los trabajos operativos creados en el rango seleccionado. Para cada orden, resta todos los pagos vinculados a su total facturado. Solo incluye reservas En proceso, Listas o Entregadas."
 										hint={dashboardCountText(
 											dashboardBalanceDueWorkOrdersCount,
 											'trabajo con saldo',
@@ -760,6 +764,7 @@ export function DashboardPanel({
 												value={money(dashboardCollectedTotal)}
 												numericValue={dashboardCollectedTotal}
 												format={money}
+												tooltip="Pagos registrados con fecha de pago dentro del rango seleccionado. Suma los importes de todos los pagos del negocio en ese período. No usa la fecha ni el estado de la orden de trabajo."
 												hint="Pagos registrados en el periodo"
 											/>
 										</StaggerItem>
@@ -769,6 +774,7 @@ export function DashboardPanel({
 												value={money(dashboardMaterialCostTotal)}
 												numericValue={dashboardMaterialCostTotal}
 												format={money}
+												tooltip="Costo estimado de los materiales consumidos en el rango seleccionado. Suma los consumos registrados y los movimientos de stock de tipo Consumo. No incluye compras ni stock inicial."
 												hint="Costo estimado imputado a trabajos"
 											/>
 										</StaggerItem>
@@ -778,6 +784,7 @@ export function DashboardPanel({
 												value={money(dashboardMaterialPurchasesTotal)}
 												numericValue={dashboardMaterialPurchasesTotal}
 												format={money}
+												tooltip="Valor de las compras de materiales del rango seleccionado. Suma compras registradas y movimientos de stock de tipo Compra. No incluye consumos, ventas ni stock inicial."
 												hint="Reposicion e insumos del periodo"
 											/>
 										</StaggerItem>
@@ -792,6 +799,7 @@ export function DashboardPanel({
 												value={money(dashboardOverdueDebtsTotal)}
 												numericValue={dashboardOverdueDebtsTotal}
 												format={money}
+												tooltip="Saldo actual de deudas vencidas. Para cada deuda con vencimiento anterior a hoy, resta los pagos al importe original. No depende del rango seleccionado e ignora las deudas ya saldadas."
 												hint={`${dashboardOverdueDebtsCount} pendientes`}
 											/>
 										</StaggerItem>
@@ -806,6 +814,7 @@ export function DashboardPanel({
 												value={money(dashboardFixedExpensesPendingTotal)}
 												numericValue={dashboardFixedExpensesPendingTotal}
 												format={money}
+												tooltip="Importe pendiente de las ocurrencias de gastos fijos del rango seleccionado. Suma las ocurrencias con estado Pendiente según su fecha de período. Excluye las pagadas y las de otros períodos."
 												hint={`${dashboardFixedExpensesPendingCount} pendientes en el periodo`}
 											/>
 										</StaggerItem>
