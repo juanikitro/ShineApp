@@ -1,6 +1,8 @@
 """Tests de operabilidad: request_id, exception handler, outbox, mantenimiento,
 constraints de integridad y health check profundo."""
 
+import json
+import logging
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -29,6 +31,66 @@ def test_health_ok_includes_request_id_header():
 def test_incoming_request_id_is_echoed():
     response = APIClient().get(HEALTH_URL, **{"HTTP_X_REQUEST_ID": "trace-abc-123"})
     assert response.headers.get("X-Request-ID") == "trace-abc-123"
+
+
+@pytest.mark.django_db
+def test_slow_request_logs_sanitized_timing_without_changing_response():
+    from core.logging import JsonFormatter
+
+    request_id = "trace-performance-123"
+    records = []
+    handler = _LogRecordsHandler(records)
+    performance_logger = logging.getLogger("shineapp.performance")
+    performance_logger.addHandler(handler)
+    try:
+        with patch("core.middleware.perf_counter", side_effect=[100.0, 100.301]):
+            response = APIClient().get(
+                f"{HEALTH_URL}?token=do-not-log",
+                **{"HTTP_X_REQUEST_ID": request_id},
+            )
+    finally:
+        performance_logger.removeHandler(handler)
+
+    assert response.status_code == 200
+    assert response.headers.get("X-Request-ID") == request_id
+    assert response.data["checks"]["database"] == "ok"
+
+    assert len(records) == 1
+    payload = json.loads(JsonFormatter().format(records[0]))
+    assert payload["msg"] == "slow_request"
+    assert payload["request_id"] == request_id
+    assert payload["method"] == "GET"
+    assert payload["path"] == HEALTH_URL
+    assert payload["status"] == 200
+    assert payload["duration_ms"] == 301
+    assert "token" not in payload
+    assert "do-not-log" not in json.dumps(payload)
+
+
+@pytest.mark.django_db
+def test_fast_request_does_not_emit_timing_log():
+    records = []
+    handler = _LogRecordsHandler(records)
+    performance_logger = logging.getLogger("shineapp.performance")
+    performance_logger.addHandler(handler)
+    try:
+        with patch("core.middleware.perf_counter", side_effect=[100.0, 100.299]):
+            response = APIClient().get(HEALTH_URL)
+    finally:
+        performance_logger.removeHandler(handler)
+
+    assert response.status_code == 200
+    assert response.headers.get("X-Request-ID")
+    assert not records
+
+
+class _LogRecordsHandler(logging.Handler):
+    def __init__(self, records):
+        super().__init__()
+        self.records = records
+
+    def emit(self, record):
+        self.records.append(record)
 
 
 @pytest.mark.django_db
