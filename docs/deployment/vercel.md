@@ -18,7 +18,8 @@ Los deploys manuales o promociones todavia requieren confirmacion humana. El cam
 
 - Nombre del proyecto: `shineapp-api`
 - Project id: `prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC`
-- Root Directory: `backend`
+- Root Directory en Git Integration: sin configurar. El workflow aprobado usa
+  `--cwd backend` para el deploy productivo.
 - Runtime: Python, fijado con `backend/.python-version` a `3.12`
 - Entrypoint: `backend/wsgi.py` expone `app`
 - Region de computo: `gru1` (Sao Paulo), fijada en `backend/vercel.json` para
@@ -137,7 +138,12 @@ Orden de deploy:
 8. Deploy productivo del proyecto frontend en Vercel.
 9. Smoke test contra `https://shineapp-web.vercel.app` y `https://shineapp-api.vercel.app/api`.
 
-No habilitar los deploys Git productivos integrados de Vercel para estos proyectos al mismo tiempo que este workflow salvo que esten configurados explicitamente para saltearse. El workflow de GitHub Actions es el gate de migracion; un deploy Git paralelo de Vercel puede publicar codigo antes de que corran las migraciones.
+No habilitar los deploys Git integrados de Vercel para `shineapp-api` al mismo
+tiempo que este workflow. La raiz del repositorio contiene `vercel.json` con
+`git.deploymentEnabled=false`, de modo que Vercel no cree builds paralelos desde
+Git para la API. GitHub Actions es el gate de migracion y despliega con
+`--cwd backend`; un deploy Git paralelo puede publicar codigo antes de que
+corran las migraciones.
 
 Las migraciones automaticas requieren migraciones Django compatibles hacia adelante. Cambios destructivos de schema, migraciones grandes de datos, renombres y agregados non-null sin defaults seguros necesitan revision manual antes de mergear a `main`.
 
