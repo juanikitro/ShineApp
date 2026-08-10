@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
 import {
+	DataLoadRequestRegistry,
+	bypassDedupeForDataLoad,
 	beginDataSetLoading,
 	beginDataLoad,
 	cancelDataLoads,
@@ -9,6 +11,93 @@ import {
 	finishDataSetLoading,
 	loadDataSections,
 } from './data-loading'
+
+test('only a reload after a mutation bypasses an equivalent GET already in flight', () => {
+	assert.equal(bypassDedupeForDataLoad({}), false)
+	assert.equal(bypassDedupeForDataLoad({ revalidateAfterMutation: false }), false)
+	assert.equal(bypassDedupeForDataLoad({ revalidateAfterMutation: true }), true)
+})
+
+test('DataLoadRequestRegistry joins an equivalent load before it can be aborted', async () => {
+	const registry = new DataLoadRequestRegistry()
+	let resolveRequest
+	let starts = 0
+	const first = registry.load({
+		requestKey: 'dashboard:2026-08-10',
+		bypassDedupe: false,
+		preserveActiveLoad: false,
+		start: () => {
+			starts += 1
+			return new Promise((resolve) => {
+				resolveRequest = resolve
+			})
+		},
+	})
+	const second = registry.load({
+		requestKey: 'dashboard:2026-08-10',
+		bypassDedupe: false,
+		preserveActiveLoad: false,
+		start: () => {
+			starts += 1
+			return Promise.resolve(false)
+		},
+	})
+
+	assert.equal(starts, 1)
+	assert.equal(second, first)
+	resolveRequest(true)
+	assert.equal(await first, true)
+})
+
+test('DataLoadRequestRegistry starts an independent revalidation after a mutation', async () => {
+	const registry = new DataLoadRequestRegistry()
+	const first = registry.load({
+		requestKey: 'vehicles',
+		bypassDedupe: false,
+		preserveActiveLoad: false,
+		start: () => Promise.resolve(false),
+	})
+	const revalidation = registry.load({
+		requestKey: 'vehicles',
+		bypassDedupe: true,
+		preserveActiveLoad: false,
+		start: () => Promise.resolve(true),
+	})
+
+	assert.notEqual(revalidation, first)
+	assert.equal(await revalidation, true)
+})
+
+test('DataLoadRequestRegistry replaces a different active load', async () => {
+	const registry = new DataLoadRequestRegistry()
+	let dashboardStarts = 0
+	registry.load({
+		requestKey: 'dashboard:2026-08-10',
+		bypassDedupe: false,
+		preserveActiveLoad: false,
+		start: () => {
+			dashboardStarts += 1
+			return new Promise(() => {})
+		},
+	})
+	await registry.load({
+		requestKey: 'agenda',
+		bypassDedupe: false,
+		preserveActiveLoad: false,
+		start: () => Promise.resolve(true),
+	})
+	await registry.load({
+		requestKey: 'dashboard:2026-08-10',
+		bypassDedupe: false,
+		preserveActiveLoad: false,
+		start: () => {
+			dashboardStarts += 1
+			return Promise.resolve(true)
+		},
+	})
+
+	assert.equal(dashboardStarts, 2)
+})
 
 test('isolated hydration does not abort or replace the active section load', () => {
 	const activeController = new AbortController()

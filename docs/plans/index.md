@@ -37,3 +37,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Reservas: apertura directa en edición](2026-07-28-reservation-direct-edit-design.md)
 - [SearchSelect: foco de busqueda en desktop](2026-07-28-search-select-desktop-focus-design.md)
 - [Agenda: tarjetas de reserva compactas](2026-07-30-agenda-reservas-compactas-design.md)
+- [Dedupe de recargas de datos del cliente](2026-08-10-client-request-dedupe-design.md)
