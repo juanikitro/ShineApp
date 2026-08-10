@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
 import {
+	appDataLoadRequestKey,
 	applyAppDataEntry,
 	dataSetCacheKey,
 	loadAppDataSets,
@@ -23,6 +24,20 @@ test('dataSetCacheKey scopes dashboard and cash by active date filters', () => {
 		'cash:2026-05-20:month',
 	)
 	assert.equal(dataSetCacheKey('customers', scope), 'customers')
+})
+
+test('appDataLoadRequestKey changes when a scoped dataset changes', () => {
+	assert.equal(
+		appDataLoadRequestKey(['dashboard', 'customers'], scope),
+		'dashboard:2026-05-01:2026-05-31|customers',
+	)
+	assert.notEqual(
+		appDataLoadRequestKey(['dashboard', 'customers'], scope),
+		appDataLoadRequestKey(['dashboard', 'customers'], {
+			...scope,
+			period: { from: '2026-06-01', to: '2026-06-30' },
+		}),
+	)
 })
 
 test('loadAppDataSets keeps the existing endpoint contract and entry order', async () => {
