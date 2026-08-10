@@ -57,6 +57,60 @@ export type DataLoadingScope = {
 	canViewEconomy: boolean
 }
 
+export type DataLoadRequestPolicy = {
+	revalidateAfterMutation?: boolean
+}
+
+export function bypassDedupeForDataLoad({
+	revalidateAfterMutation = false,
+}: DataLoadRequestPolicy) {
+	return revalidateAfterMutation
+}
+
+type ActiveDataLoadRequest = {
+	requestKey: string
+	bypassDedupe: boolean
+	preserveActiveLoad: boolean
+	start: () => Promise<boolean>
+}
+
+export class DataLoadRequestRegistry {
+	private activeRequests = new Map<string, Promise<boolean>>()
+
+	load({
+		requestKey,
+		bypassDedupe,
+		preserveActiveLoad,
+		start,
+	}: ActiveDataLoadRequest) {
+		if (!bypassDedupe) {
+			const activeRequest = this.activeRequests.get(requestKey)
+			if (activeRequest) return activeRequest
+		}
+		if (!preserveActiveLoad) this.activeRequests.clear()
+
+		const request = start()
+		if (bypassDedupe) return request
+
+		this.activeRequests.set(requestKey, request)
+		void request.then(
+			() => this.forget(requestKey, request),
+			() => this.forget(requestKey, request),
+		)
+		return request
+	}
+
+	clear() {
+		this.activeRequests.clear()
+	}
+
+	private forget(requestKey: string, request: Promise<boolean>) {
+		if (this.activeRequests.get(requestKey) === request) {
+			this.activeRequests.delete(requestKey)
+		}
+	}
+}
+
 export function beginDataLoad(
 	activeControllers: Set<AbortController>,
 	preserveActiveLoads = false,

@@ -189,6 +189,7 @@ import {
 	getStoredToken,
 } from '@/lib/api'
 import {
+	appDataLoadRequestKey,
 	applyAppDataEntry,
 	type AppDataAppliers,
 	dataSetCacheKey,
@@ -197,9 +198,12 @@ import {
 import {
 	beginDataSetLoading,
 	beginDataLoad,
+	bypassDedupeForDataLoad,
 	cancelDataLoads,
 	dataSetKeysForSection,
+	DataLoadRequestRegistry,
 	finishDataSetLoading,
+	type DataLoadRequestPolicy,
 	type DataSetKey,
 } from '@/lib/data-loading'
 import {
@@ -777,6 +781,7 @@ export default function Home() {
 	})
 	const auditLogsLoadedRef = useRef(false)
 	const loadedDataCacheRef = useRef<Set<string>>(new Set())
+	const activeDataLoadRequestsRef = useRef(new DataLoadRequestRegistry())
 	const [expandedAuditLogId, setExpandedAuditLogId] = useState<string | null>(
 		null,
 	)
@@ -1287,7 +1292,7 @@ export default function Home() {
 		setError(null)
 		try {
 			await pending.execute()
-			await loadData({ force: true })
+			await loadData({ force: true, revalidateAfterMutation: true })
 			await refreshOverdueReservationsForSection(
 				displayedActive,
 				() => overdueReservationsFlow.refresh(loadOverdueReservations),
@@ -2083,7 +2088,7 @@ export default function Home() {
 		}
 	}
 
-	type LoadDataOptions = {
+	type LoadDataOptions = DataLoadRequestPolicy & {
 		force?: boolean
 		preserveActiveLoad?: boolean
 		section?: Section
@@ -2124,7 +2129,7 @@ export default function Home() {
 		whatsappMessages: setWhatsappMessages,
 	}
 
-	async function loadData(options: LoadDataOptions = {}): Promise<boolean> {
+	function loadData(options: LoadDataOptions = {}): Promise<boolean> {
 		const dataScope = { period: options.period ?? period, selectedDay, cashViewMode }
 		const keys = dataSetKeysForSection({
 			section: options.section ?? displayedActive,
@@ -2143,7 +2148,24 @@ export default function Home() {
 						),
 				)
 
-		if (!keysToLoad.length) return true
+		if (!keysToLoad.length) return Promise.resolve(true)
+
+		const bypassDedupe = bypassDedupeForDataLoad(options)
+		const requestKey = appDataLoadRequestKey(keysToLoad, dataScope)
+		return activeDataLoadRequestsRef.current.load({
+			requestKey,
+			bypassDedupe,
+			preserveActiveLoad: Boolean(options.preserveActiveLoad),
+			start: () => runDataLoad(keysToLoad, dataScope, options, bypassDedupe),
+		})
+	}
+
+	async function runDataLoad(
+		keysToLoad: DataSetKey[],
+		dataScope: Parameters<typeof appDataLoadRequestKey>[1],
+		options: LoadDataOptions,
+		bypassDedupe: boolean,
+	): Promise<boolean> {
 
 		const controller = beginDataLoad(
 			loadDataAbortControllersRef.current,
@@ -2162,13 +2184,13 @@ export default function Home() {
 					apiFetch(path, {
 						...opts,
 						signal: controller.signal,
-						bypassDedupe: Boolean(options.force),
+						bypassDedupe,
 					}),
 				apiList: (path, opts) =>
 					apiList(path, {
 						...opts,
 						signal: controller.signal,
-						bypassDedupe: Boolean(options.force),
+						bypassDedupe,
 					}),
 			})
 			if (controller.signal.aborted) return false
@@ -2214,6 +2236,7 @@ export default function Home() {
 	useEffect(() => {
 		if (!token) {
 			loadedDataCacheRef.current.clear()
+			activeDataLoadRequestsRef.current.clear()
 			setCurrentUser(null)
 			syncBusinessProfile(null)
 			setAuditLogs([])
@@ -2261,6 +2284,7 @@ export default function Home() {
 
 		overdueSessionIdentityRef.current = nextIdentity
 		cancelDataLoads(loadDataAbortControllersRef.current)
+		activeDataLoadRequestsRef.current.clear()
 		overdueAgendaToastShownRef.current = false
 		overdueLoadErrorToastVersionRef.current = 0
 		overdueReservationsFlow.reset()
@@ -2977,7 +3001,7 @@ export default function Home() {
 		const progress = showProgressToastSoon()
 		try {
 			const result = await action()
-			await loadData({ force: true })
+			await loadData({ force: true, revalidateAfterMutation: true })
 			const target =
 				typeof options?.flashTarget === 'function'
 					? options.flashTarget(result)
@@ -3033,7 +3057,7 @@ export default function Home() {
 		const progress = showProgressToastSoon()
 		try {
 			const result = await args.action()
-			await loadData({ force: true })
+			await loadData({ force: true, revalidateAfterMutation: true })
 			if (args.successTitle) {
 				const description =
 					args.successDescription ?? successToastDescription(args.successTitle)
@@ -3516,7 +3540,7 @@ export default function Home() {
 				`/quotes/${quoteId}/pdf-mark-sent/`,
 				`cotizacion-${activeQuote.public_code ?? activeQuote.id}.pdf`,
 			)
-			await loadData({ force: true })
+			await loadData({ force: true, revalidateAfterMutation: true })
 			flash(recordFlashKey('quote', quoteId))
 			registerUndoAction(
 				activeQuote,
