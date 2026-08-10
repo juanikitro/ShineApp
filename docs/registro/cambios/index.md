@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Dashboard: ayuda accesible para métricas del resumen](2026-08-04-dashboard-metric-tooltips.md)
 - [SearchSelect: foco de busqueda al abrir en desktop](2026-08-03-searchselect-foco-desktop.md)
 - [Dashboard: recorrido persistente en Analisis](2026-08-03-dashboard-analisis-navegacion.md)
 - [Compactar tarjetas de reservas en Agenda](2026-07-30-agenda-reservas-compactas.md)
