@@ -70,8 +70,12 @@ nav:
       - Vercel: deployment/vercel.md
       - Supabase: deployment/supabase.md
       - Media y archivos static: deployment/media-static.md
+      - WhatsApp: deployment/whatsapp.md
+      - QA Fase 0 a 2C: deployment/fase-2b-production-qa.md
       - Pasos manuales: deployment/manual-steps.md
       - Estado de demo: deployment/demo-readiness.md
+      - Operabilidad: deployment/operability-runbook.md
+      - Seguridad operativa: deployment/security-runbook.md
       - Camino de actualizacion: deployment/upgrade-path.md
   - Diseno y UI:
       - Resumen de diseno: design-brief.md

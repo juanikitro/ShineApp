@@ -11,7 +11,11 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-08-10
+- [Seguridad: actualización de dependencias de preview PDF](docs/registro/cambios/2026-08-10-seguridad-dependencias-pdf.md)
 - [Dedupe de recargas GET del cliente](docs/registro/cambios/2026-08-10-dedupe-recargas-get-cliente.md)
+
+## 2026-08-04
+- [Dashboard: ayuda accesible para métricas del resumen](docs/registro/cambios/2026-08-04-dashboard-metric-tooltips.md)
 
 ## 2026-08-03
 - [SearchSelect: foco de busqueda al abrir en desktop](docs/registro/cambios/2026-08-03-searchselect-foco-desktop.md)
