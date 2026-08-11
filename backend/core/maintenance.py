@@ -9,6 +9,7 @@ caso reporta cuanto seria elegible (modo dry-run).
 
 import logging
 from datetime import timedelta
+from time import perf_counter
 
 from django.conf import settings
 from django.db.models import Q
@@ -97,7 +98,7 @@ def purge_trash(*, older_than_days=None, apply: bool = False) -> dict:
     return summary
 
 
-def run_all(*, purge_apply: bool = False) -> dict:
+def run_all(*, purge_apply: bool = False, stage_durations_ms=None) -> dict:
     """Corre todos los jobs en orden seguro. Nunca lanza."""
     results = {}
     for name, job in (
@@ -108,10 +109,13 @@ def run_all(*, purge_apply: bool = False) -> dict:
         ("push_subscriptions", lambda: prune_push_subscriptions()),
         ("trash", lambda: purge_trash(apply=purge_apply)),
     ):
+        started_at = perf_counter()
         try:
             results[name] = job()
         except Exception as exc:  # noqa: BLE001 - un job no debe tumbar al resto
             logger.exception("job de mantenimiento '%s' fallo", name)
             results[name] = {"error": str(exc)[:500]}
+        if stage_durations_ms is not None:
+            stage_durations_ms[name] = round((perf_counter() - started_at) * 1000)
     logger.info("maintenance run: %s", results)
     return results

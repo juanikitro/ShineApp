@@ -52,6 +52,21 @@ del frontend; origen/frecuencia del monitor si es health; o consistencia e
 invalidacion si es disponibilidad publica. No agregar cache compartido a datos
 autenticados o multi-tenant sin clave por negocio/rol e invalidacion explicita.
 
+### Perfil focalizado de rutas lentas
+
+Mientras se junta una muestra mayor, `POST /api/internal/maintenance/` y
+`GET /api/public/landing/<slug>/` emiten un segundo evento JSON
+`slow_route_profile` solo si el trabajo medido dentro de la vista supera 300 ms.
+Contiene el mismo `request_id` de `slow_request`, una etiqueta fija de ruta
+(`internal_maintenance` o `public_landing`), `duration_ms` y `stages_ms` con
+etapas fijas. No registra slug, negocio, usuario, query, body ni payload.
+
+Usar el `request_id` para vincular ambos eventos. `stages_ms` separa trabajo
+interno, pero tampoco mide CPU puro: una etapa puede incluir espera de base de
+datos, red o serializacion. Si una etapa domina de forma repetida, hacer
+profiling focalizado sobre esa etapa; si no, no concluir que una ruta consume la
+mayor parte del Active CPU de `/django`.
+
 ## Salud del sistema
 
 - Liveness rapido (uptime monitors): `GET /api/health/` -> `database` ok. Barato.

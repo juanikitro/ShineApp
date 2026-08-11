@@ -10,13 +10,12 @@ el mismo worker.
 import logging
 from time import perf_counter
 
+from core.performance import SLOW_REQUEST_THRESHOLD_MS
 from core.request_context import new_request_id, set_request_context
 
 REQUEST_ID_META = "HTTP_X_REQUEST_ID"
 RESPONSE_HEADER = "X-Request-ID"
 MAX_INCOMING_LEN = 64
-SLOW_REQUEST_THRESHOLD_MS = 300
-
 logger = logging.getLogger("shineapp.performance")
 
 
