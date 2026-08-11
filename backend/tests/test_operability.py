@@ -84,6 +84,60 @@ def test_fast_request_does_not_emit_timing_log():
     assert not records
 
 
+def test_slow_route_profile_logs_only_fixed_safe_fields():
+    from core.logging import JsonFormatter
+    from core.performance import log_slow_route_profile
+
+    records = []
+    handler = _LogRecordsHandler(records)
+    performance_logger = logging.getLogger("shineapp.performance")
+    performance_logger.addHandler(handler)
+    try:
+        with patch("core.performance.perf_counter", return_value=100.301):
+            log_slow_route_profile(
+                request_id="trace-profile-123",
+                route="public_landing",
+                started_at=100.0,
+                stages_ms={"business_profile": 40, "catalog": 120, "serialization": 110},
+            )
+    finally:
+        performance_logger.removeHandler(handler)
+
+    assert len(records) == 1
+    payload = json.loads(JsonFormatter().format(records[0]))
+    assert payload == {
+        "ts": payload["ts"],
+        "level": "INFO",
+        "logger": "shineapp.performance",
+        "msg": "slow_route_profile",
+        "request_id": "trace-profile-123",
+        "route": "public_landing",
+        "duration_ms": 301,
+        "stages_ms": {"business_profile": 40, "catalog": 120, "serialization": 110},
+    }
+
+
+def test_fast_route_profile_does_not_emit_log():
+    from core.performance import log_slow_route_profile
+
+    records = []
+    handler = _LogRecordsHandler(records)
+    performance_logger = logging.getLogger("shineapp.performance")
+    performance_logger.addHandler(handler)
+    try:
+        with patch("core.performance.perf_counter", return_value=100.299):
+            log_slow_route_profile(
+                request_id="trace-profile-123",
+                route="internal_maintenance",
+                started_at=100.0,
+                stages_ms={"notifications": 20},
+            )
+    finally:
+        performance_logger.removeHandler(handler)
+
+    assert not records
+
+
 class _LogRecordsHandler(logging.Handler):
     def __init__(self, records):
         super().__init__()
@@ -151,6 +205,53 @@ def test_maintenance_runs_with_valid_token():
     results = response.data["results"]
     for key in ("notifications", "fixed_expenses", "password_reset_tokens", "trash"):
         assert key in results
+
+
+@pytest.mark.django_db
+def test_maintenance_profile_uses_fixed_route_and_job_stage_labels():
+    with override_settings(CRON_SECRET="s3cret-token-value"):
+        with patch("core.maintenance.run_all", return_value={"notifications": {}}) as run_all:
+            with patch("config.views.log_slow_route_profile") as log_profile:
+                response = APIClient().post(
+                    MAINTENANCE_URL,
+                    **{
+                        "HTTP_X_CRON_TOKEN": "s3cret-token-value",
+                        "HTTP_X_REQUEST_ID": "trace-maintenance-profile",
+                    },
+                )
+
+    assert response.status_code == 200
+    stage_durations_ms = run_all.call_args.kwargs["stage_durations_ms"]
+    assert run_all.call_args.kwargs["purge_apply"] is False
+    log_profile.assert_called_once_with(
+        request_id="trace-maintenance-profile",
+        route="internal_maintenance",
+        started_at=log_profile.call_args.kwargs["started_at"],
+        stages_ms=stage_durations_ms,
+    )
+
+
+def test_run_all_records_one_duration_for_each_fixed_job():
+    from core.maintenance import run_all
+
+    stage_durations_ms = {}
+    with patch("core.maintenance.flush_notifications", return_value={}):
+        with patch("core.maintenance.flush_whatsapp", return_value={}):
+            with patch("core.maintenance.materialize_fixed_expenses", return_value={}):
+                with patch("core.maintenance.prune_password_reset_tokens", return_value={}):
+                    with patch("core.maintenance.prune_push_subscriptions", return_value={}):
+                        with patch("core.maintenance.purge_trash", return_value={}):
+                            run_all(stage_durations_ms=stage_durations_ms)
+
+    assert set(stage_durations_ms) == {
+        "notifications",
+        "whatsapp",
+        "fixed_expenses",
+        "password_reset_tokens",
+        "push_subscriptions",
+        "trash",
+    }
+    assert all(isinstance(value, int) and value >= 0 for value in stage_durations_ms.values())
 
 
 # ─── outbox de notificaciones ─────────────────────────────────────────────────
