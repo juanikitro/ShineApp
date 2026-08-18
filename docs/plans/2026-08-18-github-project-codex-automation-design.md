@@ -53,7 +53,7 @@ Campos minimos:
   en la ficha.
 - `Size`: `S`, `M`, `L`, `XL`; Codex lo estima despues de una inspeccion breve
   de solo lectura. El usuario puede sobrescribirlo.
-- `Type`: `Bug`, `Feature`, `Improvement`, `Technical debt`, `Docs`.
+- `Work type`: `Bug`, `Feature`, `Improvement`, `Technical debt`, `Docs`.
 - `Target date`: opcional; desempata tareas de igual prioridad.
 
 Vistas:
