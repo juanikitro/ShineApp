@@ -1,4 +1,5 @@
 export type DashboardNextActionKey =
+	| 'reviewOverdueReservations'
 	| 'collectOldestBalance'
 	| 'reviewOverdueDebts'
 	| 'createPeriodActivity'
@@ -7,21 +8,31 @@ export type DashboardNextActionKey =
 type DashboardNextActionSignals = {
 	hasReceivable: boolean
 	overdueDebtsTotal: number
+	overdueReservationsCount?: number
 	workOrdersTotal: number
 }
 
 export function selectDashboardNextActionKeys({
 	hasReceivable,
 	overdueDebtsTotal,
+	overdueReservationsCount = 0,
 	workOrdersTotal,
 }: DashboardNextActionSignals): [DashboardNextActionKey, ...DashboardNextActionKey[]] {
 	const agendaAction = workOrdersTotal > 0 ? 'maintainAgenda' : 'createPeriodActivity'
+	const followUpActions: DashboardNextActionKey[] = []
 
 	if (hasReceivable && overdueDebtsTotal > 0) {
-		return ['collectOldestBalance', 'reviewOverdueDebts', agendaAction]
+		followUpActions.push('collectOldestBalance', 'reviewOverdueDebts')
+	} else if (hasReceivable) {
+		followUpActions.push('collectOldestBalance')
+	} else if (overdueDebtsTotal > 0) {
+		followUpActions.push('reviewOverdueDebts')
 	}
 
-	if (hasReceivable) return ['collectOldestBalance', agendaAction]
-	if (overdueDebtsTotal > 0) return ['reviewOverdueDebts', agendaAction]
-	return [agendaAction]
+	if (overdueReservationsCount > 0) {
+		return ['reviewOverdueReservations', ...followUpActions]
+	}
+	return followUpActions.length > 0
+		? [followUpActions[0], ...followUpActions.slice(1), agendaAction]
+		: [agendaAction]
 }

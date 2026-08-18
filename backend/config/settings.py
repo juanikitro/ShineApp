@@ -255,10 +255,22 @@ LOGGING = {
             "filters": ["request_context"],
             "formatter": "json" if LOG_FORMAT == "json" else "plain",
         },
+        # La telemetria de requests lentas lleva sus propios campos y no debe
+        # heredar actor/business del filtro de contexto.
+        "performance_console": {
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
+            "formatter": "json",
+        },
     },
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
     "loggers": {
         "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
         "django.security": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+        "shineapp.performance": {
+            "handlers": ["performance_console"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }

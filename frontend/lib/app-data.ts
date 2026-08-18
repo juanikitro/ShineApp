@@ -29,6 +29,13 @@ export function dataSetCacheKey(key: DataSetKey, scope: AppDataScope) {
 	return key
 }
 
+export function appDataLoadRequestKey(
+	keys: readonly DataSetKey[],
+	scope: AppDataScope,
+) {
+	return keys.map((key) => dataSetCacheKey(key, scope)).join('|')
+}
+
 export async function loadAppDataSet(
 	key: DataSetKey,
 	scope: AppDataScope,

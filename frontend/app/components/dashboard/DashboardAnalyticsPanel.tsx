@@ -840,7 +840,6 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 		>
 			<Panel
 				className="dashboard-analytics-hero"
-				id="dashboard-analysis-pulse"
 				title="Análisis operativo"
 				subtitle={`Compará el período ${currentPeriodLabel(dashboard)} sin perder la lectura de caja y ejecución.`}
 			>
@@ -903,34 +902,36 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 				<a href="#dashboard-analysis-insights">Lecturas</a>
 			</nav>
 
-			<div className="dashboard-analytics-overview-grid" id="dashboard-analysis-capacity">
-				<Panel
-					title="Capacidad de agenda"
-					subtitle="Reservas activas por sector y día frente a la capacidad configurada; se priorizan jornadas sin cupos o con un único lugar."
-				>
-					<CapacityOccupancy occupancy={capacityOccupancy} />
-				</Panel>
+			<Panel
+				className="dashboard-analytics-pulse-panel"
+				id="dashboard-analysis-pulse"
+				title="Pulso comparativo"
+				subtitle="Evolución equivalente del período actual frente al anterior."
+			>
+				<div className="dashboard-analytics-trend-grid">
+					<PeriodTrend
+						current={currentSeries}
+						label="Facturación"
+						previous={previousSeries}
+						valueKey="billed_total"
+					/>
+					<PeriodTrend
+						current={currentSeries}
+						label="Caja real"
+						previous={previousSeries}
+						valueKey="cashflow_balance"
+					/>
+				</div>
+			</Panel>
 
-				<Panel
-					title="Pulso comparativo"
-					subtitle="Evolución equivalente del período actual frente al anterior."
-				>
-					<div className="dashboard-analytics-trend-grid">
-						<PeriodTrend
-							current={currentSeries}
-							label="Facturación"
-							previous={previousSeries}
-							valueKey="billed_total"
-						/>
-						<PeriodTrend
-							current={currentSeries}
-							label="Caja real"
-							previous={previousSeries}
-							valueKey="cashflow_balance"
-						/>
-					</div>
-				</Panel>
-			</div>
+			<Panel
+				className="dashboard-analytics-capacity-panel"
+				id="dashboard-analysis-capacity"
+				title="Capacidad de agenda"
+				subtitle="Reservas activas por sector y día frente a la capacidad configurada; se priorizan jornadas sin cupos o con un único lugar."
+			>
+				<CapacityOccupancy occupancy={capacityOccupancy} />
+			</Panel>
 
 			<div className="dashboard-analytics-financial-grid" id="dashboard-analysis-performance">
 				<Panel
@@ -1134,7 +1135,7 @@ export function DashboardAnalyticsPanel({ dashboard }: { dashboard: AnyRecord })
 				)}
 			</Panel>
 
-			<div className="dashboard-analytics-split-grid" id="dashboard-analysis-execution">
+			<div className="dashboard-analytics-execution-stack" id="dashboard-analysis-execution">
 				<Panel
 					title="Evolución de trabajos"
 					subtitle="Órdenes ingresadas por semana y su estado actual, no cohortes históricas de entrega."

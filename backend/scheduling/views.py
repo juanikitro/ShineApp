@@ -3,13 +3,20 @@ from datetime import date
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
+from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema
 from rest_framework import decorators, permissions, response, status, viewsets
 from rest_framework.views import APIView
 
 from catalog.models import Sector
 from core.audit import AuditedModelViewSetMixin, audit_snapshot, record_audit_event
 from core.models import BusinessHours, BusinessProfile
-from core.permissions import EmployerOnly, EmployerRequiredForUnsafe, business_from_request
+from core.permissions import (
+    EmployerOnly,
+    EmployerRequiredForUnsafe,
+    business_from_request,
+    can_view_economy,
+)
 from tasks.onboarding import schedule_onboarding_sync
 from finance.cash import cash_day, ensure_cash_day_open
 from finance.services import maybe_auto_charge_on_delivery
@@ -22,7 +29,13 @@ from whatsapp.services import enqueue_automated_message, send_reservation_whatsa
 from workorders.metrics import build_work_order_financial_metrics
 
 from .models import Reservation, ReservationMaterialOverride
-from .serializers import ReservationMaterialOverrideSerializer, ReservationSerializer
+from .deadlines import reservation_operational_deadline_expression
+from .serializers import (
+    OverdueReservationEconomySerializer,
+    OverdueReservationSerializer,
+    ReservationMaterialOverrideSerializer,
+    ReservationSerializer,
+)
 from .services import ensure_reservation_work_order
 
 
@@ -106,6 +119,80 @@ class ReservationViewSet(AuditedModelViewSetMixin, viewsets.ModelViewSet):
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(rows, many=True)
+        return response.Response(serializer.data)
+
+    @extend_schema(
+        responses=PolymorphicProxySerializer(
+            component_name="OverdueReservationResponse",
+            serializers=[
+                OverdueReservationSerializer,
+                OverdueReservationEconomySerializer,
+            ],
+            resource_type_field_name=None,
+            many=True,
+        )
+    )
+    @decorators.action(
+        detail=False,
+        methods=["get"],
+        pagination_class=None,
+        serializer_class=OverdueReservationSerializer,
+    )
+    def overdue(self, request):
+        business = business_from_request(request)
+        today = cash_day(timezone.now())
+        if business is None or today is None:
+            return response.Response([])
+
+        rows = list(
+            self.queryset.filter(business=business)
+            .exclude(status=Reservation.Status.CANCELED)
+            .annotate(
+                operational_deadline=reservation_operational_deadline_expression()
+            )
+            .filter(operational_deadline__lt=today)
+            .order_by("operational_deadline", "id")
+        )
+        economy_allowed = can_view_economy(request.user)
+        metrics_map = (
+            build_work_order_financial_metrics(work_orders_for_reservations(rows))
+            if economy_allowed
+            else {}
+        )
+        visible_rows = []
+        for reservation in rows:
+            delivery_pending = reservation.status != Reservation.Status.DELIVERED
+            if not economy_allowed:
+                if delivery_pending:
+                    visible_rows.append(reservation)
+                continue
+
+            try:
+                order = reservation.work_order
+            except (AttributeError, ObjectDoesNotExist):
+                order = None
+            balance_due = (
+                metrics_map.get(order.id, {}).get("balance_due", 0)
+                if order is not None
+                else 0
+            )
+            if delivery_pending or balance_due > 0:
+                visible_rows.append(reservation)
+
+        serializer_class = (
+            OverdueReservationEconomySerializer
+            if economy_allowed
+            else OverdueReservationSerializer
+        )
+        serializer = serializer_class(
+            visible_rows,
+            many=True,
+            context={
+                "request": request,
+                "today": today,
+                "work_order_financial_metrics_map": metrics_map,
+            },
+        )
         return response.Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):

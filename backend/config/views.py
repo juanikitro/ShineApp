@@ -1,5 +1,6 @@
 import secrets
 from datetime import timedelta
+from time import perf_counter
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
@@ -15,6 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.audit import audit_snapshot, record_audit_event
+from core.performance import log_slow_route_profile
 from core.models import (
     BusinessHours,
     BusinessProfile,
@@ -157,7 +159,18 @@ class MaintenanceView(APIView):
                 {"detail": "No autorizado.", "error_code": "unauthorized"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        results = run_all(purge_apply=getattr(_settings, "MAINTENANCE_PURGE_ENABLED", False))
+        started_at = perf_counter()
+        stage_durations_ms = {}
+        results = run_all(
+            purge_apply=getattr(_settings, "MAINTENANCE_PURGE_ENABLED", False),
+            stage_durations_ms=stage_durations_ms,
+        )
+        log_slow_route_profile(
+            request_id=request.request_id,
+            route="internal_maintenance",
+            started_at=started_at,
+            stages_ms=stage_durations_ms,
+        )
         return Response({"status": "ok", "results": results})
 
 

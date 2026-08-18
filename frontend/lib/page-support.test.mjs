@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import React from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, test } from 'vitest'
+import { afterEach, test, vi } from 'vitest'
 
 import {
 	LoginScreen,
@@ -104,4 +104,33 @@ test('NoticeToastViewport renders globally outside local layout stacking', async
 		assert.equal(viewport.parentElement, document.body)
 	})
 	assert.equal(container.querySelector('.toast-viewport'), null)
+})
+
+test('NoticeToastViewport presenta atencion en vivo polite y conserva la accion Ver', async () => {
+	const onView = vi.fn()
+	render(
+		React.createElement(NoticeToastViewport, {
+			toasts: [
+				{
+					id: 2,
+					tone: 'attention',
+					title: 'Tenes 2 reservas vencidas',
+					description: 'Revisalas para completar entregas o cobros pendientes',
+					visibleMs: 8000,
+					action: {
+						label: 'Ver',
+						onClick: onView,
+					},
+				},
+			],
+			onDismiss: () => {},
+		}),
+	)
+
+	const toast = await screen.findByRole('status')
+	assert.equal(toast.getAttribute('aria-live'), 'polite')
+	assert.ok(toast.classList.contains('toast-notice--attention'))
+
+	fireEvent.click(screen.getByRole('button', { name: 'Ver' }))
+	assert.equal(onView.mock.calls.length, 1)
 })
