@@ -112,7 +112,17 @@ Si merge queue esta habilitado, mantener el trigger `merge_group` en `validate.y
 
 ## Configuracion De Vercel
 
-Deshabilitar los deploys productivos Git integrados de Vercel para ambos proyectos, o configurar ignored build steps para que los pushes Git no creen deploys productivos independientes. GitHub Actions es el gate de migracion; un deploy Git paralelo de Vercel puede publicar codigo antes de que el schema Supabase este migrado.
+GitHub Actions es el camino productivo canonico porque aplica migraciones antes
+del deploy API y luego del web. Para `shineapp-api`, los deploys Git integrados
+estan bloqueados en el repo por `vercel.json` con
+`git.deploymentEnabled=false`: la integracion Git del API no tiene `Root
+Directory`, por lo que lee esa configuracion raiz. Esto evita que Vercel
+publique el backend antes del gate de migracion.
+
+`shineapp-web` usa `frontend` como `Root Directory`, asi que no hereda el
+`vercel.json` raiz. Si se exige que GitHub Actions sea tambien su unico camino
+de deploy productivo, deshabilitar su integracion Git o configurar un ignored
+build step desde el dashboard de Vercel y verificarlo alli antes de mergear.
 
 Aliases demo-production aprobados:
 

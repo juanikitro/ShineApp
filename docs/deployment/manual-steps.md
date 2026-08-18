@@ -189,11 +189,11 @@ No agregar el `DJANGO_SECRET_KEY` real, claves Supabase S3 ni secretos SMTP a Gi
 
 ## 13. Hacer Que GitHub Actions Sea El Unico Camino De Deploy Productivo Automatico
 
-- Que: deshabilitar o bypassear los deploys Git productivos built-in de Vercel para `shineapp-api` y `shineapp-web`, o configurarlos para saltearse cuando GitHub Actions sea responsable de produccion.
-- Donde: Vercel Dashboard, configuracion Git del proyecto / ignored build step.
-- Por que: el workflow de GitHub Actions deploya backend, corre migraciones y luego deploya frontend. Un deploy Git paralelo de Vercel puede publicar codigo backend antes de que corra el gate de migracion.
+- Que: confirmar que los deploys Git productivos no eludan el orden del workflow. Para `shineapp-api` ya queda bloqueado por `vercel.json` con `git.deploymentEnabled=false`, porque su Git Integration no tiene `Root Directory`. Para `shineapp-web`, cuyo `Root Directory` es `frontend`, deshabilitar la integracion Git o configurar un ignored build step en Vercel si GitHub Actions debe ser su unico camino productivo.
+- Donde: raiz del repo para el API; Vercel Dashboard, configuracion Git / ignored build step, para el web.
+- Por que: el workflow de GitHub Actions deploya backend, corre migraciones y luego deploya frontend. Un deploy Git paralelo del API puede publicar codigo backend antes de que corra el gate de migracion; el web no hereda la configuracion raiz del API.
 - Valor a copiar: ninguno.
-- Validar: pushear un cambio inocuo a una branch de prueba o inspeccionar la configuracion del proyecto Vercel antes de mergear a `main`; los deploys productivos deben ser creados por el workflow CLI de GitHub Actions, no por un trigger Git independiente de Vercel.
+- Validar: verificar que el API tenga `Root Directory` Git vacio y que lea el `vercel.json` raiz; para el web, inspeccionar la configuracion Git/ignored build step en Vercel antes de mergear a `main`. Los deploys productivos deben respetar el workflow CLI de GitHub Actions.
 - Riesgo si se omite: deploys duplicados, race conditions o codigo vivo antes de que el schema Supabase este migrado.
 
 ## 14. Revisar Riesgo De Migracion Antes De Mergear Cambios De Schema A `main`
