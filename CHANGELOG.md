@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-08-18
+- [Seguridad: actualizacion de PDF.js y nanoid](docs/registro/cambios/2026-08-18-actualizacion-seguridad-pdfjs.md)
+
 ## 2026-08-10
 - [Seguridad: actualización de dependencias de preview PDF](docs/registro/cambios/2026-08-10-seguridad-dependencias-pdf.md)
 - [Deploy: bloquear Git paralelo del API](docs/registro/cambios/2026-08-10-deploy-api-sin-git-paralelo.md)
