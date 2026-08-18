@@ -4,7 +4,7 @@
 
 En el encabezado de cada dia de la agenda, la cantidad de movimientos queda en
 su propia linea. Debajo, `Cobrado` y `Por cobrar` se muestran juntos en una
-fila horizontal, preservando sus colores semanticos y el ajuste responsivo.
+fila horizontal sin saltos de linea, preservando sus colores semanticos.
 
 ## Alcance
 

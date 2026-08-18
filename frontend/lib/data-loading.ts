@@ -57,6 +57,105 @@ export type DataLoadingScope = {
 	canViewEconomy: boolean
 }
 
+export type DataLoadRequestPolicy = {
+	revalidateAfterMutation?: boolean
+}
+
+export function bypassDedupeForDataLoad({
+	revalidateAfterMutation = false,
+}: DataLoadRequestPolicy) {
+	return revalidateAfterMutation
+}
+
+type ActiveDataLoadRequest = {
+	requestKey: string
+	bypassDedupe: boolean
+	preserveActiveLoad: boolean
+	start: () => Promise<boolean>
+}
+
+export class DataLoadRequestRegistry {
+	private activeRequests = new Map<string, Promise<boolean>>()
+
+	load({
+		requestKey,
+		bypassDedupe,
+		preserveActiveLoad,
+		start,
+	}: ActiveDataLoadRequest) {
+		if (!bypassDedupe) {
+			const activeRequest = this.activeRequests.get(requestKey)
+			if (activeRequest) return activeRequest
+		}
+		if (!preserveActiveLoad) this.activeRequests.clear()
+
+		const request = start()
+		if (bypassDedupe) return request
+
+		this.activeRequests.set(requestKey, request)
+		void request.then(
+			() => this.forget(requestKey, request),
+			() => this.forget(requestKey, request),
+		)
+		return request
+	}
+
+	clear() {
+		this.activeRequests.clear()
+	}
+
+	private forget(requestKey: string, request: Promise<boolean>) {
+		if (this.activeRequests.get(requestKey) === request) {
+			this.activeRequests.delete(requestKey)
+		}
+	}
+}
+
+export function beginDataLoad(
+	activeControllers: Set<AbortController>,
+	preserveActiveLoads = false,
+) {
+	if (!preserveActiveLoads) {
+		cancelDataLoads(activeControllers)
+	}
+
+	const controller = new AbortController()
+	activeControllers.add(controller)
+	return controller
+}
+
+export function cancelDataLoads(activeControllers: Set<AbortController>) {
+	for (const controller of activeControllers) {
+		controller.abort()
+	}
+	activeControllers.clear()
+}
+
+export function beginDataSetLoading(
+	loadCounts: Map<DataSetKey, number>,
+	keys: readonly DataSetKey[],
+): ReadonlySet<DataSetKey> {
+	for (const key of keys) {
+		loadCounts.set(key, (loadCounts.get(key) ?? 0) + 1)
+	}
+	return new Set(loadCounts.keys())
+}
+
+export function finishDataSetLoading(
+	loadCounts: Map<DataSetKey, number>,
+	keys: readonly DataSetKey[],
+): ReadonlySet<DataSetKey> {
+	for (const key of keys) {
+		const nextCount = (loadCounts.get(key) ?? 0) - 1
+		if (nextCount > 0) {
+			loadCounts.set(key, nextCount)
+		} else {
+			loadCounts.delete(key)
+		}
+	}
+	return new Set(loadCounts.keys())
+}
+
 const sectionDataSets: Record<LoadDataSection, readonly DataSetKey[]> = {
 	dashboard: [
 		'dashboard',

@@ -50,6 +50,12 @@ import {
 	sectionMeta,
 } from '@/lib/page-support'
 import { serviceDisplayName } from '@/lib/service-display'
+import {
+	type OverdueReservation,
+	type OverdueReservationsLoadState,
+	overdueReservationCountText,
+	overdueReservationPreview,
+} from '@/lib/overdue-reservations'
 
 type DashboardPanelProps = {
 	birthdayAlerts: ReactNode
@@ -69,9 +75,12 @@ type DashboardPanelProps = {
 		stepId: DemoReadinessStepId,
 	) => Promise<unknown> | unknown
 	onOpenFirstPayment?: (workOrder: AnyRecord) => void
+	onOpenOverdueReservations?: () => void
 	onOpenPaymentForOrder: (workOrder: AnyRecord) => void
 	onOpenSection: (section: Section) => void
 	onOpenSettingsSection: (section: DemoReadinessSettingsSection) => void
+	overdueReservations?: OverdueReservation[]
+	overdueReservationsLoadState?: OverdueReservationsLoadState
 }
 
 type DashboardSuggestedAction = {
@@ -81,6 +90,7 @@ type DashboardSuggestedAction = {
 	onSelect: () => void
 	title: string
 	tone: 'attention' | 'neutral'
+	preview?: OverdueReservation[]
 }
 
 function dashboardCountText(count: number, singular: string, plural: string) {
@@ -148,10 +158,17 @@ export function DashboardPanel({
 	onCreateStarterServices,
 	onDismissOnboardingStep,
 	onOpenFirstPayment,
+	onOpenOverdueReservations,
 	onOpenPaymentForOrder,
 	onOpenSection,
 	onOpenSettingsSection,
+	overdueReservations = [],
+	overdueReservationsLoadState = 'idle',
 }: DashboardPanelProps) {
+	const dashboardOverdueReservations =
+		overdueReservationsLoadState === 'ready' ? overdueReservations : []
+	const dashboardOverdueReservationsCount =
+		dashboardOverdueReservations.length
 	const dashboardWorkStatusEntries = Object.entries(orderLabels)
 	const dashboardWorkStatusTotal = dashboardWorkStatusEntries.reduce(
 		(total, [key]) => total + numberValue(dashboard.work_orders_by_status?.[key]),
@@ -300,7 +317,8 @@ export function DashboardPanel({
 		dashboardCashflowIncomeTotal > 0 ||
 		dashboardCashflowExpenseTotal > 0 ||
 		dashboardOverdueDebtsTotal > 0 ||
-		dashboardEconomicAlerts.length > 0
+		dashboardEconomicAlerts.length > 0 ||
+		dashboardOverdueReservationsCount > 0
 	const dashboardEmptyPeriod =
 		String(dashboardDataQuality.state ?? '') === 'empty' &&
 		!dashboardHasBusinessActivity
@@ -315,6 +333,23 @@ export function DashboardPanel({
 		DashboardNextActionKey,
 		DashboardSuggestedAction
 	> = {
+		reviewOverdueReservations: {
+			title: 'Mantener la agenda al dia',
+			detail: overdueReservationCountText(
+				dashboardOverdueReservationsCount,
+			),
+			label: 'Ver todas',
+			icon: CalendarDays,
+			tone: 'attention',
+			preview: overdueReservationPreview(dashboardOverdueReservations),
+			onSelect: () => {
+				if (onOpenOverdueReservations) {
+					onOpenOverdueReservations()
+					return
+				}
+				onOpenSection('agenda')
+			},
+		},
 		collectOldestBalance: {
 			title: 'Cobrar saldo mas antiguo',
 			detail: 'Hay trabajos con saldo pendiente y accion directa de cobro.',
@@ -362,9 +397,12 @@ export function DashboardPanel({
 		selectDashboardNextActionKeys({
 			hasReceivable: dashboardFirstReceivableWorkOrder !== null,
 			overdueDebtsTotal: dashboardOverdueDebtsTotal,
+			overdueReservationsCount: dashboardOverdueReservationsCount,
 			workOrdersTotal: dashboardWorkOrdersTotal,
 		})
 	const dashboardNextAction = dashboardActionsByKey[dashboardNextActionKey]
+	const dashboardNextActionDisabled =
+		loading && dashboardNextActionKey === 'reviewOverdueReservations'
 	const dashboardFollowUpActions = dashboardFollowUpActionKeys
 		.slice(0, 2)
 		.map((key) => ({ key, ...dashboardActionsByKey[key] }))
@@ -520,10 +558,26 @@ export function DashboardPanel({
 												<div className="dashboard-next-action-copy">
 													<strong>{dashboardNextAction.title}</strong>
 													<span>{dashboardNextAction.detail}</span>
+													{dashboardNextAction.preview?.length ? (
+												<ul className="dashboard-overdue-preview">
+													{dashboardNextAction.preview.map((reservation) => (
+														<li key={reservation.id}>
+															<strong>
+																{reservation.customer_name || 'Cliente'}
+															</strong>
+															<span>
+																{reservation.vehicle_label || 'Vehiculo'} ·{' '}
+																{formatDateLabel(reservation.deadline)}
+															</span>
+														</li>
+													))}
+														</ul>
+													) : null}
 												</div>
 												<button
 													type="button"
 													className="ghost dashboard-action-link"
+													disabled={dashboardNextActionDisabled}
 													onClick={dashboardNextAction.onSelect}
 												>
 													{dashboardNextAction.label}
@@ -559,6 +613,19 @@ export function DashboardPanel({
 								onOpenTasks={() => onOpenSection('tasks')}
 							/>
 						</div>
+						{overdueReservationsLoadState === 'ready' &&
+						dashboardOverdueReservationsCount === 0 ? (
+							<button
+								type="button"
+								className="ghost dashboard-agenda-current"
+								aria-label="Agenda al dia. Abrir Agenda"
+								onClick={() => onOpenSection('agenda')}
+							>
+								<CalendarDays size={16} aria-hidden="true" />
+								<strong>Agenda al dia</strong>
+								<span>No hay reservas vencidas pendientes.</span>
+							</button>
+						) : null}
 					</Panel>
 					) : null}
 					{dashboardView === 'summary' ? (
@@ -622,6 +689,8 @@ export function DashboardPanel({
 										value={money(dashboardBilledTotal)}
 										numericValue={dashboardBilledTotal}
 										format={money}
+										labelTransform="capitalize"
+										tooltip="Importe de los trabajos operativos ingresados en el rango seleccionado. Suma el total de cada orden creada en ese período. Solo incluye reservas En proceso, Listas o Entregadas."
 										hint={dashboardDeltaHint(
 											dashboardBilledTotal,
 											dashboardPreviousPeriod.billed_total,
@@ -637,6 +706,8 @@ export function DashboardPanel({
 										value={money(dashboardEstimatedMarginTotal)}
 										numericValue={dashboardEstimatedMarginTotal}
 										format={money}
+										labelTransform="capitalize"
+										tooltip="Resultado estimado del período. Resta al total facturado el costo estimado de los consumos de materiales registrados en el mismo rango. No descuenta compras de reposición, gastos fijos ni otros movimientos de caja."
 										hint={dashboardDeltaHint(
 											dashboardEstimatedMarginTotal,
 											dashboardPreviousPeriod.estimated_margin_total,
@@ -652,6 +723,8 @@ export function DashboardPanel({
 										value={money(dashboardCashflowBalance)}
 										numericValue={dashboardCashflowBalance}
 										format={money}
+										labelTransform="capitalize"
+										tooltip="Saldo de los movimientos de caja del rango seleccionado. Resta los egresos de los ingresos y también descuenta los pagos de deudas registrados en ese período. Excluye el movimiento original que generó una deuda para no contarlo dos veces."
 										hint={dashboardDeltaHint(
 											dashboardCashflowBalance,
 											dashboardPreviousPeriod.cashflow_balance,
@@ -671,6 +744,8 @@ export function DashboardPanel({
 										value={money(dashboardBalanceDueTotal)}
 										numericValue={dashboardBalanceDueTotal}
 										format={money}
+										labelTransform="capitalize"
+										tooltip="Saldo pendiente de los trabajos operativos creados en el rango seleccionado. Para cada orden, resta todos los pagos vinculados a su total facturado. Solo incluye reservas En proceso, Listas o Entregadas."
 										hint={dashboardCountText(
 											dashboardBalanceDueWorkOrdersCount,
 											'trabajo con saldo',
@@ -689,28 +764,34 @@ export function DashboardPanel({
 									<Stagger className="dashboard-composition-grid">
 										<StaggerItem>
 											<MetricCard
-												label="Cobrado"
-												value={money(dashboardCollectedTotal)}
-												numericValue={dashboardCollectedTotal}
-												format={money}
+											label="Cobrado"
+											value={money(dashboardCollectedTotal)}
+											numericValue={dashboardCollectedTotal}
+											format={money}
+											labelTransform="capitalize"
+											tooltip="Pagos registrados con fecha de pago dentro del rango seleccionado. Suma los importes de todos los pagos del negocio en ese período. No usa la fecha ni el estado de la orden de trabajo."
 												hint="Pagos registrados en el periodo"
 											/>
 										</StaggerItem>
 										<StaggerItem>
 											<MetricCard
-												label="Materiales consumidos"
-												value={money(dashboardMaterialCostTotal)}
-												numericValue={dashboardMaterialCostTotal}
-												format={money}
+											label="Materiales consumidos"
+											value={money(dashboardMaterialCostTotal)}
+											numericValue={dashboardMaterialCostTotal}
+											format={money}
+											labelTransform="capitalize"
+											tooltip="Costo estimado de los materiales consumidos en el rango seleccionado. Suma los consumos registrados y los movimientos de stock de tipo Consumo. No incluye compras ni stock inicial."
 												hint="Costo estimado imputado a trabajos"
 											/>
 										</StaggerItem>
 										<StaggerItem>
 											<MetricCard
-												label="Compras materiales"
-												value={money(dashboardMaterialPurchasesTotal)}
-												numericValue={dashboardMaterialPurchasesTotal}
-												format={money}
+											label="Compras materiales"
+											value={money(dashboardMaterialPurchasesTotal)}
+											numericValue={dashboardMaterialPurchasesTotal}
+											format={money}
+											labelTransform="capitalize"
+											tooltip="Valor de las compras de materiales del rango seleccionado. Suma compras registradas y movimientos de stock de tipo Compra. No incluye consumos, ventas ni stock inicial."
 												hint="Reposicion e insumos del periodo"
 											/>
 										</StaggerItem>
@@ -721,10 +802,12 @@ export function DashboardPanel({
 														? 'metric--attention'
 														: ''
 													}
-												label="Deudas vencidas"
-												value={money(dashboardOverdueDebtsTotal)}
-												numericValue={dashboardOverdueDebtsTotal}
-												format={money}
+											label="Deudas vencidas"
+											value={money(dashboardOverdueDebtsTotal)}
+											numericValue={dashboardOverdueDebtsTotal}
+											format={money}
+											labelTransform="capitalize"
+											tooltip="Saldo actual de deudas vencidas. Para cada deuda con vencimiento anterior a hoy, resta los pagos al importe original. No depende del rango seleccionado e ignora las deudas ya saldadas."
 												hint={`${dashboardOverdueDebtsCount} pendientes`}
 											/>
 										</StaggerItem>
@@ -735,10 +818,12 @@ export function DashboardPanel({
 														? 'metric--attention'
 														: ''
 												}
-												label="Gastos fijos por pagar"
-												value={money(dashboardFixedExpensesPendingTotal)}
-												numericValue={dashboardFixedExpensesPendingTotal}
-												format={money}
+											label="Gastos fijos por pagar"
+											value={money(dashboardFixedExpensesPendingTotal)}
+											numericValue={dashboardFixedExpensesPendingTotal}
+											format={money}
+											labelTransform="capitalize"
+											tooltip="Importe pendiente de las ocurrencias de gastos fijos del rango seleccionado. Suma las ocurrencias con estado Pendiente según su fecha de período. Excluye las pagadas y las de otros períodos."
 												hint={`${dashboardFixedExpensesPendingCount} pendientes en el periodo`}
 											/>
 										</StaggerItem>
@@ -822,7 +907,7 @@ export function DashboardPanel({
 										title="Alertas economicas"
 										subtitle={
 											dashboardEconomicAlerts.length
-												? undefined
+										? undefined
 												: 'Sin alertas economicas activas para el periodo.'
 										}
 									>
@@ -1152,22 +1237,26 @@ export function DashboardPanel({
 												<span>Materiales por costo</span>
 											</div>
 											<div className="records dashboard-ranking-records">
-												{dashboardTopMaterialsByCost.map((item: AnyRecord) => (
-													<RecordCard
-														className="dashboard-ranking-record dashboard-sharerow"
-														key={item.material_id ?? item.material_name}
-													>
-														<div className="record-head">
-															<div>
-																<span>{item.material_name}</span>
-																<small>
-																	{quantity(item.quantity)} {item.unit}
-																</small>
+												{dashboardTopMaterialsByCost.length ? (
+													dashboardTopMaterialsByCost.map((item: AnyRecord) => (
+														<RecordCard
+															className="dashboard-ranking-record dashboard-sharerow"
+															key={item.material_id ?? item.material_name}
+														>
+															<div className="record-head">
+																<div>
+																	<span>{item.material_name}</span>
+																	<small>
+																		{quantity(item.quantity)} {item.unit}
+																	</small>
+																</div>
+																<strong>{money(item.estimated_total_cost)}</strong>{dashboardShareBar(item.estimated_total_cost, dashboardTopMaterialsMax)}
 															</div>
-															<strong>{money(item.estimated_total_cost)}</strong>{dashboardShareBar(item.estimated_total_cost, dashboardTopMaterialsMax)}
-														</div>
-													</RecordCard>
-												))}
+														</RecordCard>
+													))
+												) : (
+													<Empty text="Sin materiales imputados en este período." />
+												)}
 											</div>
 										</div>
 										{dashboardBySector.length ? (

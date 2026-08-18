@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from time import perf_counter
 
 from django.core.cache import cache
 from django.shortcuts import get_object_or_404
@@ -10,6 +11,7 @@ from catalog.models import Sector, Service
 from core.audit import audit_snapshot, record_audit_event
 from core.models import BusinessAccount, BusinessHours, BusinessProfile
 from core.permissions import EmployerOnly, business_from_request, file_url
+from core.performance import log_slow_route_profile
 from core.request_ip import get_client_ip
 from scheduling.models import Reservation
 from tasks.onboarding import schedule_onboarding_sync
@@ -55,7 +57,9 @@ class PublicLandingView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, slug):
+        started_at = perf_counter()
         business, profile = public_business_or_404(slug)
+        business_profile_ms = round((perf_counter() - started_at) * 1000)
         hidden_ids = [
             int(value)
             for value in (profile.public_hidden_service_ids or [])
@@ -69,7 +73,7 @@ class PublicLandingView(APIView):
                 deleted_at__isnull=True,
             ).order_by("order", "name")
         )
-        services = (
+        services = list(
             Service.objects.filter(
                 business=business,
                 is_active=True,
@@ -78,8 +82,10 @@ class PublicLandingView(APIView):
             .exclude(id__in=hidden_ids)
             .order_by("sector__order", "name")
         )
+        catalog_ms = round((perf_counter() - started_at) * 1000) - business_profile_ms
         show_description = profile.public_show_service_description
         show_price = profile.public_show_service_price
+        serialization_started_at = perf_counter()
         landing = response.Response(
             {
                 "business": {
@@ -127,6 +133,16 @@ class PublicLandingView(APIView):
         # s-maxage controla el CDN y stale-while-revalidate sirve sin ir al origen
         # mientras revalida en segundo plano.
         landing["Cache-Control"] = "public, s-maxage=120, stale-while-revalidate=600"
+        log_slow_route_profile(
+            request_id=request.request_id,
+            route="public_landing",
+            started_at=started_at,
+            stages_ms={
+                "business_profile": business_profile_ms,
+                "catalog": catalog_ms,
+                "serialization": round((perf_counter() - serialization_started_at) * 1000),
+            },
+        )
         return landing
 
 

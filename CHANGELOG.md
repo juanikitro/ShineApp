@@ -13,12 +13,29 @@ py -3 scripts/check_docs.py --write --skip-build
 ## 2026-08-18
 - [Seguridad: actualizacion de PDF.js y nanoid](docs/registro/cambios/2026-08-18-actualizacion-seguridad-pdfjs.md)
 
+## 2026-08-10
+- [Seguridad: actualización de dependencias de preview PDF](docs/registro/cambios/2026-08-10-seguridad-dependencias-pdf.md)
+- [Deploy: bloquear Git paralelo del API](docs/registro/cambios/2026-08-10-deploy-api-sin-git-paralelo.md)
+- [Dedupe de recargas GET del cliente](docs/registro/cambios/2026-08-10-dedupe-recargas-get-cliente.md)
+
+## 2026-08-04
+- [Dashboard: ayuda accesible para métricas del resumen](docs/registro/cambios/2026-08-04-dashboard-metric-tooltips.md)
+
+## 2026-08-03
+- [SearchSelect: foco de busqueda al abrir en desktop](docs/registro/cambios/2026-08-03-searchselect-foco-desktop.md)
+- [Dashboard: recorrido persistente en Analisis](docs/registro/cambios/2026-08-03-dashboard-analisis-navegacion.md)
+
+## 2026-07-30
+- [Compactar tarjetas de reservas en Agenda](docs/registro/cambios/2026-07-30-agenda-reservas-compactas.md)
+
 ## 2026-07-28
 - [Alta guiada sincronizada con Tareas](docs/registro/cambios/2026-07-28-tareas-alta-guiada.md)
 - [Servicios base por tipo principal de negocio](docs/registro/cambios/2026-07-28-servicios-base-por-tipo-negocio.md)
+- [Reservas vencidas en dashboard y Agenda](docs/registro/cambios/2026-07-28-reservas-vencidas-dashboard-agenda.md)
 - [Reservas se abren directamente en edición](docs/registro/cambios/2026-07-28-reservas-edicion-directa.md)
 - [Onboarding y trial: CTA comercial y contraste tematico](docs/registro/cambios/2026-07-28-onboarding-trial-cta-y-contraste.md)
 - [Dashboard: señales operativas accionables](docs/registro/cambios/2026-07-28-dashboard-senales-operativas-accionables.md)
+- [Dashboard: densidad equilibrada](docs/registro/cambios/2026-07-28-dashboard-densidad-equilibrada.md)
 - [Agenda: saldos diarios en una fila propia](docs/registro/cambios/2026-07-28-agenda-saldos-en-fila.md)
 
 ## 2026-07-27
