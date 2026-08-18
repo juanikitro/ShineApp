@@ -12,6 +12,7 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-08-10
 - [Seguridad: actualización de dependencias de preview PDF](docs/registro/cambios/2026-08-10-seguridad-dependencias-pdf.md)
+- [Deploy: bloquear Git paralelo del API](docs/registro/cambios/2026-08-10-deploy-api-sin-git-paralelo.md)
 - [Dedupe de recargas GET del cliente](docs/registro/cambios/2026-08-10-dedupe-recargas-get-cliente.md)
 
 ## 2026-08-04
