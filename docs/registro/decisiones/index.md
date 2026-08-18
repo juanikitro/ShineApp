@@ -36,3 +36,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Adopcion selectiva de Radix para overlays accesibles](2026-07-21-adopcion-selectiva-radix.md)
 - [Dashboard analitico: unidades de embudo y operacion](2026-07-27-dashboard-analytics-unidades.md)
 - [Alta guiada: tareas vinculadas como proyeccion de hechos reales](2026-07-28-onboarding-tareas-fuente-verdad.md)
+- [GitHub Project como fuente de verdad para la entrega asistida por Codex](2026-08-18-github-project-codex-automation.md)

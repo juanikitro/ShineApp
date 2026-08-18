@@ -35,3 +35,4 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Reservas vencidas en dashboard y Agenda](2026-07-28-reservas-vencidas-dashboard-agenda-design.md)
 - [Reservas: apertura directa en edición](2026-07-28-reservation-direct-edit-design.md)
 - [SearchSelect: foco de busqueda en desktop](2026-07-28-search-select-desktop-focus-design.md)
+- [GitHub Project y automatizacion diaria con Codex](2026-08-18-github-project-codex-automation-design.md)
