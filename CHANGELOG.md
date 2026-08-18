@@ -11,6 +11,7 @@ py -3 scripts/check_docs.py --write --skip-build
 ```
 
 ## 2026-08-18
+- [Cotizaciones sin pulso al actualizar](docs/registro/cambios/2026-08-18-cotizaciones-sin-pulso-al-actualizar.md)
 - [Seguridad: actualizacion de PDF.js y nanoid](docs/registro/cambios/2026-08-18-actualizacion-seguridad-pdfjs.md)
 
 ## 2026-08-10

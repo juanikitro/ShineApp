@@ -9,6 +9,7 @@ import { flashOverlayVariants, motionTransitions } from '@/lib/motion-spec'
 
 type MotionFlashSurfaceProps = Omit<HTMLMotionProps<'div'>, 'children'> & {
 	children: ReactNode
+	suppressFlash?: boolean
 }
 
 function stripMotionFlashClassName(className?: string) {
@@ -25,10 +26,17 @@ function stripMotionFlashClassName(className?: string) {
 
 const MotionFlashSurface = forwardRef<HTMLDivElement, MotionFlashSurfaceProps>(
 	function MotionFlashSurface(
-		{ children, className, layout, ...props }: MotionFlashSurfaceProps,
+		{
+			children,
+			className,
+			layout,
+			suppressFlash = false,
+			...props
+		}: MotionFlashSurfaceProps,
 		ref,
 	) {
 		const flashState = stripMotionFlashClassName(className)
+		const flashActive = flashState.active && !suppressFlash
 
 		return (
 			<m.div
@@ -40,7 +48,7 @@ const MotionFlashSurface = forwardRef<HTMLDivElement, MotionFlashSurfaceProps>(
 			>
 				{children}
 				<AnimatePresence initial={false}>
-					{flashState.active ? (
+					{flashActive ? (
 						<m.div
 							key="flash"
 							className="motion-flash-overlay"
