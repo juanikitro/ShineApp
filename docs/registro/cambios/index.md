@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Seguridad: actualizacion de PDF.js y nanoid](2026-08-18-actualizacion-seguridad-pdfjs.md)
 - [Alta guiada sincronizada con Tareas](2026-07-28-tareas-alta-guiada.md)
 - [Servicios base por tipo principal de negocio](2026-07-28-servicios-base-por-tipo-negocio.md)
 - [Reservas se abren directamente en edición](2026-07-28-reservas-edicion-directa.md)

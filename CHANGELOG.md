@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-08-18
+- [Seguridad: actualizacion de PDF.js y nanoid](docs/registro/cambios/2026-08-18-actualizacion-seguridad-pdfjs.md)
+
 ## 2026-07-28
 - [Alta guiada sincronizada con Tareas](docs/registro/cambios/2026-07-28-tareas-alta-guiada.md)
 - [Servicios base por tipo principal de negocio](docs/registro/cambios/2026-07-28-servicios-base-por-tipo-negocio.md)
