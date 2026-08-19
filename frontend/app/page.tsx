@@ -401,12 +401,11 @@ import {
 	buildFreeVariables,
 	buildFreeWhatsappHref,
 	dispatchForEvent,
+	freeWhatsappActionAvailability,
 	freeTemplateBody,
 	isFreeWhatsappMode,
-	hasActiveWhatsappTemplate,
 	renderFreeTemplate,
 	whatsappAlreadySent,
-	whatsappEventButtonVisible,
 } from '@/lib/whatsapp-free'
 import {
 	type WhatsappEventSendOptions,
@@ -2719,6 +2718,24 @@ export default function Home() {
 					workOrder.id,
 				),
 		)
+		const confirmationWhatsapp = freeWhatsappActionAvailability({
+			config: whatsappConfig,
+			templates: whatsappTemplates,
+			event: 'reservation_confirmed',
+			phone: customer?.phone,
+		})
+		const readyWhatsapp = freeWhatsappActionAvailability({
+			config: whatsappConfig,
+			templates: whatsappTemplates,
+			event: 'work_ready',
+			phone: customer?.phone,
+		})
+		const deliveredWhatsapp = freeWhatsappActionAvailability({
+			config: whatsappConfig,
+			templates: whatsappTemplates,
+			event: 'work_delivered',
+			phone: customer?.phone,
+		})
 		return [
 			{
 				id: `agenda:reservation:detail:${reservation.id}`,
@@ -2755,12 +2772,9 @@ export default function Home() {
 					? 'Reenviar por WhatsApp: confirmar turno'
 					: 'WhatsApp: confirmar turno',
 				icon: <MessageCircle size={15} />,
-				hidden: !whatsappEventButtonVisible({
-					config: whatsappConfig,
-					templates: whatsappTemplates,
-					event: 'reservation_confirmed',
-					phone: customer?.phone,
-				}),
+				description: confirmationWhatsapp.unavailableReason ?? customer?.name,
+				disabled: !confirmationWhatsapp.enabled,
+				hidden: !confirmationWhatsapp.visible,
 				onSelect: () =>
 					void sendWhatsappEventWithResendGuard({
 						event: 'reservation_confirmed',
@@ -2778,15 +2792,12 @@ export default function Home() {
 					? 'Reenviar por WhatsApp: listo para entregar'
 					: 'WhatsApp: listo para entregar',
 				icon: <MessageCircle size={15} />,
+				description: readyWhatsapp.unavailableReason ?? customer?.name,
+				disabled: !readyWhatsapp.enabled,
 				hidden:
 					!showWork ||
 					!workOrder ||
-					!whatsappEventButtonVisible({
-						config: whatsappConfig,
-						templates: whatsappTemplates,
-						event: 'work_ready',
-						phone: customer?.phone,
-					}),
+					!readyWhatsapp.visible,
 				onSelect: () =>
 					void sendWhatsappEventWithResendGuard({
 						event: 'work_ready',
@@ -2804,15 +2815,12 @@ export default function Home() {
 					? 'Reenviar por WhatsApp: trabajo entregado'
 					: 'WhatsApp: trabajo entregado',
 				icon: <MessageCircle size={15} />,
+				description: deliveredWhatsapp.unavailableReason ?? customer?.name,
+				disabled: !deliveredWhatsapp.enabled,
 				hidden:
 					!showWork ||
 					!workOrder ||
-					!whatsappEventButtonVisible({
-						config: whatsappConfig,
-						templates: whatsappTemplates,
-						event: 'work_delivered',
-						phone: customer?.phone,
-					}),
+					!deliveredWhatsapp.visible,
 				onSelect: () =>
 					void sendWhatsappEventWithResendGuard({
 						event: 'work_delivered',
@@ -5584,14 +5592,18 @@ export default function Home() {
 		if (!opened) showProactiveWhatsappToast(options)
 	}
 
-	function quoteWhatsappButtonVisible(quote: AnyRecord) {
+	function quoteWhatsappAvailability(quote: AnyRecord) {
 		const customer = customerForRecord(quote)
-		return whatsappEventButtonVisible({
+		return freeWhatsappActionAvailability({
 			config: whatsappConfig,
 			templates: whatsappTemplates,
 			event: 'quote_sent',
 			phone: customer?.phone || quote.customer_snapshot_phone || quote.customer_phone,
 		})
+	}
+
+	function quoteWhatsappButtonVisible(quote: AnyRecord) {
+		return quoteWhatsappAvailability(quote).enabled
 	}
 
 	function quoteWhatsappButtonLabel(quote: AnyRecord) {
@@ -5660,9 +5672,21 @@ export default function Home() {
 			})
 			return false
 		}
-		const popup =
-			typeof window !== 'undefined' ? window.open(href, '_blank') : null
-		if (!popup) return false
+		let popup: Window | null = null
+		try {
+			popup = typeof window !== 'undefined' ? window.open(href, '_blank') : null
+		} catch {
+			popup = null
+		}
+		if (!popup) {
+			showToast({
+				tone: 'error',
+				title: 'WhatsApp fue bloqueado por el navegador',
+				description:
+					'Permití ventanas emergentes para ShineApp y reintentá desde esta acción.',
+			})
+			return false
+		}
 		try {
 			popup.opener = null
 		} catch {
@@ -5685,7 +5709,19 @@ export default function Home() {
 			.then((message) => {
 				if (message) setWhatsappMessages((current) => [message, ...current])
 			})
-			.catch(() => {})
+			.catch(() => {
+				showToast({
+					tone: 'error',
+					title: 'WhatsApp se abrió, pero no se pudo registrar',
+					description:
+						'El mensaje no quedó en el historial. Revisá tu conexión antes de continuar.',
+				})
+			})
+		showToast({
+			tone: 'success',
+			title: 'WhatsApp abierto',
+			description: `Preparaste ${whatsappEventLabels[event] ?? 'el mensaje'} para ${customer?.name ?? record?.customer_snapshot_name ?? record?.customer_name ?? 'el cliente'}. Confirmá el envío desde tu sesión de WhatsApp.`,
+		})
 		return true
 	}
 
@@ -6056,6 +6092,12 @@ export default function Home() {
 
 	function customerQuickActions(customer: AnyRecord): QuickAction[] {
 		const customerName = serviceDisplayName(customer)
+		const manualWhatsapp = freeWhatsappActionAvailability({
+			config: whatsappConfig,
+			templates: whatsappTemplates,
+			event: 'manual',
+			phone: customer.phone,
+		})
 		const actions: QuickAction[] = [
 			{
 				id: `customer:dashboard:${customer.id}`,
@@ -6073,10 +6115,9 @@ export default function Home() {
 				id: `customer:whatsapp:${customer.id}`,
 				label: 'WhatsApp',
 				icon: <MessageCircle size={15} />,
-				hidden:
-					!isFreeWhatsappMode(whatsappConfig) ||
-					!hasActiveWhatsappTemplate(whatsappTemplates, 'manual') ||
-					!String(customer.phone ?? '').trim(),
+				description: manualWhatsapp.unavailableReason ?? customerName,
+				disabled: !manualWhatsapp.enabled,
+				hidden: !manualWhatsapp.visible,
 				onSelect: () =>
 					openFreeWhatsapp({
 						event: 'manual',
@@ -6266,6 +6307,7 @@ export default function Home() {
 		const vehicle = vehicleForRecord(quote)
 		const hasReservation = quoteHasReservation(quote)
 		const isDraft = quoteLaneStatus(quote) === 'draft'
+		const quoteWhatsapp = quoteWhatsappAvailability(quote)
 		return [
 			{
 				id: `quote:detail:${quote.id}`,
@@ -6292,7 +6334,9 @@ export default function Home() {
 					? 'Enviar WhatsApp'
 					: 'Reenviar por WhatsApp',
 				icon: <MessageCircle size={15} />,
-				hidden: !quoteWhatsappButtonVisible(quote),
+				description: quoteWhatsapp.unavailableReason ?? customer?.name,
+				disabled: !quoteWhatsapp.enabled,
+				hidden: !quoteWhatsapp.visible,
 				onSelect: () => void sendQuoteWhatsapp(quote),
 			},
 			{

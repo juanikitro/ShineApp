@@ -7,6 +7,7 @@ import {
 	buildFreeVariables,
 	buildFreeWhatsappHref,
 	dispatchForEvent,
+	freeWhatsappActionAvailability,
 	freeTemplateBody,
 	freeVariablesForEvent,
 	isFreeWhatsappMode,
@@ -122,6 +123,55 @@ test('hasActiveWhatsappTemplate y whatsappEventButtonVisible aplican el contrato
 			phone: '11 2233-4455',
 		}),
 		false,
+	)
+})
+
+test('freeWhatsappActionAvailability explica requisitos faltantes de wa.me', () => {
+	const templates = [{ key: 'reservation_confirmed', is_active: true }]
+	assert.deepEqual(
+		freeWhatsappActionAvailability({
+			config: { mode: 'paid', is_enabled: true },
+			templates,
+			event: 'reservation_confirmed',
+			phone: '11 2233-4455',
+		}),
+		{ visible: true, enabled: true, unavailableReason: null },
+	)
+	assert.deepEqual(
+		freeWhatsappActionAvailability({
+			config: { mode: 'free' },
+			templates,
+			event: 'reservation_confirmed',
+			phone: '',
+		}),
+		{
+			visible: true,
+			enabled: false,
+			unavailableReason: 'El cliente no tiene telefono cargado.',
+		},
+	)
+	assert.deepEqual(
+		freeWhatsappActionAvailability({
+			config: { mode: 'free' },
+			templates,
+			event: 'work_ready',
+			phone: '11 2233-4455',
+		}),
+		{
+			visible: true,
+			enabled: false,
+			unavailableReason:
+				'Falta configurar el mensaje de este modulo en Configuracion > WhatsApp.',
+		},
+	)
+	assert.deepEqual(
+		freeWhatsappActionAvailability({
+			config: { mode: 'free' },
+			templates,
+			event: 'reservation_confirmed',
+			phone: '11 2233-4455',
+		}),
+		{ visible: true, enabled: true, unavailableReason: null },
 	)
 })
 
