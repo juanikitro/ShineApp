@@ -136,6 +136,52 @@ export function isFreeWhatsappMode(config: AnyRecord | null | undefined): boolea
 	return String(config?.mode ?? '') === 'free'
 }
 
+export type FreeWhatsappActionAvailability = {
+	visible: boolean
+	enabled: boolean
+	unavailableReason: string | null
+}
+
+// En wa.me, mantiene la accion visible para explicar como completarla en lugar
+// de esconderla. Los demas modos conservan el contrato previo de visibilidad.
+export function freeWhatsappActionAvailability({
+	config,
+	templates,
+	event,
+	phone,
+}: {
+	config: AnyRecord | null | undefined
+	templates: AnyRecord[] | null | undefined
+	event: string
+	phone: string | null | undefined
+}): FreeWhatsappActionAvailability {
+	if (!isFreeWhatsappMode(config)) {
+		const enabled = whatsappEventButtonVisible({
+			config,
+			templates,
+			event,
+			phone,
+		})
+		return { visible: enabled, enabled, unavailableReason: null }
+	}
+	if (!String(phone ?? '').trim()) {
+		return {
+			visible: true,
+			enabled: false,
+			unavailableReason: 'El cliente no tiene telefono cargado.',
+		}
+	}
+	if (!hasActiveWhatsappTemplate(templates, event)) {
+		return {
+			visible: true,
+			enabled: false,
+			unavailableReason:
+				'Falta configurar el mensaje de este modulo en Configuracion > WhatsApp.',
+		}
+	}
+	return { visible: true, enabled: true, unavailableReason: null }
+}
+
 export function whatsappEventButtonVisible({
 	config,
 	templates,

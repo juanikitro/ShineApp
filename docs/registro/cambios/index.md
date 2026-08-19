@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [WhatsApp gratis: feedback accionable](2026-08-19-whatsapp-gratis-feedback-accionable.md)
 - [Cotizaciones sin pulso al actualizar](2026-08-18-cotizaciones-sin-pulso-al-actualizar.md)
 - [Seguridad: actualizacion de PDF.js y nanoid](2026-08-18-actualizacion-seguridad-pdfjs.md)
 - [Seguridad: actualización de dependencias de preview PDF](2026-08-10-seguridad-dependencias-pdf.md)
