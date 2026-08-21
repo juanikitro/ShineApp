@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Detalle generico: jerarquia escaneable](2026-08-20-detalle-generico-jerarquia.md)
 - [Contencion de la Data API de Supabase](2026-08-21-contencion-data-api-supabase.md)
 - [WhatsApp gratis: feedback accionable](2026-08-19-whatsapp-gratis-feedback-accionable.md)
 - [Cotizaciones sin pulso al actualizar](2026-08-18-cotizaciones-sin-pulso-al-actualizar.md)
