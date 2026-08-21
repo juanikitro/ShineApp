@@ -282,6 +282,7 @@ export function QuotesPanel({
 						quoteMovePendingId === quoteId && 'quote-board-card--moving',
 					),
 				)}
+				suppressFlash
 				{...detailRecordProps('Cotizacion', item)}
 				{...quickActionTargetProps('Acciones de cotizacion', quickActions)}
 			>

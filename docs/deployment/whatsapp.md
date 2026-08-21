@@ -43,6 +43,7 @@ Alternativa sin costo ni API de Meta. En Configuracion > WhatsApp se elige `Modo
 Como funciona:
 - Se activan modulos (turno confirmado, listo para entregar, trabajo entregado, cotizacion) y cada uno tiene un mensaje de texto libre editable con variables `{variable}`. La UI muestra las variables disponibles por modulo. Ademas hay un mensaje manual generico en la ficha del cliente.
 - El boton de WhatsApp aparece en la cotizacion, la turnera, el tablero de trabajos y la ficha del cliente. Abre `https://wa.me/<digitos>?text=<mensaje renderizado>` directo (no usa el servidor).
+- Si falta telefono o un mensaje activo, la accion permanece visible pero deshabilitada e indica el requisito pendiente. Si el navegador bloquea la apertura o falla el registro en Historial, la UI informa la condicion sin afirmar entrega o lectura.
 - En modo gratis, los envios server-side quedan deshabilitados: `enqueue_automated_message()` no genera mensajes y los endpoints de envio pago responden error; el frontend usa wa.me.
 
 Variables por modulo:

@@ -99,6 +99,14 @@ function detailFieldIcon(key: string): LucideIcon {
 	return detailFieldIcons[key] ?? Info
 }
 
+function isDetailFieldWide(key: string, value: string): boolean {
+	return (
+		['notes', 'description', 'concept', 'reference_label', 'items', 'material_overrides'].includes(
+			key,
+		) || value.length > 72
+	)
+}
+
 type DetailModalProps = {
 	title: string
 	data: AnyRecord
@@ -120,11 +128,24 @@ function DetailBody({ kind, data }: { kind?: string; data: AnyRecord }) {
 		return <p className="detail-empty">Sin datos para mostrar.</p>
 	}
 	return (
-		<dl className="detail-fields">
+		<>
+			<div className="detail-view__section-head">
+				<span className="detail-view__eyebrow">Informacion del registro</span>
+				<span className="detail-view__count">
+					{fields.length} {fields.length === 1 ? 'dato' : 'datos'}
+				</span>
+			</div>
+			<dl className="detail-fields" aria-label="Informacion del registro">
 			{fields.map((field) => {
 				const Icon = detailFieldIcon(field.key)
 				return (
-					<div className="detail-field" key={field.key}>
+					<div
+						className={cx(
+							'detail-field',
+							isDetailFieldWide(field.key, field.value) && 'detail-field--wide',
+						)}
+						key={field.key}
+					>
 						<span className="detail-field__icon" aria-hidden="true">
 							<Icon size={17} />
 						</span>
@@ -139,7 +160,8 @@ function DetailBody({ kind, data }: { kind?: string; data: AnyRecord }) {
 					</div>
 				)
 			})}
-		</dl>
+			</dl>
+		</>
 	)
 }
 

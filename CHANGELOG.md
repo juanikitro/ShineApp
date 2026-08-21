@@ -10,7 +10,17 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-08-21
+- [Contencion de la Data API de Supabase](docs/registro/cambios/2026-08-21-contencion-data-api-supabase.md)
+
+## 2026-08-20
+- [Detalle generico: jerarquia escaneable](docs/registro/cambios/2026-08-20-detalle-generico-jerarquia.md)
+
+## 2026-08-19
+- [WhatsApp gratis: feedback accionable](docs/registro/cambios/2026-08-19-whatsapp-gratis-feedback-accionable.md)
+
 ## 2026-08-18
+- [Cotizaciones sin pulso al actualizar](docs/registro/cambios/2026-08-18-cotizaciones-sin-pulso-al-actualizar.md)
 - [Seguridad: actualizacion de PDF.js y nanoid](docs/registro/cambios/2026-08-18-actualizacion-seguridad-pdfjs.md)
 
 ## 2026-08-10
