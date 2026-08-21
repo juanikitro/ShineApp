@@ -73,3 +73,31 @@ $env:DATABASE_SSL_REQUIRE="1"
 No ejecutar `seed_demo` hasta confirmar la base de datos destino.
 
 Estado de seed: el seed demo se aplico a Supabase el 2026-05-18 con flags de confirmacion explicitos para un destino demo. La corrida no creo un superadmin de Django admin.
+
+## Data API y RLS
+
+ShineApp usa Postgres mediante `DATABASE_URL` desde Django; no usa la Data API
+de Supabase ni `supabase-js` como acceso de aplicacion. Por eso, las tablas
+internas de Django en `public` no son una superficie API valida.
+
+Desde el incidente #279 (2026-08-21), el contrato del proyecto demo es:
+
+- `anon` y `authenticated` no tienen permisos sobre el schema, tablas,
+  secuencias ni funciones de `public`.
+- Todas las tablas de `public` tienen RLS habilitado y no existen policies
+  publicas para esos roles.
+- Los privilegios por defecto de tablas, secuencias y funciones creadas por
+  Django en `public` tambien quedan revocados para esos roles.
+- Un endpoint Data API nuevo debe vivir en un schema dedicado, con grants y
+  policies RLS minimos y explicitamente revisados; no reabrir `public` como
+  atajo.
+
+Esto conserva el acceso directo de Django: el rol de la conexion de aplicacion
+es `postgres` y tiene `BYPASSRLS`. Antes de cambiar grants, RLS o schemas
+expuestos, validar al menos:
+
+1. `GET /api/health/` devuelve `database=ok`.
+2. El frontend responde y un flujo autenticado representativo funciona.
+3. Una solicitud Data API con clave publishable contra una tabla interna de
+   `public` devuelve 401/403, sin cuerpo de datos.
+4. Security Advisor no informa `rls_disabled_in_public`.
