@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-08-24
+- [GitHub Project y gate CI para development](docs/registro/cambios/2026-08-24-github-project-ci-development.md)
+
 ## 2026-08-21
 - [Contencion de la Data API de Supabase](docs/registro/cambios/2026-08-21-contencion-data-api-supabase.md)
 
