@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [GitHub Project y gate CI para development](2026-08-24-github-project-ci-development.md)
 - [Contencion de la Data API de Supabase](2026-08-21-contencion-data-api-supabase.md)
 - [Detalle generico: jerarquia escaneable](2026-08-20-detalle-generico-jerarquia.md)
 - [WhatsApp gratis: feedback accionable](2026-08-19-whatsapp-gratis-feedback-accionable.md)
