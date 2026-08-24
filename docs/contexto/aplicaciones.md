@@ -25,7 +25,7 @@
 - `frontend/app/globals.css`: entrypoint de estilos.
 - `frontend/app/styles/`: partials CSS por superficie para no cargar toda la hoja global en cada cambio.
 - `frontend/lib/`: helpers del frontend cuando existan.
-- La `Agenda` semanal permite reprogramar reservas entre dias con drag and drop usando el mismo contrato `PATCH /reservations/:id/` del backend; si la validacion rechaza el nuevo dia, el frontend revierte el movimiento y muestra el error.
+- La `Agenda` semanal permite reprogramar reservas entre dias con drag and drop usando el mismo contrato `PATCH /reservations/:id/` del backend; si la validacion rechaza el nuevo dia, el frontend revierte el movimiento y muestra el error. El alta manual tambien admite fechas pasadas para reconstruir la agenda; conserva las validaciones de cupo y de egreso posterior al ingreso.
 
 ## Tests visibles
 
