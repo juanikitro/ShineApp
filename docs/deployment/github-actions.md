@@ -1,6 +1,6 @@
 # GitHub Actions CI/CD
 
-ShineApp usa GitHub Actions como el unico camino automatizado aprobado para demo-production. Los pull requests a `main` corren sin secretos. Los merges a `main` corren migraciones contra Supabase y deployan ambos proyectos Vercel.
+ShineApp usa GitHub Actions como el unico camino automatizado aprobado para demo-production. Los pull requests a `main` y `development` corren sin secretos. Los merges a `main` corren migraciones contra Supabase y deployan ambos proyectos Vercel.
 
 Este workflow sigue siendo un camino demo-production. Antes de datos reales de clientes, crear proyectos Vercel separados para staging y produccion, proyectos Supabase, buckets Storage, entornos Sentry y entornos GitHub; no reutilizar `demo-production` como entorno real de produccion.
 
@@ -10,7 +10,7 @@ Workflow: `.github/workflows/validate.yml`.
 
 Triggers:
 
-- `pull_request` hacia `main`
+- `pull_request` hacia `main` y `development`
 - `merge_group`
 - `push` a `main` y `development`
 
@@ -25,8 +25,9 @@ Jobs:
 - `backend`: instala dependencias Python 3.12, corre `manage.py check`, `makemigrations --check --dry-run` y tests backend con `pytest --cov`.
 - `frontend`: instala dependencias Node 22 con `npm ci`, corre `npm run test:coverage`, `npm run build` y `npm audit --omit=dev`.
 - `dependency-audit`: instala `pip-audit==2.10.0` y audita `backend/requirements.txt`.
+- `docs`: en pushes a `main` o `development`, valida el drift con `scripts/check_docs.py --check` y ejecuta `mkdocs build --strict`. Se saltea en pull requests porque los archivos generados se regeneran despues del merge.
 - `codeql`: corre CodeQL v4 para Python y JavaScript/TypeScript.
-- `ci-required`: resume los jobs requeridos y provee el unico status check requerido.
+- `ci-required`: resume backend, frontend, dependency-audit y docs; provee el unico status check requerido y acepta que docs se saltee en pull requests.
 
 Los jobs de PR no reciben secretos de Vercel, Supabase, storage, SMTP ni produccion Django.
 
@@ -107,6 +108,10 @@ Proteger `main` con:
 - Requerir resolucion de conversaciones antes de mergear.
 - No permitir bypass de la configuracion anterior.
 - Bloquear force pushes y borrado de ramas.
+
+El mismo gate `Validate / ci-required` debe proteger `development`: los cambios
+entran por pull request, requieren conversaciones resueltas y no admiten push
+directo, force-push ni borrado de la rama.
 
 Si merge queue esta habilitado, mantener el trigger `merge_group` en `validate.yml`; si no, los merges en cola pueden fallar porque nunca se reportan los checks requeridos.
 
