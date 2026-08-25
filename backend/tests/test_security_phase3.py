@@ -91,6 +91,8 @@ def test_is_cash_day_closed_is_business_scoped():
 
     business_a = create_business("Caja A", "caja-a")
     business_b = create_business("Caja B", "caja-b")
+    business_b.profile.use_cash_closures = True
+    business_b.profile.save(update_fields=["use_cash_closures"])
     day = timezone.localdate()
     CashClosure.objects.create(
         business=business_b,

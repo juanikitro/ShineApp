@@ -36,6 +36,7 @@ function renderCashPanel(overrides = {}) {
 			netFlow: 0,
 		},
 		cashIsClosed: false,
+		cashClosuresEnabled: true,
 		cashQuickFilter: 'all',
 		cashSortKey: 'occurred_desc',
 		cashSourceKindLabel: (_kind: unknown, fallback = '') => String(fallback),
@@ -96,6 +97,18 @@ test('CashPanel renders monthly range copy without day-only close actions', () =
 	assert.ok(screen.getByRole('button', { name: 'Este mes' }))
 	assert.ok(screen.getByText('Movimientos del mes'))
 	assert.equal(screen.queryByRole('button', { name: 'Cerrar dia' }), null)
+})
+
+test('CashPanel hides closure controls in continuous cash mode', () => {
+	renderCashPanel({ cashClosuresEnabled: false })
+
+	assert.equal(screen.queryByText('Abierta'), null)
+	assert.equal(screen.queryByRole('button', { name: 'Cerrar dia' }), null)
+	assert.equal(screen.queryByRole('button', { name: 'Reabrir caja' }), null)
+	assert.equal(
+		screen.queryByRole('button', { name: 'Registrar ajuste hoy' }),
+		null,
+	)
 })
 
 test('CashPanel shows movement day in period lists', () => {

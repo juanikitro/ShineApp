@@ -8,6 +8,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from catalog.models import Service
+from core.models import BusinessProfile
 from customers.models import Customer, Vehicle
 from finance.models import CashClosure, CashMovement
 from inventory.models import Material, MaterialPurchase, StockMovement, Supplier
@@ -262,6 +263,9 @@ def test_stock_movement_update_and_delete_recalculate_stock_and_cash(api_client)
 
 @pytest.mark.django_db
 def test_closed_cash_day_blocks_stock_movements_that_impact_cash(api_client, base_data):
+    profile = BusinessProfile.get_solo()
+    profile.use_cash_closures = True
+    profile.save(update_fields=["use_cash_closures"])
     customer, _vehicle, _service = base_data
     closed_day = date(2026, 5, 9)
     CashClosure.objects.create(

@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 
 from debts.models import Debt, DebtPayment
 from debts.serializers import DebtPaymentSerializer, DebtSerializer
+from core.models import BusinessProfile
 from finance.models import CashClosure, CashMovement
 
 
@@ -158,6 +159,9 @@ def test_debt_update_syncs_origin_movement_and_blocks_total_below_paid(api_clien
 
 @pytest.mark.django_db
 def test_debt_destroy_contracts_for_payments_cash_closure_and_origin_movement(api_client):
+    profile = BusinessProfile.get_solo()
+    profile.use_cash_closures = True
+    profile.save(update_fields=["use_cash_closures"])
     with_payment = api_client.post(
         reverse("debt-list"),
         {
@@ -264,6 +268,9 @@ def test_debt_serializers_reject_blank_categories_non_positive_amounts_and_overp
 
 @pytest.mark.django_db
 def test_debt_payment_destroy_respects_closed_cash_day(api_client):
+    profile = BusinessProfile.get_solo()
+    profile.use_cash_closures = True
+    profile.save(update_fields=["use_cash_closures"])
     create = api_client.post(
         reverse("debt-list"),
         {

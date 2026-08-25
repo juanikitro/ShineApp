@@ -3,7 +3,12 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { test, vi } from 'vitest'
 
-import { AgendaSettingsPanel, NewsSettingsPanel, WhatsappSettingsPanel } from './SettingsWorkspace'
+import {
+	AgendaSettingsPanel,
+	CashSettingsPanel,
+	NewsSettingsPanel,
+	WhatsappSettingsPanel,
+} from './SettingsWorkspace'
 
 test('NewsSettingsPanel renders the panel heading and kicker', () => {
 	render(<NewsSettingsPanel />)
@@ -108,5 +113,33 @@ test('AgendaSettingsPanel patches automatic charge preference', async () => {
 
 	assert.deepEqual(onPatchBusinessForm.mock.calls.at(-1)?.[0], {
 		reservation_auto_charge_on_delivery: true,
+	})
+})
+
+test('CashSettingsPanel patches the continuous cash preference', async () => {
+	const user = userEvent.setup()
+	const onPatchBusinessForm = vi.fn()
+
+	render(
+		<CashSettingsPanel
+			businessForm={{ use_cash_closures: false }}
+			cashClassificationPairs={[]}
+			incomeCategoryTree={{}}
+			expenseCategoryTree={{}}
+			onAddSubcategory={() => {}}
+			onDeleteCashCategory={() => {}}
+			onDeleteExpenseClassification={() => {}}
+			onEditCashCategory={() => {}}
+			onEditExpenseClassification={() => {}}
+			onOpenCashCategoryForm={() => {}}
+			onPatchBusinessForm={onPatchBusinessForm}
+			onSaveBusinessProfile={() => {}}
+		/>,
+	)
+
+	await user.click(screen.getByRole('checkbox', { name: 'Usar cierres diarios de caja' }))
+
+	assert.deepEqual(onPatchBusinessForm.mock.calls.at(-1)?.[0], {
+		use_cash_closures: true,
 	})
 })
