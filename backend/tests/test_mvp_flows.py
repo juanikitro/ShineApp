@@ -1717,6 +1717,9 @@ def test_delete_canceled_reservation_with_payment_open_cash_succeeds(api_client,
 
 @pytest.mark.django_db
 def test_delete_canceled_reservation_with_payment_closed_cash_returns_400(api_client, base_data):
+    profile = BusinessProfile.get_solo()
+    profile.use_cash_closures = True
+    profile.save(update_fields=["use_cash_closures"])
     customer, vehicle, service = base_data
     order = create_work_order(
         customer=customer,

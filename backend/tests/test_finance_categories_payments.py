@@ -236,6 +236,9 @@ def test_cash_movements_from_other_modules_get_default_categories(api_client, wo
 
 @pytest.mark.django_db
 def test_manual_adjustment_uses_adjustment_category_and_subcategory(api_client):
+    profile = BusinessProfile.get_solo()
+    profile.use_cash_closures = True
+    profile.save(update_fields=["use_cash_closures"])
     closed_day = "2026-04-27"
     api_client.post(reverse("cash-close"), {"date": closed_day}, format="json")
 
