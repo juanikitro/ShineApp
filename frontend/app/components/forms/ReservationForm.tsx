@@ -33,7 +33,6 @@ import {
 	scheduleAvailabilityForDay,
 	selectedSectorsFromItems,
 	timeToMinutes,
-	todayIsoDate,
 } from '@/lib/scheduling-availability'
 
 const RESERVATION_STATUS_LABELS: Record<string, string> = {
@@ -116,7 +115,6 @@ export function ReservationForm({
 	submitting = false,
 	fieldErrors,
 }: ReservationFormProps) {
-	const today = todayIsoDate()
 	const selectedDay =
 		typeof reservationForm.day === 'string' ? reservationForm.day : ''
 	const isGroup = Boolean(reservationForm.is_group)
@@ -236,8 +234,7 @@ export function ReservationForm({
 		}
 		return issues.length ? issues.join(' ') : null
 	}, [availability, sectors, selectedSectors])
-	const isPastDay = Boolean(selectedDay && selectedDay < today)
-	const blockSubmit = !isGroup && (Boolean(capacityWarning) || isPastDay)
+	const blockSubmit = !isGroup && Boolean(capacityWarning)
 
 	function setMode(nextMode: 'individual' | 'group') {
 		if (nextMode === 'group') {
@@ -455,7 +452,6 @@ export function ReservationForm({
 						data-focus-key="reservation.day"
 						name="reservation_day"
 						type="date"
-						min={today}
 						value={reservationForm.day}
 						onChange={(event) => {
 							setReservationForm({
@@ -472,7 +468,7 @@ export function ReservationForm({
 						data-focus-key="reservation.exit_day"
 						name="reservation_exit_day"
 						type="date"
-						min={reservationForm.day || today}
+						min={reservationForm.day || undefined}
 						value={reservationForm.exit_day}
 						onChange={(event) => {
 							setReservationForm({
@@ -494,13 +490,7 @@ export function ReservationForm({
 					/>
 				</Field>
 			</div> : null}
-			{!isGroup && isPastDay ? (
-				<div className="info-note info-note--warning">
-					La fecha elegida ya paso. Selecciona una fecha igual o posterior a
-					hoy.
-				</div>
-			) : null}
-			{!isGroup && availability && !isPastDay ? (
+			{!isGroup && availability ? (
 				<div
 					className={`info-note${capacityWarning ? ' info-note--warning' : ''}`}
 				>
