@@ -13,12 +13,21 @@ La deuda original sigue creando un `CashMovement` de tipo `expense`. Los pagos d
 
 ## Cierre
 
-El cierre diario es simple y bloqueante:
+El cierre diario es optativo por negocio. Por defecto, cada negocio opera en
+`Caja continua`: no necesita abrir ni cerrar caja, no se generan cierres
+automaticos y los cierres historicos no bloquean operaciones.
+
+Cuando el negocio activa `Usar cierres diarios de caja`, el cierre es simple y
+bloqueante:
 
 - `/api/cash/close/` guarda snapshot de resultado economico y caja real.
 - Un dia cerrado no puede cerrarse por segunda vez.
 - Pagos, movimientos manuales, deudas, pagos de deuda y compras de materiales no pueden impactar dias cerrados.
 - Las correcciones posteriores se registran como `Ajuste de cierre` en el dia actual, referenciando el dia cerrado corregido.
+
+Los `CashClosure` existentes se conservan como historial de auditoria. En caja
+continua se ignoran; al reactivar el cierre diario recuperan su efecto sin
+modificar pagos ni movimientos.
 
 ## Auditoria visible
 

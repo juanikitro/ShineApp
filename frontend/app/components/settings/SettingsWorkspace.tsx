@@ -283,9 +283,12 @@ export function SettingsWorkspace({
 				) : null}
 				{settingsSection === 'cash' ? (
 					<CashSettingsPanel
+						businessForm={businessForm}
 						cashClassificationPairs={cashClassificationPairs}
 						incomeCategoryTree={incomeCategoryTree}
 						expenseCategoryTree={expenseCategoryTree}
+						onPatchBusinessForm={onPatchBusinessForm}
+						onSaveBusinessProfile={onSaveBusinessProfile}
 						onDeleteExpenseClassification={onDeleteExpenseClassification}
 						onEditExpenseClassification={onEditExpenseClassification}
 						onAddSubcategory={onAddSubcategory}
@@ -1199,10 +1202,13 @@ function WhatsappTemplateRow({
 	)
 }
 
-function CashSettingsPanel({
+export function CashSettingsPanel({
+	businessForm,
 	cashClassificationPairs,
 	incomeCategoryTree,
 	expenseCategoryTree,
+	onPatchBusinessForm,
+	onSaveBusinessProfile,
 	onDeleteExpenseClassification,
 	onEditExpenseClassification,
 	onAddSubcategory,
@@ -1210,9 +1216,12 @@ function CashSettingsPanel({
 	onEditCashCategory,
 	onDeleteCashCategory,
 }: {
+	businessForm: AnyRecord
 	cashClassificationPairs: CashClassificationPair[]
 	incomeCategoryTree: Record<string, string[]>
 	expenseCategoryTree: Record<string, string[]>
+	onPatchBusinessForm: (patch: AnyRecord) => void
+	onSaveBusinessProfile: (event: FormEvent) => void
 	onDeleteExpenseClassification: (
 		movementType: string,
 		category: string,
@@ -1260,6 +1269,13 @@ function CashSettingsPanel({
 				<div className="settings-action-rail">
 					<div className="settings-primary-actions">
 						<Button
+							type="submit"
+							variant="ghost"
+							form="settings-cash-policy-form"
+						>
+							Guardar configuracion
+						</Button>
+						<Button
 							variant="primary"
 							onClick={() => onOpenCashCategoryForm(activeType)}
 						>
@@ -1269,6 +1285,24 @@ function CashSettingsPanel({
 					</div>
 				</div>
 			</div>
+			<form
+				className="section-block-end"
+				id="settings-cash-policy-form"
+				onSubmit={onSaveBusinessProfile}
+			>
+				<Toggle
+					checked={businessForm.use_cash_closures === true}
+					name="use_cash_closures"
+					onChange={(checked) =>
+						onPatchBusinessForm({ use_cash_closures: checked })
+					}
+				>
+					Usar cierres diarios de caja
+				</Toggle>
+				<p className="field-hint">
+					Desactivado permite registrar movimientos sin abrir ni cerrar la caja.
+				</p>
+			</form>
 			<section className="settings-operational-metrics section-block-end">
 				<MetricCard
 					label="Categorias de ingreso"

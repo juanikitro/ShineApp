@@ -250,7 +250,8 @@ def test_delivery_auto_charge_blocks_delivery_when_cash_day_is_closed(api_client
     customer, vehicle, service = base_data
     profile = BusinessProfile.get_solo()
     profile.reservation_auto_charge_on_delivery = True
-    profile.save(update_fields=["reservation_auto_charge_on_delivery"])
+    profile.use_cash_closures = True
+    profile.save(update_fields=["reservation_auto_charge_on_delivery", "use_cash_closures"])
     reservation = Reservation.objects.create(
         customer=customer,
         vehicle=vehicle,

@@ -39,3 +39,5 @@ py -3 scripts/check_docs.py --write --skip-build
 - [Agenda: tarjetas de reserva compactas](2026-07-30-agenda-reservas-compactas-design.md)
 - [Dedupe de recargas de datos del cliente](2026-08-10-client-request-dedupe-design.md)
 - [GitHub Project y automatizacion diaria con Codex](2026-08-18-github-project-codex-automation-design.md)
+- [Caja continua configurable por negocio](2026-08-25-caja-continua-design.md)
+- [Plan de implementacion: caja continua](2026-08-25-caja-continua-implementation-plan.md)

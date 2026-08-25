@@ -37,6 +37,7 @@ test('businessProfilePayload preserves settings serialization and normalizations
 			reservation_use_ready: false,
 			reservation_use_canceled: false,
 			reservation_auto_charge_on_delivery: true,
+			use_cash_closures: true,
 			public_landing_enabled: false,
 			public_landing_intro: 'Bienvenidos',
 			allow_public_booking_requests: false,
@@ -79,6 +80,7 @@ test('businessProfilePayload preserves settings serialization and normalizations
 		reservation_use_ready: 'false',
 		reservation_use_canceled: 'false',
 		reservation_auto_charge_on_delivery: 'true',
+		use_cash_closures: 'true',
 		public_landing_enabled: 'false',
 		public_landing_intro: 'Bienvenidos',
 		allow_public_booking_requests: 'false',
@@ -116,6 +118,7 @@ test('businessProfilePayload preserves defaults and skips unavailable logo files
 	assert.equal(payload.get('use_reservation_times'), 'true')
 	assert.equal(payload.get('enforce_capacity_limit'), 'true')
 	assert.equal(payload.get('allow_overlapping_reservations'), 'false')
+	assert.equal(payload.get('use_cash_closures'), 'false')
 	assert.equal(payload.get('public_hidden_service_ids'), '[]')
 	assert.equal(payload.get('onboarding_dismissed_step_ids'), '[]')
 	assert.equal(payload.get('opening_time'), '')

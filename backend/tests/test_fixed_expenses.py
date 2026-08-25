@@ -4,6 +4,7 @@ from decimal import Decimal
 import pytest
 from django.urls import reverse
 
+from core.models import BusinessProfile
 from finance.models import CashClosure, CashMovement
 from fixed_expenses.materialization import (
     advance_date,
@@ -125,6 +126,9 @@ def test_manual_plan_materializes_pending_without_movement(default_business):
 
 @pytest.mark.django_db
 def test_closed_day_auto_pay_posts_adjustment_to_open_day(default_business):
+    profile = BusinessProfile.get_solo(business=default_business)
+    profile.use_cash_closures = True
+    profile.save(update_fields=["use_cash_closures"])
     CashClosure.objects.create(
         business=default_business,
         day=date(2025, 3, 1),
@@ -320,6 +324,9 @@ def test_occurrence_delete_soft_deletes_linked_movement(default_business):
 
 @pytest.mark.django_db
 def test_closed_day_adjustment_counts_in_settlement_period(api_client, default_business):
+    profile = BusinessProfile.get_solo(business=default_business)
+    profile.use_cash_closures = True
+    profile.save(update_fields=["use_cash_closures"])
     CashClosure.objects.create(
         business=default_business,
         day=date(2025, 3, 1),
@@ -368,6 +375,9 @@ def test_unpay_reverts_occurrence_and_deletes_movement(api_client, default_busin
 
 @pytest.mark.django_db
 def test_unpay_blocked_when_cash_day_closed(api_client, default_business):
+    profile = BusinessProfile.get_solo(business=default_business)
+    profile.use_cash_closures = True
+    profile.save(update_fields=["use_cash_closures"])
     plan = make_plan(default_business, start_date=date(2025, 1, 10), max_cycles=1, auto_pay=True)
     materialize_due(business=default_business, today=date(2025, 1, 10))
     occurrence = plan.occurrences.get()

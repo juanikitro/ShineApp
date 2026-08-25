@@ -374,6 +374,7 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             "opening_time",
             "closing_time",
             "use_reservation_times",
+            "use_cash_closures",
             "show_stay_days_in_agenda",
             "allow_overlapping_reservations",
             "enforce_capacity_limit",

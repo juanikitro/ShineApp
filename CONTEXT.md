@@ -31,3 +31,13 @@ Ultimo dia acordado para que el vehiculo permanezca en el negocio. Coincide con 
 ## Reserva vencida
 
 Reserva cuya fecha limite operativa ya paso y que todavia no fue entregada o no esta totalmente cobrada. Deja de estar vencida solo cuando ambas condiciones se cumplen; las reservas canceladas no participan.
+
+## Caja
+
+**Caja continua**:
+Modo de caja por negocio que no crea cierres diarios ni bloquea operaciones por cierres historicos.
+_Avoid_: Caja abierta
+
+**Cierre diario de caja**:
+Modo optativo por negocio que conserva snapshots diarios, bloqueos sobre dias cerrados y ajustes compensatorios.
+_Avoid_: Caja manual

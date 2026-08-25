@@ -338,6 +338,7 @@ class BusinessProfile(models.Model):
     opening_time = models.TimeField(null=True, blank=True)
     closing_time = models.TimeField(null=True, blank=True)
     use_reservation_times = models.BooleanField(default=True)
+    use_cash_closures = models.BooleanField(default=False)
     show_stay_days_in_agenda = models.BooleanField(default=True)
     allow_overlapping_reservations = models.BooleanField(default=False)
     enforce_capacity_limit = models.BooleanField(default=True)
