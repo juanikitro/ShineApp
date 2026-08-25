@@ -2437,6 +2437,9 @@ def test_finished_open_unit_cannot_receive_more_consumption(api_client, base_dat
 
 @pytest.mark.django_db
 def test_cash_daily_auto_closes_previous_days(api_client):
+    profile = BusinessProfile.get_solo()
+    profile.use_cash_closures = True
+    profile.save(update_fields=["use_cash_closures"])
     previous_day = date(2026, 4, 27)
     current_day = date(2026, 4, 28)
     CashMovement.objects.create(
@@ -2459,6 +2462,46 @@ def test_cash_daily_auto_closes_previous_days(api_client):
     assert closure.total_income == Decimal("10000.00")
     assert closure.total_expense == Decimal("2500.00")
     assert closure.balance == Decimal("7500.00")
+
+
+@pytest.mark.django_db
+def test_cash_continuous_ignores_historical_closures_and_skips_auto_closure(api_client):
+    closed_day = date(2026, 4, 27)
+    previous_day = date(2026, 4, 28)
+    current_day = date(2026, 4, 29)
+    CashClosure.objects.create(
+        day=closed_day,
+        total_income=Decimal("1000.00"),
+        total_expense=Decimal("0.00"),
+        balance=Decimal("1000.00"),
+    )
+    CashMovement.objects.create(
+        movement_type=CashMovement.MovementType.INCOME,
+        category="Pago",
+        amount=Decimal("500.00"),
+        occurred_at=timezone.make_aware(datetime.combine(previous_day, time(10, 0))),
+    )
+
+    daily = api_client.get(reverse("cash-daily"), {"date": closed_day.isoformat()})
+    movement = api_client.post(
+        reverse("cashmovement-list"),
+        {
+            "movement_type": "expense",
+            "category": "Egreso manual",
+            "amount": "100.00",
+            "occurred_at": timezone.make_aware(
+                datetime.combine(closed_day, time(12, 0))
+            ).isoformat(),
+        },
+        format="json",
+    )
+    api_client.get(reverse("cash-daily"), {"date": current_day.isoformat()})
+
+    assert daily.status_code == 200
+    assert daily.data["is_closed"] is False
+    assert daily.data["closure"] is None
+    assert movement.status_code == 201, movement.data
+    assert not CashClosure.objects.filter(day=previous_day).exists()
 
 
 @pytest.mark.django_db
@@ -2717,6 +2760,9 @@ def test_cash_daily_for_future_day_keeps_today_open(api_client):
 
 @pytest.mark.django_db
 def test_closed_cash_day_blocks_every_cash_impact_path(api_client, base_data):
+    profile = BusinessProfile.get_solo()
+    profile.use_cash_closures = True
+    profile.save(update_fields=["use_cash_closures"])
     customer, vehicle, service = base_data
     closed_day = date(2026, 5, 8)
     CashClosure.objects.create(
@@ -2806,6 +2852,9 @@ def test_closed_cash_day_blocks_every_cash_impact_path(api_client, base_data):
 
 @pytest.mark.django_db
 def test_cash_adjustment_references_closed_day_without_changing_its_closure(api_client):
+    profile = BusinessProfile.get_solo()
+    profile.use_cash_closures = True
+    profile.save(update_fields=["use_cash_closures"])
     closed_day = date(2026, 5, 8)
     adjustment_day = date(2026, 5, 9)
     CashClosure.objects.create(

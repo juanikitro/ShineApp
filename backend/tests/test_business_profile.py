@@ -20,6 +20,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         assert initial.data["subscription_type"] == "trial"
         assert initial.data["subscription_type_label"] == "Prueba"
         assert initial.data["use_reservation_times"] is True
+        assert initial.data["use_cash_closures"] is False
         assert initial.data["show_stay_days_in_agenda"] is True
         assert initial.data["allow_overlapping_reservations"] is False
         assert initial.data["reservation_auto_charge_on_delivery"] is False
@@ -61,6 +62,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
                 "contact_phone": "11 5555-2222",
                 "contact_email": "contacto@brillototal.com",
                 "use_reservation_times": False,
+                "use_cash_closures": True,
                 "show_stay_days_in_agenda": False,
                 "reservation_auto_charge_on_delivery": True,
                 "address": "Parana 158",
@@ -89,6 +91,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         assert response.data["contact_phone"] == "11 5555-2222"
         assert response.data["contact_email"] == "contacto@brillototal.com"
         assert response.data["use_reservation_times"] is False
+        assert response.data["use_cash_closures"] is True
         assert response.data["show_stay_days_in_agenda"] is False
         assert response.data["reservation_auto_charge_on_delivery"] is True
         assert response.data["address"] == "Parana 158"
@@ -107,6 +110,7 @@ def test_employer_can_get_and_update_business_profile(api_client, tmp_path):
         assert profile.cuit == "20304050607"
         assert profile.business_type == BusinessProfile.BusinessType.DETAILING
         assert profile.use_reservation_times is False
+        assert profile.use_cash_closures is True
         assert profile.show_stay_days_in_agenda is False
         assert profile.reservation_auto_charge_on_delivery is True
         assert profile.address == "Parana 158"

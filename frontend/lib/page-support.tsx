@@ -233,6 +233,7 @@ function blankBusinessForm() {
 		default_quote_terms: '',
 		default_quote_payment_instructions: '',
 		use_reservation_times: true,
+		use_cash_closures: false,
 		show_stay_days_in_agenda: true,
 		allow_overlapping_reservations: false,
 		enforce_capacity_limit: true,

@@ -23,11 +23,19 @@ def cash_day(value):
     return None
 
 
+def cash_closures_enabled(business=None):
+    from core.models import BusinessProfile
+
+    return BusinessProfile.get_solo(business=business).use_cash_closures
+
+
 def is_cash_day_closed(day, business=None):
+    if not day or not cash_closures_enabled(business):
+        return False
     queryset = CashClosure.objects.filter(day=day)
     if business is not None:
         queryset = queryset.filter(business=business)
-    return bool(day and queryset.exists())
+    return queryset.exists()
 
 
 def ensure_cash_day_open(day, field="date", business=None):

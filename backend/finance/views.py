@@ -17,7 +17,14 @@ from core.permissions import CanViewEconomy, business_for_user, business_from_re
 from tasks.onboarding import schedule_onboarding_sync
 from debts.models import DebtPayment
 
-from .cash import cash_day, decimal_total, ensure_cash_day_open, signed_amount_for, totals_payload
+from .cash import (
+    cash_closures_enabled,
+    cash_day,
+    decimal_total,
+    ensure_cash_day_open,
+    signed_amount_for,
+    totals_payload,
+)
 from .models import CashClosure, CashMovement, Payment
 from .serializers import CashClosureSerializer, CashMovementSerializer, PaymentSerializer
 
@@ -197,6 +204,8 @@ def sync_cash_closure_for_day(day, user=None, notes="Cierre automatico", busines
 
 
 def sync_past_cash_closures(reference_day=None, user=None, business=None):
+    if not cash_closures_enabled(business):
+        return
     today = date.today()
     if reference_day is None:
         reference_day = today
@@ -269,6 +278,7 @@ class CashDailyView(APIView):
     def get(self, request):
         day = date.fromisoformat(request.query_params.get("date")) if request.query_params.get("date") else date.today()
         business = business_from_request(request)
+        use_cash_closures = cash_closures_enabled(business)
         sync_past_cash_closures(reference_day=day, user=request.user if request.user.is_authenticated else None, business=business)
         economic_totals = economic_totals_for_day(day, business)
         cashflow_totals = cashflow_totals_for_day(day, business)
@@ -280,7 +290,11 @@ class CashDailyView(APIView):
             business=business,
             occurred_at__date=day
         )
-        closure = CashClosure.objects.filter(business=business, day=day).first()
+        closure = (
+            CashClosure.objects.filter(business=business, day=day).first()
+            if use_cash_closures
+            else None
+        )
         income_category_tree = income_category_tree_for_profile(business)
         return response.Response(
             {

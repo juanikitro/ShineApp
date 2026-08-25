@@ -1429,6 +1429,7 @@ export default function Home() {
 					),
 					use_reservation_times:
 						profile.use_reservation_times !== false,
+					use_cash_closures: profile.use_cash_closures === true,
 					show_stay_days_in_agenda:
 						profile.show_stay_days_in_agenda !== false,
 					allow_overlapping_reservations:
@@ -9273,6 +9274,7 @@ export default function Home() {
 						cashflowTotals={cashflowTotals}
 						cashFlowSummary={cashFlowSummary}
 						cashIsClosed={cashIsClosed}
+						cashClosuresEnabled={businessProfile?.use_cash_closures === true}
 						cashQuickFilter={cashQuickFilter}
 						cashSortKey={cashSortKey}
 						cashSourceKindLabel={cashSourceKindLabel}

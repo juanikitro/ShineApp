@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework import serializers
 
-from core.models import AuditLog, BusinessAccount, UserProfile
+from core.models import AuditLog, BusinessAccount, BusinessProfile, UserProfile
 from core.permissions import (
     ActiveBusinessUser,
     business_for_user,
@@ -167,6 +167,9 @@ def test_file_url_falls_back_when_request_host_is_disallowed():
 
 @pytest.mark.django_db
 def test_cash_helpers_cover_dates_adjustments_context_and_signed_amounts(default_business, django_user_model):
+    profile = BusinessProfile.get_solo(business=default_business)
+    profile.use_cash_closures = True
+    profile.save(update_fields=["use_cash_closures"])
     aware_datetime = timezone.make_aware(timezone.datetime(2026, 5, 19, 12, 0))
     naive_datetime = timezone.datetime(2026, 5, 19, 12, 0)
     target_day = timezone.datetime(2026, 5, 20).date()

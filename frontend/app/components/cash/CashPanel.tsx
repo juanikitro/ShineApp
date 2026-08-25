@@ -109,6 +109,7 @@ type CashPanelProps = {
 	cashFiltersActive: boolean
 	cashFilterSubcategoryOptions: SelectOption[]
 	cashFlowSummary: CashFlowSummary
+	cashClosuresEnabled: boolean
 	cashIsClosed: boolean
 	cashQuickFilter: CashQuickFilter
 	cashSortKey: CashSortKey
@@ -213,6 +214,7 @@ export function CashPanel({
 	cashFilterSubcategoryOptions,
 	cashflowTotals,
 	cashFlowSummary,
+	cashClosuresEnabled,
 	cashIsClosed,
 	cashQuickFilter,
 	cashSortKey,
@@ -446,7 +448,7 @@ export function CashPanel({
 							</Button>
 						</div>
 					</Field>
-					{isDayMode ? (
+					{isDayMode && cashClosuresEnabled ? (
 						<span
 							className={`cash-status ${cashStatusClass}`}
 							role="status"
@@ -465,13 +467,13 @@ export function CashPanel({
 						</Button>
 						<Button
 							variant="primary"
-							disabled={isDayMode && cashIsClosed}
+							disabled={cashClosuresEnabled && isDayMode && cashIsClosed}
 							onClick={onCreateMovement}
 						>
 							<Plus size={16} />
 							Cargar movimiento
 						</Button>
-						{isDayMode ? (
+						{isDayMode && cashClosuresEnabled ? (
 							<>
 								<Button
 									variant="ghost"
@@ -533,7 +535,7 @@ export function CashPanel({
 										pagos de deuda, compras, movimientos manuales y ajustes.
 										Resultado del dia cuenta ingresos y gastos sin duplicar pagos de
 										deudas.
-										{cashClosure
+										{cashClosuresEnabled && cashClosure
 											? ` Cierre guardado: flujo de caja ${money(cashClosure.cashflow_balance ?? cashClosure.balance)}.`
 											: ''}
 									</>}

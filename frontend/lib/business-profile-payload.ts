@@ -59,6 +59,10 @@ export function businessProfilePayload(
 		String(currentBusinessForm.use_reservation_times !== false),
 	)
 	payload.append(
+		'use_cash_closures',
+		String(currentBusinessForm.use_cash_closures === true),
+	)
+	payload.append(
 		'show_stay_days_in_agenda',
 		String(currentBusinessForm.show_stay_days_in_agenda !== false),
 	)
