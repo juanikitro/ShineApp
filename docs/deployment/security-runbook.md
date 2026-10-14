@@ -54,7 +54,7 @@ nombrando la variable (eso es lo esperado: fail-secure).
 
 ## 3. Endurecer Supabase
 
-- **Storage**: el bucket `shineapp-media` debe ser **privado** (con
+- **Storage**: el bucket `<SUPABASE_STORAGE_BUCKET>` debe ser **privado** (con
   `SUPABASE_STORAGE_QUERYSTRING_AUTH=1` las URLs van firmadas). Verificar que una
   URL de media vieja sin firma ya **no** sea accesible.
 - **Database**: activar *Enforce SSL*; si el plan lo permite, restringir el

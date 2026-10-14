@@ -5,19 +5,19 @@ Los deploys manuales o promociones todavia requieren confirmacion humana. El cam
 ## Proyecto Web
 
 - Nombre del proyecto: `shineapp-web`
-- Project id: `prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ`
+- Project id: `<VERCEL_WEB_PROJECT_ID>`
 - Root Directory: `frontend`
 - Framework preset: Next.js
 - Install command: default o `npm install`
 - Build command: `npm run build`
 - Output: default de Vercel para Next.js
 - Env vars:
-  - `NEXT_PUBLIC_API_URL=https://shineapp-api.vercel.app/api` para la demo publica
+  - `NEXT_PUBLIC_API_URL=https://<API_HOST>/api` para la demo publica
 
 ## Proyecto API
 
 - Nombre del proyecto: `shineapp-api`
-- Project id: `prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC`
+- Project id: `<VERCEL_API_PROJECT_ID>`
 - Root Directory en Git Integration: sin configurar. El workflow aprobado usa
   `--cwd backend` para el deploy productivo.
 - Runtime: Python, fijado con `backend/.python-version` a `3.12`
@@ -40,15 +40,15 @@ Los deploys manuales o promociones todavia requieren confirmacion humana. El cam
 Healthcheck despues del deploy:
 
 ```text
-https://shineapp-api.vercel.app/api/health/
+https://<API_HOST>/api/health/
 ```
 
 Es publico y verifica que Django pueda abrir una conexion a la base de datos.
 
 Aliases publicos actuales de produccion:
 
-- API: `https://shineapp-api.vercel.app`
-- Web: `https://shineapp-web.vercel.app`
+- API: `https://<API_HOST>`
+- Web: `https://<WEB_HOST>`
 
 Las env vars de produccion estan configuradas en Vercel para la demo publica. Las env vars de preview todavia pueden necesitar configuracion acotada por branch desde el Dashboard si se vuelven a usar deploys preview.
 
@@ -58,13 +58,13 @@ Env vars backend requeridas:
 - `DJANGO_SECRET_KEY`
 - `DATABASE_URL`
 - `DATABASE_SSL_REQUIRE=1`
-- `DJANGO_ALLOWED_HOSTS=shineapp-api.vercel.app`
-- `CORS_ALLOWED_ORIGINS=https://shineapp-web.vercel.app`
+- `DJANGO_ALLOWED_HOSTS=<API_HOST>`
+- `CORS_ALLOWED_ORIGINS=https://<WEB_HOST>`
 - `CORS_ALLOWED_ORIGIN_REGEXES` (`^https://.*\.vercel\.app$` solo para preview)
-- `CSRF_TRUSTED_ORIGINS=https://shineapp-web.vercel.app`
+- `CSRF_TRUSTED_ORIGINS=https://<WEB_HOST>`
 - `SUPABASE_STORAGE_ENABLED=1`
-- `SUPABASE_STORAGE_BUCKET=shineapp-media`
-- `SUPABASE_S3_ENDPOINT_URL=https://cdzqcpwbsfyeeigecqwr.storage.supabase.co/storage/v1/s3`
+- `SUPABASE_STORAGE_BUCKET=<SUPABASE_STORAGE_BUCKET>`
+- `SUPABASE_S3_ENDPOINT_URL=https://<SUPABASE_PROJECT_REF>.storage.supabase.co/storage/v1/s3`
 - `SUPABASE_S3_REGION_NAME=sa-east-1`
 - `SUPABASE_S3_ACCESS_KEY_ID`
 - `SUPABASE_S3_SECRET_ACCESS_KEY`
@@ -76,7 +76,7 @@ Env vars backend requeridas:
 
 Env vars frontend requeridas:
 
-- `NEXT_PUBLIC_API_URL=https://shineapp-api.vercel.app/api`
+- `NEXT_PUBLIC_API_URL=https://<API_HOST>/api`
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (igual a `VAPID_PUBLIC_KEY` del backend)
 
 ## Paso Manual De Migracion
@@ -136,7 +136,7 @@ Orden de deploy:
 6. Deploy productivo del proyecto backend en Vercel.
 7. Pull de configuracion del proyecto frontend en Vercel.
 8. Deploy productivo del proyecto frontend en Vercel.
-9. Smoke test contra `https://shineapp-web.vercel.app` y `https://shineapp-api.vercel.app/api`.
+9. Smoke test contra `https://<WEB_HOST>` y `https://<API_HOST>/api`.
 
 No habilitar los deploys Git integrados de Vercel para `shineapp-api` al mismo
 tiempo que este workflow. La raiz del repositorio contiene `vercel.json` con
@@ -149,7 +149,7 @@ Las migraciones automaticas requieren migraciones Django compatibles hacia adela
 
 Validado el 2026-05-18:
 
-- `scripts/deploy/smoke-test.ps1 -WebBaseUrl https://shineapp-web.vercel.app -ApiBaseUrl https://shineapp-api.vercel.app/api`
+- `scripts/deploy/smoke-test.ps1 -WebBaseUrl https://<WEB_HOST> -ApiBaseUrl https://<API_HOST>/api`
 - Login en navegador desde web publica a API publica.
 - El bundle deployado de Next contiene la URL publica de API y no contiene localhost ni placeholder de API URL.
 - La pagina de login de Django admin y el CSS `/static/admin/...` retornan 200.

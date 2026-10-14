@@ -93,7 +93,7 @@ Corre jobs idempotentes:
 Forzar a mano (sin esperar al cron):
 
 ```bash
-curl -X POST -H "X-Cron-Token: <CRON_SECRET>" https://shineapp-api.vercel.app/api/internal/maintenance/
+curl -X POST -H "X-Cron-Token: <CRON_SECRET>" https://<API_HOST>/api/internal/maintenance/
 ```
 
 O via management commands desde una shell confiable (`config.settings_production`):
@@ -131,7 +131,7 @@ py -3 manage.py purge_trash --older-than 90 --apply    # borra de verdad
 1. Generar `CRON_SECRET` (aleatorio largo) y cargarlo en: Vercel API (env var) y
    GitHub repo secret `CRON_SECRET`.
 2. Opcional: variable de repo `SHINEAPP_API_BASE` si la API no es
-   `https://shineapp-api.vercel.app`.
+   `https://<API_HOST>`.
 3. Confirmar `SENTRY_DSN` en Vercel API para capturar excepciones.
 4. (Cuando haya SMTP real) setear `EMAIL_BACKEND`/`EMAIL_HOST*`; la outbox usa el
    backend configurado.
