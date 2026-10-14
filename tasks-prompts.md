@@ -70,7 +70,7 @@ Sos un asistente técnico trabajando en ShineApp, un MVP SaaS para car detailing
 CONTEXTO:
 - Repo: C:\Users\Juanito\Desktop\Repos-Codex\ShineApp
 - Lee AGENTS.md y docs/deployment/manual-steps.md §13 antes de actuar.
-- Hay dos proyectos Vercel: shineapp-api (prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC) y shineapp-web (prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ).
+- Hay dos proyectos Vercel: shineapp-api (<VERCEL_API_PROJECT_ID>) y shineapp-web (<VERCEL_WEB_PROJECT_ID>).
 - GitHub Actions (deploy-vercel-demo.yml) corre migraciones Django ANTES de deployar a Vercel.
 - Si Vercel tiene deploy Git automático activo, puede publicar código nuevo antes de que las migraciones corran → race condition.
 
@@ -109,7 +109,7 @@ TAREA:
 3. Abrí (o simulá la apertura de) un PR de development → main y confirmá que CI corre en verde.
 4. Una vez que Validate / ci-required pase, mergeá a main.
 5. Monitoreá que el workflow deploy-vercel-demo.yml corra exitosamente: migraciones y deploy de ambos proyectos Vercel.
-6. Verificá el healthcheck: GET https://shineapp-api.vercel.app/api/health/ debe retornar status=ok y database=ok.
+6. Verificá el healthcheck: GET https://<API_HOST>/api/health/ debe retornar status=ok y database=ok.
 7. Documentá el resultado en docs/deployment/demo-readiness.md (deployment IDs del deploy nuevo, fecha).
 
 Al terminar, actualiza "status": "completed" en la tarea 1.4 de tasks.json.
@@ -128,7 +128,7 @@ CONTEXTO:
 - Repo: C:\Users\Juanito\Desktop\Repos-Codex\ShineApp
 - Lee docs/deployment/demo-readiness.md antes de actuar.
 - Durante el primer deploy CLI se creó un proyecto Vercel llamado "backend" (distinto de shineapp-api).
-- Los proyectos legítimos son: shineapp-api (prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC) y shineapp-web (prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ) bajo el team juanikitros-projects (team_SU2ZYRqjIjG8JhFn2pc1NVxi).
+- Los proyectos legítimos son: shineapp-api (<VERCEL_API_PROJECT_ID>) y shineapp-web (<VERCEL_WEB_PROJECT_ID>) bajo el team <VERCEL_TEAM_SLUG> (<VERCEL_TEAM_ID>).
 
 TAREA:
 1. Guiame para identificar el proyecto "backend" accidental en Vercel Dashboard.
@@ -153,13 +153,13 @@ Sos un asistente técnico trabajando en ShineApp, un MVP SaaS para car detailing
 CONTEXTO:
 - Repo: C:\Users\Juanito\Desktop\Repos-Codex\ShineApp
 - Lee docs/deployment/manual-steps.md §9 y docs/deployment/demo-readiness.md §Storage antes de actuar.
-- URL frontend: https://shineapp-web.vercel.app
-- El bucket privado shineapp-media en Supabase Storage usa URLs S3 firmadas (no URLs públicas de objeto).
+- URL frontend: https://<WEB_HOST>
+- El bucket privado <SUPABASE_STORAGE_BUCKET> en Supabase Storage usa URLs S3 firmadas (no URLs públicas de objeto).
 - La tarea 1.4 (merge a main) debe estar completada. Verificá en tasks.json.
 
 TAREA:
 Guiame para validar el flujo de media privada. Los pasos son:
-1. Login en https://shineapp-web.vercel.app con credenciales demo.
+1. Login en https://<WEB_HOST> con credenciales demo.
 2. Ir a Configuración > Negocio y subir un logo de prueba.
 3. Recargar la página y confirmar que el logo sigue visible (prueba de URLs S3 firmadas).
 4. Crear o editar una cotización y descargar el PDF.
@@ -209,7 +209,7 @@ CONTEXTO:
 - Repo: C:\Users\Juanito\Desktop\Repos-Codex\ShineApp
 - Lee AGENTS.md, docs/deployment/demo-readiness.md §Smoke y scripts/deploy/smoke-test.ps1 antes de actuar.
 - Las tareas 1.4 y 2.3 deben estar completadas. Verificá en tasks.json.
-- URLs: frontend https://shineapp-web.vercel.app, API https://shineapp-api.vercel.app/api.
+- URLs: frontend https://<WEB_HOST>, API https://<API_HOST>/api.
 
 TAREA:
 1. Corrí scripts/deploy/smoke-test.ps1 con las URLs de demo y reportá el resultado.
@@ -394,7 +394,7 @@ CONTEXTO:
 
 TAREA:
 1. Revisá cómo está implementado el email en el proyecto (qué apps usan send_mail o similares).
-2. Al final de TrialSignupView.post(), después de crear el BusinessAccount y retornar el token, disparar un email de bienvenida al owner_email con: nombre del negocio, URL de acceso (https://shineapp-web.vercel.app), contacto de soporte.
+2. Al final de TrialSignupView.post(), después de crear el BusinessAccount y retornar el token, disparar un email de bienvenida al owner_email con: nombre del negocio, URL de acceso (https://<WEB_HOST>), contacto de soporte.
 3. El envío de email NO debe bloquear la respuesta del signup si falla (usar try/except o async).
 4. Agregar tests backend: happy path con email enviado, y que el signup retorna token aunque el email falle.
 5. Validar: cd backend && .\.venv\Scripts\python.exe -m pytest && manage.py check.
@@ -460,7 +460,7 @@ TAREA:
 No implementes código. Tu objetivo es ayudar a tomar la decisión:
 1. Presentame las dos opciones con sus implicaciones técnicas y operativas.
    - Opción A: Alta asistida por equipo interno (el equipo crea el negocio desde Django admin o desde un panel interno).
-   - Opción B: Link privado para el prospecto (el trial signup público queda activo, se comparte un link directo a https://shineapp-web.vercel.app con modo trial).
+   - Opción B: Link privado para el prospecto (el trial signup público queda activo, se comparte un link directo a https://<WEB_HOST> con modo trial).
 2. Para cada opción, describir: quién ejecuta el alta, qué pasa si el prospecto "se equivoca", cómo escala, riesgo de spam/abuso.
 3. Recomendá cuál es más adecuada para el estado actual del producto (MVP en Fase 1).
 4. Una vez que el usuario tome la decisión, documentarla en docs/registro/decisiones/2026-05-22-alta-demo-asistida-vs-link.md.

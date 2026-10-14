@@ -82,7 +82,7 @@ Produccion real ademas requiere `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, tasas de thr
 9. Instalar `vercel@54.2.0`.
 10. Hacer pull de configuracion del proyecto backend en Vercel y deployar `shineapp-api` a produccion.
 11. Hacer pull de configuracion del proyecto frontend en Vercel y deployar `shineapp-web` a produccion.
-12. Smoke test de `https://shineapp-web.vercel.app` y `https://shineapp-api.vercel.app/api`.
+12. Smoke test de `https://<WEB_HOST>` y `https://<API_HOST>/api`.
 
 Si fallan las migraciones, el deploy Vercel no corre. Si falla el deploy backend, el deploy frontend no corre. Si fallan los smoke tests, el workflow falla despues del deploy y el despliegue debe triagearse antes de otro cambio productivo.
 
@@ -131,5 +131,5 @@ build step desde el dashboard de Vercel y verificarlo alli antes de mergear.
 
 Aliases demo-production aprobados:
 
-- Web: `https://shineapp-web.vercel.app`
-- API: `https://shineapp-api.vercel.app/api`
+- Web: `https://<WEB_HOST>`
+- API: `https://<API_HOST>/api`

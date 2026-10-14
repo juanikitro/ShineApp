@@ -39,7 +39,7 @@ URLs:
 Usuario demo:
 
 - Usuario: `admin`
-- Clave: `admin123`
+- Clave: la clave de desarrollo local que crea `python manage.py seed_demo`. Para definir una propia, correr el seed con `SEED_DEMO_ADMIN_PASSWORD` o `--admin-password`. Nunca reutilizar credenciales demo fuera de local.
 
 ## Desarrollo local sin Docker
 
