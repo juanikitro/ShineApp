@@ -31,7 +31,7 @@
     "emoji-picker-react": "^4.19.1",
     "lucide-react": "^0.468.0",
     "motion": "^12.38.0",
-    "next": "^15.5.21",
+    "next": "^15.5.27",
     "pdfjs-dist": "6.2.108",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
@@ -39,7 +39,7 @@
   "overrides": {
     "nanoid": "3.3.18",
     "postcss": "^8.5.18",
-    "sharp": "0.35.3"
+    "sharp": "0.35.5"
   },
   "devDependencies": {
     "@emnapi/core": "1.11.1",
@@ -54,11 +54,11 @@
     "@vitejs/plugin-react": "^6.0.2",
     "@vitest/coverage-v8": "^4.1.6",
     "eslint": "^9.17.0",
-    "eslint-config-next": "^15.5.21",
+    "eslint-config-next": "^15.5.27",
     "eslint-config-prettier": "^9.1.0",
     "jsdom": "^29.1.1",
     "prettier": "^3.4.2",
-    "sharp": "0.35.3",
+    "sharp": "0.35.5",
     "typescript": "^5.7.2",
     "vitest": "^4.1.6"
   }

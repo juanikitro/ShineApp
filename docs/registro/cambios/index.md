@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [Dependencias: correcciones de seguridad para los audits de CI](2026-10-14-drf-security-audit.md)
 - [GitHub Project y gate CI para development](2026-08-24-github-project-ci-development.md)
 - [Contencion de la Data API de Supabase](2026-08-21-contencion-data-api-supabase.md)
 - [Detalle generico: jerarquia escaneable](2026-08-20-detalle-generico-jerarquia.md)

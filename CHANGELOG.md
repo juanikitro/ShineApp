@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-10-14
+- [Dependencias: correcciones de seguridad para los audits de CI](docs/registro/cambios/2026-10-14-drf-security-audit.md)
+
 ## 2026-08-24
 - [GitHub Project y gate CI para development](docs/registro/cambios/2026-08-24-github-project-ci-development.md)
 
