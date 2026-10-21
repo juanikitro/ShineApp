@@ -12,11 +12,11 @@
 
 Proyecto demo actual:
 
-- Nombre: `shineapp-demo`
-- Project ref: `cdzqcpwbsfyeeigecqwr`
+- Nombre: `<SUPABASE_PROJECT_NAME>`
+- Project ref: `<SUPABASE_PROJECT_REF>`
 - Region: `sa-east-1`
-- API URL: `https://cdzqcpwbsfyeeigecqwr.supabase.co`
-- DB host: `db.cdzqcpwbsfyeeigecqwr.supabase.co`
+- API URL: `https://<SUPABASE_PROJECT_REF>.supabase.co`
+- DB host: `db.<SUPABASE_PROJECT_REF>.supabase.co`
 
 El MCP no expone el password de base de datos ni la URL pooler completa. Para la demo publica, `DATABASE_URL` se copio manualmente desde la pantalla Connect del Supabase Dashboard y se guardo en el proyecto Vercel API mas el entorno GitHub `demo-production` para migraciones automatizadas.
 
@@ -30,7 +30,7 @@ $env:DJANGO_SETTINGS_MODULE="config.settings_production"
 
 ## Storage
 
-1. Crear un bucket, por ejemplo `shineapp-media`.
+1. Crear un bucket, por ejemplo `<SUPABASE_STORAGE_BUCKET>`.
 2. Decidir modo de acceso:
    - Bucket publico para una demo de baja friccion.
    - Bucket privado con URLs firmadas si los archivos subidos son sensibles.
@@ -38,7 +38,7 @@ $env:DJANGO_SETTINGS_MODULE="config.settings_production"
 4. Crear access key y secret para uso server-side solamente.
 5. Configurar:
    - `SUPABASE_STORAGE_ENABLED=1`
-   - `SUPABASE_STORAGE_BUCKET=shineapp-media`
+   - `SUPABASE_STORAGE_BUCKET=<SUPABASE_STORAGE_BUCKET>`
    - `SUPABASE_S3_ENDPOINT_URL=https://<project-ref>.storage.supabase.co/storage/v1/s3`
    - `SUPABASE_S3_REGION_NAME=<region>`
    - `SUPABASE_S3_ACCESS_KEY_ID=<key-id>`
@@ -48,13 +48,13 @@ No exponer access keys S3 en Next.js.
 
 Storage demo actual:
 
-- Bucket: `shineapp-media`
+- Bucket: `<SUPABASE_STORAGE_BUCKET>`
 - Acceso: privado
 - Setting backend recomendado: `SUPABASE_STORAGE_QUERYSTRING_AUTH=1`
-- Endpoint: `https://cdzqcpwbsfyeeigecqwr.storage.supabase.co/storage/v1/s3`
+- Endpoint: `https://<SUPABASE_PROJECT_REF>.storage.supabase.co/storage/v1/s3`
 - Base URL publica: dejar sin setear mientras el bucket sea privado.
 - Validacion el 2026-05-18: Django `migrate --check` contra el transaction pooler termino limpio.
-- Validacion el 2026-05-18: S3 `head_bucket` retorno OK para `shineapp-media`.
+- Validacion el 2026-05-18: S3 `head_bucket` retorno OK para `<SUPABASE_STORAGE_BUCKET>`.
 - Validacion el 2026-05-18: healthcheck publico de API retorno `database=ok`.
 
 Las access keys S3 no son expuestas por el MCP. Crearlas manualmente en Supabase Dashboard y guardarlas solo en env vars del backend en Vercel.

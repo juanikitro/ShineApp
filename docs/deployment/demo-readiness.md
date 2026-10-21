@@ -4,27 +4,27 @@ Estado: lista para una demo publica comercial con limites. Supabase, Vercel web,
 
 ## Recursos
 
-- Proyecto frontend Vercel: `shineapp-web` (`prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ`), vinculado localmente
-- Proyecto backend Vercel: `shineapp-api` (`prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC`), vinculado localmente
-- Team Vercel: `juanikitros-projects` (`team_SU2ZYRqjIjG8JhFn2pc1NVxi`)
-- Proyecto Supabase: `shineapp-demo` (`cdzqcpwbsfyeeigecqwr`)
+- Proyecto frontend Vercel: `shineapp-web` (`<VERCEL_WEB_PROJECT_ID>`), vinculado localmente
+- Proyecto backend Vercel: `shineapp-api` (`<VERCEL_API_PROJECT_ID>`), vinculado localmente
+- Team Vercel: `<VERCEL_TEAM_SLUG>` (`<VERCEL_TEAM_ID>`)
+- Proyecto Supabase: `<SUPABASE_PROJECT_NAME>` (`<SUPABASE_PROJECT_REF>`)
 - Region Supabase: `sa-east-1`
-- URL Supabase: `https://cdzqcpwbsfyeeigecqwr.supabase.co`
-- Bucket Storage: `shineapp-media`, privado
+- URL Supabase: `https://<SUPABASE_PROJECT_REF>.supabase.co`
+- Bucket Storage: `<SUPABASE_STORAGE_BUCKET>`, privado
 
 ## URLs
 
-- URL productiva frontend: `https://shineapp-web.vercel.app`
-- URL productiva backend: `https://shineapp-api.vercel.app`
-- Healthcheck backend: `https://shineapp-api.vercel.app/api/health/`
-- Ultimo deployment frontend inspeccionado: `dpl_3HtxEZCLGEh8B7gPxWTKTfULuJUK`
-- Ultimo deployment backend inspeccionado: `dpl_4DqrsccG8GP6WqPDGtAUsd7ZW7BY`
+- URL productiva frontend: `https://<WEB_HOST>`
+- URL productiva backend: `https://<API_HOST>`
+- Healthcheck backend: `https://<API_HOST>/api/health/`
+- Ultimo deployment frontend inspeccionado: `<VERCEL_DEPLOYMENT_ID>`
+- Ultimo deployment backend inspeccionado: `<VERCEL_DEPLOYMENT_ID>`
 
 ## Estado Actual
 
 - DB: `GET /api/health/` retorna `status=ok` y `database=ok` contra Supabase.
 - Migraciones: aplicadas a la base demo Supabase el 2026-05-18.
-- Storage/media: el bucket privado `shineapp-media` existe y S3 `head_bucket` retorno OK. Los flujos UI de upload todavia necesitan una prueba manual demo antes de vender flujos con mucha media.
+- Storage/media: el bucket privado `<SUPABASE_STORAGE_BUCKET>` existe y S3 `head_bucket` retorno OK. Los flujos UI de upload todavia necesitan una prueba manual demo antes de vender flujos con mucha media.
 - Env vars Vercel: las env vars productivas estan configuradas para ambos proyectos. Las env vars preview pueden necesitar configuracion acotada por branch desde el Dashboard si se vuelven a usar deploys preview.
 - Seed demo: aplicado contra Supabase el 2026-05-18. Los usuarios demo de app `admin` y `empleado` estan listos. Esta corrida no creo un superadmin de Django admin.
 - Estaticos: los assets estaticos Next retornan 200; la pagina Django admin retorna 200; CSS de Django admin bajo `/static/admin/...` retorna 200.
@@ -58,7 +58,7 @@ Estado: lista para una demo publica comercial con limites. Supabase, Vercel web,
 
 Correr esto antes de un walkthrough comercial despues de deployar cambios de signup, rotar credenciales demo o cambiar auth/env vars.
 
-1. Abrir `https://shineapp-web.vercel.app`.
+1. Abrir `https://<WEB_HOST>`.
 2. Elegir `Solicitar prueba`.
 3. Crear un negocio trial descartable con datos no cliente:
    - business: `Demo Trial <date>`
@@ -71,7 +71,7 @@ Correr esto antes de un walkthrough comercial despues de deployar cambios de sig
 5. Confirmar contexto tenant backend con el token devuelto/guardado:
 
    ```powershell
-   $ApiRoot = "https://shineapp-api.vercel.app/api"
+   $ApiRoot = "https://<API_HOST>/api"
    $Token = "<trial-owner-token>"
    Invoke-RestMethod "$ApiRoot/auth/me/" -Headers @{ Authorization = "Token $Token" }
    ```
@@ -122,7 +122,7 @@ Correr esto antes de un walkthrough comercial despues de deployar cambios de sig
 
 ## Antes De Mostrar A Clientes
 
-- Usar `https://shineapp-web.vercel.app` como URL demo publica.
+- Usar `https://<WEB_HOST>` como URL demo publica.
 - Verificar `/api/health/` antes de una demo en vivo si la API fue redeployada.
 - Correr `scripts/deploy/smoke-test.ps1` si cambia alguna env var de Vercel.
 - Correr el Smoke End-To-End Del Dia De Demo anterior despues de cualquier cambio de auth, signup o rol/permiso.

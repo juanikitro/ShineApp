@@ -1,6 +1,6 @@
 # Fases 0 a Beta 1D - guia de verificacion en demo-production
 
-Artifact vivo para probar en `https://shineapp-web.vercel.app` todo lo publicado
+Artifact vivo para probar en `https://<WEB_HOST>` todo lo publicado
 desde Fase 0 hasta Beta 1D.
 
 ## Estado de publicacion
@@ -28,8 +28,8 @@ desde Fase 0 hasta Beta 1D.
 
 ## URLs
 
-- Web: `https://shineapp-web.vercel.app`
-- API health: `https://shineapp-api.vercel.app/api/health/`
+- Web: `https://<WEB_HOST>`
+- API health: `https://<API_HOST>/api/health/`
 - QA artifact: `docs/deployment/fase-2b-production-qa.md`
 
 ## Preparacion
@@ -45,9 +45,9 @@ desde Fase 0 hasta Beta 1D.
 
 ## Smoke base de produccion
 
-1. Abrir `https://shineapp-web.vercel.app`.
+1. Abrir `https://<WEB_HOST>`.
 2. Confirmar que la web retorna 200 y muestra pantalla de login.
-3. Abrir `https://shineapp-api.vercel.app/api/health/`.
+3. Abrir `https://<API_HOST>/api/health/`.
 4. Confirmar `status=ok` y `database=ok`.
 5. Iniciar sesion.
 6. Confirmar que Dashboard, Agenda, Servicios, Cotizaciones, Caja y
@@ -70,11 +70,11 @@ Evidencia sugerida:
 Objetivo a verificar: confirmar que el release de Beta 1A quedo desplegado y
 que el signup publico esta visible antes de crear cuentas de prueba.
 
-1. Abrir `https://shineapp-web.vercel.app`.
+1. Abrir `https://<WEB_HOST>`.
 2. Confirmar que el login muestra `Probar gratis 14 dias`.
 3. Hacer click en `Probar gratis 14 dias`.
 4. Confirmar que el formulario muestra `Prueba gratuita por 14 dias`.
-5. Abrir `https://shineapp-api.vercel.app/api/health/`.
+5. Abrir `https://<API_HOST>/api/health/`.
 6. Confirmar `status=ok` y `database=ok`.
 7. Confirmar que la respuesta de health incluye un header `X-Request-Id`.
 8. Opcional sin datos reales: abrir `/api/health/?deep=1` y confirmar que
@@ -117,10 +117,10 @@ Estado de GitHub/Vercel:
 
 Smoke publico:
 
-- Web publica `https://shineapp-web.vercel.app`: HTTP 200.
-- API health `https://shineapp-api.vercel.app/api/health/`: HTTP 200,
+- Web publica `https://<WEB_HOST>`: HTTP 200.
+- API health `https://<API_HOST>/api/health/`: HTTP 200,
   `status=ok`, `checks.app=ok`, `checks.database=ok`.
-- API deep health `https://shineapp-api.vercel.app/api/health/?deep=1`:
+- API deep health `https://<API_HOST>/api/health/?deep=1`:
   HTTP 200, `status=ok`, `checks.database=ok`, `checks.storage=ok`.
 - API maintenance sin secret:
   `POST /api/internal/maintenance/` devuelve HTTP 403 esperado.
@@ -431,7 +431,7 @@ Resultado esperado:
 Objetivo a verificar: cualquier negocio puede pedir una prueba gratuita de 14
 dias desde el login, sin invitacion previa ni tarjeta.
 
-1. Abrir `https://shineapp-web.vercel.app`.
+1. Abrir `https://<WEB_HOST>`.
 2. Hacer click en `Probar gratis 14 dias`.
 3. Confirmar que el formulario muestra `Prueba gratuita por 14 dias`.
 4. Cargar un negocio de prueba controlado:
