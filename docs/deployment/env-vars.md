@@ -56,14 +56,14 @@ No commitear valores reales. Usar `.env.example` solo como forma.
 - `WHATSAPP_META_APP_SECRET`: App Secret de la app de Meta. Valida la firma `X-Hub-Signature-256` del webhook de status de Meta. Vacio por default (webhook deshabilitado: responde 403).
 - `WHATSAPP_META_WEBHOOK_VERIFY_TOKEN`: token propio (cadena aleatoria) para el handshake de verificacion (`GET`) del webhook de Meta; debe coincidir con el configurado en la app de Meta. Vacio por default (verificacion deshabilitada).
 - `WHATSAPP_STATUS_CALLBACK_URL`: URL publica opcional para que Twilio notifique estados de mensajes al webhook de WhatsApp. Vacio por default. Solo aplica al provider Twilio (fallback).
-- `FRONTEND_BASE_URL`: base publica del frontend usada en los links de emails (reset, bienvenida, avisos). Reemplaza el dominio hardcodeado. Default `https://shineapp-web.vercel.app`.
+- `FRONTEND_BASE_URL`: base publica del frontend usada en los links de emails (reset, bienvenida, avisos). Reemplaza el dominio hardcodeado. Default `https://<WEB_HOST>`.
 - `CRON_SECRET`: secret compartido para autenticar el endpoint interno `POST /api/internal/maintenance/`, que dispara el workflow `maintenance.yml` (header `X-Cron-Token`). Vacio = endpoint deshabilitado (responde 503). En produccion, generar un valor aleatorio largo y cargarlo tanto en Vercel API como en los secrets de GitHub. Comparacion en tiempo constante.
 - `TRASH_RETENTION_DAYS`: dias que un registro soft-deleted debe tener antes de ser elegible para purga. Default `90`.
 - `MAINTENANCE_PURGE_ENABLED`: `1` para que el mantenimiento purgue la papelera de verdad; `0` (default) hace que solo reporte cuanto seria elegible (dry-run seguro).
 
 ## Variables Publicas Frontend
 
-- `NEXT_PUBLIC_API_URL`: raiz de API, incluyendo `/api`, por ejemplo `https://shineapp-api.vercel.app/api`.
+- `NEXT_PUBLIC_API_URL`: raiz de API, incluyendo `/api`, por ejemplo `https://<API_HOST>/api`.
 - `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN`: flag opcional local/demo. Usar `1` solo cuando el login pueda prellenar un usuario demo. Dejar sin setear en produccion real.
 - `NEXT_PUBLIC_SHINEAPP_DEMO_USERNAME`: usuario demo opcional para prellenar cuando `NEXT_PUBLIC_SHINEAPP_DEMO_LOGIN=1`. Nunca poner un password en env vars publicas de frontend.
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`: clave publica VAPID expuesta al navegador. Debe coincidir exactamente con `VAPID_PUBLIC_KEY` del backend. Si esta vacia, ni el dashboard del negocio ni la turnera publica registran suscripciones push.

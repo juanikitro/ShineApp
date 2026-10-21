@@ -4,10 +4,10 @@
 
 - Dos proyectos Vercel desde un monorepo.
 - URLs publicas:
-  - Web: `https://shineapp-web.vercel.app`
-  - API: `https://shineapp-api.vercel.app`
-- Proyecto Supabase `shineapp-demo` en `sa-east-1`.
-- Supabase Postgres y bucket privado de Storage `shineapp-media`.
+  - Web: `https://<WEB_HOST>`
+  - API: `https://<API_HOST>`
+- Proyecto Supabase `<SUPABASE_PROJECT_NAME>` en `sa-east-1`.
+- Supabase Postgres y bucket privado de Storage `<SUPABASE_STORAGE_BUCKET>`.
 - Migraciones demo automatizadas mediante el environment GitHub Actions `demo-production`.
 - Sin workers en background.
 - Sin media en filesystem.

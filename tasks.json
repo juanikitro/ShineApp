@@ -58,7 +58,7 @@
       "depends_on": ["1.1", "1.2", "1.3"],
       "manual": false,
       "source": "AGENTS.md §Git",
-      "acceptance": "merge exitoso, deploy-vercel-demo.yml corre migraciones y deploya shineapp-api y shineapp-web; healthcheck https://shineapp-api.vercel.app/api/health/ retorna status=ok y database=ok."
+      "acceptance": "merge exitoso, deploy-vercel-demo.yml corre migraciones y deploya shineapp-api y shineapp-web; healthcheck https://<API_HOST>/api/health/ retorna status=ok y database=ok."
     },
     {
       "id": "2.1",
@@ -72,14 +72,14 @@
       "depends_on": [],
       "manual": true,
       "source": "docs/deployment/manual-steps.md §7.3, docs/deployment/demo-readiness.md",
-      "acceptance": "La lista de proyectos Vercel del team juanikitros-projects muestra solo shineapp-api y shineapp-web."
+      "acceptance": "La lista de proyectos Vercel del team <VERCEL_TEAM_SLUG> muestra solo shineapp-api y shineapp-web."
     },
     {
       "id": "2.2",
       "block": 2,
       "block_name": "Infra demo",
       "title": "Validar flujo de media privada end-to-end",
-      "description": "Subir un logo/avatar/documento desde la UI pública (https://shineapp-web.vercel.app), confirmar que el archivo persiste después de recargar la página y que el PDF de cotización generado renderiza el logo del negocio. El bucket privado shineapp-media usa URLs S3 firmadas.",
+      "description": "Subir un logo/avatar/documento desde la UI pública (https://<WEB_HOST>), confirmar que el archivo persiste después de recargar la página y que el PDF de cotización generado renderiza el logo del negocio. El bucket privado <SUPABASE_STORAGE_BUCKET> usa URLs S3 firmadas.",
       "status": "pending",
       "priority": "high",
       "blocking": [],

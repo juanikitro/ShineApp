@@ -4,7 +4,7 @@ La demo publica esta deployada. Estos pasos manuales quedan pendientes antes de 
 
 ## 1. Crear Proyecto Supabase
 
-- Que: crear un proyecto demo dedicado. Hecho: `shineapp-demo` / `cdzqcpwbsfyeeigecqwr`.
+- Que: crear un proyecto demo dedicado. Hecho: `<SUPABASE_PROJECT_NAME>` / `<SUPABASE_PROJECT_REF>`.
 - Donde: Supabase Dashboard.
 - Por que: datos demo/prod no deben usar SQLite local ni Docker Postgres.
 - Valor a copiar: project ref, region, connection string de base de datos.
@@ -16,11 +16,11 @@ La demo publica esta deployada. Estos pasos manuales quedan pendientes antes de 
 - Donde: Supabase Dashboard, seccion Connect.
 - Por que: configuracion productiva Django requiere `DATABASE_URL`.
 - Valor a copiar: connection string del pooler, preferentemente transaction pooler para Vercel.
-- Validar: `https://shineapp-api.vercel.app/api/health/` retorna `database=ok`.
+- Validar: `https://<API_HOST>/api/health/` retorna `database=ok`.
 
 ## 3. Crear Bucket Storage
 
-- Que: crear `shineapp-media`. Hecho como bucket privado.
+- Que: crear `<SUPABASE_STORAGE_BUCKET>`. Hecho como bucket privado.
 - Donde: Supabase Storage.
 - Por que: logos, avatares y documentos subidos deben persistir fuera del filesystem de Vercel.
 - Valor a copiar: nombre del bucket.
@@ -37,19 +37,19 @@ La demo publica esta deployada. Estos pasos manuales quedan pendientes antes de 
 
 ## 5. Configurar Proyecto Web Vercel
 
-- Que: crear `shineapp-web`. Hecho: `prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ`.
+- Que: crear `shineapp-web`. Hecho: `<VERCEL_WEB_PROJECT_ID>`.
 - Donde: Vercel Dashboard.
 - Por que: deployar Next.js separado de la API Django.
-- Valor a setear: Root Directory `frontend`, `NEXT_PUBLIC_API_URL=https://shineapp-api.vercel.app/api`.
-- Validar: `https://shineapp-web.vercel.app` retorna 200 y el bundle deployado contiene `shineapp-api.vercel.app/api`, no localhost ni placeholders.
+- Valor a setear: Root Directory `frontend`, `NEXT_PUBLIC_API_URL=https://<API_HOST>/api`.
+- Validar: `https://<WEB_HOST>` retorna 200 y el bundle deployado contiene `<API_HOST>/api`, no localhost ni placeholders.
 
 ## 6. Configurar Proyecto API Vercel
 
-- Que: crear `shineapp-api`. Hecho: `prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC`.
+- Que: crear `shineapp-api`. Hecho: `<VERCEL_API_PROJECT_ID>`.
 - Donde: Vercel Dashboard.
 - Por que: correr Django API como app Python serverless para demo.
 - Valor a setear: Root Directory `backend`, `DJANGO_SETTINGS_MODULE=config.settings_production`, database, CORS/CSRF, Supabase Storage, env vars de email.
-- Validar: la configuracion del proyecto Vercel muestra root `backend`; `https://shineapp-api.vercel.app/api/health/` retorna `status=ok`; ningun secreto es visible en archivos del repo.
+- Validar: la configuracion del proyecto Vercel muestra root `backend`; `https://<API_HOST>/api/health/` retorna `status=ok`; ningun secreto es visible en archivos del repo.
 
 ## 7. Confirmar Dominios Finales
 
@@ -57,10 +57,10 @@ La demo publica esta deployada. Estos pasos manuales quedan pendientes antes de 
 - Donde: dominios de proyecto en Vercel.
 - Por que: allowlists de host y CORS/CSRF del navegador dependen de origenes exactos.
 - Valores a setear:
-  - `DJANGO_ALLOWED_HOSTS=shineapp-api.vercel.app`
-  - `CORS_ALLOWED_ORIGINS=https://shineapp-web.vercel.app`
-  - `CSRF_TRUSTED_ORIGINS=https://shineapp-web.vercel.app`
-  - `NEXT_PUBLIC_API_URL=https://shineapp-api.vercel.app/api`
+  - `DJANGO_ALLOWED_HOSTS=<API_HOST>`
+  - `CORS_ALLOWED_ORIGINS=https://<WEB_HOST>`
+  - `CSRF_TRUSTED_ORIGINS=https://<WEB_HOST>`
+  - `NEXT_PUBLIC_API_URL=https://<API_HOST>/api`
 - Validar: no queda ningun valor localhost en env vars productivas de Vercel.
 
 ## 7.1 Configurar Env Vars Preview De Vercel Si Se Necesitan Preview Deploys
@@ -76,8 +76,8 @@ La demo publica esta deployada. Estos pasos manuales quedan pendientes antes de 
 - Que: los aliases demo publicos ya estan asignados.
 - Donde: Vercel Dashboard, proyectos `shineapp-api` y `shineapp-web`.
 - Por que: clientes necesitan una URL sin autenticacion previa.
-- Valor a copiar: frontend `https://shineapp-web.vercel.app`; API `https://shineapp-api.vercel.app`.
-- Validar: `scripts/deploy/smoke-test.ps1 -WebBaseUrl https://shineapp-web.vercel.app -ApiBaseUrl https://shineapp-api.vercel.app/api` retorna OK desde un request normal no autenticado.
+- Valor a copiar: frontend `https://<WEB_HOST>`; API `https://<API_HOST>`.
+- Validar: `scripts/deploy/smoke-test.ps1 -WebBaseUrl https://<WEB_HOST> -ApiBaseUrl https://<API_HOST>/api` retorna OK desde un request normal no autenticado.
 - Riesgo si se cambia mal: el login frontend puede romperse si `NEXT_PUBLIC_API_URL`, CORS o CSRF dejan de coincidir.
 
 ## 7.3 Limpiar Proyecto Vercel Accidental
@@ -124,7 +124,7 @@ La demo publica esta deployada. Estos pasos manuales quedan pendientes antes de 
 ## 9. Validar Media Privada
 
 - Que: subir un logo/avatar/documento despues del deploy publico.
-- Donde: UI de ShineApp contra `https://shineapp-web.vercel.app`.
+- Donde: UI de ShineApp contra `https://<WEB_HOST>`.
 - Por que: el bucket privado Supabase usa URLs S3 firmadas, no URLs publicas de objeto.
 - Valor a copiar: ninguno.
 - Validar: el archivo subido persiste despues de recargar y el PDF de cotizacion generado puede renderizar el logo del negocio.
@@ -146,9 +146,9 @@ La demo publica esta deployada. Estos pasos manuales quedan pendientes antes de 
 - Por que: GitHub Actions necesita credenciales Vercel CLI, los dos project ids de Vercel y un set acotado de credenciales DB para migracion.
 - Secretos de repositorio a setear:
   - `VERCEL_TOKEN`
-  - `VERCEL_ORG_ID=team_SU2ZYRqjIjG8JhFn2pc1NVxi`
-  - `VERCEL_FRONTEND_PROJECT_ID=prj_D7voyLTWsQ6QsD7zik1rWNGnbZZJ`
-  - `VERCEL_BACKEND_PROJECT_ID=prj_WwudUOmi4PBhPMpyeSgGaHlOB7pC`
+  - `VERCEL_ORG_ID=<VERCEL_TEAM_ID>`
+  - `VERCEL_FRONTEND_PROJECT_ID=<VERCEL_WEB_PROJECT_ID>`
+  - `VERCEL_BACKEND_PROJECT_ID=<VERCEL_API_PROJECT_ID>`
 - Secretos de entorno a setear en `demo-production`:
   - `DATABASE_URL`
   - `DJANGO_MIGRATION_SECRET_KEY`
@@ -202,7 +202,7 @@ No agregar el `DJANGO_SECRET_KEY` real, claves Supabase S3 ni secretos SMTP a Gi
 - Donde: review del PR y `backend/*/migrations/`.
 - Por que: el deploy de GitHub Actions corre `migrate --plan` y `migrate --noinput` automaticamente antes del deploy productivo de Vercel.
 - Valor a copiar: ninguno.
-- Validar: el paso de migracion del workflow termina exitosamente y luego `https://shineapp-api.vercel.app/api/health/` retorna `database=ok`.
+- Validar: el paso de migracion del workflow termina exitosamente y luego `https://<API_HOST>/api/health/` retorna `database=ok`.
 - Riesgo si se omite: migraciones destructivas, renombres, backfills grandes o cambios non-null inseguros pueden romper la demo publica automaticamente.
 
 Migraciones forward-compatible son aceptables para el camino de release demo automatizado. Migraciones destructivas necesitan un plan manual de rollout y no deben mergearse a `main` como deploy demo rutinario.
@@ -243,7 +243,7 @@ Migraciones forward-compatible son aceptables para el camino de release demo aut
   DROP INDEX CONCURRENTLY IF EXISTS <name>;
   ```
 
-- Validar: tras el migrate, `https://shineapp-api.vercel.app/api/health/` retorna
+- Validar: tras el migrate, `https://<API_HOST>/api/health/` retorna
   `database=ok`; y en la DB, `\d+ core_auditlog` (o el `pg_index` query de arriba sin
   el filtro `NOT indisvalid`) muestra los indices `audit_biz_*`, `stockmv_biz_*`,
   `debt_biz_*`, etc. como validos.

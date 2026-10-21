@@ -77,7 +77,7 @@ npm run build
 
 Resumen QA automatizado:
 
-- Login desktop: submit real con `admin/admin123`, redireccion a dashboard.
+- Login desktop: submit real con `admin (clave demo local)`, redireccion a dashboard.
 - Dashboard desktop: pagina no vacia, sin overlay.
 - Agenda desktop: deep-link `/?section=agenda`, pagina no vacia, sin overlay.
 - Clientes desktop: deep-link `/?section=customers`, busqueda `ana`, sin errores.
