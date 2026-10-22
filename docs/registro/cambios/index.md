@@ -9,6 +9,7 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [WhatsApp: rechazo de callbacks Twilio sin token](2026-10-22-whatsapp-twilio-firma-sin-token.md)
 - [WhatsApp gratis: cotizaciones y aperturas repetidas](2026-10-22-whatsapp-gratis-cotizaciones-y-aperturas.md)
 - [Next.js: parches de seguridad de optimizacion de imagenes y Server Actions](2026-10-22-next-security-updates.md)
 - [DRF: correcciones de parsing y revocacion de tokens](2026-10-22-drf-security-updates.md)
