@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-10-22
+- [Cotizaciones sin remontaje del tablero al actualizar](docs/registro/cambios/2026-10-22-cotizaciones-tablero-sin-remontaje.md)
+
 ## 2026-10-14
 - [Dependencias: correcciones de seguridad para los audits de CI](docs/registro/cambios/2026-10-14-drf-security-audit.md)
 
