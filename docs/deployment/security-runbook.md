@@ -59,7 +59,33 @@ nombrando la variable (eso es lo esperado: fail-secure).
   URL de media vieja sin firma ya **no** sea accesible.
 - **Database**: activar *Enforce SSL*; si el plan lo permite, restringir el
   ingress de la DB a las IP de egreso de Vercel.
-- Revisar políticas RLS si se usan tablas fuera de Django.
+- Todas las tablas internas de `public`, incluidas nuevas tablas Django,
+  requieren RLS y ausencia de grants efectivos Data API. Django conserva sus
+  propios permisos/scoping; no traducir usuarios Django a `auth.uid()`.
+- Antes y despues de migraciones autorizadas, ejecutar
+  `check_supabase_security --creator-role <creador-real>` segun
+  [el procedimiento Supabase](supabase.md#control-de-regresiones-de-metadatos-279).
+  Un fallo bloquea publicar. El comando solo lee metadatos: no corrige permisos
+  ni confirma el estado de Storage, schemas expuestos o credenciales.
+- Revisar views/functions y defaults globales/schema por separado. Un REVOKE
+  a `anon` no elimina acceso heredado de `PUBLIC` o de un rol padre.
+
+### Incidente #279 y credencial Meta #289
+
+La contencion de agosto de 2026 es evidencia historica; no confirma el estado
+actual. Usar la checklist de evidencia de `supabase.md` antes de cerrar el
+incidente: metadatos actuales, denegacion Data API sin filas reales, login y
+aislamiento sintetico de dos negocios, media privada sintetica y logs disponibles.
+Revocar/sustituir o eliminar la credencial Meta potencialmente expuesta requiere
+un operador con acceso a Meta (#289). No reactivar la API paga para comprobarlo;
+`wa.me` no necesita ese token. No rotar indiscriminadamente todas las claves
+como sustituto de clasificar su exposicion. Cambiar `DJANGO_SECRET_KEY` no
+invalida tokens DRF ni tokens de reset guardados en DB.
+
+Conservar la incertidumbre de investigacion: falta de logs no demuestra falta
+de acceso y no se debe afirmar exfiltracion sin evidencia. La decision sobre
+comunicaciones pertenece al responsable humano. No esperar backups/restores
+o staging de #304 (postergado) para contener una exposicion vigente.
 
 ## 4. (Opcional) Rate-limit de borde
 
