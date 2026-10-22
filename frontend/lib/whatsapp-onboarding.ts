@@ -1,4 +1,5 @@
 import { type AnyRecord } from '@/lib/page-support'
+import { FREE_EVENT_VARIABLES } from '@/lib/whatsapp-free'
 
 export type WhatsAppTemplateSeed = {
 	key: string
@@ -35,6 +36,10 @@ export type WhatsAppOnboardingReadiness = {
 	templatesReady: boolean
 	automationReady: boolean
 	historyReady: boolean
+	modeLabel: string
+	configIssues: string[]
+	templateIssues: string[]
+	ruleIssues: string[]
 }
 
 export const whatsappDemoPhoneDisplay = '+54 9 11 5555-0100'
@@ -47,14 +52,7 @@ export const whatsappDemoTemplates: WhatsAppTemplateSeed[] = [
 		category: 'utility',
 		body_preview:
 			'Hola {cliente}, {negocio} confirma tu turno para {servicios} el {fecha_turno} a las {hora_turno}.',
-		variables_schema: [
-			'negocio',
-			'cliente',
-			'fecha_turno',
-			'hora_turno',
-			'vehiculo',
-			'servicios',
-		],
+		variables_schema: ['negocio', 'cliente', 'fecha_turno', 'hora_turno', 'vehiculo', 'servicios'],
 		is_active: true,
 	},
 	{
@@ -182,6 +180,7 @@ export function buildWhatsAppDemoBootstrapPlan(input: {
 
 	return {
 		configPatch: {
+			mode: 'paid',
 			provider: 'fake',
 			is_enabled: true,
 			phone_number_display: phoneDisplay,
@@ -196,6 +195,80 @@ export function buildWhatsAppDemoBootstrapPlan(input: {
 	}
 }
 
+// Local checks only: the current API cannot verify credentials, approval or delivery.
+export function whatsAppConfigIssues(config: AnyRecord): string[] {
+	if (config.mode === 'free') return []
+	const issues: string[] = []
+	if (!truthyFlag(config.is_enabled)) issues.push('Habilita el canal para usar la API.')
+	if (config.provider === 'fake') return issues
+	if (!['meta', 'twilio'].includes(String(config.provider))) {
+		return [...issues, 'Selecciona un provider: fake, Meta o Twilio.']
+	}
+	const tokenPresent = hasText(config.access_token) || truthyFlag(config.has_access_token)
+	if (config.provider === 'meta') {
+		if (!hasText(config.phone_number_id) || !tokenPresent) {
+			issues.push(
+				'Completa Phone number ID y Token, o solicita al administrador verificar la configuracion global de Meta; esta pantalla no puede comprobarla.',
+			)
+		}
+	} else {
+		if (!hasText(config.business_account_id)) issues.push('Completa Account SID de Twilio.')
+		if (!hasText(config.phone_number_id)) issues.push('Completa Numero emisor de Twilio.')
+		if (!tokenPresent) issues.push('Carga Auth Token de Twilio; no se usa el token global de Meta.')
+	}
+	return issues
+}
+
+export function whatsAppTemplateIssues(template: AnyRecord, config: AnyRecord): string[] {
+	const issues: string[] = []
+	if (!hasText(template.provider_template_name)) issues.push('Completa el nombre del template.')
+	if (!hasText(template.language)) issues.push('Completa el idioma del template.')
+	const variables = Array.isArray(template.variables_schema)
+		? template.variables_schema
+		: String(template.variables_schema ?? '')
+				.split(',')
+				.map((value) => value.trim())
+				.filter(Boolean)
+	if (variables.some((variable) => typeof variable !== 'string')) {
+		issues.push('Las variables deben ser nombres de texto.')
+	}
+	// Paid API allows custom schemas and an empty audit preview. Do not narrow that contract.
+	if (config.mode !== 'free') return issues
+	if (!hasText(template.body_preview)) issues.push('Escribe el mensaje de texto libre.')
+	const allowed = (FREE_EVENT_VARIABLES[String(template.key)] ?? []).map((item) => item.name)
+	if (
+		variables.some((variable) => !allowed.includes(variable)) ||
+		new Set(variables).size !== variables.length
+	) {
+		issues.push('Usa variables disponibles para el evento, sin repetir nombres.')
+	}
+	const placeholders = [
+		...String(template.body_preview ?? '').matchAll(/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g),
+	].map((match) => match[1])
+	if (placeholders.some((variable) => !allowed.includes(variable))) {
+		issues.push('Reemplaza las variables desconocidas del mensaje por variables del evento.')
+	}
+	return issues
+}
+
+export function whatsAppRuleIssues(
+	rule: AnyRecord,
+	templates: AnyRecord[],
+	config: AnyRecord,
+): string[] {
+	if (config.mode === 'free') return [] // wa.me selects text by event, not rule.template.
+	const issues: string[] = []
+	const template = templates.find((item) => String(item.id) === String(rule.template))
+	if (!template || !isActiveTemplate(template) || String(template.key) !== String(rule.event)) {
+		issues.push('Asigna un template activo del mismo evento.')
+	} else if (whatsAppTemplateIssues(template, config).length) {
+		issues.push('Corrige el mensaje y las variables del template asignado.')
+	}
+	if (rule.event === 'quote_sent' && rule.dispatch !== 'manual')
+		issues.push('Las cotizaciones siempre deben tener despacho manual.')
+	return issues
+}
+
 export function buildWhatsAppOnboardingReadiness(input: {
 	config?: AnyRecord | null
 	templates?: AnyRecord[] | null
@@ -206,19 +279,31 @@ export function buildWhatsAppOnboardingReadiness(input: {
 	const templates = input.templates ?? []
 	const automationRules = input.automationRules ?? []
 	const messages = input.messages ?? []
-	const configReady =
-		truthyFlag(config.is_enabled) &&
-		hasText(config.provider) &&
-		hasText(config.phone_number_display)
-	const templatesReady = whatsappDemoTemplates.every((seed) =>
-		Boolean(templateForEvent(templates.filter(isActiveTemplate), seed.key)),
-	)
-	const automationReady = whatsappDemoTemplates.every((seed) => {
-		const rule = automationRules.find((item) => String(item.event ?? '') === seed.key)
-		return Boolean(rule && hasText(rule.template))
+	const isFreeMode = config.mode === 'free'
+	const configIssues = whatsAppConfigIssues(config)
+	const configReady = configIssues.length === 0
+	const templateIssues = whatsappDemoTemplates.flatMap((seed) => {
+		const template = templates.find((item) => item.key === seed.key && isActiveTemplate(item))
+		return template && !whatsAppTemplateIssues(template, config).length
+			? []
+			: [`${seed.key}: crea o corrige un mensaje activo en Mensajes.`]
 	})
-	const historyReady = messages.length > 0
-	const checks = [configReady, templatesReady, automationReady, historyReady]
+	const templatesReady = templateIssues.length === 0
+	const ruleIssues = isFreeMode
+		? []
+		: whatsappDemoTemplates.flatMap((seed) => {
+				const rule = automationRules.find((item) => item.event === seed.key)
+				return rule
+					? whatsAppRuleIssues(rule, templates, config).map((issue) => `${seed.key}: ${issue}`)
+					: [`${seed.key}: configura la regla en Eventos de WhatsApp.`]
+			})
+	const automationReady = ruleIssues.length === 0
+	const historyReady = messages.some(
+		(message) =>
+			message.provider === (isFreeMode ? 'wame' : config.provider) &&
+			['sent', 'delivered', 'read'].includes(String(message.status)),
+	)
+	const checks = [configReady, templatesReady, automationReady]
 	const completedCount = checks.filter(Boolean).length
 	const totalCount = checks.length
 
@@ -227,7 +312,18 @@ export function buildWhatsAppOnboardingReadiness(input: {
 		totalCount,
 		percent: Math.round((completedCount / totalCount) * 100),
 		ready: configReady && templatesReady && automationReady,
-		isDemoMode: String(config.provider ?? '') === 'fake',
+		isDemoMode: !isFreeMode && config.provider === 'fake',
+		modeLabel: isFreeMode
+			? 'Gratis (wa.me)'
+			: ((
+					{ fake: 'Demo/local (fake)', meta: 'API Meta', twilio: 'API Twilio' } as Record<
+						string,
+						string
+					>
+				)[String(config.provider)] ?? 'Sin provider'),
+		configIssues,
+		templateIssues,
+		ruleIssues,
 		configReady,
 		templatesReady,
 		automationReady,

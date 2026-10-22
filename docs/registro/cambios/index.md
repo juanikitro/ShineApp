@@ -9,6 +9,9 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [WhatsApp: onboarding por modo y provider sin falsa verificacion](2026-10-22-whatsapp-onboarding-readiness.md)
+- [Next.js: parches de seguridad de optimizacion de imagenes y Server Actions](2026-10-22-next-security-updates.md)
+- [DRF: correcciones de parsing y revocacion de tokens](2026-10-22-drf-security-updates.md)
 - [Dependencias: correcciones de seguridad para los audits de CI](2026-10-14-drf-security-audit.md)
 - [GitHub Project y gate CI para development](2026-08-24-github-project-ci-development.md)
 - [Contencion de la Data API de Supabase](2026-08-21-contencion-data-api-supabase.md)
