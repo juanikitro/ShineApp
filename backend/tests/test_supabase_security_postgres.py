@@ -161,3 +161,16 @@ def test_real_command_transaction_refuses_writes(monkeypatch):
     with connection.cursor() as cursor:
         cursor.execute("SELECT to_regclass('public.security_forbidden_write')")
         assert cursor.fetchone()[0] is None
+
+
+def test_plan_review_comments_escape_metadata_newlines(catalog):
+    cursor, creator = catalog
+    unusual_role = 'security\nprobe_owner'
+    quoted = connection.ops.quote_name(unusual_role)
+    cursor.execute(f"CREATE ROLE {quoted}")
+    cursor.execute(f"GRANT {quoted} TO anon")
+    cursor.execute(f"ALTER TABLE public.security_probe OWNER TO {quoted}")
+    comments = [sql for sql in containment_review_plan(cursor, [creator]) if sql.startswith("--")]
+    assert comments
+    assert all("\n" not in sql and "\r" not in sql for sql in comments)
+    assert any("security\\nprobe_owner" in sql for sql in comments)

@@ -141,10 +141,11 @@ PLAN_SQL = CATALOG + """
                ELSE pg_catalog.pg_has_role(r.oid, s.grantee, 'USAGE') END
 )
 SELECT DISTINCT statement FROM (
-    SELECT pg_catalog.format('-- REVIEW privileged API role %%I; ACL revocation cannot remove SUPERUSER/BYPASSRLS.', rolname) AS statement
+    -- JSON labels escape newlines: even hostile metadata must remain a comment.
+    SELECT pg_catalog.format('-- REVIEW privileged API role %%s; ACL revocation cannot remove SUPERUSER/BYPASSRLS.', pg_catalog.to_json(rolname)::text) AS statement
     FROM api_roles WHERE rolsuper OR rolbypassrls
     UNION ALL
-    SELECT pg_catalog.format('-- REVIEW foreign table public.%%I separately; no automatic RLS fix.', relname)
+    SELECT pg_catalog.format('-- REVIEW foreign table %%s separately; no automatic RLS fix.', pg_catalog.to_json(relname)::text)
     FROM relations WHERE relkind = 'f'
     UNION ALL
     SELECT pg_catalog.format('REVOKE ALL ON %%s %%s FROM %%s;', s.kind, s.object,
@@ -152,8 +153,8 @@ SELECT DISTINCT statement FROM (
              ELSE pg_catalog.quote_ident(pg_catalog.pg_get_userbyid(s.grantee)) END)
     FROM effective_sources s WHERE s.grantee <> s.owner
     UNION ALL
-    SELECT pg_catalog.format('-- REVIEW ownership/membership of %%I; REVOKE cannot remove implicit owner privileges.',
-        pg_catalog.pg_get_userbyid(s.owner))
+    SELECT pg_catalog.format('-- REVIEW ownership/membership of %%s; REVOKE cannot remove implicit owner privileges.',
+        pg_catalog.to_json(pg_catalog.pg_get_userbyid(s.owner))::text)
     FROM effective_sources s WHERE s.grantee = s.owner
     UNION ALL
     SELECT pg_catalog.format('REVOKE ALL (%%I) ON TABLE public.%%I FROM %%s;', col.attname, c.relname,
