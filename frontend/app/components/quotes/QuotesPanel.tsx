@@ -211,6 +211,116 @@ type QuotesPanelProps = {
 	onQuoteDragStart: (event: DragStartEvent) => void
 }
 
+type QuoteDraggableRecordProps = {
+	item: AnyRecord
+	quoteMovePendingId: string | null
+	cardContentProps: QuoteCardContentRendererProps
+	detailRecordProps: (title: string, data: AnyRecord) => AnyRecord
+	quickActionTargetProps: (title: string, actions: QuickAction[]) => AnyRecord
+	quoteQuickActions: (quote: AnyRecord) => QuickAction[]
+	recordClass: (kind: string, id: string | number, extraClass?: string) => string
+	renderQuickActionsTrigger: (
+		label: string,
+		actions: QuickAction[],
+		ariaLabel?: string,
+	) => ReactNode
+}
+
+// Declared at module level so a panel re-render keeps the same component type;
+// a nested declaration remounted every card and replayed the `.records > *` entry animation.
+function QuoteDraggableRecord({
+	item,
+	quoteMovePendingId,
+	cardContentProps,
+	detailRecordProps,
+	quickActionTargetProps,
+	quoteQuickActions,
+	recordClass,
+	renderQuickActionsTrigger,
+}: QuoteDraggableRecordProps) {
+	const quoteId = String(item.id ?? '')
+	const laneStatus = cardContentProps.quoteLaneStatus(item)
+	const canDrag = laneStatus === 'draft'
+	const quickActions = quoteQuickActions(item)
+	const { listeners, setNodeRef, isDragging } = useDraggable({
+		id: `quote:${quoteId}`,
+		data: {
+			quoteId,
+			status: laneStatus,
+		},
+		disabled: !quoteId || !canDrag || Boolean(quoteMovePendingId),
+	})
+
+	return (
+		<MotionFlashSurface
+			ref={setNodeRef}
+			{...listeners}
+			className={recordClass(
+				'quote',
+				item.id,
+				cx(
+					'quote-board-card',
+					'quote-board-card--draggable',
+					!canDrag && 'quote-board-card--locked',
+					isDragging && 'quote-board-card--dragging',
+					quoteMovePendingId === quoteId && 'quote-board-card--moving',
+				),
+			)}
+			suppressFlash
+			{...detailRecordProps('Cotizacion', item)}
+			{...quickActionTargetProps('Acciones de cotizacion', quickActions)}
+		>
+			{renderQuickActionsTrigger(
+				'Acciones de cotizacion',
+				quickActions,
+				'Acciones rapidas de cotizacion',
+			)}
+			<QuoteCardContent item={item} {...cardContentProps} />
+		</MotionFlashSurface>
+	)
+}
+
+function QuoteDroppableLane({
+	status,
+	count,
+	dropTarget,
+	children,
+}: {
+	status: QuoteLaneStatus
+	count: number
+	dropTarget: boolean
+	children: ReactNode
+}) {
+	const { setNodeRef } = useDroppable({
+		id: `quote-lane:${status}`,
+		data: { status },
+	})
+
+	return (
+		<section
+			ref={setNodeRef}
+			className={cx(
+				'quote-lane',
+				`quote-lane--${status}`,
+				dropTarget && 'quote-lane--drop-target',
+			)}
+		>
+			<div className="quote-lane-head">
+				<div>
+					<h3>{status === 'draft' ? 'Sin enviar' : 'Enviados'}</h3>
+					<span>
+						{status === 'draft'
+							? 'Por fecha de creacion'
+							: 'Por fecha de envio'}
+					</span>
+				</div>
+				<strong>{count}</strong>
+			</div>
+			<div className="records quote-lane-records">{children}</div>
+		</section>
+	)
+}
+
 export function QuotesPanel({
 	activeQuoteDrag,
 	agendaSensors,
@@ -253,87 +363,6 @@ export function QuotesPanel({
 		onOpenQuoteReservationInAgenda,
 	}
 
-	function QuoteDraggableRecord({ item }: { item: AnyRecord }) {
-		const quoteId = String(item.id ?? '')
-		const laneStatus = quoteLaneStatus(item)
-		const canDrag = laneStatus === 'draft'
-		const quickActions = quoteQuickActions(item)
-		const { listeners, setNodeRef, isDragging } = useDraggable({
-			id: `quote:${quoteId}`,
-			data: {
-				quoteId,
-				status: laneStatus,
-			},
-			disabled: !quoteId || !canDrag || Boolean(quoteMovePendingId),
-		})
-
-		return (
-			<MotionFlashSurface
-				ref={setNodeRef}
-				{...listeners}
-				className={recordClass(
-					'quote',
-					item.id,
-					cx(
-						'quote-board-card',
-						'quote-board-card--draggable',
-						!canDrag && 'quote-board-card--locked',
-						isDragging && 'quote-board-card--dragging',
-						quoteMovePendingId === quoteId && 'quote-board-card--moving',
-					),
-				)}
-				suppressFlash
-				{...detailRecordProps('Cotizacion', item)}
-				{...quickActionTargetProps('Acciones de cotizacion', quickActions)}
-			>
-				{renderQuickActionsTrigger(
-					'Acciones de cotizacion',
-					quickActions,
-					'Acciones rapidas de cotizacion',
-				)}
-				<QuoteCardContent item={item} {...quoteCardContentProps} />
-			</MotionFlashSurface>
-		)
-	}
-
-	function QuoteDroppableLane({
-		status,
-		children,
-	}: {
-		status: QuoteLaneStatus
-		children: ReactNode
-	}) {
-		const { setNodeRef } = useDroppable({
-			id: `quote-lane:${status}`,
-			data: { status },
-		})
-		const count = quoteBoard[status].length
-
-		return (
-			<section
-				ref={setNodeRef}
-				className={cx(
-					'quote-lane',
-					`quote-lane--${status}`,
-					quoteDropStatus === status && 'quote-lane--drop-target',
-				)}
-			>
-				<div className="quote-lane-head">
-					<div>
-						<h3>{status === 'draft' ? 'Sin enviar' : 'Enviados'}</h3>
-						<span>
-							{status === 'draft'
-								? 'Por fecha de creacion'
-								: 'Por fecha de envio'}
-						</span>
-					</div>
-					<strong>{count}</strong>
-				</div>
-				<div className="records quote-lane-records">{children}</div>
-			</section>
-		)
-	}
-
 	function renderQuoteDragOverlay(item: AnyRecord | null) {
 		if (!item) return null
 		return (
@@ -361,19 +390,47 @@ export function QuotesPanel({
 					onDragCancel={onQuoteDragCancel}
 				>
 					<div className="quote-board">
-						<QuoteDroppableLane status="draft">
+						<QuoteDroppableLane
+							status="draft"
+							count={quoteBoard.draft.length}
+							dropTarget={quoteDropStatus === 'draft'}
+						>
 							{quoteBoard.draft.length ? (
 								quoteBoard.draft.map((item) => (
-									<QuoteDraggableRecord item={item} key={item.id} />
+									<QuoteDraggableRecord
+										item={item}
+										key={item.id}
+										quoteMovePendingId={quoteMovePendingId}
+										cardContentProps={quoteCardContentProps}
+										detailRecordProps={detailRecordProps}
+										quickActionTargetProps={quickActionTargetProps}
+										quoteQuickActions={quoteQuickActions}
+										recordClass={recordClass}
+										renderQuickActionsTrigger={renderQuickActionsTrigger}
+									/>
 								))
 							) : (
 								<Empty text="Sin cotizaciones sin enviar." />
 							)}
 						</QuoteDroppableLane>
-						<QuoteDroppableLane status="sent">
+						<QuoteDroppableLane
+							status="sent"
+							count={quoteBoard.sent.length}
+							dropTarget={quoteDropStatus === 'sent'}
+						>
 							{quoteBoard.sent.length ? (
 								quoteBoard.sent.map((item) => (
-									<QuoteDraggableRecord item={item} key={item.id} />
+									<QuoteDraggableRecord
+										item={item}
+										key={item.id}
+										quoteMovePendingId={quoteMovePendingId}
+										cardContentProps={quoteCardContentProps}
+										detailRecordProps={detailRecordProps}
+										quickActionTargetProps={quickActionTargetProps}
+										quoteQuickActions={quoteQuickActions}
+										recordClass={recordClass}
+										renderQuickActionsTrigger={renderQuickActionsTrigger}
+									/>
 								))
 							) : (
 								<Empty text="Sin cotizaciones enviadas." />
