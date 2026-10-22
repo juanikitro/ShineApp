@@ -1,3 +1,4 @@
+import calendar
 from datetime import date
 
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -50,6 +51,9 @@ class Customer(SoftDeleteMixin, TimeStampedModel):
     def _birthday_for_year(self, year):
         if not self.birthday_month or not self.birthday_day:
             return None
+        if self.birthday_month == 2 and self.birthday_day == 29 and not calendar.isleap(year):
+            # En anios no bisiestos el cumpleanos del 29/02 se avisa el 28/02.
+            return date(year, 2, 28)
         return date(year, self.birthday_month, self.birthday_day)
 
     @property
@@ -58,28 +62,23 @@ class Customer(SoftDeleteMixin, TimeStampedModel):
             return ""
         return f"{self.birthday_day:02d}/{self.birthday_month:02d}"
 
+    def _next_birthday_from(self, today):
+        next_day = self._birthday_for_year(today.year)
+        if next_day is None or next_day >= today:
+            return next_day
+        return self._birthday_for_year(today.year + 1)
+
     @property
     def next_birthday(self):
-        if not self.birthday_month or not self.birthday_day:
-            return None
-        today = timezone.localdate()
-        year = today.year
-        while True:
-            try:
-                next_day = self._birthday_for_year(year)
-            except ValueError:
-                year += 1
-                continue
-            if next_day >= today:
-                return next_day
-            year += 1
+        return self._next_birthday_from(timezone.localdate())
 
     @property
     def days_until_birthday(self):
-        next_day = self.next_birthday
+        today = timezone.localdate()
+        next_day = self._next_birthday_from(today)
         if next_day is None:
             return None
-        return (next_day - timezone.localdate()).days
+        return (next_day - today).days
 
     @property
     def has_birthday_alert(self):

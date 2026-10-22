@@ -13,6 +13,7 @@ py -3 scripts/check_docs.py --write --skip-build
 - [WhatsApp gratis: cotizaciones y aperturas repetidas](2026-10-22-whatsapp-gratis-cotizaciones-y-aperturas.md)
 - [Next.js: parches de seguridad de optimizacion de imagenes y Server Actions](2026-10-22-next-security-updates.md)
 - [DRF: correcciones de parsing y revocacion de tokens](2026-10-22-drf-security-updates.md)
+- [Clientes: cumpleanos del 29/02 y fechas limite de la alerta](2026-10-22-cumpleanos-29-febrero-y-fechas-limite.md)
 - [Cotizaciones sin remontaje del tablero al actualizar](2026-10-22-cotizaciones-tablero-sin-remontaje.md)
 - [Caja mensual: ultimo egreso agregado](2026-10-22-caja-mensual-ultimo-egreso.md)
 - [Dependencias: correcciones de seguridad para los audits de CI](2026-10-14-drf-security-audit.md)
