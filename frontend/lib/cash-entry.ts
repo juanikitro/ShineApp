@@ -495,3 +495,24 @@ export function sortCashEntries(entries: AnyRecord[], sort: CashSortKey) {
 			)
 	}
 }
+
+function cashEntryCreatedTime(item: AnyRecord) {
+	if (!item.created_at) return null
+	const time = Date.parse(String(item.created_at))
+	return Number.isNaN(time) ? null : time
+}
+
+// Ultimo egreso agregado: el de mayor created_at (momento de carga), no el de
+// occurred_at. Las entradas ya vienen acotadas al periodo y negocio por la API.
+export function latestAddedCashExpense(entries: AnyRecord[]): AnyRecord | null {
+	let latest: AnyRecord | null = null
+	let latestTime = -Infinity
+	for (const item of entries) {
+		if (item.movement_type !== 'expense') continue
+		const time = cashEntryCreatedTime(item)
+		if (time === null || time <= latestTime) continue
+		latest = item
+		latestTime = time
+	}
+	return latest
+}

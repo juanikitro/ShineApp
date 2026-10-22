@@ -47,14 +47,20 @@ import {
 	type CashQuickFilter,
 	type CashSortKey,
 	cashQuickFilterOptions,
+	cashEntryClassificationLabel,
+	cashEntryOccurredDate,
+	cashEntryTitleText,
 	cashSortOptions,
+	latestAddedCashExpense,
 } from '@/lib/cash-entry'
 import {
 	type CashViewMode,
+	cashMonthStart,
 	cashRangeLabel,
 } from '@/lib/cash-period'
 import {
 	type AnyRecord,
+	formatDateTimeLabel,
 	money,
 	numberValue,
 } from '@/lib/page-support'
@@ -109,6 +115,7 @@ type CashPanelProps = {
 	cashFiltersActive: boolean
 	cashFilterSubcategoryOptions: SelectOption[]
 	cashFlowSummary: CashFlowSummary
+	cashLoadedMonthStart?: string | null
 	cashClosuresEnabled: boolean
 	cashIsClosed: boolean
 	cashQuickFilter: CashQuickFilter
@@ -214,6 +221,7 @@ export function CashPanel({
 	cashFilterSubcategoryOptions,
 	cashflowTotals,
 	cashFlowSummary,
+	cashLoadedMonthStart,
 	cashClosuresEnabled,
 	cashIsClosed,
 	cashQuickFilter,
@@ -276,6 +284,14 @@ export function CashPanel({
 				: 'dia'
 	const rangeLabel =
 		cashViewMode === 'day' ? selectedDay : cashRangeLabel(selectedDay, cashViewMode)
+	// El payload mensual informa su month_start: si no coincide con el mes
+	// seleccionado, la respuesta del nuevo mes todavia no llego.
+	const monthlyEntriesReady =
+		cashViewMode === 'month' &&
+		cashLoadedMonthStart === cashMonthStart(selectedDay)
+	const latestExpense = monthlyEntriesReady
+		? latestAddedCashExpense(cashEntries)
+		: null
 
 	function renderCashSummaryLine(line: CashSummaryLine) {
 		return (
@@ -707,6 +723,50 @@ export function CashPanel({
 									</Button>
 								</div>
 							</div>
+							{cashViewMode === 'month' ? (
+								<div
+									className="cash-latest-expense"
+									role="group"
+									aria-label="Ultimo egreso agregado"
+								>
+									{latestExpense ? (
+										<button
+											type="button"
+											className="cash-latest-expense__entry"
+											onClick={() => onOpenCashEntryDetail(latestExpense)}
+										>
+											<span className="cash-latest-expense__label">
+												Ultimo egreso agregado
+											</span>
+											<strong className="cash-latest-expense__title">
+												{cashEntryTitleText(latestExpense)}
+											</strong>
+											<span className="cash-latest-expense__meta">
+												{cashEntryClassificationLabel(latestExpense)} · Movimiento del{' '}
+												{cashEntryOccurredDate(latestExpense)} · Cargado el{' '}
+												{formatDateTimeLabel(latestExpense.created_at)}
+											</span>
+											<strong className="cash-latest-expense__amount">
+												{money(latestExpense.amount)}
+											</strong>
+										</button>
+									) : (
+										<span className="cash-latest-expense__empty">
+											{monthlyEntriesReady
+												? 'Sin egresos cargados en el mes.'
+												: 'Cargando egresos del mes...'}
+										</span>
+									)}
+									<Button
+										variant="ghost"
+										aria-pressed={cashQuickFilter === 'expense'}
+										onClick={() => onCashQuickFilterChange('expense')}
+									>
+										<TrendingDown size={16} aria-hidden="true" />
+										Ver egresos del mes
+									</Button>
+								</div>
+							) : null}
 							<div className="cash-quick-bar">
 								<div className="cash-quick-chips" role="tablist" aria-label="Filtro rapido">
 									{cashQuickFilterOptions.map((option) => (
