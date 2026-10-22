@@ -2,6 +2,20 @@
 
 Guia para conectar WhatsApp en ShineApp.
 
+## Alcance vigente de #282 (2026-10-22)
+
+El [issue #282](https://github.com/juanikitro/ShineApp/issues/282) ahora incluye
+salida y carga de datos entrante. Proveedor, numero/topologia, actores, primer
+caso, formato, presupuesto y entorno siguen pendientes de acuerdo para esta
+ampliacion. La decision de julio y los pasos historicos de esta guia no autorizan
+activacion, gastos ni reutilizacion de credenciales potencialmente expuestas.
+
+Los webhooks actuales procesan **estados de salida**, no altas operativas desde
+mensajes entrantes. Un HTTP 200 de Meta para un payload con `messages` no indica
+que se haya recibido, almacenado o ejecutado una solicitud de carga.
+Ver [relevamiento, brechas y propuesta pendiente](whatsapp-bidireccional-282.md).
+El modo gratuito de #281 y el onboarding de #283 conservan sus contratos.
+
 ## Estado de la implementacion
 
 Backend:
@@ -271,7 +285,7 @@ Con Meta real:
 - Error de Meta por template: revisar nombre exacto, idioma y variables en el mismo orden.
 - No aparece mensaje automatico: revisar que el despacho sea `automatic`, el template este activo y el cliente tenga telefono.
 - Mensaje queda `failed`: revisar `last_error` en Historial WhatsApp.
-- Webhook Twilio responde 403: la firma `X-Twilio-Signature` no coincide; revisar Auth Token del subaccount, URL publica exacta y proxy HTTPS.
+- Webhook Twilio responde 403: falta un Auth Token no vacio o la firma `X-Twilio-Signature` no coincide; revisar Auth Token del subaccount, URL publica exacta y proxy HTTPS. Un token vacio o compuesto solo por espacios se rechaza incluso si el HMAC coincide.
 - Webhook Twilio responde 404: no hay configuracion Twilio con ese Account SID o no existe mensaje con ese Message SID para el negocio.
 - Mensaje no baja de `read` a `sent`: esperado; el webhook ignora statuses viejos que llegan tarde para no degradar el historial.
 - No hay `delivered/read`: revisar `WHATSAPP_STATUS_CALLBACK_URL` o la configuracion manual del Status Callback en Twilio.
