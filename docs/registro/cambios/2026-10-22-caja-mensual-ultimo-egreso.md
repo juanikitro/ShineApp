@@ -11,7 +11,7 @@ En la vista mensual existente (sin pantalla nueva), la seccion "Movimientos del 
 ## Reglas
 
 - El destacado es el egreso (`movement_type = expense`) con mayor `created_at` dentro de las entradas de `GET /api/cash/monthly/`; helper `latestAddedCashExpense` en `frontend/lib/cash-entry.ts`.
-- Solo cuenta entradas cuyo `occurred_at` pertenece al mes seleccionado: al cambiar de mes no se destaca un egreso del mes anterior mientras carga el nuevo.
-- Entradas sin `created_at` o con fecha invalida se ignoran; en empate gana la primera del listado devuelto por la API.
+- La pertenencia al mes la define la API (`month_start`/`month_end` y filtro por negocio); el frontend no reinterpreta `occurred_at` ni zonas horarias. Si el `month_start` del payload no coincide con el mes seleccionado (respuesta del nuevo mes en curso), el bloque muestra "Cargando egresos del mes..." en vez de un dato viejo o un vacio definitivo.
+- `created_at` se compara como instante (`Date.parse`), por lo que offsets distintos (`-03:00`, `+00:00`) ordenan bien. Entradas sin `created_at` o con fecha invalida se ignoran; en empate gana la primera del listado devuelto por la API.
 - El bloque muestra fecha del movimiento y fecha de carga por separado. Sin egresos: "Sin egresos cargados en el mes.". Con error de carga no se muestra.
 - No cambia totales, resumen, orden del listado, filtros, permisos (`CanViewEconomy`), cierres ni API.

@@ -704,26 +704,31 @@ test('latestAddedCashExpense picks the expense with the newest created_at, not o
 		{ id: 1, movement_type: 'expense', occurred_at: '2026-06-28T10:00:00-03:00', created_at: '2026-06-01T09:00:00-03:00' },
 		{ id: 2, movement_type: 'expense', occurred_at: '2026-06-05T10:00:00-03:00', created_at: '2026-06-29T18:30:00-03:00' },
 		{ id: 3, movement_type: 'income', occurred_at: '2026-06-10T10:00:00-03:00', created_at: '2026-06-30T20:00:00-03:00' },
-		{ id: 4, movement_type: 'expense', occurred_at: '2026-06-12', created_at: '2026-06-15T12:00:00-03:00', amount: 0 },
+		{ id: 'debt-payment-4', source_kind: 'debt_payment', movement_type: 'expense', occurred_at: '2026-06-12', created_at: '2026-06-15T12:00:00-03:00', amount: 0 },
 	]
 
-	assert.equal(latestAddedCashExpense(entries, '2026-06-24')?.id, 2)
+	assert.equal(latestAddedCashExpense(entries)?.id, 2)
 })
 
-test('latestAddedCashExpense ignores other months, missing or invalid created_at and returns null when empty', () => {
-	assert.equal(latestAddedCashExpense([], '2026-06-01'), null)
+test('latestAddedCashExpense compares created_at instants across timezone offsets', () => {
+	const entries = [
+		{ id: 'local', movement_type: 'expense', occurred_at: '2026-06-30T22:30:00-03:00', created_at: '2026-06-30T22:30:00-03:00' },
+		{ id: 'utc', source_kind: 'debt_payment', movement_type: 'expense', occurred_at: '2026-06-30', created_at: '2026-07-01T01:45:00+00:00' },
+	]
+
+	assert.equal(latestAddedCashExpense(entries)?.id, 'utc')
+})
+
+test('latestAddedCashExpense ignores missing or invalid created_at and returns null when empty', () => {
+	assert.equal(latestAddedCashExpense([]), null)
 	assert.equal(
-		latestAddedCashExpense(
-			[
-				{ id: 1, movement_type: 'expense', occurred_at: '2026-05-31T10:00:00-03:00', created_at: '2026-07-01T09:00:00-03:00' },
-				{ id: 2, movement_type: 'expense', occurred_at: '2026-06-02T10:00:00-03:00' },
-				{ id: 3, movement_type: 'expense', occurred_at: '2026-06-03T10:00:00-03:00', created_at: 'no-date' },
-			],
-			'2026-06-15',
-		),
+		latestAddedCashExpense([
+			{ id: 1, movement_type: 'expense', occurred_at: '2026-06-02T10:00:00-03:00' },
+			{ id: 2, movement_type: 'expense', occurred_at: '2026-06-03T10:00:00-03:00', created_at: 'no-date' },
+			{ id: 3, movement_type: 'income', created_at: '2026-06-03T10:00:00-03:00' },
+		]),
 		null,
 	)
-	assert.equal(latestAddedCashExpense([{ id: 1, movement_type: 'expense', created_at: '2026-06-01' }], undefined), null)
 })
 
 test('latestAddedCashExpense keeps the first entry on created_at ties and accepts zero amounts', () => {
@@ -732,5 +737,5 @@ test('latestAddedCashExpense keeps the first entry on created_at ties and accept
 		{ id: 'b', movement_type: 'expense', amount: 10, occurred_at: '2026-06-19', created_at: '2026-06-20T10:00:00Z' },
 	]
 
-	assert.equal(latestAddedCashExpense(entries, '2026-06-01')?.id, 'a')
+	assert.equal(latestAddedCashExpense(entries)?.id, 'a')
 })

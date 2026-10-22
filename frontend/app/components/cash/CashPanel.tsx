@@ -55,6 +55,7 @@ import {
 } from '@/lib/cash-entry'
 import {
 	type CashViewMode,
+	cashMonthStart,
 	cashRangeLabel,
 } from '@/lib/cash-period'
 import {
@@ -114,6 +115,7 @@ type CashPanelProps = {
 	cashFiltersActive: boolean
 	cashFilterSubcategoryOptions: SelectOption[]
 	cashFlowSummary: CashFlowSummary
+	cashLoadedMonthStart?: string | null
 	cashClosuresEnabled: boolean
 	cashIsClosed: boolean
 	cashQuickFilter: CashQuickFilter
@@ -219,6 +221,7 @@ export function CashPanel({
 	cashFilterSubcategoryOptions,
 	cashflowTotals,
 	cashFlowSummary,
+	cashLoadedMonthStart,
 	cashClosuresEnabled,
 	cashIsClosed,
 	cashQuickFilter,
@@ -281,10 +284,14 @@ export function CashPanel({
 				: 'dia'
 	const rangeLabel =
 		cashViewMode === 'day' ? selectedDay : cashRangeLabel(selectedDay, cashViewMode)
-	const latestExpense =
-		cashViewMode === 'month'
-			? latestAddedCashExpense(cashEntries, selectedDay)
-			: null
+	// El payload mensual informa su month_start: si no coincide con el mes
+	// seleccionado, la respuesta del nuevo mes todavia no llego.
+	const monthlyEntriesReady =
+		cashViewMode === 'month' &&
+		cashLoadedMonthStart === cashMonthStart(selectedDay)
+	const latestExpense = monthlyEntriesReady
+		? latestAddedCashExpense(cashEntries)
+		: null
 
 	function renderCashSummaryLine(line: CashSummaryLine) {
 		return (
@@ -745,7 +752,9 @@ export function CashPanel({
 										</button>
 									) : (
 										<span className="cash-latest-expense__empty">
-											Sin egresos cargados en el mes.
+											{monthlyEntriesReady
+												? 'Sin egresos cargados en el mes.'
+												: 'Cargando egresos del mes...'}
 										</span>
 									)}
 									<Button

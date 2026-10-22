@@ -162,6 +162,7 @@ test('CashPanel highlights the last added monthly expense by created_at and keep
 	const entries = [olderLoaded, lastLoaded]
 	renderCashPanel({
 		cashEntries: entries,
+		cashLoadedMonthStart: '2026-06-01',
 		cashViewMode: 'month',
 		filteredCashEntries: entries,
 		onCashQuickFilterChange,
@@ -188,7 +189,10 @@ test('CashPanel highlights the last added monthly expense by created_at and keep
 })
 
 test('CashPanel shows an empty monthly highlight and hides it outside month mode or on error', () => {
-	const view = renderCashPanel({ cashViewMode: 'month' })
+	const view = renderCashPanel({
+		cashLoadedMonthStart: '2026-06-01',
+		cashViewMode: 'month',
+	})
 	assert.ok(screen.getByText('Sin egresos cargados en el mes.'))
 	assert.ok(screen.getByRole('button', { name: 'Ver egresos del mes' }))
 	view.unmount()
@@ -197,11 +201,15 @@ test('CashPanel shows an empty monthly highlight and hides it outside month mode
 	assert.equal(screen.queryByRole('group', { name: 'Ultimo egreso agregado' }), null)
 	cleanup()
 
-	renderCashPanel({ cashViewMode: 'month', loadBlocked: true })
+	renderCashPanel({
+		cashLoadedMonthStart: '2026-06-01',
+		cashViewMode: 'month',
+		loadBlocked: true,
+	})
 	assert.equal(screen.queryByRole('group', { name: 'Ultimo egreso agregado' }), null)
 })
 
-test('CashPanel does not highlight a previous month expense while the new month loads', () => {
+test('CashPanel does not highlight a previous month expense until the new month payload arrives', () => {
 	const stale = {
 		id: 9,
 		amount: 500,
@@ -213,6 +221,7 @@ test('CashPanel does not highlight a previous month expense while the new month 
 	}
 	renderCashPanel({
 		cashEntries: [stale],
+		cashLoadedMonthStart: '2026-05-01',
 		cashViewMode: 'month',
 		filteredCashEntries: [stale],
 		loading: true,
@@ -220,5 +229,7 @@ test('CashPanel does not highlight a previous month expense while the new month 
 	})
 
 	const highlight = screen.getByRole('group', { name: 'Ultimo egreso agregado' })
-	assert.ok(within(highlight).getByText('Sin egresos cargados en el mes.'))
+	assert.ok(within(highlight).getByText('Cargando egresos del mes...'))
+	assert.equal(within(highlight).queryByText('Gasto de mayo'), null)
+	assert.equal(within(highlight).queryByText('Sin egresos cargados en el mes.'), null)
 })

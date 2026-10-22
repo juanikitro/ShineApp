@@ -9273,6 +9273,7 @@ export default function Home() {
 						)}
 						cashflowTotals={cashflowTotals}
 						cashFlowSummary={cashFlowSummary}
+						cashLoadedMonthStart={cash.month_start}
 						cashIsClosed={cashIsClosed}
 						cashClosuresEnabled={businessProfile?.use_cash_closures === true}
 						cashQuickFilter={cashQuickFilter}
