@@ -161,6 +161,9 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PERMISSION_CLASSES": ["core.permissions.ActiveBusinessUser"],
     "EXCEPTION_HANDLER": "core.exceptions.api_exception_handler",
+    # Preserve existing nested-list error payloads after the DRF 3.18 upgrade.
+    # Official compatibility option; revisit before DRF 3.20 removes it.
+    "LIST_SERIALIZER_ERRORS_AS_DICT": False,
     "DEFAULT_PAGINATION_CLASS": "core.pagination.StablePageNumberPagination",
     "PAGE_SIZE": 100,
     "NUM_PROXIES": TRUSTED_PROXY_COUNT,
