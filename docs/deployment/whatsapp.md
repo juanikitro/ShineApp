@@ -236,8 +236,24 @@ Configuracion:
 - Configuracion > WhatsApp.
 - Solo usuarios con permiso `EmployerOnly`.
 - El token se escribe, pero no se devuelve en las respuestas de API.
+- `Preparacion de WhatsApp` muestra el **estado guardado**; los pendientes del formulario
+  corresponden al borrador y se aplican al guardar. El progreso mide configuracion,
+  mensajes de los cuatro eventos base y reglas; el historial es opcional.
+- `Configuracion local completa` no verifica credenciales, aprobacion del provider,
+  webhook, entrega ni lectura. La API actual no expone disponibilidad de credenciales
+  globales Meta; si falta token/Phone number ID por negocio, solicitar al administrador
+  verificar el fallback global. No cargar secretos reales solo para completar el indicador.
+- Gratis no necesita habilitacion API, provider, secretos ni vinculos `rule.template`:
+  toma el primer mensaje activo por evento. Fake no necesita credenciales; Meta muestra
+  sus IDs/token; Twilio muestra Account SID, Auth Token, numero emisor y Content SID.
+- El token guardado nunca se precarga. Guardar sin token nuevo lo conserva; free/fake
+  omiten credenciales del PATCH. Cambiar provider limpia los IDs y token del borrador;
+  si existe un secreto guardado, pasar a otro provider real requiere reemplazarlo para
+  evitar reutilizar un token incompatible. Esto no elimina ni rota secretos en el servidor.
 - Primer arranque: usar `Preparar WhatsApp demo` para activar provider `fake`,
-  crear templates base y vincular reglas de despacho sin credenciales externas.
+  fijar `mode=paid`, crear templates base y vincular reglas de despacho sin credenciales
+  externas. Puede cambiar despacho a automatico en fake; no envia a clientes reales.
+  El atajo no se ofrece sobre un canal gratis o externo ya habilitado/configurado.
 - Produccion: cargar Meta Cloud API manualmente en la configuracion avanzada y
   reemplazar los templates demo por los nombres aprobados por Meta.
 
@@ -246,6 +262,15 @@ Templates:
 - `Nombre provider` debe coincidir con el template aprobado en Meta.
 - `Preview` es la version que ShineApp guarda para auditoria y previsualizacion.
 - `Variables` define que valores se mandan al provider.
+- El editor exige nombre e idioma y conserva el contrato pago: schemas personalizados
+  y preview vacio siguen admitidos. En gratis tambien valida texto no vacio y variables
+  disponibles por evento, para evitar placeholders que wa.me elimina sin sustituir.
+- Los selectores de reglas ofrecen templates activos del mismo evento y muestran errores
+  de asignaciones existentes incompatibles. Desactivar un template sigue disponible aunque
+  su borrador tenga pendientes. Un fallo de creacion conserva el borrador para corregir/reintentar.
+- Solo Meta/Twilio muestran la advertencia de aprobacion externa; crear un template local
+  no demuestra que el provider lo aprobo. El historial del onboarding solo cuenta registros
+  `sent/delivered/read` del provider actual (`wame` para gratis), sin verificar la conexion actual.
 
 Despacho por evento:
 - `manual`: no envia desde el hook; el frontend puede pedir el envio pago mediante el endpoint del recurso.

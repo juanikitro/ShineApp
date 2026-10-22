@@ -12,6 +12,7 @@ py -3 scripts/check_docs.py --write --skip-build
 
 ## 2026-10-22
 - [WhatsApp: rechazo de callbacks Twilio sin token](docs/registro/cambios/2026-10-22-whatsapp-twilio-firma-sin-token.md)
+- [WhatsApp: onboarding por modo y provider sin falsa verificacion](docs/registro/cambios/2026-10-22-whatsapp-onboarding-readiness.md)
 - [WhatsApp gratis: cotizaciones y aperturas repetidas](docs/registro/cambios/2026-10-22-whatsapp-gratis-cotizaciones-y-aperturas.md)
 - [Control reproducible de metadatos Supabase](docs/registro/cambios/2026-10-22-supabase-metadata-guard.md)
 - [Next.js: parches de seguridad de optimizacion de imagenes y Server Actions](docs/registro/cambios/2026-10-22-next-security-updates.md)
