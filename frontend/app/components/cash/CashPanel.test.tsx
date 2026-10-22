@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, test, vi } from 'vitest'
 
@@ -133,4 +133,92 @@ test('CashPanel shows movement day in period lists', () => {
 	assert.ok(screen.getByText(/22\/06\/2026|22\/6\/2026/))
 	assert.ok(screen.getByText('Cobro de orden'))
 	assert.ok(screen.getByText('Mariano Mansilla'))
+})
+
+test('CashPanel highlights the last added monthly expense by created_at and keeps list order', async () => {
+	const user = userEvent.setup()
+	const onOpenCashEntryDetail = vi.fn()
+	const onCashQuickFilterChange = vi.fn()
+	const olderLoaded = {
+		id: 1,
+		amount: 1200,
+		category: 'Insumos',
+		movement_type: 'expense',
+		occurred_at: '2026-06-28T10:00:00',
+		created_at: '2026-06-01T09:00:00',
+		source_kind: 'manual',
+		source_label: 'Compra de shampoo',
+	}
+	const lastLoaded = {
+		id: 2,
+		amount: 3400,
+		category: 'Servicios',
+		movement_type: 'expense',
+		occurred_at: '2026-06-05T10:00:00',
+		created_at: '2026-06-29T18:30:00',
+		source_kind: 'manual',
+		source_label: 'Factura de luz',
+	}
+	const entries = [olderLoaded, lastLoaded]
+	renderCashPanel({
+		cashEntries: entries,
+		cashViewMode: 'month',
+		filteredCashEntries: entries,
+		onCashQuickFilterChange,
+		onOpenCashEntryDetail,
+	})
+
+	const highlight = screen.getByRole('group', { name: 'Ultimo egreso agregado' })
+	assert.ok(within(highlight).getByText('Factura de luz'))
+	assert.equal(within(highlight).queryByText('Compra de shampoo'), null)
+	assert.ok(within(highlight).getByText(/Movimiento del/))
+	assert.ok(within(highlight).getByText(/Cargado el/))
+
+	const listTitles = screen
+		.getAllByText(/Compra de shampoo|Factura de luz/)
+		.filter((node) => !highlight.contains(node))
+		.map((node) => node.textContent)
+	assert.deepEqual(listTitles, ['Compra de shampoo', 'Factura de luz'])
+
+	await user.click(within(highlight).getByText('Factura de luz'))
+	assert.equal(onOpenCashEntryDetail.mock.calls[0][0], lastLoaded)
+
+	await user.click(screen.getByRole('button', { name: 'Ver egresos del mes' }))
+	assert.deepEqual(onCashQuickFilterChange.mock.calls[0], ['expense'])
+})
+
+test('CashPanel shows an empty monthly highlight and hides it outside month mode or on error', () => {
+	const view = renderCashPanel({ cashViewMode: 'month' })
+	assert.ok(screen.getByText('Sin egresos cargados en el mes.'))
+	assert.ok(screen.getByRole('button', { name: 'Ver egresos del mes' }))
+	view.unmount()
+
+	renderCashPanel({ cashViewMode: 'week' })
+	assert.equal(screen.queryByRole('group', { name: 'Ultimo egreso agregado' }), null)
+	cleanup()
+
+	renderCashPanel({ cashViewMode: 'month', loadBlocked: true })
+	assert.equal(screen.queryByRole('group', { name: 'Ultimo egreso agregado' }), null)
+})
+
+test('CashPanel does not highlight a previous month expense while the new month loads', () => {
+	const stale = {
+		id: 9,
+		amount: 500,
+		movement_type: 'expense',
+		occurred_at: '2026-05-20T10:00:00',
+		created_at: '2026-05-20T10:05:00',
+		source_kind: 'manual',
+		source_label: 'Gasto de mayo',
+	}
+	renderCashPanel({
+		cashEntries: [stale],
+		cashViewMode: 'month',
+		filteredCashEntries: [stale],
+		loading: true,
+		selectedDay: '2026-06-01',
+	})
+
+	const highlight = screen.getByRole('group', { name: 'Ultimo egreso agregado' })
+	assert.ok(within(highlight).getByText('Sin egresos cargados en el mes.'))
 })

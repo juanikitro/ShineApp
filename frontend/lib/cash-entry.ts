@@ -495,3 +495,31 @@ export function sortCashEntries(entries: AnyRecord[], sort: CashSortKey) {
 			)
 	}
 }
+
+function cashEntryCreatedTime(item: AnyRecord) {
+	if (!item.created_at) return null
+	const time = Date.parse(String(item.created_at))
+	return Number.isNaN(time) ? null : time
+}
+
+// Ultimo egreso agregado del mes: el de mayor created_at (momento de carga),
+// no el de occurred_at. Ignora entradas de otro mes para no mostrar datos
+// del mes anterior mientras carga el nuevo.
+export function latestAddedCashExpense(
+	entries: AnyRecord[],
+	monthDay: string,
+): AnyRecord | null {
+	const monthKey = String(monthDay ?? '').slice(0, 7)
+	if (!monthKey) return null
+	let latest: AnyRecord | null = null
+	let latestTime = -Infinity
+	for (const item of entries) {
+		if (item.movement_type !== 'expense') continue
+		if (String(item.occurred_at ?? '').slice(0, 7) !== monthKey) continue
+		const time = cashEntryCreatedTime(item)
+		if (time === null || time <= latestTime) continue
+		latest = item
+		latestTime = time
+	}
+	return latest
+}

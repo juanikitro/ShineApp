@@ -47,7 +47,11 @@ import {
 	type CashQuickFilter,
 	type CashSortKey,
 	cashQuickFilterOptions,
+	cashEntryClassificationLabel,
+	cashEntryOccurredDate,
+	cashEntryTitleText,
 	cashSortOptions,
+	latestAddedCashExpense,
 } from '@/lib/cash-entry'
 import {
 	type CashViewMode,
@@ -55,6 +59,7 @@ import {
 } from '@/lib/cash-period'
 import {
 	type AnyRecord,
+	formatDateTimeLabel,
 	money,
 	numberValue,
 } from '@/lib/page-support'
@@ -276,6 +281,10 @@ export function CashPanel({
 				: 'dia'
 	const rangeLabel =
 		cashViewMode === 'day' ? selectedDay : cashRangeLabel(selectedDay, cashViewMode)
+	const latestExpense =
+		cashViewMode === 'month'
+			? latestAddedCashExpense(cashEntries, selectedDay)
+			: null
 
 	function renderCashSummaryLine(line: CashSummaryLine) {
 		return (
@@ -707,6 +716,48 @@ export function CashPanel({
 									</Button>
 								</div>
 							</div>
+							{cashViewMode === 'month' ? (
+								<div
+									className="cash-latest-expense"
+									role="group"
+									aria-label="Ultimo egreso agregado"
+								>
+									{latestExpense ? (
+										<button
+											type="button"
+											className="cash-latest-expense__entry"
+											onClick={() => onOpenCashEntryDetail(latestExpense)}
+										>
+											<span className="cash-latest-expense__label">
+												Ultimo egreso agregado
+											</span>
+											<strong className="cash-latest-expense__title">
+												{cashEntryTitleText(latestExpense)}
+											</strong>
+											<span className="cash-latest-expense__meta">
+												{cashEntryClassificationLabel(latestExpense)} · Movimiento del{' '}
+												{cashEntryOccurredDate(latestExpense)} · Cargado el{' '}
+												{formatDateTimeLabel(latestExpense.created_at)}
+											</span>
+											<strong className="cash-latest-expense__amount">
+												{money(latestExpense.amount)}
+											</strong>
+										</button>
+									) : (
+										<span className="cash-latest-expense__empty">
+											Sin egresos cargados en el mes.
+										</span>
+									)}
+									<Button
+										variant="ghost"
+										aria-pressed={cashQuickFilter === 'expense'}
+										onClick={() => onCashQuickFilterChange('expense')}
+									>
+										<TrendingDown size={16} aria-hidden="true" />
+										Ver egresos del mes
+									</Button>
+								</div>
+							) : null}
 							<div className="cash-quick-bar">
 								<div className="cash-quick-chips" role="tablist" aria-label="Filtro rapido">
 									{cashQuickFilterOptions.map((option) => (
