@@ -28,8 +28,8 @@ No commitear valores reales. Usar `.env.example` solo como forma.
 - `SUPABASE_S3_REGION_NAME`: region del proyecto Supabase.
 - `SUPABASE_S3_ACCESS_KEY_ID`: id de access key S3 server-side.
 - `SUPABASE_S3_SECRET_ACCESS_KEY`: secret key S3 server-side.
-- `SUPABASE_STORAGE_QUERYSTRING_AUTH`: `0` para URLs de bucket publico, `1` para URLs S3 firmadas.
-- `SUPABASE_STORAGE_PUBLIC_URL`: base publica de object URL cuando se usan URLs de media sin firma.
+- `SUPABASE_STORAGE_QUERYSTRING_AUTH`: `1` para URLs S3 firmadas; requerido por el contrato de media privada demo/prod. `0` es una capacidad de compatibilidad, no una recomendacion operativa.
+- `SUPABASE_STORAGE_PUBLIC_URL`: dejar vacia para el bucket privado compartido. Una superficie publica futura requiere revision separada.
 - `SUPABASE_STORAGE_LOCATION`: prefijo opcional dentro del bucket, default `media`.
 - `SENTRY_DSN`: DSN backend de Sentry. Dejar vacio localmente; requerido por `verify-env.ps1 -Production`.
 - `SENTRY_ENVIRONMENT`: entorno de Sentry, usualmente `staging` o `production`.

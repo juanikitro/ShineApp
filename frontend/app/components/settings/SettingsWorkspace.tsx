@@ -50,7 +50,12 @@ import {
 	formatDateTimeLabel,
 	type AnyRecord,
 } from '@/lib/page-support'
-import { buildWhatsAppOnboardingReadiness } from '@/lib/whatsapp-onboarding'
+import {
+	buildWhatsAppOnboardingReadiness,
+	whatsAppConfigIssues,
+	whatsAppRuleIssues,
+	whatsAppTemplateIssues,
+} from '@/lib/whatsapp-onboarding'
 import { FREE_EVENT_VARIABLES } from '@/lib/whatsapp-free'
 import {
 	type AuditLogFilters,
@@ -553,10 +558,7 @@ export function WhatsappSettingsPanel({
 	onCreateTemplate: (data: AnyRecord) => Promise<any>
 	onPrepareDemo: () => Promise<any>
 	onSaveConfig: (patch: AnyRecord) => Promise<any>
-	onUpdateAutomationRule: (
-		id: number | string,
-		patch: AnyRecord,
-	) => Promise<any>
+	onUpdateAutomationRule: (id: number | string, patch: AnyRecord) => Promise<any>
 	onUpdateTemplate: (id: number | string, patch: AnyRecord) => Promise<any>
 }) {
 	const [configDraft, setConfigDraft] = useState<AnyRecord>({
@@ -590,6 +592,7 @@ export function WhatsappSettingsPanel({
 			business_account_id: config?.business_account_id ?? '',
 			default_country_code: config?.default_country_code ?? '54',
 			access_token: '',
+			has_access_token: Boolean(config?.has_access_token),
 		})
 	}, [config])
 
@@ -606,47 +609,80 @@ export function WhatsappSettingsPanel({
 	const setupSteps = [
 		{
 			id: 'config',
-			title: 'Conexion activa',
-			description: readiness.configReady
-				? 'Canal habilitado con numero visible.'
-				: 'Falta habilitar el canal y definir el numero.',
+			title: 'Configuracion guardada',
 			done: readiness.configReady,
+			description:
+				readiness.configIssues.join(' ') ||
+				'Requisitos locales completos; no verifica el canal externo.',
 		},
 		{
 			id: 'templates',
-			title: 'Templates base',
-			description: readiness.templatesReady
-				? 'Eventos iniciales listos para usar.'
-				: 'Faltan mensajes para turnos, trabajos o cotizaciones.',
+			title: 'Mensajes por evento',
 			done: readiness.templatesReady,
+			description:
+				readiness.templateIssues.join(' ') || 'Los cuatro eventos base tienen mensajes activos.',
 		},
 		{
 			id: 'automation',
-			title: 'Reglas automaticas',
-			description: readiness.automationReady
-				? 'Los eventos ya tienen envio asignado.'
-				: 'Falta vincular reglas con templates.',
+			title: 'Reglas de despacho',
 			done: readiness.automationReady,
+			description:
+				config?.mode === 'free'
+					? 'wa.me usa el texto por evento; no necesita reglas API.'
+					: readiness.ruleIssues.join(' ') || 'Templates activos y compatibles con cada evento.',
 		},
 		{
 			id: 'history',
-			title: 'Primer envio',
-			description: readiness.historyReady
-				? 'Ya hay historial del canal.'
-				: 'El historial se completa al enviar una cotizacion o evento.',
+			title: 'Historial del modo actual (opcional)',
 			done: readiness.historyReady,
+			description: readiness.historyReady
+				? 'Hay registros enviados de este provider. No prueban entrega ni verifican la conexion actual.'
+				: 'Prueba con fake; revisa el resultado en Historial. No se envia nada desde este formulario.',
 		},
 	]
-	const modeLabel = readiness.isDemoMode
-		? 'Demo/local'
-		: config?.provider === 'meta'
-			? 'Produccion Meta'
-			: 'Sin modo activo'
-
 	const isFreeMode = String(configDraft.mode) === 'free'
+	const isFakeProvider = configDraft.provider === 'fake'
+	const isTwilioProvider = configDraft.provider === 'twilio'
+	const draftConfigIssues = whatsAppConfigIssues(configDraft)
+	const draftTemplateIssues = whatsAppTemplateIssues(templateDraft, configDraft)
+	const needsReplacementToken =
+		!isFreeMode &&
+		!isFakeProvider &&
+		Boolean(config?.has_access_token) &&
+		configDraft.provider !== config?.provider &&
+		!String(configDraft.access_token).trim()
 
 	function patchConfigDraft(patch: AnyRecord) {
-		setConfigDraft((current) => ({ ...current, ...patch }))
+		setConfigDraft((current) => ({
+			...current,
+			...patch,
+			...(patch.provider || patch.mode
+				? {
+						access_token: '',
+						has_access_token:
+							(patch.provider ?? current.provider) === config?.provider &&
+							Boolean(config?.has_access_token),
+					}
+				: {}),
+			...(patch.provider ? { phone_number_id: '', business_account_id: '' } : {}),
+		}))
+	}
+
+	async function submitConfig(event: FormEvent) {
+		event.preventDefault()
+		if (needsReplacementToken) return
+		const patch = { ...configDraft }
+		const access_token = patch.access_token
+		delete patch.access_token
+		delete patch.has_access_token
+		if (isFreeMode || isFakeProvider) {
+			delete patch.phone_number_id
+			delete patch.business_account_id
+		} else if (String(access_token).trim()) {
+			patch.access_token = access_token
+		}
+		await onSaveConfig(patch)
+		setConfigDraft((current) => ({ ...current, access_token: '' }))
 	}
 
 	function patchTemplateDraft(patch: AnyRecord) {
@@ -655,12 +691,12 @@ export function WhatsappSettingsPanel({
 
 	async function submitTemplate(event: FormEvent) {
 		event.preventDefault()
-		await onCreateTemplate({
+		if (draftTemplateIssues.length) return
+		const created = await onCreateTemplate({
 			...templateDraft,
-			variables_schema: splitTemplateVariables(
-				String(templateDraft.variables_schema ?? ''),
-			),
+			variables_schema: splitTemplateVariables(String(templateDraft.variables_schema ?? '')),
 		})
+		if (!created) return
 		setTemplateDraft((current) => ({
 			...current,
 			provider_template_name: '',
@@ -675,46 +711,44 @@ export function WhatsappSettingsPanel({
 			<section className="panel whatsapp-setup-panel">
 				<div className="panel-head">
 					<div>
-						<span className="panel-kicker">Primer arranque</span>
-						<h2>WhatsApp listo para probar</h2>
+						<span className="panel-kicker">Estado guardado</span>
+						<h2>Preparacion de WhatsApp</h2>
 						<p>
-							Prepara un canal demo/local para confirmar turnos, trabajos y
-							cotizaciones sin credenciales externas.
+							Revisa el modo guardado y sus pendientes. Guardar no verifica credenciales, aprobacion
+							de templates ni entrega.
 						</p>
 					</div>
-					<div className="settings-action-rail">
-						<div className="settings-primary-actions">
-							<Button
-								type="button"
-								variant="primary"
-								onClickAsync={onPrepareDemo}
-							>
-								<MessageCircle size={16} />
-								{readiness.ready ? 'Actualizar demo' : 'Preparar WhatsApp demo'}
-							</Button>
+					{!config?.mode ||
+					(config.mode !== 'free' &&
+						(config.provider === 'fake' ||
+							(!config.is_enabled && !config.has_access_token && !config.phone_number_id))) ? (
+						<div className="settings-action-rail">
+							<div className="settings-primary-actions">
+								<Button type="button" variant="primary" onClickAsync={onPrepareDemo}>
+									<MessageCircle size={16} />
+									{readiness.isDemoMode ? 'Actualizar demo' : 'Preparar WhatsApp demo'}
+								</Button>
+							</div>
 						</div>
-					</div>
+					) : null}
 				</div>
 				<div className="whatsapp-setup-grid">
 					<div className="whatsapp-setup-main">
 						<div className="whatsapp-setup-mode-row">
-							<span
-								className={`whatsapp-mode-badge ${
-									readiness.isDemoMode ? 'is-demo' : ''
-								}`}
-							>
-								{modeLabel}
+							<span className={`whatsapp-mode-badge ${readiness.isDemoMode ? 'is-demo' : ''}`}>
+								{readiness.modeLabel}
 							</span>
 							<span>{readiness.completedCount}/{readiness.totalCount}</span>
 						</div>
 						<strong>
-							{readiness.ready
-								? 'El canal ya puede probar envios internos.'
-								: 'Un click deja el canal en modo demo seguro.'}
+							{readiness.ready ? 'Configuracion local completa' : 'Configuracion pendiente'}
 						</strong>
 						<p>
-							El modo demo usa el provider fake: registra mensajes y valida el
-							flujo completo sin llamar a Meta.
+							{config?.mode === 'free'
+								? 'Gratis abre wa.me; el operador confirma el envio en su WhatsApp. No hay confirmacion de entrega ni lectura.'
+								: readiness.isDemoMode
+									? 'Fake registra envios simulados sin contactar a Meta ni Twilio. No demuestra interoperabilidad real.'
+									: 'Canal externo sin verificar desde esta pantalla. Solicita al administrador validar credenciales, templates aprobados y webhook antes de usarlo.'}
 						</p>
 						<div
 							className="whatsapp-setup-progress"
@@ -732,11 +766,7 @@ export function WhatsappSettingsPanel({
 								}`}
 							>
 								<span className="whatsapp-setup-check-icon" aria-hidden="true">
-									{step.done ? (
-										<CheckCircle2 size={16} />
-									) : (
-										<RefreshCw size={16} />
-									)}
+									{step.done ? <CheckCircle2 size={16} /> : <RefreshCw size={16} />}
 								</span>
 								<span className="whatsapp-setup-check-copy">
 									<strong>{step.title}</strong>
@@ -756,28 +786,23 @@ export function WhatsappSettingsPanel({
 					<div>
 						<span className="panel-kicker">Configuracion avanzada</span>
 						<h2>Conexion del canal</h2>
-						<p>
-							Ajusta provider, numero y credenciales cuando el negocio pase a
-							produccion.
-						</p>
+						<p>Elige modo y provider. Los cambios del formulario se aplican al guardar.</p>
 					</div>
 					<div className="settings-action-rail">
 						<div className="settings-primary-actions">
-							<Button type="submit" variant="primary" form="whatsapp-config-form">
+							<Button
+								type="submit"
+								variant="primary"
+								form="whatsapp-config-form"
+								disabled={needsReplacementToken}
+							>
 								<MessageCircle size={16} />
 								Guardar conexion
 							</Button>
 						</div>
 					</div>
 				</div>
-				<form
-					className="form-grid"
-					id="whatsapp-config-form"
-					onSubmit={(event) => {
-						event.preventDefault()
-						void onSaveConfig(configDraft)
-					}}
-				>
+				<form className="form-grid" id="whatsapp-config-form" onSubmit={submitConfig}>
 					<Field label="Modo del canal">
 						<SegmentedControl
 							ariaLabel="Modo del canal de WhatsApp"
@@ -788,7 +813,7 @@ export function WhatsappSettingsPanel({
 						<small className="field-hint">
 							{isFreeMode
 								? 'Gratis: abre WhatsApp (wa.me) con el mensaje ya escrito. Sin API de Meta y sin costo; el envio lo confirmas vos desde tu WhatsApp.'
-								: 'Paga: envio automatico por la API (Meta/Twilio). Requiere credenciales y numero habilitado.'}
+								: 'API: fake simula sin costo de provider; Meta y Twilio pueden enviar mensajes reales y tener costo. Guardar no verifica el canal.'}
 						</small>
 					</Field>
 					<div className="form-row">
@@ -829,16 +854,15 @@ export function WhatsappSettingsPanel({
 							/>
 						</Field>
 					</div>
-					{!isFreeMode ? (
+					{!isFreeMode && !isFakeProvider ? (
 						<>
 							<p className="field-hint">
-								Los mensajes se envian desde el numero de WhatsApp de ShineApp.
-								Deja las credenciales por negocio (Phone number ID, Business
-								account ID y Token) vacias para usar ese numero compartido;
-								completalas solo si este negocio tiene su propio numero.
+								{isTwilioProvider
+									? 'Twilio usa Account SID, Auth Token y numero emisor propios. Sandbox: solo destinatarios con join vigente; Content SID aprobado para templates fuera de sesion.'
+									: 'Meta permite credenciales por negocio o fallback global de ShineApp. Campos vacios no demuestran que exista configuracion global; solicita su verificacion al administrador.'}
 							</p>
 							<div className="form-row">
-								<Field label="Phone number ID">
+								<Field label={isTwilioProvider ? 'Numero emisor (Twilio)' : 'Phone number ID'}>
 									<input
 										value={configDraft.phone_number_id}
 										onChange={(event) =>
@@ -846,7 +870,11 @@ export function WhatsappSettingsPanel({
 										}
 									/>
 								</Field>
-								<Field label="Business account ID">
+								<Field
+									label={
+										isTwilioProvider ? 'Account SID (Twilio)' : 'Business account ID (opcional)'
+									}
+								>
 									<input
 										value={configDraft.business_account_id}
 										onChange={(event) =>
@@ -856,10 +884,16 @@ export function WhatsappSettingsPanel({
 										}
 									/>
 								</Field>
-								<Field label="Token">
+								<Field
+									label={isTwilioProvider ? 'Auth Token (Twilio)' : 'Token'}
+									hint="Solo escritura. Vacio conserva el token guardado; nunca se muestra su valor."
+								>
 									<input
 										type="password"
-										placeholder={config?.has_access_token ? 'Configurado' : ''}
+										autoComplete="new-password"
+										placeholder={
+											configDraft.has_access_token ? 'Configurado (no visible)' : 'Sin token nuevo'
+										}
 										value={configDraft.access_token}
 										onChange={(event) =>
 											patchConfigDraft({ access_token: event.target.value })
@@ -867,6 +901,18 @@ export function WhatsappSettingsPanel({
 									/>
 								</Field>
 							</div>
+						</>
+					) : (
+						<p className="record-sub">
+							{isFreeMode
+								? 'En modo gratis no hacen falta credenciales.'
+								: 'Fake simula el envio sin credenciales ni llamadas externas.'}{' '}
+							Crea o activa un mensaje por evento en Mensajes; el boton de WhatsApp aparece en la
+							cotizacion, la turnera, el tablero de trabajos y la ficha del cliente.
+						</p>
+					)}
+					{!isFreeMode ? (
+						<>
 							<Toggle
 								checked={Boolean(configDraft.is_enabled)}
 								onChange={(checked) => patchConfigDraft({ is_enabled: checked })}
@@ -874,27 +920,36 @@ export function WhatsappSettingsPanel({
 								Canal habilitado
 							</Toggle>
 						</>
-					) : (
-						<p className="record-sub">
-							En modo gratis no hacen falta credenciales. Activa los modulos mas
-							abajo y edita su mensaje; el boton de WhatsApp aparece en la
-							cotizacion, la turnera, el tablero de trabajos y la ficha del
-							cliente.
+					) : null}
+					{needsReplacementToken ? (
+						<p role="alert">
+							Al cambiar de provider carga un token nuevo para evitar reutilizar el secreto del
+							provider anterior.
 						</p>
-					)}
+					) : null}
+					{draftConfigIssues.length ? (
+						<p className="field-hint" role="status">
+							Pendientes del formulario: {draftConfigIssues.join(' ')}
+						</p>
+					) : null}
 				</form>
 			</section>
 
 			<section className="panel">
 				<div className="panel-head">
 					<div>
-						<span className="panel-kicker">Templates aprobados</span>
+						<span className="panel-kicker">{isFreeMode ? 'Mensajes de texto libre' : isFakeProvider ? 'Templates de prueba' : 'Templates locales (aprobacion externa pendiente)'}</span>
 						<h2>Mensajes</h2>
 						<p>Administra los nombres de provider y previews usados por evento.</p>
 					</div>
 					<div className="settings-action-rail">
 						<div className="settings-primary-actions">
-							<Button type="submit" variant="primary" form="whatsapp-template-form">
+							<Button
+								type="submit"
+								variant="primary"
+								form="whatsapp-template-form"
+								disabled={draftTemplateIssues.length > 0}
+							>
 								<Plus size={16} />
 								Crear template
 							</Button>
@@ -919,7 +974,7 @@ export function WhatsappSettingsPanel({
 								))}
 							</select>
 						</Field>
-						<Field label="Nombre provider">
+						<Field label={isFreeMode ? 'Nombre interno del mensaje' : 'Nombre provider'}>
 							<input
 								value={templateDraft.provider_template_name}
 								onChange={(event) =>
@@ -929,16 +984,18 @@ export function WhatsappSettingsPanel({
 								}
 							/>
 						</Field>
-						<Field label="Content SID (Twilio)">
-							<input
-								value={templateDraft.twilio_content_sid}
-								onChange={(event) =>
-									patchTemplateDraft({
-										twilio_content_sid: event.target.value,
-									})
-								}
-							/>
-						</Field>
+						{!isFreeMode && isTwilioProvider ? (
+							<Field label="Content SID (Twilio)">
+								<input
+									value={templateDraft.twilio_content_sid}
+									onChange={(event) =>
+										patchTemplateDraft({
+											twilio_content_sid: event.target.value,
+										})
+									}
+								/>
+							</Field>
+						) : null}
 						<Field label="Idioma">
 							<input
 								value={templateDraft.language}
@@ -970,6 +1027,11 @@ export function WhatsappSettingsPanel({
 							}
 						/>
 					</Field>
+					{draftTemplateIssues.length ? (
+						<p className="field-hint" role="status">
+							{draftTemplateIssues.join(' ')}
+						</p>
+					) : null}
 				</form>
 				{templates.length ? (
 					<div className="records">
@@ -977,6 +1039,7 @@ export function WhatsappSettingsPanel({
 							<WhatsappTemplateRow
 								key={template.id}
 								template={template}
+								config={configDraft}
 								onUpdateTemplate={onUpdateTemplate}
 							/>
 						))}
@@ -996,31 +1059,33 @@ export function WhatsappSettingsPanel({
 				</div>
 				{(() => {
 					const visibleRules = isFreeMode
-						? automationRules.filter((rule) =>
-								freeModuleEventKeys.includes(String(rule.event)),
-							)
+						? automationRules.filter((rule) => freeModuleEventKeys.includes(String(rule.event)))
 						: automationRules
 					return visibleRules.length ? (
 						<div className="records">
 							{visibleRules.map((rule) => {
-								const canChooseDispatch = whatsappDispatchEventKeys.includes(
-									String(rule.event),
-								)
+								const canChooseDispatch = whatsappDispatchEventKeys.includes(String(rule.event))
 								return (
 									<RecordCard key={rule.id}>
 										<RecordCardHeader
 											title={rule.event_label ?? rule.event}
 											subtitle={`${
-												canChooseDispatch ? rule.dispatch ?? 'manual' : 'Manual'
+												canChooseDispatch ? (rule.dispatch ?? 'manual') : 'Manual'
 											} - ${rule.template_label ?? 'Sin template'}${
 												isFreeMode
 													? ` - variables: ${whatsappVariableHint(String(rule.event))}`
 													: ''
 											}`}
 										/>
+										{whatsAppRuleIssues(rule, templates, configDraft).length ? (
+											<p role="status">
+												{whatsAppRuleIssues(rule, templates, configDraft).join(' ')}
+											</p>
+										) : null}
 										<div className="record-actions">
 											{canChooseDispatch ? (
 												<select
+													aria-label={`Despacho ${rule.event}`}
 													value={String(rule.dispatch ?? 'manual')}
 													onChange={(event) =>
 														void onUpdateAutomationRule(rule.id, {
@@ -1034,6 +1099,7 @@ export function WhatsappSettingsPanel({
 												</select>
 											) : null}
 											<select
+												aria-label={`Template ${rule.event}`}
 												value={rule.template ?? ''}
 												onChange={(event) =>
 													void onUpdateAutomationRule(rule.id, {
@@ -1042,11 +1108,19 @@ export function WhatsappSettingsPanel({
 												}
 											>
 												<option value="">Sin template</option>
-												{templates.map((template) => (
-													<option key={template.id} value={template.id}>
-														{template.provider_template_name || template.key}
-													</option>
-												))}
+												{templates
+													.filter(
+														(template) =>
+															template.id === rule.template ||
+															(template.key === rule.event &&
+																template.is_active !== false &&
+																!whatsAppTemplateIssues(template, configDraft).length),
+													)
+													.map((template) => (
+														<option key={template.id} value={template.id}>
+															{template.provider_template_name || template.key}
+														</option>
+													))}
 											</select>
 										</div>
 									</RecordCard>
@@ -1078,8 +1152,7 @@ export function WhatsappSettingsPanel({
 									}`}
 								/>
 								<p className="record-sub">
-									{formatDateTimeLabel(message.created_at)} -{' '}
-									{message.provider ?? 'provider'}
+									{formatDateTimeLabel(message.created_at)} - {message.provider ?? 'provider'}
 								</p>
 								{message.last_error ? (
 									<p className="record-sub danger">{message.last_error}</p>
@@ -1097,9 +1170,11 @@ export function WhatsappSettingsPanel({
 
 function WhatsappTemplateRow({
 	template,
+	config,
 	onUpdateTemplate,
 }: {
 	template: AnyRecord
+	config: AnyRecord
 	onUpdateTemplate: (id: number | string, patch: AnyRecord) => Promise<any>
 }) {
 	const [draft, setDraft] = useState<AnyRecord>({
@@ -1126,6 +1201,7 @@ function WhatsappTemplateRow({
 		setDraft((current) => ({ ...current, ...patch }))
 	}
 
+	const issues = whatsAppTemplateIssues({ ...draft, key: template.key }, config)
 	return (
 		<RecordCard>
 			<RecordCardHeader
@@ -1136,7 +1212,7 @@ function WhatsappTemplateRow({
 			/>
 			<div className="form-grid">
 				<div className="form-row">
-					<Field label="Nombre provider">
+					<Field label={config.mode === 'free' ? 'Nombre interno del mensaje' : 'Nombre provider'}>
 						<input
 							value={draft.provider_template_name}
 							onChange={(event) =>
@@ -1144,14 +1220,14 @@ function WhatsappTemplateRow({
 							}
 						/>
 					</Field>
-					<Field label="Content SID (Twilio)">
-						<input
-							value={draft.twilio_content_sid}
-							onChange={(event) =>
-								patchDraft({ twilio_content_sid: event.target.value })
-							}
-						/>
-					</Field>
+					{config.mode !== 'free' && config.provider === 'twilio' ? (
+						<Field label="Content SID (Twilio)">
+							<input
+								value={draft.twilio_content_sid}
+								onChange={(event) => patchDraft({ twilio_content_sid: event.target.value })}
+							/>
+						</Field>
+					) : null}
 					<Field label="Idioma">
 						<input
 							value={draft.language}
@@ -1175,6 +1251,11 @@ function WhatsappTemplateRow({
 						}
 					/>
 				</Field>
+				{issues.length ? (
+					<p className="field-hint" role="status">
+						{issues.join(' ')}
+					</p>
+				) : null}
 				<div className="record-actions">
 					<Toggle
 						checked={Boolean(draft.is_active)}
@@ -1184,12 +1265,11 @@ function WhatsappTemplateRow({
 					</Toggle>
 					<Button
 						variant="ghost"
+						disabled={draft.is_active !== false && issues.length > 0}
 						onClick={() =>
 							void onUpdateTemplate(template.id, {
 								...draft,
-								variables_schema: splitTemplateVariables(
-									String(draft.variables_schema ?? ''),
-								),
+								variables_schema: splitTemplateVariables(String(draft.variables_schema ?? '')),
 							})
 						}
 					>

@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
-import { test } from 'vitest'
+import { test, vi } from 'vitest'
 
 import {
 	FREE_EVENT_VARIABLES,
 	FREE_EVENT_KEYS,
 	buildFreeVariables,
 	buildFreeWhatsappHref,
+	createFreeWhatsappLauncher,
 	dispatchForEvent,
 	freeWhatsappActionAvailability,
 	freeTemplateBody,
@@ -127,7 +128,7 @@ test('hasActiveWhatsappTemplate y whatsappEventButtonVisible aplican el contrato
 })
 
 test('freeWhatsappActionAvailability explica requisitos faltantes de wa.me', () => {
-	const templates = [{ key: 'reservation_confirmed', is_active: true }]
+	const templates = [{ key: 'reservation_confirmed', is_active: true, body_preview: 'Hola {cliente}' }]
 	assert.deepEqual(
 		freeWhatsappActionAvailability({
 			config: { mode: 'paid', is_enabled: true },
@@ -173,6 +174,87 @@ test('freeWhatsappActionAvailability explica requisitos faltantes de wa.me', () 
 		}),
 		{ visible: true, enabled: true, unavailableReason: null },
 	)
+})
+
+test.each(FREE_EVENT_KEYS)('wa.me valida telefono y cuerpo para %s sin alterar el modo pago', (event) => {
+	const availability = (phone, templates) => freeWhatsappActionAvailability({
+		config: { mode: 'free' }, templates, event, phone,
+	})
+	const templates = [{ key: event, is_active: true, body_preview: 'Hola' }]
+	for (const phone of [null, undefined, '', '   ']) {
+		assert.equal(availability(phone, templates).enabled, false)
+	}
+	assert.match(availability('sin telefono', templates).unavailableReason, /no contiene numeros/)
+	for (const body_preview of [null, undefined, '', '   ']) {
+		assert.equal(availability('11 2233-4455', [{ key: event, body_preview }]).enabled, false)
+	}
+	assert.equal(availability('11 2233-4455', [{ ...templates[0], is_active: false }]).enabled, false)
+	assert.deepEqual(availability('11 2233-4455', templates), {
+		visible: true, enabled: true, unavailableReason: null,
+	})
+	assert.deepEqual(freeWhatsappActionAvailability({
+		config: { mode: 'paid', is_enabled: false }, templates, event, phone: '11 2233-4455',
+	}), { visible: false, enabled: false, unavailableReason: null })
+})
+
+test('launcher abre desde el gesto y no duplica apertura ni log mientras registra', async () => {
+	let finishLog
+	const logged = new Promise((resolve) => { finishLog = resolve })
+	const popup = { opener: {} }
+	const openWindow = vi.fn(() => popup)
+	const log = vi.fn(() => logged)
+	const onLogError = vi.fn()
+	const launch = createFreeWhatsappLauncher()
+	const action = { key: 'quote:8', href: 'https://wa.me/541122334455?text=Hola', openWindow, log, onLogError }
+	assert.equal(launch(action), 'opened')
+	assert.equal(openWindow.mock.calls.length, 1) // sin await antes de window.open
+	assert.equal(popup.opener, null)
+	assert.equal(launch(action), 'pending')
+	assert.equal(openWindow.mock.calls.length, 1)
+	await vi.waitFor(() => assert.equal(log.mock.calls.length, 1))
+	assert.equal(launch(action), 'pending')
+	finishLog()
+	await vi.waitFor(() => assert.equal(launch(action), 'opened'))
+	await vi.waitFor(() => assert.equal(log.mock.calls.length, 2))
+	assert.equal(onLogError.mock.calls.length, 0)
+})
+
+test.each(['null', 'throw'])('launcher no registra popup bloqueado: %s', (failure) => {
+	const log = vi.fn()
+	const onLogError = vi.fn()
+	const launch = createFreeWhatsappLauncher()
+	const openWindow = vi.fn(() => {
+		if (failure === 'throw') throw new Error('Blocked')
+		return null
+	})
+	const action = { key: 'manual:1', href: 'https://wa.me/541122334455', openWindow, log, onLogError }
+	assert.equal(launch(action), 'blocked')
+	assert.equal(launch(action), 'blocked') // no deja la accion bloqueada
+	assert.equal(log.mock.calls.length, 0)
+	assert.equal(onLogError.mock.calls.length, 0)
+})
+
+test.each(['reject', 'throw'])('launcher informa error de log una vez y permite otras acciones: %s', async (failure) => {
+	const launch = createFreeWhatsappLauncher()
+	const onLogError = vi.fn()
+	const log = vi.fn(() => {
+		if (failure === 'throw') throw new Error('Offline')
+		return Promise.reject(new Error('Offline'))
+	})
+	const action = { key: 'work:1', href: 'https://wa.me/541122334455', openWindow: () => ({ opener: null }), log, onLogError }
+	assert.equal(launch(action), 'opened')
+	assert.equal(launch(action), 'pending')
+	assert.equal(launch({ ...action, key: 'work:2', log: () => Promise.resolve() }), 'opened')
+	await vi.waitFor(() => assert.equal(onLogError.mock.calls.length, 1))
+	assert.equal(log.mock.calls.length, 1)
+})
+
+test('launcher registra aunque el navegador no permita limpiar opener', async () => {
+	const popup = Object.defineProperty({}, 'opener', { set() { throw new Error('Denied') } })
+	const log = vi.fn(() => Promise.resolve())
+	const launch = createFreeWhatsappLauncher()
+	assert.equal(launch({ key: 'manual:1', href: 'https://wa.me/541122334455', openWindow: () => popup, log, onLogError: vi.fn() }), 'opened')
+	await vi.waitFor(() => assert.equal(log.mock.calls.length, 1))
 })
 
 test('buildFreeWhatsappHref arma el link o null', () => {

@@ -699,6 +699,59 @@ def test_twilio_missing_credentials_fails_with_clear_error(twilio_config, defaul
 
 
 @pytest.mark.django_db
+def test_outbox_retries_failed_send_and_does_not_resend_success(whatsapp_data):
+    message = create_message(
+        business=whatsapp_data["business"],
+        event=WhatsAppMessage.Event.MANUAL,
+        recipient_phone="541100000001",
+        rendered_body="Synthetic test message",
+        message_type=WhatsAppMessage.MessageType.FREE_TEXT,
+    )
+    with mock.patch(
+        "whatsapp.providers.FakeWhatsAppProvider.send_text",
+        side_effect=TimeoutError("Synthetic provider timeout"),
+    ):
+        assert flush_whatsapp_outbox() == {"processed": 1, "sent": 0, "failed": 1}
+
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.FAILED
+    assert message.attempts == 1
+    assert flush_whatsapp_outbox() == {"processed": 1, "sent": 1, "failed": 0}
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.SENT
+    assert message.attempts == 2
+    assert message.last_error == ""
+    assert message.provider_message_id == f"fake-wa-{message.id}"
+    with mock.patch("whatsapp.providers.FakeWhatsAppProvider.send_text") as provider_send:
+        send_message(message)
+        assert flush_whatsapp_outbox() == {"processed": 0, "sent": 0, "failed": 0}
+    provider_send.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_outbox_stops_retrying_after_max_attempts(whatsapp_data):
+    message = create_message(
+        business=whatsapp_data["business"],
+        event=WhatsAppMessage.Event.MANUAL,
+        recipient_phone="541100000001",
+        rendered_body="Synthetic test message",
+        message_type=WhatsAppMessage.MessageType.FREE_TEXT,
+    )
+    message.max_attempts = 1
+    message.save(update_fields=["max_attempts"])
+    with mock.patch(
+        "whatsapp.providers.FakeWhatsAppProvider.send_text",
+        side_effect=TimeoutError("Synthetic provider timeout"),
+    ) as provider_send:
+        assert flush_whatsapp_outbox() == {"processed": 1, "sent": 0, "failed": 1}
+        assert flush_whatsapp_outbox() == {"processed": 0, "sent": 0, "failed": 0}
+    provider_send.assert_called_once()
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.DEAD
+    assert message.attempts == 1
+
+
+@pytest.mark.django_db
 def test_twilio_status_webhook_valid_signature_updates_delivered(api_client, twilio_config, default_business):
     message = _twilio_status_message(default_business, provider_message_id="SMDELIVERED")
 
@@ -733,6 +786,72 @@ def test_twilio_status_webhook_invalid_signature_does_not_update(api_client, twi
     assert response.status_code == 403
     message.refresh_from_db()
     assert message.status == WhatsAppMessage.Status.SENT
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("auth_token", ["", " ", "\t\n"])
+def test_twilio_status_webhook_without_credentials_rejects_forged_signature(
+    api_client, twilio_config, default_business, auth_token
+):
+    twilio_config.access_token = auth_token
+    twilio_config.save(update_fields=["access_token"])
+    message = _twilio_status_message(default_business)
+
+    response = _post_twilio_status(
+        api_client,
+        {
+            "AccountSid": twilio_config.business_account_id,
+            "MessageSid": message.provider_message_id,
+            "MessageStatus": "delivered",
+        },
+        auth_token=auth_token,
+    )
+
+    assert response.status_code == 403
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.SENT
+
+
+@pytest.mark.django_db
+def test_twilio_status_webhook_cannot_update_another_business(
+    api_client, twilio_config
+):
+    other_business = BusinessAccount.objects.create(name="Other synthetic business")
+    message = _twilio_status_message(other_business)
+    message.provider = WhatsAppConfig.Provider.TWILIO
+    message.save(update_fields=["provider"])
+
+    response = _post_twilio_status(
+        api_client,
+        {
+            "AccountSid": twilio_config.business_account_id,
+            "MessageSid": message.provider_message_id,
+            "MessageStatus": "delivered",
+        },
+    )
+
+    assert response.status_code == 404
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.SENT
+
+
+@pytest.mark.django_db
+def test_twilio_status_webhook_duplicate_does_not_repeat_update(
+    api_client, twilio_config, default_business
+):
+    message = _twilio_status_message(default_business)
+    params = {
+        "AccountSid": twilio_config.business_account_id,
+        "MessageSid": message.provider_message_id,
+        "MessageStatus": "delivered",
+    }
+    assert _post_twilio_status(api_client, params).status_code == 204
+    message.refresh_from_db()
+    updated_at = message.updated_at
+    assert _post_twilio_status(api_client, params).status_code == 204
+    message.refresh_from_db()
+    assert message.status == WhatsAppMessage.Status.DELIVERED
+    assert message.updated_at == updated_at
 
 
 @pytest.mark.django_db
@@ -861,6 +980,31 @@ def test_meta_status_webhook_valid_signature_updates_delivered(api_client, defau
     assert response.status_code == 200
     message.refresh_from_db()
     assert message.status == WhatsAppMessage.Status.DELIVERED
+
+
+@pytest.mark.django_db
+@override_settings(WHATSAPP_META_APP_SECRET="meta-app-secret")
+def test_meta_status_webhook_does_not_create_records_from_inbound_text(api_client):
+    counts_before = (
+        Customer.objects.count(), Reservation.objects.count(), WhatsAppMessage.objects.count()
+    )
+    body = json.dumps({
+        "entry": [{"changes": [{"value": {
+            "messages": [{
+                "id": "wamid.synthetic.inbound",
+                "from": "541100000001",
+                "type": "text",
+                "text": {"body": "Create synthetic customer"},
+            }],
+        }}]}],
+    }).encode("utf-8")
+
+    response = _post_meta_status(api_client, body)
+
+    assert response.status_code == 200
+    assert (
+        Customer.objects.count(), Reservation.objects.count(), WhatsAppMessage.objects.count()
+    ) == counts_before
 
 
 @pytest.mark.django_db

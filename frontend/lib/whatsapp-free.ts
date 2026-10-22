@@ -164,14 +164,16 @@ export function freeWhatsappActionAvailability({
 		})
 		return { visible: enabled, enabled, unavailableReason: null }
 	}
-	if (!String(phone ?? '').trim()) {
+	if (!whatsappUrl(phone)) {
 		return {
 			visible: true,
 			enabled: false,
-			unavailableReason: 'El cliente no tiene telefono cargado.',
+			unavailableReason: String(phone ?? '').trim()
+				? 'El telefono del cliente no contiene numeros. Revisalo en su ficha.'
+				: 'El cliente no tiene telefono cargado.',
 		}
 	}
-	if (!hasActiveWhatsappTemplate(templates, event)) {
+	if (!freeTemplateBody(templates, event).trim()) {
 		return {
 			visible: true,
 			enabled: false,
@@ -180,6 +182,45 @@ export function freeWhatsappActionAvailability({
 		}
 	}
 	return { visible: true, enabled: true, unavailableReason: null }
+}
+
+// La apertura sigue siendo sincrona al gesto del operador. El lock solo cubre
+// el registro pendiente de esa accion en esta pantalla, no otros tabs/dispositivos.
+export function createFreeWhatsappLauncher() {
+	const pending = new Set<string>()
+	return ({
+		key,
+		href,
+		openWindow,
+		log,
+		onLogError,
+	}: {
+		key: string
+		href: string
+		openWindow: (href: string) => Pick<Window, 'opener'> | null
+		log: () => Promise<unknown>
+		onLogError: () => void
+	}): 'opened' | 'blocked' | 'pending' => {
+		if (pending.has(key)) return 'pending'
+		let popup: Pick<Window, 'opener'> | null
+		try {
+			popup = openWindow(href)
+		} catch {
+			return 'blocked'
+		}
+		if (!popup) return 'blocked'
+		try {
+			popup.opener = null
+		} catch {
+			// Algunos navegadores no permiten tocar opener en una ventana remota.
+		}
+		pending.add(key)
+		void Promise.resolve()
+			.then(log)
+			.catch(onLogError)
+			.finally(() => pending.delete(key))
+		return 'opened'
+	}
 }
 
 export function whatsappEventButtonVisible({

@@ -9,6 +9,15 @@ No editar manualmente. Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+- [WhatsApp: rechazo de callbacks Twilio sin token](2026-10-22-whatsapp-twilio-firma-sin-token.md)
+- [WhatsApp: onboarding por modo y provider sin falsa verificacion](2026-10-22-whatsapp-onboarding-readiness.md)
+- [WhatsApp gratis: cotizaciones y aperturas repetidas](2026-10-22-whatsapp-gratis-cotizaciones-y-aperturas.md)
+- [Control reproducible de metadatos Supabase](2026-10-22-supabase-metadata-guard.md)
+- [Next.js: parches de seguridad de optimizacion de imagenes y Server Actions](2026-10-22-next-security-updates.md)
+- [DRF: correcciones de parsing y revocacion de tokens](2026-10-22-drf-security-updates.md)
+- [Clientes: cumpleanos del 29/02 y fechas limite de la alerta](2026-10-22-cumpleanos-29-febrero-y-fechas-limite.md)
+- [Cotizaciones sin remontaje del tablero al actualizar](2026-10-22-cotizaciones-tablero-sin-remontaje.md)
+- [Caja mensual: ultimo egreso agregado](2026-10-22-caja-mensual-ultimo-egreso.md)
 - [Dependencias: correcciones de seguridad para los audits de CI](2026-10-14-drf-security-audit.md)
 - [GitHub Project y gate CI para development](2026-08-24-github-project-ci-development.md)
 - [Contencion de la Data API de Supabase](2026-08-21-contencion-data-api-supabase.md)

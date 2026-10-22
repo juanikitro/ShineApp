@@ -68,6 +68,8 @@ def twilio_signature_for(url, params, auth_token):
 
 
 def twilio_signature_is_valid(request, auth_token, params):
+    if not auth_token or not auth_token.strip():
+        return False
     expected = twilio_signature_for(request.build_absolute_uri(), params, auth_token)
     provided = request.META.get("HTTP_X_TWILIO_SIGNATURE", "")
     return hmac.compare_digest(expected, provided)

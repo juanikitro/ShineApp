@@ -2,6 +2,20 @@
 
 Guia para conectar WhatsApp en ShineApp.
 
+## Alcance vigente de #282 (2026-10-22)
+
+El [issue #282](https://github.com/juanikitro/ShineApp/issues/282) ahora incluye
+salida y carga de datos entrante. Proveedor, numero/topologia, actores, primer
+caso, formato, presupuesto y entorno siguen pendientes de acuerdo para esta
+ampliacion. La decision de julio y los pasos historicos de esta guia no autorizan
+activacion, gastos ni reutilizacion de credenciales potencialmente expuestas.
+
+Los webhooks actuales procesan **estados de salida**, no altas operativas desde
+mensajes entrantes. Un HTTP 200 de Meta para un payload con `messages` no indica
+que se haya recibido, almacenado o ejecutado una solicitud de carga.
+Ver [relevamiento, brechas y propuesta pendiente](whatsapp-bidireccional-282.md).
+El modo gratuito de #281 y el onboarding de #283 conservan sus contratos.
+
 ## Estado de la implementacion
 
 Backend:
@@ -44,6 +58,9 @@ Como funciona:
 - Se activan modulos (turno confirmado, listo para entregar, trabajo entregado, cotizacion) y cada uno tiene un mensaje de texto libre editable con variables `{variable}`. La UI muestra las variables disponibles por modulo. Ademas hay un mensaje manual generico en la ficha del cliente.
 - El boton de WhatsApp aparece en la cotizacion, la turnera, el tablero de trabajos y la ficha del cliente. Abre `https://wa.me/<digitos>?text=<mensaje renderizado>` directo (no usa el servidor).
 - Si falta telefono o un mensaje activo, la accion permanece visible pero deshabilitada e indica el requisito pendiente. Si el navegador bloquea la apertura o falla el registro en Historial, la UI informa la condicion sin afirmar entrega o lectura.
+- La tarjeta de cotizacion tambien muestra el requisito junto al boton deshabilitado, asociado mediante `aria-describedby`. Un telefono sin digitos o un template vacio no habilitan la accion gratuita.
+- La apertura ocurre sin esperar al servidor. Mientras se registra la misma accion en esta pantalla, los clics repetidos no vuelven a abrir la ventana ni crean otro registro. Es una proteccion local durante el registro, no idempotencia entre pestanas o dispositivos; un reenvio posterior sigue siendo una accion explicita.
+- Si falla el registro, se pide revisar historial y conexion antes de repetir: una respuesta perdida no demuestra que el servidor no haya guardado la apertura.
 - En modo gratis, los envios server-side quedan deshabilitados: `enqueue_automated_message()` no genera mensajes y los endpoints de envio pago responden error; el frontend usa wa.me.
 
 Variables por modulo:
@@ -56,6 +73,11 @@ Variables por modulo:
 Historial:
 - Cada envio gratis se registra con `POST /api/whatsapp/free/log/` (`EmployerOnly`, scoping por negocio): crea un `WhatsAppMessage` con `message_type=free_text`, `provider=wame`, `status=sent`.
 - Limitacion: el modo gratis no puede confirmar entrega ni lectura (abre el WhatsApp del operador). El estado real disponible es "enviado/link abierto".
+
+Validacion manual pendiente de #281 (sin enviar a clientes reales):
+- Con datos sinteticos, recorrer cotizacion, agenda/turno, trabajo y ficha del cliente en desktop y mobile; comprobar destinatario/evento antes de abrir y confirmar el envio solo desde WhatsApp.
+- Probar teclado y foco en tarjeta y menu; revisar explicaciones de telefono/template faltante, popup bloqueado y fallo del registro. Un clic repetido mientras el registro sigue pendiente debe abrir una sola ventana.
+- Verificar que el historial conserva la semantica de apertura/manual, sin interpretar `sent` de `wame` como entrega o lectura. La disponibilidad y los tests locales no sustituyen esta aceptacion en navegador.
 
 ## Variables de entorno backend
 
@@ -214,8 +236,24 @@ Configuracion:
 - Configuracion > WhatsApp.
 - Solo usuarios con permiso `EmployerOnly`.
 - El token se escribe, pero no se devuelve en las respuestas de API.
+- `Preparacion de WhatsApp` muestra el **estado guardado**; los pendientes del formulario
+  corresponden al borrador y se aplican al guardar. El progreso mide configuracion,
+  mensajes de los cuatro eventos base y reglas; el historial es opcional.
+- `Configuracion local completa` no verifica credenciales, aprobacion del provider,
+  webhook, entrega ni lectura. La API actual no expone disponibilidad de credenciales
+  globales Meta; si falta token/Phone number ID por negocio, solicitar al administrador
+  verificar el fallback global. No cargar secretos reales solo para completar el indicador.
+- Gratis no necesita habilitacion API, provider, secretos ni vinculos `rule.template`:
+  toma el primer mensaje activo por evento. Fake no necesita credenciales; Meta muestra
+  sus IDs/token; Twilio muestra Account SID, Auth Token, numero emisor y Content SID.
+- El token guardado nunca se precarga. Guardar sin token nuevo lo conserva; free/fake
+  omiten credenciales del PATCH. Cambiar provider limpia los IDs y token del borrador;
+  si existe un secreto guardado, pasar a otro provider real requiere reemplazarlo para
+  evitar reutilizar un token incompatible. Esto no elimina ni rota secretos en el servidor.
 - Primer arranque: usar `Preparar WhatsApp demo` para activar provider `fake`,
-  crear templates base y vincular reglas de despacho sin credenciales externas.
+  fijar `mode=paid`, crear templates base y vincular reglas de despacho sin credenciales
+  externas. Puede cambiar despacho a automatico en fake; no envia a clientes reales.
+  El atajo no se ofrece sobre un canal gratis o externo ya habilitado/configurado.
 - Produccion: cargar Meta Cloud API manualmente en la configuracion avanzada y
   reemplazar los templates demo por los nombres aprobados por Meta.
 
@@ -224,6 +262,15 @@ Templates:
 - `Nombre provider` debe coincidir con el template aprobado en Meta.
 - `Preview` es la version que ShineApp guarda para auditoria y previsualizacion.
 - `Variables` define que valores se mandan al provider.
+- El editor exige nombre e idioma y conserva el contrato pago: schemas personalizados
+  y preview vacio siguen admitidos. En gratis tambien valida texto no vacio y variables
+  disponibles por evento, para evitar placeholders que wa.me elimina sin sustituir.
+- Los selectores de reglas ofrecen templates activos del mismo evento y muestran errores
+  de asignaciones existentes incompatibles. Desactivar un template sigue disponible aunque
+  su borrador tenga pendientes. Un fallo de creacion conserva el borrador para corregir/reintentar.
+- Solo Meta/Twilio muestran la advertencia de aprobacion externa; crear un template local
+  no demuestra que el provider lo aprobo. El historial del onboarding solo cuenta registros
+  `sent/delivered/read` del provider actual (`wame` para gratis), sin verificar la conexion actual.
 
 Despacho por evento:
 - `manual`: no envia desde el hook; el frontend puede pedir el envio pago mediante el endpoint del recurso.
@@ -271,7 +318,7 @@ Con Meta real:
 - Error de Meta por template: revisar nombre exacto, idioma y variables en el mismo orden.
 - No aparece mensaje automatico: revisar que el despacho sea `automatic`, el template este activo y el cliente tenga telefono.
 - Mensaje queda `failed`: revisar `last_error` en Historial WhatsApp.
-- Webhook Twilio responde 403: la firma `X-Twilio-Signature` no coincide; revisar Auth Token del subaccount, URL publica exacta y proxy HTTPS.
+- Webhook Twilio responde 403: falta un Auth Token no vacio o la firma `X-Twilio-Signature` no coincide; revisar Auth Token del subaccount, URL publica exacta y proxy HTTPS. Un token vacio o compuesto solo por espacios se rechaza incluso si el HMAC coincide.
 - Webhook Twilio responde 404: no hay configuracion Twilio con ese Account SID o no existe mensaje con ese Message SID para el negocio.
 - Mensaje no baja de `read` a `sent`: esperado; el webhook ignora statuses viejos que llegan tarde para no degradar el historial.
 - No hay `delivered/read`: revisar `WHATSAPP_STATUS_CALLBACK_URL` o la configuracion manual del Status Callback en Twilio.

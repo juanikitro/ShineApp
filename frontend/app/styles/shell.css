@@ -2657,6 +2657,14 @@
   font-size: var(--text-sm);
 }
 
+/* Chip neutro para estados sin tono propio (activo, inactivo, en uso...);
+   :where() deja que las clases de tono `.status.<estado>` sigan ganando. */
+.detail-field dd :where(.status) {
+  background: var(--color-surface);
+  border-color: var(--shop-border);
+  color: var(--shop-ink-soft);
+}
+
 .detail-empty {
   background: var(--color-surface-raised);
   border: 1px dashed var(--shop-border-strong);
@@ -6218,6 +6226,58 @@
   display: grid;
   gap: var(--space-1);
   padding-top: 10px;
+}
+
+/* Caja mensual: ultimo egreso agregado (created_at), sin alterar el orden del listado. */
+.cash-latest-expense {
+  align-items: center;
+  border: 1px solid var(--shop-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-3);
+}
+
+.cash-latest-expense__entry {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  flex: 1 1 280px;
+  gap: 2px var(--space-3);
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.cash-latest-expense__label,
+.cash-latest-expense__meta,
+.cash-latest-expense__empty {
+  color: var(--shop-ink-soft);
+  font-size: var(--text-sm);
+}
+
+.cash-latest-expense__label,
+.cash-latest-expense__title,
+.cash-latest-expense__meta {
+  grid-column: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cash-latest-expense__title {
+  color: var(--shop-ink);
+}
+
+.cash-latest-expense__amount {
+  align-self: center;
+  color: var(--shop-danger);
+  grid-column: 2;
+  grid-row: 1 / span 3;
 }
 
 .cash-entry-footer {

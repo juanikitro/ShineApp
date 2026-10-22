@@ -342,6 +342,11 @@
   white-space: nowrap;
 }
 
+.quote-whatsapp-help {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
+
 .quote-action-button svg {
   flex: 0 0 auto;
   height: 14px;

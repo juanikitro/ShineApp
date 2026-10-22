@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { test, vi } from 'vitest'
 
@@ -9,6 +9,152 @@ import {
 	NewsSettingsPanel,
 	WhatsappSettingsPanel,
 } from './SettingsWorkspace'
+import { whatsappDemoTemplates } from '@/lib/whatsapp-onboarding'
+
+function whatsappProps(config = {}) {
+	return {
+		automationRules: [],
+		config,
+		messages: [],
+		templates: [],
+		onCreateTemplate: vi.fn().mockResolvedValue({ id: 1 }),
+		onPrepareDemo: vi.fn().mockResolvedValue({}),
+		onSaveConfig: vi.fn().mockResolvedValue({}),
+		onUpdateAutomationRule: vi.fn().mockResolvedValue({}),
+		onUpdateTemplate: vi.fn().mockResolvedValue({}),
+	}
+}
+
+test('free onboarding has no credentials or demo shortcut and saves only visible config', async () => {
+	const user = userEvent.setup()
+	const props = whatsappProps({ mode: 'free', provider: 'meta', phone_number_id: 'old-id' })
+	render(<WhatsappSettingsPanel {...props} />)
+	assert.ok(screen.getByText('Gratis (wa.me)', { selector: '.whatsapp-mode-badge' }))
+	assert.equal(screen.queryByRole('textbox', { name: 'Phone number ID' }), null)
+	assert.equal(screen.queryByLabelText('Token'), null)
+	assert.equal(screen.queryByLabelText('Content SID (Twilio)'), null)
+	assert.equal(screen.queryByRole('button', { name: /Preparar WhatsApp demo/ }), null)
+	await user.click(screen.getByRole('button', { name: 'Guardar conexion' }))
+	assert.equal('access_token' in props.onSaveConfig.mock.calls[0][0], false)
+	assert.equal('phone_number_id' in props.onSaveConfig.mock.calls[0][0], false)
+})
+
+test('fake requires enablement without real credentials and preserves saved state until save', async () => {
+	const user = userEvent.setup()
+	const props = whatsappProps({ mode: 'paid', provider: 'fake' })
+	render(<WhatsappSettingsPanel {...props} />)
+	assert.equal(screen.queryByLabelText('Token'), null)
+	assert.equal(screen.queryByLabelText('Business account ID (opcional)'), null)
+	assert.ok(screen.getByRole('checkbox', { name: 'Canal habilitado' }))
+	await user.click(screen.getByRole('checkbox', { name: 'Canal habilitado' }))
+	assert.ok(screen.getByText('Configuracion pendiente'))
+	await user.click(screen.getByRole('button', { name: 'Guardar conexion' }))
+	assert.equal(props.onSaveConfig.mock.calls[0][0].is_enabled, true)
+})
+
+test('stored token stays write-only, blank saves omit it, and return updates provider fields', async () => {
+	const user = userEvent.setup()
+	const props = whatsappProps({ mode: 'paid', provider: 'meta', has_access_token: true })
+	const { rerender } = render(<WhatsappSettingsPanel {...props} />)
+	const token = screen.getByLabelText('Token') as HTMLInputElement
+	assert.equal(token.type, 'password')
+	assert.equal(token.value, '')
+	assert.equal(token.placeholder, 'Configurado (no visible)')
+	assert.equal(screen.queryByText('Produccion Meta'), null)
+	await user.click(screen.getByRole('button', { name: 'Guardar conexion' }))
+	assert.equal('access_token' in props.onSaveConfig.mock.calls[0][0], false)
+	rerender(
+		<WhatsappSettingsPanel
+			{...props}
+			config={{ mode: 'paid', provider: 'twilio', has_access_token: true }}
+		/>,
+	)
+	assert.ok(screen.getByLabelText('Account SID (Twilio)'))
+	assert.ok(screen.getByLabelText('Numero emisor (Twilio)'))
+	assert.ok(screen.getByLabelText('Auth Token (Twilio)'))
+	assert.ok(screen.getByLabelText('Content SID (Twilio)'))
+	assert.equal(screen.queryByLabelText('Phone number ID'), null)
+})
+
+test('switching providers clears incompatible draft fields and requires replacement of stored token', async () => {
+	const user = userEvent.setup()
+	const props = whatsappProps({
+		mode: 'paid',
+		provider: 'meta',
+		has_access_token: true,
+		phone_number_id: 'meta-id',
+		business_account_id: 'meta-business',
+	})
+	render(<WhatsappSettingsPanel {...props} />)
+	await user.type(screen.getByLabelText('Token'), 'synthetic-token')
+	await user.selectOptions(screen.getByRole('combobox', { name: 'Provider' }), 'twilio')
+	assert.equal((screen.getByLabelText('Auth Token (Twilio)') as HTMLInputElement).value, '')
+	assert.equal((screen.getByLabelText('Numero emisor (Twilio)') as HTMLInputElement).value, '')
+	assert.equal(
+		(screen.getByRole('button', { name: 'Guardar conexion' }) as HTMLButtonElement).disabled,
+		true,
+	)
+	await user.type(screen.getByLabelText('Auth Token (Twilio)'), 'new-synthetic-token')
+	await user.click(screen.getByRole('button', { name: 'Guardar conexion' }))
+	assert.equal(props.onSaveConfig.mock.calls[0][0].access_token, 'new-synthetic-token')
+	assert.equal((screen.getByLabelText('Auth Token (Twilio)') as HTMLInputElement).value, '')
+})
+
+test('template draft validates before save and retains content when API action fails', async () => {
+	const user = userEvent.setup()
+	const props = whatsappProps({ mode: 'free', provider: 'fake' })
+	props.onCreateTemplate.mockResolvedValue(undefined)
+	const { container } = render(<WhatsappSettingsPanel {...props} />)
+	const form = container.querySelector('#whatsapp-template-form') as HTMLFormElement
+	fireEvent.submit(form)
+	assert.equal(props.onCreateTemplate.mock.calls.length, 0)
+	await user.type(within(form).getByLabelText('Nombre interno del mensaje'), 'demo')
+	await user.type(
+		within(form).getByLabelText('Mensaje (texto libre)', { exact: false }),
+		'Mensaje de prueba',
+	)
+	await user.type(within(form).getByLabelText('Variables', { exact: true }), 'desconocida')
+	assert.equal(
+		(screen.getByRole('button', { name: 'Crear template' }) as HTMLButtonElement).disabled,
+		true,
+	)
+	await user.clear(within(form).getByLabelText('Variables', { exact: true }))
+	await user.click(screen.getByRole('button', { name: 'Crear template' }))
+	assert.equal(props.onCreateTemplate.mock.calls.length, 1)
+	assert.equal(
+		(within(form).getByLabelText('Nombre interno del mensaje') as HTMLInputElement).value,
+		'demo',
+	)
+	props.onCreateTemplate.mockResolvedValue({ id: 2 })
+	await user.click(screen.getByRole('button', { name: 'Crear template' }))
+	assert.equal(
+		(within(form).getByLabelText('Nombre interno del mensaje') as HTMLInputElement).value,
+		'',
+	)
+})
+
+test('rules show invalid bindings and offer only active matching templates', async () => {
+	const user = userEvent.setup()
+	const props = whatsappProps({ mode: 'paid', provider: 'fake' })
+	render(
+		<WhatsappSettingsPanel
+			{...props}
+			automationRules={[
+				{ id: 1, event: 'reservation_confirmed', template: null, dispatch: 'manual' },
+			]}
+			templates={[
+				{ ...whatsappDemoTemplates[0], id: 11 },
+				{ ...whatsappDemoTemplates[1], id: 12 },
+				{ ...whatsappDemoTemplates[0], id: 13, is_active: false },
+			]}
+		/>,
+	)
+	const select = screen.getByRole('combobox', { name: 'Template reservation_confirmed' })
+	assert.equal(within(select).getAllByRole('option').length, 2)
+	assert.ok(screen.getByText('Asigna un template activo del mismo evento.'))
+	await user.selectOptions(select, '11')
+	assert.deepEqual(props.onUpdateAutomationRule.mock.calls[0], [1, { template: '11' }])
+})
 
 test('NewsSettingsPanel renders the panel heading and kicker', () => {
 	render(<NewsSettingsPanel />)
@@ -85,10 +231,10 @@ test('WhatsappSettingsPanel shows demo onboarding and calls prepare action', asy
 		/>,
 	)
 
-	assert.ok(screen.getByRole('heading', { name: 'WhatsApp listo para probar' }))
+	assert.ok(screen.getByRole('heading', { name: 'Preparacion de WhatsApp' }))
 	await user.click(screen.getByRole('button', { name: /Preparar WhatsApp demo/ }))
 	assert.equal(onPrepareDemo.mock.calls.length, 1)
-	assert.ok(screen.getByText('Primer arranque'))
+	assert.ok(screen.getByText('Estado guardado'))
 })
 
 test('AgendaSettingsPanel patches automatic charge preference', async () => {
