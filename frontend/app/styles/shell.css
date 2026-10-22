@@ -2657,6 +2657,14 @@
   font-size: var(--text-sm);
 }
 
+/* Chip neutro para estados sin tono propio (activo, inactivo, en uso...);
+   :where() deja que las clases de tono `.status.<estado>` sigan ganando. */
+.detail-field dd :where(.status) {
+  background: var(--color-surface);
+  border-color: var(--shop-border);
+  color: var(--shop-ink-soft);
+}
+
 .detail-empty {
   background: var(--color-surface-raised);
   border: 1px dashed var(--shop-border-strong);
