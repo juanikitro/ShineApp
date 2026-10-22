@@ -10,6 +10,11 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-10-22
+- [Control reproducible de metadatos Supabase](docs/registro/cambios/2026-10-22-supabase-metadata-guard.md)
+- [Next.js: parches de seguridad de optimizacion de imagenes y Server Actions](docs/registro/cambios/2026-10-22-next-security-updates.md)
+- [DRF: correcciones de parsing y revocacion de tokens](docs/registro/cambios/2026-10-22-drf-security-updates.md)
+
 ## 2026-10-14
 - [Dependencias: correcciones de seguridad para los audits de CI](docs/registro/cambios/2026-10-14-drf-security-audit.md)
 
