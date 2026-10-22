@@ -9,7 +9,7 @@ import {
 	type DragEndEvent,
 	type DragStartEvent,
 } from '@dnd-kit/core'
-import { type ReactNode } from 'react'
+import { type ReactNode, useId } from 'react'
 
 import { CalendarDays, FileText, MessageCircle, Plus } from 'lucide-react'
 
@@ -39,6 +39,7 @@ type QuoteCardContentProps = {
 	onSendQuoteWhatsapp: (item: AnyRecord) => void
 	whatsappButtonVisible: (item: AnyRecord) => boolean
 	whatsappButtonLabel: (item: AnyRecord) => string
+	whatsappUnavailableReason?: (item: AnyRecord) => string | null
 	onOpenQuoteReservationInAgenda: (item: AnyRecord) => void
 }
 
@@ -60,9 +61,12 @@ export function QuoteCardContent({
 	onSendQuoteWhatsapp,
 	whatsappButtonVisible,
 	whatsappButtonLabel,
+	whatsappUnavailableReason,
 	onOpenQuoteReservationInAgenda,
 }: QuoteCardContentProps) {
 	const code = quoteCode(item)
+	const whatsappHelpId = useId()
+	const whatsappReason = whatsappUnavailableReason?.(item)
 	const hasReservation = quoteHasReservation(item)
 	const isDraft = quoteLaneStatus(item) === 'draft'
 	const groupLines = Array.isArray(item.vehicle_lines) ? item.vehicle_lines : []
@@ -148,7 +152,9 @@ export function QuoteCardContent({
 						<button
 							type="button"
 							className="ghost quote-action-button quote-action-button--outline"
-							aria-label={`${whatsappButtonLabel(item)} cotizacion`}
+							aria-label={`${whatsappButtonLabel(item)} cotizacion para ${item.customer_name || 'el cliente'}`}
+							disabled={Boolean(whatsappReason)}
+							aria-describedby={whatsappReason ? whatsappHelpId : undefined}
 							onClick={() => onSendQuoteWhatsapp(item)}
 						>
 							<MessageCircle size={16} />
@@ -165,6 +171,11 @@ export function QuoteCardContent({
 							<FileText size={16} />
 							Enviar
 						</button>
+					) : null}
+					{whatsappButtonVisible(item) && whatsappReason ? (
+						<small id={whatsappHelpId} className="record-sub quote-whatsapp-help">
+							{whatsappReason}
+						</small>
 					) : null}
 				</div>
 			)}
@@ -204,6 +215,7 @@ type QuotesPanelProps = {
 	onSendQuoteWhatsapp: (item: AnyRecord) => void
 	whatsappButtonVisible: (item: AnyRecord) => boolean
 	whatsappButtonLabel: (item: AnyRecord) => string
+	whatsappUnavailableReason?: (item: AnyRecord) => string | null
 	onOpenQuoteReservationInAgenda: (item: AnyRecord) => void
 	onQuoteDragCancel: () => void
 	onQuoteDragEnd: (event: DragEndEvent) => void
@@ -233,6 +245,7 @@ export function QuotesPanel({
 	onSendQuoteWhatsapp,
 	whatsappButtonVisible,
 	whatsappButtonLabel,
+	whatsappUnavailableReason,
 	onOpenQuoteReservationInAgenda,
 	onQuoteDragCancel,
 	onQuoteDragEnd,
@@ -250,6 +263,7 @@ export function QuotesPanel({
 		onSendQuoteWhatsapp,
 		whatsappButtonVisible,
 		whatsappButtonLabel,
+		whatsappUnavailableReason,
 		onOpenQuoteReservationInAgenda,
 	}
 

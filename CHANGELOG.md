@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-10-22
+- [WhatsApp gratis: cotizaciones y aperturas repetidas](docs/registro/cambios/2026-10-22-whatsapp-gratis-cotizaciones-y-aperturas.md)
+
 ## 2026-10-14
 - [Dependencias: correcciones de seguridad para los audits de CI](docs/registro/cambios/2026-10-14-drf-security-audit.md)
 

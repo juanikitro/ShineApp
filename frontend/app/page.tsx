@@ -400,6 +400,7 @@ import {
 import {
 	buildFreeVariables,
 	buildFreeWhatsappHref,
+	createFreeWhatsappLauncher,
 	dispatchForEvent,
 	freeWhatsappActionAvailability,
 	freeTemplateBody,
@@ -698,6 +699,7 @@ export default function Home() {
 	const pendingActions = usePendingActions()
 	const runActionCounterRef = useRef(0)
 	const overdueAgendaToastShownRef = useRef(false)
+	const [launchFreeWhatsapp] = useState(createFreeWhatsappLauncher)
 	const overdueLoadErrorToastVersionRef = useRef(0)
 	const overdueSessionIdentityRef = useRef<string | null>(null)
 	const { requestConfirm, ConfirmDialog } = useConfirmDialog()
@@ -2890,6 +2892,7 @@ export default function Home() {
 		onSendQuoteWhatsapp: sendQuoteWhatsapp,
 		whatsappButtonVisible: quoteWhatsappButtonVisible,
 		whatsappButtonLabel: quoteWhatsappButtonLabel,
+		whatsappUnavailableReason: quoteWhatsappUnavailableReason,
 		onOpenQuoteReservationInAgenda: openQuoteReservationInAgenda,
 	})
 
@@ -5604,7 +5607,11 @@ export default function Home() {
 	}
 
 	function quoteWhatsappButtonVisible(quote: AnyRecord) {
-		return quoteWhatsappAvailability(quote).enabled
+		return quoteWhatsappAvailability(quote).visible
+	}
+
+	function quoteWhatsappUnavailableReason(quote: AnyRecord) {
+		return quoteWhatsappAvailability(quote).unavailableReason
 	}
 
 	function quoteWhatsappButtonLabel(quote: AnyRecord) {
@@ -5630,7 +5637,7 @@ export default function Home() {
 	}
 
 	// Modo gratis: abre WhatsApp (wa.me) con el mensaje renderizado y registra el
-	// envio en el Historial (fire-and-forget). No usa la API de Meta.
+	// link abierto en el Historial sin bloquear al operador. No usa la API de Meta.
 	function openFreeWhatsapp(options: {
 		event: string
 		customer: AnyRecord | null | undefined
@@ -5667,19 +5674,55 @@ export default function Home() {
 			showToast({
 				tone: 'error',
 				title: 'No se pudo abrir WhatsApp',
-				description: !phone
-					? 'El cliente no tiene telefono cargado.'
-					: 'Falta configurar el mensaje de este modulo en Configuracion > WhatsApp.',
+				description: freeWhatsappActionAvailability({
+					config: whatsappConfig,
+					templates: whatsappTemplates,
+					event,
+					phone,
+				}).unavailableReason ?? 'El mensaje quedo vacio. Revisalo en Configuracion > WhatsApp.',
 			})
 			return false
 		}
-		let popup: Window | null = null
-		try {
-			popup = typeof window !== 'undefined' ? window.open(href, '_blank') : null
-		} catch {
-			popup = null
-		}
-		if (!popup) {
+		const launchResult = launchFreeWhatsapp({
+			key: JSON.stringify([
+				currentUser?.business?.id,
+				event,
+				options.reservationId,
+				options.workOrderId,
+				options.quoteId,
+				customer?.id,
+				phone,
+			]),
+			href,
+			openWindow: (url) => typeof window !== 'undefined' ? window.open(url, '_blank') : null,
+			log: async () => {
+				const message = await apiFetch<AnyRecord>('/whatsapp/free/log/', {
+					method: 'POST',
+					body: JSON.stringify({
+						event,
+						rendered_body: body,
+						recipient_phone: phone,
+						recipient_name:
+							customer?.name ?? record?.customer_snapshot_name ?? record?.customer_name ?? '',
+						customer: customer?.id ?? null,
+						reservation: options.reservationId ?? null,
+						work_order: options.workOrderId ?? null,
+						quote: options.quoteId ?? null,
+					}),
+				})
+				if (message) setWhatsappMessages((current) => [message, ...current])
+			},
+			onLogError: () => {
+				showToast({
+					tone: 'error',
+					title: 'WhatsApp se abrió, pero no se pudo confirmar el registro',
+					description:
+						'Revisá el historial y tu conexión. No vuelvas a abrir el enlace si ya enviaste el mensaje.',
+				})
+			},
+		})
+		if (launchResult === 'pending') return true
+		if (launchResult === 'blocked') {
 			showToast({
 				tone: 'error',
 				title: 'WhatsApp fue bloqueado por el navegador',
@@ -5688,36 +5731,6 @@ export default function Home() {
 			})
 			return false
 		}
-		try {
-			popup.opener = null
-		} catch {
-			// Algunos navegadores no permiten tocar opener en una ventana remota.
-		}
-		void apiFetch<AnyRecord>('/whatsapp/free/log/', {
-			method: 'POST',
-			body: JSON.stringify({
-				event,
-				rendered_body: body,
-				recipient_phone: phone,
-				recipient_name:
-					customer?.name ?? record?.customer_snapshot_name ?? record?.customer_name ?? '',
-				customer: customer?.id ?? null,
-				reservation: options.reservationId ?? null,
-				work_order: options.workOrderId ?? null,
-				quote: options.quoteId ?? null,
-			}),
-		})
-			.then((message) => {
-				if (message) setWhatsappMessages((current) => [message, ...current])
-			})
-			.catch(() => {
-				showToast({
-					tone: 'error',
-					title: 'WhatsApp se abrió, pero no se pudo registrar',
-					description:
-						'El mensaje no quedó en el historial. Revisá tu conexión antes de continuar.',
-				})
-			})
 		showToast({
 			tone: 'success',
 			title: 'WhatsApp abierto',
@@ -9618,6 +9631,7 @@ export default function Home() {
 						onSendQuoteWhatsapp={sendQuoteWhatsapp}
 						whatsappButtonVisible={quoteWhatsappButtonVisible}
 						whatsappButtonLabel={quoteWhatsappButtonLabel}
+						whatsappUnavailableReason={quoteWhatsappUnavailableReason}
 						onOpenQuoteReservationInAgenda={openQuoteReservationInAgenda}
 						onQuoteDragCancel={handleQuoteDragCancel}
 						onQuoteDragEnd={handleQuoteDragEnd}
