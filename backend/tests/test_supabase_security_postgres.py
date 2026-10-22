@@ -185,3 +185,14 @@ def test_explicit_empty_acls_mean_no_grants_not_builtin_defaults(catalog):
     assert cursor.fetchone()[0] == 0
     assert report(catalog)["status"] == "pass"
     assert containment_review_plan(cursor, [creator]) == []
+
+
+def test_postgres17_maintain_privilege_is_not_missed(catalog):
+    if connection.pg_version < 170000:
+        pytest.skip("MAINTAIN privilege was introduced in PostgreSQL 17")
+    cursor, creator = catalog
+    cursor.execute("GRANT MAINTAIN ON public.security_probe TO anon")
+    assert "table_additional_grant" in codes(catalog)
+    for statement in containment_review_plan(cursor, [creator]):
+        cursor.execute(statement)
+    assert report(catalog)["status"] == "pass"

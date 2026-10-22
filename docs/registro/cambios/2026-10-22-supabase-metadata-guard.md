@@ -14,9 +14,14 @@ regresiones con PostgreSQL sintetico sin credenciales Supabase. Las tablas nueva
 requieren RLS por separado de defaults; no se agregan triggers ni cambios SQL
 automaticos a deploy. Media demo/prod permanece privada con URLs firmadas.
 
-No hubo acceso remoto, deploy, rotacion ni cierre de #279/#289. Inventario vivo,
-Data API/GraphQL, Storage, pruebas Django de dos negocios, logs y revocacion Meta
-siguen pendientes humanos; #304 continua postergado.
+Se revalidaron advisors/metadatos remotos con autorizacion acotada del coordinador:
+55 tablas con RLS y sin grants efectivos sobre objetos, pero persisten USAGE de
+schema heredado y EXECUTE global para futuras funciones. SQL exacto no aplicado
+y limites en la fuente operativa. CI sintetico se alinea a PostgreSQL 17 del
+destino e incluye el privilegio MAINTAIN; PostgreSQL 15 ya tuvo evidencia previa.
+No hubo deploy, rotacion ni cierre de #279/#289. Dashboard/API, acceso Storage,
+pruebas Django de dos negocios, logs y revocacion Meta siguen pendientes humanos;
+#304 continua postergado.
 
 ## Validacion
 

@@ -184,7 +184,9 @@ No alcanza con revocar un grant directo si el acceso proviene de un rol padre.
    restaurar credenciales expuestas ni convertir un bucket a publico.
 
 El workflow `Validate`, job `backend`, ejecuta estos tests focalizados contra
-un servicio PostgreSQL 15 desechable sin secretos Supabase. Se prueba una tabla
+un servicio PostgreSQL 17 desechable sin secretos Supabase, alineado con la
+version mayor del destino confirmada por el coordinador. PostgreSQL 15 quedo
+validado en una corrida anterior, como compatibilidad historica. Se prueba una tabla
 nueva que falla por RLS y luego cumple, grants `PUBLIC`/heredados/columnas,
 secuencias, views, funciones y defaults globales/schema; el plan se aplica
 solamente a fixtures sinteticas bajo rollback. Otra prueba intenta escribir
@@ -222,9 +224,56 @@ python -m pytest tests/test_supabase_security.py tests/test_supabase_security_po
   comunicaciones segun datos/jurisdiccion. La ausencia de logs no prueba que
   no hubo acceso. Clasificar otras credenciales por impacto antes de rotar.
 
-No se ejecuto ninguna de esas validaciones remotas en este cambio. Las acciones
-de incidente siguen activas; backups, restores, staging y operacion productiva
+Las validaciones funcionales remotas y de credenciales no se ejecutaron. La
+revalidacion de metadatos autorizada se resume abajo. Las acciones de incidente
+siguen activas; backups, restores, staging y operacion productiva
 general de #304 siguen postergados y no son prerrequisito para contener exposicion.
+
+### Revalidacion acotada del 2026-10-22
+
+Tras confirmar destino, el coordinador retiro su restriccion inicial de conexion
+solo para advisors y SELECT de metadatos mediante el conector. No se consultaron
+filas de negocio, claves, cuerpos de funciones ni objetos Storage; no hubo DDL,
+rotaciones, migraciones ni cambios remotos. No se publican identificadores de
+proyecto ni objetos sensibles en esta evidencia.
+
+- PostgreSQL 17.6; `public`: 55 tablas, las 55 con RLS, 53 secuencias, ninguna
+  view/materialized view ni rutina. El creador explicito revisado y los owners
+  observados son `postgres`; falta confirmar todos los creadores operativos.
+- Ningun grant efectivo de tabla, columna, secuencia o rutina a `anon` ni
+  `authenticated`; sin policies aplicables. Esos roles no son SUPERUSER ni
+  BYPASSRLS. El rol `postgres` conserva BYPASSRLS, sin inferir que sea la
+  identidad actual de la conexion Django.
+- Advisor security: 55 avisos INFO `rls_enabled_no_policy`, sin otros hallazgos
+  devueltos. Ausencia de policies es deliberada para este schema interno; no
+  crear policies genericas para eliminar ese aviso.
+- El detector devuelve cuatro hallazgos por dos causas: USAGE sobre `public`
+  heredado de `PUBLIC` por ambos roles y default **global** EXECUTE a `PUBLIC`
+  para futuras funciones creadas por `postgres`. No se observaron grants
+  actuales sobre objetos; los defaults de funciones son riesgo de regresion,
+  no prueba de acceso actual ni de exfiltracion.
+- Un bucket configurado privado y cero policies en `storage.objects/buckets`.
+  Esto no demuestra denegacion HTTP, URLs firmadas ni funcionamiento S3/Django.
+- `pgrst.db_schemas` no aparece en la sesion ni como setting visible del
+  catalogo de roles. Es **desconocido** el valor efectivo del Dashboard/Data API;
+  ese resultado no prueba que `public` este retirado.
+
+Plan concreto generado de esos metadatos, **no aplicado**:
+
+```sql
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres REVOKE ALL ON FUNCTIONS FROM PUBLIC;
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+```
+
+Requiere aprobacion humana de la mutacion y consumidores antes de ejecutarlo:
+el primer cambio afecta funciones futuras de ese creador en todos los schemas;
+el segundo afecta cualquier consumidor que dependa de USAGE heredado. Conservar
+snapshot restringido de ACL/defaults y diagnosticar permisos concretos ante un
+fallo; no reabrir `public` ni defaults publicos como rollback indiscriminado.
+El generador sigue siendo de solo lectura. El estado actual detectado es
+`fail` del contrato estricto y no debe confundirse con una vulnerabilidad de
+lectura actual demostrada. Siguen pendientes Dashboard/API, flujo Django/media,
+logs y #289 antes del cierre de incidente.
 
 Referencias oficiales revisadas el 2026-10-22:
 

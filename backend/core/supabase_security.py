@@ -44,20 +44,20 @@ WITH api_roles AS (
 
 INVENTORY_SQL = CATALOG + """
 SELECT
-    (SELECT array_agg(rolname ORDER BY rolname) FROM api_roles),
-    (SELECT array_agg(rolname ORDER BY rolname) FROM creators),
-    (SELECT count(*) FROM namespace),
-    (SELECT count(*) FROM relations WHERE relkind IN ('r', 'p')),
-    (SELECT count(*) FROM relations WHERE relkind IN ('v', 'm')),
-    (SELECT count(*) FROM relations WHERE relkind = 'S'),
-    (SELECT count(*) FROM routines),
+    (SELECT array_agg(rolname::text ORDER BY rolname) FROM api_roles) AS api_roles,
+    (SELECT array_agg(rolname::text ORDER BY rolname) FROM creators) AS creator_roles,
+    (SELECT count(*) FROM namespace) AS schema_count,
+    (SELECT count(*) FROM relations WHERE relkind IN ('r', 'p')) AS table_count,
+    (SELECT count(*) FROM relations WHERE relkind IN ('v', 'm')) AS view_count,
+    (SELECT count(*) FROM relations WHERE relkind = 'S') AS sequence_count,
+    (SELECT count(*) FROM routines) AS routine_count,
     (SELECT jsonb_agg(jsonb_build_object(
         'name', relname, 'kind', relkind, 'owner', pg_catalog.pg_get_userbyid(relowner),
-        'rls', relrowsecurity, 'options', reloptions) ORDER BY relname) FROM relations),
+        'rls', relrowsecurity, 'options', reloptions) ORDER BY relname) FROM relations) AS relations,
     (SELECT jsonb_agg(jsonb_build_object(
         'name', proname, 'arguments', pg_catalog.pg_get_function_identity_arguments(oid),
         'kind', prokind, 'owner', pg_catalog.pg_get_userbyid(proowner),
-        'security_definer', prosecdef) ORDER BY proname, oid) FROM routines)
+        'security_definer', prosecdef) ORDER BY proname, oid) FROM routines) AS routines
 """
 
 FINDINGS_SQL = CATALOG + """

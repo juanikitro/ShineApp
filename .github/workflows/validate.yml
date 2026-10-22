@@ -27,7 +27,7 @@ jobs:
     # Disposable catalog tests only; no Supabase credentials or real data.
     services:
       postgres-security:
-        image: postgres:15
+        image: postgres:17
         env:
           POSTGRES_DB: security_synthetic
           POSTGRES_USER: postgres
