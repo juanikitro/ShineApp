@@ -10,6 +10,9 @@ Regenerar con:
 py -3 scripts/check_docs.py --write --skip-build
 ```
 
+## 2026-10-22
+- [Clientes: cumpleanos del 29/02 y fechas limite de la alerta](docs/registro/cambios/2026-10-22-cumpleanos-29-febrero-y-fechas-limite.md)
+
 ## 2026-10-14
 - [Dependencias: correcciones de seguridad para los audits de CI](docs/registro/cambios/2026-10-14-drf-security-audit.md)
 
