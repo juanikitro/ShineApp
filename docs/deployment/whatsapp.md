@@ -44,6 +44,9 @@ Como funciona:
 - Se activan modulos (turno confirmado, listo para entregar, trabajo entregado, cotizacion) y cada uno tiene un mensaje de texto libre editable con variables `{variable}`. La UI muestra las variables disponibles por modulo. Ademas hay un mensaje manual generico en la ficha del cliente.
 - El boton de WhatsApp aparece en la cotizacion, la turnera, el tablero de trabajos y la ficha del cliente. Abre `https://wa.me/<digitos>?text=<mensaje renderizado>` directo (no usa el servidor).
 - Si falta telefono o un mensaje activo, la accion permanece visible pero deshabilitada e indica el requisito pendiente. Si el navegador bloquea la apertura o falla el registro en Historial, la UI informa la condicion sin afirmar entrega o lectura.
+- La tarjeta de cotizacion tambien muestra el requisito junto al boton deshabilitado, asociado mediante `aria-describedby`. Un telefono sin digitos o un template vacio no habilitan la accion gratuita.
+- La apertura ocurre sin esperar al servidor. Mientras se registra la misma accion en esta pantalla, los clics repetidos no vuelven a abrir la ventana ni crean otro registro. Es una proteccion local durante el registro, no idempotencia entre pestanas o dispositivos; un reenvio posterior sigue siendo una accion explicita.
+- Si falla el registro, se pide revisar historial y conexion antes de repetir: una respuesta perdida no demuestra que el servidor no haya guardado la apertura.
 - En modo gratis, los envios server-side quedan deshabilitados: `enqueue_automated_message()` no genera mensajes y los endpoints de envio pago responden error; el frontend usa wa.me.
 
 Variables por modulo:
@@ -56,6 +59,11 @@ Variables por modulo:
 Historial:
 - Cada envio gratis se registra con `POST /api/whatsapp/free/log/` (`EmployerOnly`, scoping por negocio): crea un `WhatsAppMessage` con `message_type=free_text`, `provider=wame`, `status=sent`.
 - Limitacion: el modo gratis no puede confirmar entrega ni lectura (abre el WhatsApp del operador). El estado real disponible es "enviado/link abierto".
+
+Validacion manual pendiente de #281 (sin enviar a clientes reales):
+- Con datos sinteticos, recorrer cotizacion, agenda/turno, trabajo y ficha del cliente en desktop y mobile; comprobar destinatario/evento antes de abrir y confirmar el envio solo desde WhatsApp.
+- Probar teclado y foco en tarjeta y menu; revisar explicaciones de telefono/template faltante, popup bloqueado y fallo del registro. Un clic repetido mientras el registro sigue pendiente debe abrir una sola ventana.
+- Verificar que el historial conserva la semantica de apertura/manual, sin interpretar `sent` de `wame` como entrega o lectura. La disponibilidad y los tests locales no sustituyen esta aceptacion en navegador.
 
 ## Variables de entorno backend
 

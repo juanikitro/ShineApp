@@ -39,7 +39,7 @@ test('createQuoteCardContentRenderer preserves the standalone quote card and its
 	)
 	fireEvent.click(screen.getByRole('button', { name: 'Bajar PDF' }))
 	fireEvent.click(
-		screen.getByRole('button', { name: 'WhatsApp cotizacion' }),
+		screen.getByRole('button', { name: 'WhatsApp cotizacion para Ana' }),
 	)
 	fireEvent.click(
 		screen.getByRole('button', {
@@ -47,6 +47,28 @@ test('createQuoteCardContentRenderer preserves the standalone quote card and its
 		}),
 	)
 	assert.deepEqual(calls, ['reservation', 'pdf', 'whatsapp', 'send'])
+})
+
+test('quote card keeps unavailable WhatsApp visible with an accessible reason', () => {
+	let clicks = 0
+	const reason = 'El cliente no tiene telefono cargado.'
+	const renderCard = createQuoteCardContentRenderer({
+		quoteCode: () => 'Q-8', quoteHasReservation: () => false,
+		quoteLaneStatus: () => 'draft', quoteTentativeTimeLabel: () => '',
+		onCreateReservationFromQuote: () => undefined,
+		onDownloadQuotePdf: () => undefined,
+		onDownloadQuotePdfAndMarkSent: () => undefined,
+		onSendQuoteWhatsapp: () => { clicks += 1 },
+		whatsappButtonVisible: () => true, whatsappButtonLabel: () => 'WhatsApp',
+		whatsappUnavailableReason: () => reason,
+		onOpenQuoteReservationInAgenda: () => undefined,
+	})
+	render(renderCard({ id: 8, customer_name: 'Ana', items: [] }))
+	const button = screen.getByRole('button', { name: 'WhatsApp cotizacion para Ana' }) as HTMLButtonElement
+	assert.equal(button.disabled, true)
+	assert.equal(document.getElementById(button.getAttribute('aria-describedby')!)?.textContent, reason)
+	fireEvent.click(button)
+	assert.equal(clicks, 0)
 })
 
 test('quote board does not pulse a card again after its data refreshes', () => {
@@ -82,8 +104,9 @@ test('quote board does not pulse a card again after its data refreshes', () => {
 			onDownloadQuotePdf={() => undefined}
 			onDownloadQuotePdfAndMarkSent={() => undefined}
 			onSendQuoteWhatsapp={() => undefined}
-			whatsappButtonVisible={() => false}
+			whatsappButtonVisible={() => true}
 			whatsappButtonLabel={() => 'WhatsApp'}
+			whatsappUnavailableReason={() => 'Falta configurar el mensaje.'}
 			onOpenQuoteReservationInAgenda={() => undefined}
 			onQuoteDragCancel={() => undefined}
 			onQuoteDragEnd={() => undefined}
@@ -93,6 +116,9 @@ test('quote board does not pulse a card again after its data refreshes', () => {
 	)
 
 	assert.equal(document.querySelector('.motion-flash-overlay'), null)
+	const whatsapp = screen.getByRole('button', { name: 'WhatsApp cotizacion para Ana' }) as HTMLButtonElement
+	assert.equal(whatsapp.disabled, true)
+	assert.equal(document.getElementById(whatsapp.getAttribute('aria-describedby')!)?.textContent, 'Falta configurar el mensaje.')
 })
 
 test('quote board keeps lanes and cards mounted when the panel re-renders', () => {
