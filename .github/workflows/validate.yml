@@ -67,10 +67,6 @@ jobs:
         working-directory: backend
         run: python manage.py makemigrations --check --dry-run
 
-      - name: Backend tests with coverage gate
-        working-directory: backend
-        run: python -m pytest --cov --cov-report=term-missing:skip-covered
-
       - name: Supabase metadata regression tests (synthetic PostgreSQL)
         working-directory: backend
         env:
@@ -78,6 +74,10 @@ jobs:
           SHINEAPP_SECURITY_POSTGRES_TESTS: "1"
           SUPABASE_STORAGE_ENABLED: "0"
         run: python -m pytest tests/test_supabase_security.py tests/test_supabase_security_postgres.py
+
+      - name: Backend tests with coverage gate
+        working-directory: backend
+        run: python -m pytest --cov --cov-report=term-missing:skip-covered
 
   frontend:
     name: frontend

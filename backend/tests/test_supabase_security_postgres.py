@@ -174,3 +174,14 @@ def test_plan_review_comments_escape_metadata_newlines(catalog):
     assert comments
     assert all("\n" not in sql and "\r" not in sql for sql in comments)
     assert any("security\\nprobe_owner" in sql for sql in comments)
+
+
+def test_explicit_empty_acls_mean_no_grants_not_builtin_defaults(catalog):
+    cursor, creator = catalog
+    quoted = connection.ops.quote_name(creator)
+    cursor.execute(f"REVOKE ALL ON public.security_probe FROM {quoted}")
+    cursor.execute(f"ALTER DEFAULT PRIVILEGES REVOKE ALL ON FUNCTIONS FROM {quoted}")
+    cursor.execute("SELECT cardinality(relacl) FROM pg_catalog.pg_class WHERE oid = 'public.security_probe'::regclass")
+    assert cursor.fetchone()[0] == 0
+    assert report(catalog)["status"] == "pass"
+    assert containment_review_plan(cursor, [creator]) == []

@@ -22,8 +22,11 @@ WITH api_roles AS (
     SELECT oid, rolname FROM pg_catalog.pg_roles
     WHERE rolname = ANY(%s) OR rolname = current_user
        OR oid IN (SELECT relowner FROM relations UNION SELECT proowner FROM routines)
-), defaults AS (
-    SELECT c.rolname AS creator, s.scope, t.kind, a.*
+), default_acls AS (
+    SELECT c.rolname AS creator, s.scope, t.kind,
+           CASE WHEN s.scope = 'global'
+                THEN COALESCE(d.defaclacl, pg_catalog.acldefault(t.kind, c.oid))
+                ELSE d.defaclacl END AS acl
     FROM creators c
     CROSS JOIN (VALUES ('r'::"char"), ('S'::"char"), ('f'::"char")) t(kind)
     CROSS JOIN (VALUES ('global'), ('public')) s(scope)
@@ -31,11 +34,11 @@ WITH api_roles AS (
       ON d.defaclrole = c.oid AND d.defaclobjtype = t.kind
       AND d.defaclnamespace = CASE WHEN s.scope = 'global' THEN 0::oid
                                   ELSE (SELECT oid FROM namespace) END
+), defaults AS (
+    SELECT d.creator, d.scope, d.kind, a.* FROM default_acls d
+    -- Empty ACLs mean no grants; PG15 aclexplode rejects zero-dimensional arrays.
     CROSS JOIN LATERAL pg_catalog.aclexplode(
-      CASE WHEN s.scope = 'global'
-           THEN COALESCE(d.defaclacl, pg_catalog.acldefault(t.kind, c.oid))
-           ELSE COALESCE(d.defaclacl, '{}'::aclitem[]) END
-    ) a
+        CASE WHEN pg_catalog.cardinality(d.acl) > 0 THEN d.acl END) a
 )
 """
 
@@ -88,7 +91,8 @@ WHERE c.relkind <> 'S' AND pg_catalog.has_any_column_privilege(r.oid, c.oid, p.p
 UNION ALL
 SELECT 'table_additional_grant', c.relname, r.rolname, a.privilege_type
 FROM relations c CROSS JOIN api_roles r
-CROSS JOIN LATERAL pg_catalog.aclexplode(c.relacl) a
+CROSS JOIN LATERAL pg_catalog.aclexplode(
+    CASE WHEN pg_catalog.cardinality(c.relacl) > 0 THEN c.relacl END) a
 WHERE c.relkind <> 'S'
   AND a.privilege_type NOT IN ('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER')
   AND CASE WHEN a.grantee = 0 THEN true ELSE pg_catalog.pg_has_role(r.oid, a.grantee, 'USAGE') END
@@ -120,21 +124,25 @@ ORDER BY 1, 2, 3, 4
 
 
 PLAN_SQL = CATALOG + """
-, acl_sources AS (
-    SELECT 'SCHEMA' AS kind, 'public' AS object, n.nspowner AS owner, a.*
-    FROM namespace n CROSS JOIN LATERAL pg_catalog.aclexplode(
-        COALESCE(n.nspacl, pg_catalog.acldefault('n', n.nspowner))) a
+, raw_acls AS (
+    SELECT 'SCHEMA' AS kind, 'public' AS object, n.nspowner AS owner,
+           COALESCE(n.nspacl, pg_catalog.acldefault('n', n.nspowner)) AS acl
+    FROM namespace n
     UNION ALL
     SELECT CASE WHEN c.relkind = 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
-           pg_catalog.format('public.%%I', c.relname), c.relowner, a.*
-    FROM relations c CROSS JOIN LATERAL pg_catalog.aclexplode(
-        COALESCE(c.relacl, pg_catalog.acldefault(
-            CASE WHEN c.relkind = 'S' THEN 'S'::"char" ELSE 'r'::"char" END, c.relowner))) a
+           pg_catalog.format('public.%%I', c.relname), c.relowner,
+           COALESCE(c.relacl, pg_catalog.acldefault(
+               CASE WHEN c.relkind = 'S' THEN 'S'::"char" ELSE 'r'::"char" END, c.relowner))
+    FROM relations c
     UNION ALL
     SELECT 'ROUTINE', pg_catalog.format('public.%%I(%%s)', p.proname,
-        pg_catalog.pg_get_function_identity_arguments(p.oid)), p.proowner, a.*
-    FROM routines p CROSS JOIN LATERAL pg_catalog.aclexplode(
-        COALESCE(p.proacl, pg_catalog.acldefault('f', p.proowner))) a
+        pg_catalog.pg_get_function_identity_arguments(p.oid)), p.proowner,
+        COALESCE(p.proacl, pg_catalog.acldefault('f', p.proowner))
+    FROM routines p
+), acl_sources AS (
+    SELECT raw.kind, raw.object, raw.owner, a.* FROM raw_acls raw
+    CROSS JOIN LATERAL pg_catalog.aclexplode(
+        CASE WHEN pg_catalog.cardinality(raw.acl) > 0 THEN raw.acl END) a
 ), effective_sources AS (
     SELECT DISTINCT s.* FROM acl_sources s CROSS JOIN api_roles r
     WHERE CASE WHEN s.grantee = 0 THEN true
@@ -161,7 +169,9 @@ SELECT DISTINCT statement FROM (
         CASE WHEN a.grantee = 0 THEN 'PUBLIC'
              ELSE pg_catalog.quote_ident(pg_catalog.pg_get_userbyid(a.grantee)) END)
     FROM relations c JOIN pg_catalog.pg_attribute col ON col.attrelid = c.oid
-    CROSS JOIN LATERAL pg_catalog.aclexplode(col.attacl) a CROSS JOIN api_roles r
+    CROSS JOIN LATERAL pg_catalog.aclexplode(
+        CASE WHEN pg_catalog.cardinality(col.attacl) > 0 THEN col.attacl END) a
+    CROSS JOIN api_roles r
     WHERE col.attnum > 0 AND NOT col.attisdropped
       AND CASE WHEN a.grantee = 0 THEN true ELSE pg_catalog.pg_has_role(r.oid, a.grantee, 'USAGE') END
     UNION ALL
